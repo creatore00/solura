@@ -91,7 +91,7 @@ app.post('/submitHolidayRequest', isAuthenticated, (req, res) => {
 // Improved email function
 async function getAllEmails(dbName) {
     const pool = getPool(dbName);
-    const query = 'SELECT email FROM users WHERE Email = "yassir.nini27@gmail.com"'; // Only active users
+    const query = 'SELECT email FROM users WHERE Access = "admin"'; // Only active users
     const [results] = await pool.promise().query(query);
     return results.map(row => row.email);
 }
@@ -102,7 +102,7 @@ async function sendEmailNotification(dbName, requesterEmail, requesterName, star
         if (!emails.length) return;
 
         const mailOptions = {
-            from: 'Solura Ltd <founder@solura.uk>',
+            from: 'Solura WorkForce',
             to: emails.join(', '),
             subject: 'New Holiday Request Submitted',
             text: `A new holiday request has been submitted by ${requesterName} (${requesterEmail}).\n\n` +

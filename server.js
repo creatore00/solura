@@ -199,6 +199,75 @@ app.post('/submit', (req, res) => {
         });
     });
 });
+// Route to get user's accessible databases
+app.post('/getUserDatabases', (req, res) => {
+    const { email } = req.body;
+    
+    if (!req.session.user || req.session.user.email !== email) {
+        return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const sql = `
+        SELECT db_name, Access
+        FROM users
+        WHERE Email = ?
+    `;
+
+    mainPool.query(sql, [email], (err, results) => {
+        if (err) {
+            console.error('Error querying database:', err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({
+            databases: results,
+            currentDb: req.session.user.dbName
+        });
+    });
+});
+
+// Route to switch databases
+app.post('/switchDatabase', (req, res) => {
+    const { email, dbName } = req.body;
+    
+    if (!req.session.user || req.session.user.email !== email) {
+        return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Verify the user has access to the requested database
+    const verifySql = `
+        SELECT 1
+        FROM users
+        WHERE Email = ? AND db_name = ?
+    `;
+
+    mainPool.query(verifySql, [email, dbName], (err, results) => {
+        if (err) {
+            console.error('Error verifying database access:', err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        if (results.length === 0) {
+            return res.status(403).json({ error: 'Access to this database is not authorized' });
+        }
+
+        // Update session with new database
+        req.session.user.dbName = dbName;
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+            
+            res.json({ success: true });
+        });
+    });
+});
 // Route to retrieve data from the database
 app.post('/getRota', isAuthenticated, (req, res) => {
     const selectedDate = req.body.date;

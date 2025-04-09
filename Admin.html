@@ -363,7 +363,32 @@
             margin-bottom: 1rem;
             font-weight: 600;
         }
-        
+        #databaseSwitcher {
+    background-color: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    font-size: 14px;
+}
+
+#dbSelector {
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+}
+
+#switchDbBtn {
+    padding: 4px 8px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#switchDbBtn:hover {
+    background-color: #0069d9;
+}
         .footer-links {
             list-style: none;
         }
@@ -549,19 +574,23 @@
     <div class="top-bar">
         <div class="logo-container">
             <!-- Replace with your actual logo -->
-            <img src="https://via.placeholder.com/50x50?text=Solura" alt="Solura Logo" class="logo-img">
             <div>
                 <div class="logo-text">Solura</div>
                 <div class="logo-subtext">Rota Management System</div>
             </div>
         </div>
-        
+        <!-- Add this near the top of your page, maybe in the header -->
+<div id="databaseSwitcher" style="position: fixed; top: 10px; right: 1200px; background: white; padding: 10px; border: 1px solid #ccc; border-radius: 5px; z-index: 1000;">
+    <span id="currentDbDisplay">Current Database: Loading...</span>
+    <select id="dbSelector" style="margin-left: 10px; display: none;">
+        <!-- Options will be populated by JavaScript -->
+    </select>
+    <button id="switchDbBtn" style="margin-left: 10px; display: none;">Switch</button>
+</div>
         <nav>
-            <a href="/dashboard" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
             <a href="/rota" class="nav-link"><i class="fas fa-calendar-alt"></i> Rotas</a>
             <a href="/updateinfo" class="nav-link"><i class="fas fa-users"></i> Employees</a>
             <a href="/reports" class="nav-link"><i class="fas fa-chart-bar"></i> Reports</a>
-            <a href="/settings" class="nav-link"><i class="fas fa-cog"></i> Settings</a>
             
             <div class="dropdown">
                 <button class="dropdown-toggle">
@@ -582,7 +611,7 @@
             </div>
         </nav>
     </div>
-    
+
     <!-- Main Content -->
     <div class="main-container">
         <!-- Hero Section -->
@@ -634,41 +663,6 @@
             </div>
         </section>
         
-        <!-- Rota Confirmation Form -->
-        <section class="dashboard-section">
-            <h2 class="section-title">Rota Confirmation</h2>
-            <div class="form-container">
-                <form class="rota-form" id="rotaForm">
-                    <div class="form-group">
-                        <label for="date" class="form-label">Rota Confirmed By:</label>
-                        <input type="date" id="date" name="date" class="form-input">
-                    </div>
-                    <button type="submit" class="form-button">Get Rota Information</button>
-                </form>
-                <div id="who"></div>
-            </div>
-        </section>
-        
-        <!-- Weekly Labour Cost Table -->
-        <section class="dashboard-section">
-            <h2 class="section-title">Weekly Labour Cost Analysis</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th colspan="3">Weekly Labour Cost Overview</th>
-                    </tr>
-                    <tr>
-                        <th>Week Period</th>
-                        <th>Projected Cost</th>
-                        <th>Actual Cost</th>
-                    </tr>
-                </thead>
-                <tbody class="table" id="tableBody">
-                    <!-- Data rows will be inserted here -->
-                </tbody>
-            </table>
-        </section>
-        
         <!-- Features Section -->
         <section class="dashboard-section">
             <h2 class="section-title">Why Choose Solura RMS</h2>
@@ -705,7 +699,6 @@
         <div class="footer-content">
             <div class="footer-about">
                 <div class="footer-logo">
-                    <img src="https://via.placeholder.com/40x40?text=SL" alt="Solura Logo" class="footer-logo-img">
                     <span class="footer-logo-text">Solura</span>
                 </div>
                 <p>Innovative workforce management solutions designed to streamline your operations and maximize efficiency.</p>
@@ -714,20 +707,9 @@
             <div class="footer-links-section">
                 <h4 class="footer-heading">Quick Links</h4>
                 <ul class="footer-links">
-                    <li class="footer-link"><a href="/dashboard">Dashboard</a></li>
                     <li class="footer-link"><a href="/rota">Rotas</a></li>
                     <li class="footer-link"><a href="/employees">Employees</a></li>
                     <li class="footer-link"><a href="/reports">Reports</a></li>
-                </ul>
-            </div>
-            
-            <div class="footer-links-section">
-                <h4 class="footer-heading">Resources</h4>
-                <ul class="footer-links">
-                    <li class="footer-link"><a href="/help">Help Center</a></li>
-                    <li class="footer-link"><a href="/tutorials">Video Tutorials</a></li>
-                    <li class="footer-link"><a href="/api">Developer API</a></li>
-                    <li class="footer-link"><a href="/status">System Status</a></li>
                 </ul>
             </div>
             
@@ -747,7 +729,84 @@
         </div>
     </footer>
 
-    <script>
+    <script>// Database switcher functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get user session info (you may need to adjust this based on how you store session info)
+            const userEmail = new URLSearchParams(window.location.search).get('email');
+            
+            // Fetch the user's accessible databases
+            fetch('/getUserDatabases', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: userEmail })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.databases && data.databases.length > 1) {
+                    // User has multiple databases - show the switcher
+                    const dbSelector = document.getElementById('dbSelector');
+                    const switchBtn = document.getElementById('switchDbBtn');
+                    const currentDbDisplay = document.getElementById('currentDbDisplay');
+                    
+                    // Set current database display
+                    currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
+                    
+                    // Populate dropdown
+                    data.databases.forEach(db => {
+                        const option = document.createElement('option');
+                        option.value = db.db_name;
+                        option.textContent = db.db_name;
+                        if (db.db_name === data.currentDb) {
+                            option.selected = true;
+                        }
+                        dbSelector.appendChild(option);
+                    });
+                    
+                    // Show controls
+                    dbSelector.style.display = 'inline-block';
+                    switchBtn.style.display = 'inline-block';
+                    
+                    // Handle switch
+                    switchBtn.addEventListener('click', function() {
+                        const selectedDb = dbSelector.value;
+                        if (selectedDb !== data.currentDb) {
+                            // Switch database
+                            fetch('/switchDatabase', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ 
+                                    email: userEmail,
+                                    dbName: selectedDb
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.success) {
+                                    // Reload the page with the new database
+                                    window.location.reload();
+                                } else {
+                                    alert('Failed to switch database: ' + (result.message || 'Unknown error'));
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error switching database:', error);
+                                alert('Error switching database');
+                            });
+                        }
+                    });
+                } else if (data.databases && data.databases.length === 1) {
+                    // User only has one database - just display it
+                    document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching user databases:', error);
+            });
+        });
         document.getElementById('rotaForm').addEventListener('submit', function(event) {
             event.preventDefault();
             const date = document.getElementById('date').value;

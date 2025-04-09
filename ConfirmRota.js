@@ -489,7 +489,6 @@ app.get('/api/confirmed-rota-month', isAuthenticated, (req, res) => {
     });
 });
 
-
 // Route to handle logout
 app.get('/logout', (req, res) => {
     // Check if there is an active session

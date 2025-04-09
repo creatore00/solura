@@ -155,16 +155,24 @@ const sendEmail = async (pdfBuffer, emailAddresses) => {
         }
     });
 
-    // Send email one by one
     for (const email of emailAddresses) {
         const mailOptions = {
-            from: 'oxfordbbuona@gmail.com',
-            to: email, // Single recipient
-            subject: 'Weekly Rota',
-            text: 'Please find the attached weekly rota.',
+            from: 'Solura WorkForce', // Update with your actual sender email
+            to: email,
+            subject: 'Your Weekly Work Schedule',
+            text: `
+    Hello,
+    
+    Attached is your rota for the upcoming week.
+    
+    Please review it carefully and let us know if you have any questions or availability changes.
+    
+    Best regards,  
+    Management Team
+            `.trim(),
             attachments: [
                 {
-                    filename: 'weekly_rota.pdf',
+                    filename: 'Weekly_Rota.pdf',
                     content: pdfBuffer
                 }
             ]

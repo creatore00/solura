@@ -1,304 +1,247 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/png;base64,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" type="image/png">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payslips</title>
+  <style>
+    :root {
+      --main-color: #001f3f;
+      --light-bg: #ffffff;
+      --text-color: #333;
+      --highlight: #0074D9;
+    }
 
-    <title>Payslips</title>
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-        body {
-            /* Set the background color with gradient effect */
-            background: #e2e2e2;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            text-transform: uppercase;
-            color: #333; /* Darker text color */
-            overflow-x: hidden; /* Prevent horizontal scrolling */
-        }
-        table {
-            width: 100%;
-            max-width: 1200px;
-            margin: 40px auto; /* This centers the table horizontally */
-            border-collapse: separate;
-            border-spacing: 0;
-            background-color: #fff; /* White background */
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Added box shadow for depth */
-            border: 1px solid #000000; /* Light grey border around the table */
-        }
-        th, td {
-            text-align: center;
-            border: 1px solid #000000; /* Light grey border for table cells */
-            padding: 12px;
-            white-space: nowrap;
-            background-color: #f1f3f5; /* Light grey background */
-            color: #333; /* Darker text color */
-            font-weight: bold; /* Bold text */
-        }
-        .table1 {
-            width: 74%;
-            border-collapse: separate;
-            margin: 0 auto; /* This centers the table horizontally */
-            border-spacing: 0;
-            background-color: #fff; /* White background */
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Added box shadow for depth */
-            border: 0.1px solid #000; /* Border around the table */
-        }
-        .td1 {
-            text-align: center;
-            border: 1px solid #ffffff; /* Border for table cells */
-            padding: 5px;
-            white-space: nowrap;
-            background-color: #f1f3f5; /* Light grey background */
-            color: #fff; /* White text */
-            font-weight: bold; /* Bold text */
-        }
-        .td2 {
-            width: 15%;
-            text-align: center;
-            border: 1px solid #ffffff; /* Border for table cells */
-            padding: 5px;
-            white-space: nowrap;
-            background-color: #4A90E2; /* Light blue background */
-            color: #fff; /* White text */
-            font-weight: bold; /* Bold text */
-        }
-        .btn, .btn1 {
-            background-color: #474747; /* Blue button background */
-            color: #fff; /* White text */
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            align-self: center;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            transition: background-color 0.3s ease; /* Smooth color transition */
-            font-size: 14px; /* Font size */
-        }
-        .btn:hover, .btn1:hover {
-            background-color: #000000; /* Darker blue button background on hover */
-            transform: scale(1.05); /* Increase size by 5% */
-            transition: transform 0.3s ease; /* Add smooth transition effect */
-        }
-        .draggable {
-            cursor: pointer;
-        }
-        .dragging {
-            opacity: 0.5;
-        }
-        .dragover {
-            background-color: #70ace7; /* Lighter blue background */
-        }
-        .time-frame {
-            margin-bottom: 5px;
-            cursor: move;
-            border: 1px solid transparent; /* Added for highlighting */
-        }
-        .selected {
-            background-color: #659ed6; /* Lighter blue background */
-            border-color: #ccc; /* Added for highlighting */
-        }
-        #timeFrameInput {
-            display: none;
-            position:relative; /* Ensure it is positioned relative to the viewport */
-            width: 20%;
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
-            border: 1px solid #ccc;
-            padding: 10px;
-            color: white;
-        }
-        #timeFrameInput.show {
-            display: block;
-        }
-        #popupMessage {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #4CAF50; /* Green background */
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 1000;
-            transition: opacity 0.3s ease; /* Smooth transition */
-        }
-        #popupMessage.show {
-            display: block;
-            opacity: 1;
-        }
-        #customWeekNavigation {
-            margin-bottom: 10px; /* Add some space above the new line */
-        }
-        .date {
-            background: #e2e2e2;
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
-            color: #333; /* Darker text color */
-            border-radius: 5px; /* Rounded corners */
-            padding: 6px 12px; /* Adjust padding for better fit */
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
-        }
-        .date1 {
-            width: 50%;
-            background-color: #70ace7; /* Blue background */
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
-            color: white;
-            border-radius: 5px; /* Rounded corners */
-            padding: 6px 12px; /* Adjust padding for better fit */
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
-        }
-        .holiday-cell {
-              background-color: green;
-              color: white;
-        }
-            #comment-section {
-            margin: 20px;
-        }
-        #comment-box {
-            color: white;
-            border-radius: 5px;
-            width: 25%;
-            height: 100px;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
-        }
-        #char-count {
-            margin-bottom: 10px;
-            font-size: 14px;
-            color: #1286a3;
-        }
-        #submit-comment {
-            padding: 10px 20px;
-            background-color: #1E90FF;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        #submit-comment:hover:enabled {
-            background-color: #1C86EE;
-        }
-        #submit-comment:disabled {
-            background-color: #ffffff;
-            cursor: not-allowed;
-        }
-        /* Animation for table rows */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        tbody tr {
-            animation: fadeInUp 0.5s ease;
-        }
-    </style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: var(--light-bg);
+      color: var(--text-color);
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    nav {
+      background-color: var(--main-color);
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+    }
+
+    nav .logo {
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+
+    nav .menu {
+      display: flex;
+      gap: 20px;
+    }
+
+    nav .menu a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    nav .toggle-switch {
+      cursor: pointer;
+      background: white;
+      color: var(--main-color);
+      border-radius: 12px;
+      padding: 5px 10px;
+      font-size: 0.9em;
+    }
+
+    table {
+      width: 90%;
+      margin: 40px auto;
+      border-collapse: collapse;
+      background-color: white;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 15px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    th {
+      background-color: var(--main-color);
+      color: white;
+    }
+
+    .btn {
+      background-color: var(--main-color);
+      color: white;
+      padding: 8px 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background-color: #003366;
+    }
+
+    .popup {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: #4CAF50;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      display: none;
+    }
+
+    .checkmark {
+      color: green;
+      font-weight: bold;
+    }
+  </style>
 </head>
 <body>
-    <h1>Upload Payslips</h1>
-    <table id="employeesTable">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Last Name</th>
-                <th>Email</th>
-                <th>Upload Payslip</th>
-            </tr>
-        </thead>
-        <tbody id="employeesBody">
-            <!-- Table rows will be populated here -->
-        </tbody>
-    </table>
+  <nav>
+    <div class="logo">Solura</div>
+    <div class="menu">
+      <a href="#">Employees</a>
+      <a href="#">Monthly Report</a>
+    </div>
+  </nav>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            fetch('/insertpayslip/api/employees')
-                .then(response => response.json())
-                .then(data => {
-                    populateEmployees(data);
-                })
-                .catch(error => console.error('Error fetching employees data:', error));
+  <h1 style="text-align:center">Upload Payslips</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Last Name</th>
+        <th>Email</th>
+        <th>Upload Payslip</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="employeesBody"></tbody>
+  </table>
+
+  <div class="popup" id="popupMessage">Upload successful!</div>
+
+  <script>
+
+    window.onload = function () {
+      if (localStorage.getItem('darkMode') === 'true') {
+        document.body.classList.add('dark-mode');
+      }
+
+      fetch('/insertpayslip/api/employees')
+        .then(response => response.json())
+        .then(data => populateEmployees(data))
+        .catch(err => console.error('Error fetching employees:', err));
+    };
+
+    function populateEmployees(employees) {
+      const tableBody = document.getElementById('employeesBody');
+      employees.forEach(employee => {
+        const row = document.createElement('tr');
+
+        row.innerHTML = `
+          <td>${employee.name}</td>
+          <td>${employee.lastName}</td>
+          <td>${employee.email}</td>
+          <td>
+            <form enctype="multipart/form-data">
+              <input type="hidden" name="name" value="${employee.name}">
+              <input type="hidden" name="lastName" value="${employee.lastName}">
+              <input type="hidden" name="email" value="${employee.email}">
+              <input type="file" name="payslip" required>
+              <button class="btn" type="submit">Upload</button>
+            </form>
+          </td>
+          <td class="status">${employee.lastUpdated ? formatDate(employee.lastUpdated) : 'Never uploaded'}</td>
+        `;
+
+        const form = row.querySelector('form');
+        form.addEventListener('submit', function (event) {
+          event.preventDefault();
+          handleUpload(form, row.querySelector('.status'));
         });
 
-        function populateEmployees(employees) {
-            const tableBody = document.getElementById('employeesBody');
-            employees.forEach(employee => {
-                const row = document.createElement('tr');
+        tableBody.appendChild(row);
+      });
+    }
 
-                // Create table data cells and set their values
-                const nameCell = document.createElement('td');
-                nameCell.textContent = employee.name;
-                const lastNameCell = document.createElement('td');
-                lastNameCell.textContent = employee.lastName;
-                const emailCell = document.createElement('td');
-                emailCell.textContent = employee.email;
-                const uploadCell = document.createElement('td');
-                const form = document.createElement('form');
-                form.setAttribute('method', 'post');
-                form.setAttribute('enctype', 'multipart/form-data');
-                form.setAttribute('action', '/insertpayslip/api/upload-payslip');
+    function formatDate(dateString) {
+      if (!dateString) return '';
+      const date = new Date(dateString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
 
-                // Prevent default form submission behavior
-                form.addEventListener('submit', function(event) {
-                    event.preventDefault();
-                    handleUpload(form);
-                });
+    function handleUpload(form, statusCell) {
+      const formData = new FormData(form);
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const originalBtnText = submitBtn.textContent;
+      
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Uploading...';
+      
+      fetch('/insertpayslip/api/upload-payslip', {
+        method: 'POST',
+        body: formData
+      })
+        .then(res => {
+          if (!res.ok) throw new Error('Upload failed');
+          return res.json();
+        })
+        .then(data => {
+          statusCell.innerHTML = formatDate(new Date()) + ' <span class="checkmark">&#10004;</span>';
+          showPopup('Upload successful!');
+        })
+        .catch(err => {
+          statusCell.innerHTML = '<span style="color:red">Failed</span>';
+          showPopup('Upload failed', true);
+        })
+        .finally(() => {
+          submitBtn.disabled = false;
+          submitBtn.textContent = originalBtnText;
+        });
+    }
 
-                form.innerHTML = `
-                    <input type="hidden" name="name" value="${employee.name}">
-                    <input type="hidden" name="lastName" value="${employee.lastName}">
-                    <input type="hidden" name="email" value="${employee.email}">
-                    <label for="payslip">Upload Payslip:</label>
-                    <input type="file" name="payslip" required>
-                    <button class="btn" type="submit">Upload</button>
-                `;
-                uploadCell.appendChild(form);
+    function showPopup(message, error = false) {
+      const popup = document.getElementById('popupMessage');
+      popup.textContent = message;
+      popup.style.backgroundColor = error ? 'red' : '#4CAF50';
+      popup.style.display = 'block';
+      setTimeout(() => popup.style.display = 'none', 3000);
+    }
 
-                // Append table data cells to the table row
-                row.appendChild(nameCell);
-                row.appendChild(lastNameCell);
-                row.appendChild(emailCell);
-                row.appendChild(uploadCell);
-
-                // Append the table row to the table body
-                tableBody.appendChild(row);
-            });
-        }
-
-        function handleUpload(form) {
-            const formData = new FormData(form);
-            fetch(form.getAttribute('action'), {
-                method: 'POST',
-                body: formData
-            })
+    function downloadPayslip(employeeId) {
+        fetch(`/api/download-payslip/${employeeId}`)
             .then(response => {
-                if (!response.ok) {
-                    throw new Error('Upload failed');
-                }
-                return response.json();
+                if (!response.ok) throw new Error('Network response was not ok');
+                return response.blob();
             })
-            .then(data => {
-                alert('Upload successful');
-                // Optionally, update the UI to reflect the successful upload
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `payslip_${employeeId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                showPopup('Payslip downloaded successfully');
             })
             .catch(error => {
-                alert('Error: ' + error.message);
+                console.error('Error fetching payslip:', error);
+                showPopup('Error downloading payslip', true);
             });
-        }
-    </script>
+    }
+</script>
 </body>
 </html>

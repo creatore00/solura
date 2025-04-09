@@ -213,7 +213,7 @@ app.post('/submit', (req, res) => {
         expirationTime.setUTCMinutes(expirationTime.getUTCMinutes() + 10); // Expires in 10 minutes in UTC
 
         // Send password reset link to the provided email address
-        const resetLink = `https://bbuonapp-6fbdf6c6d835.herokuapp.com/token`;
+        const resetLink = `https://solura-6b215edc5c30.herokuapp.com/token`;
 
         const transporter = nodemailer.createTransport({
             host: 'smtp0001.neo.space', // Your SMTP Host
@@ -226,7 +226,7 @@ app.post('/submit', (req, res) => {
         });
 
         const mailOptions = {
-            from: 'founder@solura.uk',
+            from: 'Solura WorkForce',
             to: email,
             subject: 'Password Reset Link',
             text: `Click the link to reset your password: ${resetLink} This is your token for security measures ${token}`
