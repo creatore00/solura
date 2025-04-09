@@ -3,68 +3,326 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/png;base64,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" type="image/png">
-
-    <title>Work Hours Summary</title>
+    <title>Daily Tip Calculation | Solura</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body {
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
+        :root {
+            --primary: #1a365d; /* Navy blue */
+            --secondary: #2b6cb0; /* Medium blue */
+            --accent: #4299e1; /* Light blue */
+            --light: #f7fafc; /* Very light gray */
+            --dark: #2d3748; /* Dark gray */
+            --success: #38a169; /* Green */
+            --warning: #dd6b20; /* Orange */
+            --danger: #e53e3e; /* Red */
+            --text: #4a5568; /* Gray text */
+            --border: #e2e8f0; /* Light border */
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            text-transform: uppercase;
-            color: #60a2ee;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .navbar-item {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .navbar-item:hover {
+            color: var(--accent);
+        }
+        /* Added new style for edit mode indicator */
+        .edit-mode {
+            background-color: rgba(221, 107, 32, 0.1);
+            border-left: 4px solid var(--warning);
         }
         
+        .edit-mode-indicator {
+            display: inline-block;
+            background-color: var(--warning);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 1rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            flex: 1;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            font-size: 2rem;
+            text-align: center;
+        }
+
+        .date-picker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .date-btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .date-btn:hover {
+            background-color: var(--primary);
+        }
+
+        .date-input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        .tip-input-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .tip-input-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .tip-input {
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-size: 1.25rem;
+            text-align: center;
+            width: 200px;
+            transition: border-color 0.3s;
+        }
+
+        .tip-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
         table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background-color: #1E90FF;
-            border-radius: 10px;
+            border-collapse: collapse;
+            margin-bottom: 2rem;
+            background-color: white;
+            border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
-        
+
         th, td {
+            padding: 1rem;
             text-align: center;
-            padding: 12px;
-            white-space: nowrap;
-            background-color: #4A90E2;
-            color: #fff;
-            font-weight: bold;
+            border-bottom: 1px solid var(--border);
         }
-        
-        .btn {
-            background-color: #4A90E2;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            align-self: center;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            transition: background-color 0.3s ease;
-            font-size: 14px;
-        }
-        
-        .btn:hover {
-            background-color: #1E90FF;
-            transform: scale(1.05);
-            transition: transform 0.3s ease;
-        }
-        
-        .date {
-            background-color: #70ace7;
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
+
+        th {
+            background-color: var(--primary);
             color: white;
-            border-radius: 5px;
-            padding: 6px 12px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            font-weight: 600;
         }
-        
+
+        tr:nth-child(even) {
+            background-color: var(--light);
+        }
+
+        tr:hover {
+            background-color: rgba(66, 153, 225, 0.1);
+        }
+
+        .total-row {
+            font-weight: bold;
+            background-color: rgba(66, 153, 225, 0.2) !important;
+        }
+
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c53030;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #2f855a;
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            background-color: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: auto;
+        }
+
+        .footer-text {
+            font-size: 0.9rem;
+        }
+
+        .edit-input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            width: 80px;
+            text-align: center;
+        }
+
+        .edit-btn {
+            background-color: transparent;
+            border: none;
+            color: var(--secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            margin-left: 0.5rem;
+        }
+
+        .edit-btn:hover {
+            color: var(--primary);
+        }
+
+        .editable {
+            position: relative;
+        }
+
+        .editable:hover::after {
+            content: 'Click to edit';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--dark);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem 1.5rem;
+            border-radius: 6px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .notification.success {
+            background-color: var(--success);
+        }
+
+        .notification.error {
+            background-color: var(--danger);
+        }
+
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -75,57 +333,169 @@
                 transform: translateY(0);
             }
         }
-        
-        tbody tr {
-            animation: fadeInUp 0.5s ease;
+
+        .fade-in {
+            animation: fadeInUp 0.5s ease forwards;
         }
-        
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
-    <h1>Daily Tip Calculation</h1>
-    <label class="date" for="monthStart">Select Day:</label>
-    <input type="date" id="monthStart" class="date">
-    <button onclick="loadRota()" class="btn">Load Day</button>
-    <div>
-        <label class="date" for="tip">Enter Tip Amount:</label>
-        <input class="date" type="number" id="tip" min="0">
-        <button onclick="calculateTip()" class="btn">Calculate Tip</button>
-    </div>
-    <div id="hoursSummary">
-        <!-- Total hours and tip will be displayed here -->
-    </div>
-    <footer>
-        <button onclick="navigateDay(-1)" class="btn">Previous Day</button>
-        <button onclick="navigateDay(1)" class="btn">Next Day</button>
-        <div>
-            <button id="submitBtn" onclick="submitPayslips()" class="btn">Save Data</button>
+    <nav class="navbar">
+        <a href="/dashboard" class="navbar-brand">SOLURA</a>
+        <div class="navbar-menu">
+            <a href="/Admin.html" class="navbar-item"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/rota" class="navbar-item"><i class="fas fa-calendar-alt"></i> Rota</a>
+            <a href="/endday" class="navbar-item"><i class="fas fa-chart-bar"></i> Reports</a>
+            <a href="/" class="navbar-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
         </div>
+    </nav>
+
+    <div class="container">
+        <div class="calendar-container" id="tipCalendarContainer"></div>
+        <div class="card">
+            <h1><i class="fas fa-calculator"></i> Daily Tip Calculation</h1>
+            
+            <div class="date-picker">
+                <button class="date-btn" onclick="navigateDay(-1)"><i class="fas fa-chevron-left"></i> Previous</button>
+                <input type="date" id="monthStart" class="date-input" onchange="loadRota()">
+                <button class="date-btn" onclick="navigateDay(1)">Next <i class="fas fa-chevron-right"></i></button>
+            </div>
+
+            <div class="tip-input-container">
+                <label for="tip" class="tip-input-label">Total Tips (£)</label>
+                <input type="number" id="tip" min="0" step="0.01" class="tip-input" onchange="calculateTip()">
+            </div>
+
+            <div id="hoursSummary">
+                <!-- Content will be loaded dynamically -->
+            </div>
+
+            <div class="action-buttons">
+                <button id="cancelBtn" onclick="cancelTips()" class="btn btn-danger hidden"><i class="fas fa-times"></i> Cancel Tips</button>
+                <button id="confirmBtn" onclick="confirmTips()" class="btn btn-success hidden"><i class="fas fa-check"></i> Confirm Tips</button>
+                <button id="updateBtn" onclick="updateTips()" class="btn btn-primary hidden"><i class="fas fa-sync-alt"></i> Update Tips</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p class="footer-text">Solura Ltd © 2024, All rights reserved</p>
     </footer>
 
-    <script>
-        function loadRota() {
-            const monthStart = document.getElementById('monthStart').value;
-            const startDate = new Date(monthStart);
+    <div id="notification" class="notification"></div>
 
-            fetch(`/tip/existing?date=${startDate.toISOString().split('T')[0]}`)
-                .then(response => response.json())
-                .then(existingData => {
-                    if (existingData.length > 0) {
-                        displayExistingTips(existingData);
-                    } else {
-                        fetch(`/tip/rota?startDate=${startDate.toISOString().split('T')[0]}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                const totalHours = calculateTotalHours(data);
-                                displayTotalHours(totalHours);
-                            })
-                            .catch(error => console.error('Error fetching data:', error));
-                    }
-                })
-                .catch(error => console.error('Error fetching existing tips:', error));
+    <script>
+        // Global variables
+        let currentData = [];
+        let isEditable = false;
+        let existingTips = false;
+
+        // Function to show notification
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
         }
 
+        // Function to Load Rota Data with improved cash report handling
+        async function loadRota() {
+            const monthStart = document.getElementById('monthStart').value;
+            if (!monthStart) return;
+
+            // Show loading state
+            document.getElementById('hoursSummary').innerHTML = '<p style="text-align: center;"><i class="fas fa-spinner fa-spin"></i> Loading data...</p>';
+
+            try {
+                // Check for existing tips first
+                const existingResponse = await fetch(`/tip/existing?date=${monthStart}`);
+                const existingData = await existingResponse.json();
+                
+                if (existingData.length > 0) {
+                    existingTips = true;
+                    displayExistingTips(existingData);
+                    showNotification('Existing tips found for this date', 'success');
+                    return;
+                }
+
+                // If no existing tips, fetch rota data
+                const rotaResponse = await fetch(`/tip/rota?startDate=${monthStart}`);
+                const rotaData = await rotaResponse.json();
+                
+                if (rotaData.length === 0) {
+                    document.getElementById('hoursSummary').innerHTML = '<p style="text-align: center;">No rota data found for this date</p>';
+                    return;
+                }
+
+                const totalHours = calculateTotalHours(rotaData);
+                currentData = Object.entries(totalHours.totalHours).map(([name, { hoursWorked }]) => {
+                    const [firstName, lastName] = name.split(' ');
+                    return { firstName, lastName, hoursWorked, tip: 0 };
+                });
+
+                displayCurrentData();
+
+                // Try to fetch cash report with better error handling
+                try {
+                    const dateObj = new Date(monthStart);
+                    const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
+                    const formattedDate = dateObj.toLocaleDateString('en-GB');
+                    const formattedDay = `${dayName} ${formattedDate}`;
+                    
+                    const cashResponse = await fetch(`/tip/cashReport?date=${encodeURIComponent(formattedDay)}`);
+                    if (!cashResponse.ok) throw new Error('Failed to fetch cash report');
+                    
+                    const cashReport = await cashResponse.json();
+                    
+                    if (cashReport && cashReport.service !== undefined) {
+                        const serviceValue = parseFloat(cashReport.service);
+                        if (!isNaN(serviceValue)) {
+                            document.getElementById('tip').value = serviceValue.toFixed(2);
+                            calculateTip();
+                            showNotification('Service charge loaded from cash report', 'success');
+                        } else {
+                            document.getElementById('tip').value = '0.00';
+                            showNotification('Invalid service charge value in cash report', 'warning');
+                        }
+                    } else {
+                        document.getElementById('tip').value = '0.00';
+                        showNotification('No service charge data in cash report', 'warning');
+                    }
+                } catch (error) {
+                    console.error('Cash report error:', error);
+                    document.getElementById('tip').value = '0.00';
+                    showNotification('Error loading cash report: ' + error.message, 'error');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error loading data: ' + error.message, 'error');
+                document.getElementById('hoursSummary').innerHTML = '<p style="text-align: center;">Error loading data</p>';
+            }
+        }
+        
+        // Function to calculate Total Hours
         function calculateTotalHours(data) {
             const totalHours = {};
             let total = 0;
@@ -146,143 +516,691 @@
             return { totalHours, total };
         }
 
+        // Function to Calculate the Tip for Each with 10% deduction
         function calculateTip() {
-            const totalHours = parseFloat(document.getElementById('hoursSummary').dataset.totalHours || 0);
-            const tip = parseFloat(document.getElementById('tip').value || 0);
-            displayTip(tip, totalHours);
-        }
-
-        function displayTotalHours(totalHours) {
-            const container = document.getElementById('hoursSummary');
-            container.innerHTML = '';
-
-            const table = document.createElement('table');
-            const headerRow = document.createElement('tr');
-            headerRow.innerHTML = '<th>Name</th><th>Total Hours</th><th>Tip</th>';
-            table.appendChild(headerRow);
-
-            const tip = parseFloat(document.getElementById('tip').value || 0);
-
-            for (const [name, { hoursWorked }] of Object.entries(totalHours.totalHours)) {
-                const row = document.createElement('tr');
-                const tipPerHour = totalHours.total > 0 ? (tip / totalHours.total) : 0;
-                const tipAmount = hoursWorked * tipPerHour * 0.98; // Apply 2% tax
-                row.innerHTML = `<td>${name}</td><td>${hoursWorked.toFixed(2)}</td><td>£${tipAmount.toFixed(2)}</td>`;
-                table.appendChild(row);
+            const tip = parseFloat(document.getElementById('tip').value) || 0;
+            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+            
+            if (totalHours <= 0) {
+                showNotification('No hours recorded for calculation', 'error');
+                return;
             }
 
-            container.appendChild(table);
-            container.dataset.totalHours = totalHours.total;
+            const tipPerHour = tip / totalHours;
+            
+            currentData.forEach(emp => {
+                emp.tip = emp.hoursWorked * tipPerHour * 0.90; // Changed to 10% deduction (keeping 90%)
+            });
+
+            displayCurrentData();
         }
 
-        function displayTip(tip, totalHours) {
-            const container = document.getElementById('hoursSummary');
-            const table = container.querySelector('table');
-            const rows = table.getElementsByTagName('tr');
+        // Function to Calculate the Tip for Each
+        function calculateSavedTip() {
+            const tip = parseFloat(document.getElementById('tip').value) || 0;
+            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+            
+            if (totalHours <= 0) {
+                showNotification('No hours recorded for calculation', 'error');
+                return;
+            }
 
-            for (let i = 1; i < rows.length; i++) {
-                const cells = rows[i].getElementsByTagName('td');
-                const hoursWorked = parseFloat(cells[1].textContent);
-                const tipAmount = (tip / totalHours) * hoursWorked * 0.9; // Apply 10% tax
-                cells[2].textContent = `£${tipAmount.toFixed(2)}`;
+            const tipPerHour = tip / totalHours;
+            
+            currentData.forEach(emp => {
+                emp.tip = emp.hoursWorked * tipPerHour; // Changed to 10% deduction (keeping 90%)
+            });
+
+            displayCurrentData();
+        }
+        
+        // Function to Display Hours and Tips
+        function displayCurrentData() {
+            const container = document.getElementById('hoursSummary');
+            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+            const totalTips = currentData.reduce((sum, emp) => sum + emp.tip, 0);
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Hours Worked</th>
+                            <th>Tip Amount (£)</th>
+                            ${isEditable ? '<th>Action</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            currentData.forEach((emp, index) => {
+                html += `
+                    <tr class="fade-in">
+                        <td>${emp.firstName} ${emp.lastName}</td>
+                        <td class="editable" onclick="editCell(${index}, 'hoursWorked')">${emp.hoursWorked.toFixed(2)}</td>
+                        <td class="editable" onclick="editCell(${index}, 'tip')">${emp.tip.toFixed(2)}</td>
+                        ${isEditable ? `<td><button class="edit-btn" onclick="removeEmployee(${index})"><i class="fas fa-trash"></i></button></td>` : ''}
+                    </tr>
+                `;
+            });
+
+            html += `
+                    <tr class="total-row fade-in">
+                        <td><strong>Total</strong></td>
+                        <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td><strong>£${totalTips.toFixed(2)}</strong></td>
+                        ${isEditable ? '<td></td>' : ''}
+                    </tr>
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = html;
+            updateButtonVisibility();
+        }
+
+        // Function to Display Existing Tips
+        function displayExistingTips(data) {
+            const container = document.getElementById('hoursSummary');
+            const totalTips = data.reduce((sum, emp) => sum + parseFloat(emp.tip), 0);
+            
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Hours Worked</th>
+                            <th>Tip Amount (£)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            data.forEach(emp => {
+                html += `
+                    <tr class="fade-in">
+                        <td>${emp.name}</td>
+                        <td>${parseFloat(emp.totalHours).toFixed(2)}</td>
+                        <td>£${parseFloat(emp.tip).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                    <tr class="total-row fade-in">
+                        <td><strong>Total</strong></td>
+                        <td></td>
+                        <td><strong>£${totalTips.toFixed(2)}</strong></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p style="text-align: center; margin-top: 1rem; color: var(--success);">
+                    <i class="fas fa-info-circle"></i> Tips for this date have already been calculated.
+                </p>
+            `;
+
+            container.innerHTML = html;
+            
+            // Store the existing data in currentData for potential updates
+            currentData = data.map(emp => {
+                const [firstName, lastName] = emp.name.split(' ');
+                return {
+                    firstName,
+                    lastName,
+                    hoursWorked: parseFloat(emp.totalHours),
+                    tip: parseFloat(emp.tip)
+                };
+            });
+            
+            document.getElementById('tip').value = totalTips.toFixed(2);
+            updateButtonVisibility();
+        }
+
+        // Function to update button visibility based on state
+        function updateButtonVisibility() {
+            const cancelBtn = document.getElementById('cancelBtn');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const updateBtn = document.getElementById('updateBtn');
+            
+            if (existingTips) {
+                cancelBtn.classList.remove('hidden');
+                updateBtn.classList.remove('hidden');
+                confirmBtn.classList.add('hidden');
+            } else if (currentData.length > 0) {
+                cancelBtn.classList.add('hidden');
+                confirmBtn.classList.remove('hidden');
+                updateBtn.classList.add('hidden');
+            } else {
+                cancelBtn.classList.add('hidden');
+                confirmBtn.classList.add('hidden');
+                updateBtn.classList.add('hidden');
             }
         }
-        function displayExistingTips(existingData) {
-    const container = document.getElementById('hoursSummary');
-    container.innerHTML = '';
 
-    const table = document.createElement('table');
-    const headerRow = document.createElement('tr');
-    headerRow.innerHTML = '<th>Name</th><th>Total Hours</th><th>Tip</th>';
-    table.appendChild(headerRow);
+        // Function to edit cell values
+        function editCell(index, field) {
+            if (!isEditable) return;
+            
+            const cell = document.querySelectorAll(`tbody tr:nth-child(${index + 1}) td:nth-child(${field === 'hoursWorked' ? 2 : 3})`)[0];
+            const currentValue = currentData[index][field];
+            
+            cell.innerHTML = `
+                <input type="number" class="edit-input" value="${currentValue.toFixed(2)}" 
+                    onblur="saveCellEdit(${index}, '${field}', this)" 
+                    onkeypress="if(event.key === 'Enter') saveCellEdit(${index}, '${field}', this)"
+                    autofocus>
+            `;
+            
+            cell.querySelector('input').select();
+        }
 
-    let totalTip = 0;
-    existingData.forEach(entry => {
-        const tip = Number(entry.tip); // Ensure `tip` is a number
-        const totalHours = Number(entry.totalHours) || 0; // Ensure `totalHours` is a number
-        totalTip += tip; // Add to totalTip
+        // Function to save edited cell value
+        function saveCellEdit(index, field, input) {
+            const newValue = parseFloat(input.value) || 0;
+            currentData[index][field] = newValue;
+            
+            // If hours were edited, recalculate tips proportionally
+            if (field === 'hoursWorked') {
+                const totalTips = currentData.reduce((sum, emp) => sum + emp.tip, 0);
+                const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+                
+                if (totalHours > 0) {
+                    const tipPerHour = totalTips / totalHours;
+                    currentData.forEach(emp => {
+                        emp.tip = emp.hoursWorked * tipPerHour;
+                    });
+                }
+            }
+            
+            displayCurrentData();
+        }
 
-        const row = document.createElement('tr');
-        row.innerHTML = `<td>${entry.name}</td><td>${totalHours.toFixed(2)}</td><td>£${isNaN(tip) ? '0.00' : tip.toFixed(2)}</td>`;
-        table.appendChild(row);
+        // Function to remove an employee from the list
+        function removeEmployee(index) {
+            if (!isEditable) return;
+            
+            currentData.splice(index, 1);
+            displayCurrentData();
+        }
+
+        // Function to enable editing with better UI feedback
+        function enableEditing() {
+            isEditable = true;
+            isUpdateMode = true;
+            
+            // Add visual indicator of edit mode
+            const card = document.querySelector('.card');
+            card.classList.add('edit-mode');
+            
+            // Update the update button text and behavior
+            const updateBtn = document.getElementById('updateBtn');
+            updateBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+            updateBtn.onclick = submitUpdatedTips;
+            
+            displayCurrentData();
+            showNotification('Edit mode enabled. Make your changes below', 'success');
+        }
+
+        // Function to cancel tips (delete existing)
+        async function cancelTips() {
+            if (!confirm('Are you sure you want to cancel the tips for this day? This cannot be undone.')) {
+                return;
+            }
+            
+            const monthStart = document.getElementById('monthStart').value;
+            
+            try {
+                const response = await fetch(`/tip/cancel?date=${monthStart}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showNotification('Tips cancelled successfully', 'success');
+                    existingTips = false;
+                    loadRota();
+                } else {
+                    throw new Error(await response.text());
+                }
+            } catch (error) {
+                showNotification('Error cancelling tips: ' + error.message, 'error');
+            }
+        }
+
+        // Function to confirm tips (submit new)
+        async function confirmTips() {
+    if (!confirm('Are you sure you want to confirm these tips?')) {
+        return;
+    }
+    
+    const monthStart = document.getElementById('monthStart').value;
+    
+    // Calculate total hours for verification
+    const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+    
+    // Prepare data with fixed 2 decimal places for tips
+    const payslipData = currentData.map(emp => ({
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        totalHours: parseFloat(emp.hoursWorked.toFixed(2)), // Ensure 2 decimal places
+        tip: parseFloat((emp.tip).toFixed(2)), // Apply 10% deduction and fix to 2 decimals
+        monthStart: monthStart
+    }));
+    
+    try {
+        const response = await fetch('/tip/submitPayslips', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payslipData)
+        });
+        
+        if (response.ok) {
+            const responseData = await response.json();
+            showNotification('Tips confirmed successfully', 'success');
+            existingTips = true;
+            loadRota();
+            console.log('Submitted data:', {
+                payslips: payslipData,
+                totalHours: parseFloat(totalHours.toFixed(2))
+            });
+        } else {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Unknown error occurred');
+        }
+    } catch (error) {
+        console.error('Tip confirmation error:', error);
+        showNotification(`Error confirming tips: ${error.message}`, 'error');
+    }
+}
+        
+        // Function to create the tip calendar visualization
+        async function createTipCalendar() {
+    const container = document.getElementById('tipCalendarContainer');
+    if (!container) return;
+
+    container.innerHTML = `
+        <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Tip Status Calendar</h2>
+        <div class="calendar-controls">
+            <button id="prevMonth" class="btn calendar-nav"><i class="fas fa-chevron-left"></i></button>
+            <h3 id="currentMonthYear" style="margin: 0 0.5rem; font-size: 1rem;"></h3>
+            <button id="nextMonth" class="btn calendar-nav"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="calendar-legend">
+            <div><span class="legend-confirmed"></span> Tips Confirmed</div>
+            <div><span class="legend-pending"></span> No Tips</div>
+            <div><span class="legend-no-data"></span> No Data</div>
+        </div>
+    `;
+
+    // Add styles if they don't exist
+    if (!document.getElementById('tipCalendarStyles')) {
+        const style = document.createElement('style');
+        style.id = 'tipCalendarStyles';
+        style.textContent = `
+            .calendar-container {
+                margin-bottom: 1.5rem;
+                padding: 0.8rem;
+                background: #f8f9fa;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            }
+            .calendar-controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 4px;
+            }
+            .calendar-day {
+                padding: 4px;
+                text-align: center;
+                border-radius: 3px;
+                cursor: pointer;
+                min-height: 30px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                border: 1px solid #e0e0e0;
+            }
+            .calendar-day:hover {
+                background: rgba(0,0,0,0.05);
+            }
+            .day-number {
+                font-weight: bold;
+                font-size: 0.85rem;
+            }
+            .day-status {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                margin: 2px auto 0;
+            }
+/* Add these to your existing calendar styles */
+.status-confirmed {
+    background-color: #28a745; /* Green - tips confirmed */
+}
+.status-pending {
+    background-color: #dc3545; /* Red - needs confirmation */
+}
+.status-no-data {
+    background-color: #6c757d; /* Gray - no data */
+}
+    /* Highlight for today when it needs attention */
+.calendar-day.today-pending {
+    border: 2px solid #ffc107 !important;
+    background-color: rgba(255, 193, 7, 0.1);
+}
+/* Update legend to match */
+.calendar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+.calendar-legend div {
+    display: flex;
+    align-items: center;
+}
+            .calendar-legend span {
+                display: inline-block;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                margin-right: 3px;
+            }
+.legend-confirmed { background-color: #28a745; }
+.legend-pending { background-color: #dc3545; }
+.legend-no-data { background-color: #6c757d; }
+            .calendar-day-header {
+                font-weight: bold;
+                text-align: center;
+                padding: 2px;
+                font-size: 0.8rem;
+            }
+            .calendar-day.today {
+                border: 2px solid #007bff;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Initialize calendar with current month
+    const currentDate = new Date();
+    let currentMonth = currentDate.getMonth();
+    let currentYear = currentDate.getFullYear();
+
+    // Render the calendar
+    renderTipCalendar(currentMonth, currentYear);
+
+    // Event listeners for navigation
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+        renderTipCalendar(currentMonth, currentYear);
     });
 
-    // Add a row for the total tip
-    const totalRow = document.createElement('tr');
-    totalRow.innerHTML = `<td><strong>Total</strong></td><td></td><td><strong>£${totalTip.toFixed(2)}</strong></td>`;
-    table.appendChild(totalRow);
-
-    container.appendChild(table);
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+        renderTipCalendar(currentMonth, currentYear);
+    });
 }
 
-    function navigateDay(offset) {
+        // Function to render the tip calendar
+        async function renderTipCalendar(month, year) {
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+                       "July", "August", "September", "October", "November", "December"];
+    
+    document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+    
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Adjust to make Monday the first day (0=Sunday, 1=Monday, etc.)
+    let firstDayOfWeek = firstDay.getDay();
+    if (firstDayOfWeek === 0) firstDayOfWeek = 6; // Sunday becomes 6
+    else firstDayOfWeek--; // Other days shift down by 1
+    
+    const calendarGrid = document.getElementById('calendarGrid');
+    calendarGrid.innerHTML = '';
+    
+    // Day headers starting with Monday
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    dayNames.forEach(day => {
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'calendar-day-header';
+        dayHeader.textContent = day;
+        calendarGrid.appendChild(dayHeader);
+    });
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDayOfWeek; i++) {
+        const emptyDay = document.createElement('div');
+        emptyDay.className = 'calendar-day empty-day';
+        calendarGrid.appendChild(emptyDay);
+    }
+    
+    // Add days of the current month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+        
+        // Format date as YYYY-MM-DD for the dataset
+        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        dayElement.dataset.date = formattedDate;
+        
+        // Check if this is today
+        const today = new Date();
+        if (date.getDate() === today.getDate() && 
+            date.getMonth() === today.getMonth() && 
+            date.getFullYear() === today.getFullYear()) {
+            dayElement.classList.add('today');
+        }
+        
+        const dayNumber = document.createElement('div');
+        dayNumber.className = 'day-number';
+        dayNumber.textContent = day;
+        dayElement.appendChild(dayNumber);
+        
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'day-status status-no-data';
+        dayElement.appendChild(statusIndicator);
+        
+        calendarGrid.appendChild(dayElement);
+        
+        // Add click handler to load tips for that day
+        dayElement.addEventListener('click', () => {
+            document.getElementById('monthStart').value = formattedDate;
+            loadRota();
+        });
+    }
+    
+    // Update statuses for all days
+    await updateTipCalendarStatuses(month, year);
+}
+
+        // Function to Update the Tip status
+        async function updateTipCalendarStatuses(month, year) {
+    try {
+        // Fetch all calendar status data for this month
+        const response = await fetch(`/tip/calendar-status?year=${year}&month=${month + 1}`);
+        if (!response.ok) throw new Error('Failed to fetch calendar status');
+        
+        const { data } = await response.json();
+        
+        // Process each calendar day
+        const calendarDays = document.querySelectorAll('.calendar-day:not(.empty-day)');
+        const today = new Date();
+        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        
+        calendarDays.forEach(dayElement => {
+            const date = dayElement.dataset.date; // Format: yyyy-mm-dd
+            const statusIndicator = dayElement.querySelector('.day-status');
+            
+            // Convert calendar date (yyyy-mm-dd) to dd/mm/yyyy format for comparison
+            const [y, m, d] = date.split('-');
+            const formattedDate = `${d}/${m}/${y}`;
+            
+            // Clear previous classes and tooltip
+            statusIndicator.className = 'day-status';
+            dayElement.removeAttribute('style'); // Clear any previous styling
+            dayElement.title = '';
+            
+            if (data.tips[formattedDate]) {
+                // Tips exist for this date (green)
+                statusIndicator.classList.add('status-confirmed');
+                dayElement.title = `Tips confirmed: £${data.tips[formattedDate].toFixed(2)}`;
+            } else if (data.rotaDays[formattedDate]) {
+                // Rota exists but no tips (red - needs confirmation)
+                statusIndicator.classList.add('status-pending');
+                dayElement.title = 'Tips need confirmation for this day';
+                
+                // Highlight today more prominently if it needs confirmation
+                if (formattedDate === todayFormatted) {
+                    dayElement.style.border = '2px solid #ffc107';
+                    dayElement.style.backgroundColor = 'rgba(255, 193, 7, 0.1)';
+                }
+            } else {
+                // No data at all (gray)
+                statusIndicator.classList.add('status-no-data');
+                dayElement.title = 'No rota data for this day';
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error updating calendar statuses:', error);
+        showNotification('Error loading calendar status', 'error');
+    }
+}
+        
+        // Function to update tips - now properly initiates edit mode
+        function updateTips() {
+            enableEditing();
+        }
+
+        // Function to submit updated tips with better feedback
+        async function submitUpdatedTips() {
+            if (!confirm('Are you sure you want to save these changes?')) {
+                return;
+            }
+            
+            // Recalculate tips before saving
+            calculateSavedTip();
+            
+            const monthStart = document.getElementById('monthStart').value;
+    // Calculate total hours for verification
+    const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+    
+    // Prepare data with fixed 2 decimal places for tips
+    const payslipData = currentData.map(emp => ({
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        totalHours: parseFloat(emp.hoursWorked.toFixed(2)), // Ensure 2 decimal places
+        tip: parseFloat((emp.tip).toFixed(2)), // Apply 10% deduction and fix to 2 decimals
+        monthStart: monthStart
+    }));
+    
+            try {
+                // Show loading state
+                const updateBtn = document.getElementById('updateBtn');
+                updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                updateBtn.disabled = true;
+                
+                // First cancel existing tips
+                const cancelResponse = await fetch(`/tip/cancel?date=${monthStart}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!cancelResponse.ok) {
+                    throw new Error('Failed to cancel existing tips');
+                }
+                
+                // Then submit new tips
+                const response = await fetch('/tip/submitPayslips', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payslipData)
+                });
+                
+                if (response.ok) {
+                    showNotification('Tips updated successfully', 'success');
+                    isEditable = false;
+                    isUpdateMode = false;
+                    existingTips = true;
+                    
+                    // Reset UI
+                    const card = document.querySelector('.card');
+                    card.classList.remove('edit-mode');
+                    const updateBtn = document.getElementById('updateBtn');
+                    updateBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Update Tips';
+                    updateBtn.onclick = updateTips;
+                    updateBtn.disabled = false;
+                    
+                    loadRota();
+                } else {
+                    throw new Error(await response.text());
+                }
+            } catch (error) {
+                console.error('Update error:', error);
+                showNotification('Error updating tips: ' + error.message, 'error');
+                
+                // Reset button state
+                const updateBtn = document.getElementById('updateBtn');
+                updateBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+                updateBtn.disabled = false;
+            }
+        }
+        
+        // Function to Navigate through Days
+        function navigateDay(offset) {
             const monthStart = document.getElementById('monthStart').value;
             if (!monthStart) {
-                alert('Please select a start date.');
+                showNotification('Please select a date first', 'error');
                 return;
             }
 
             const currentStartDate = new Date(monthStart);
-            const newStartDate = new Date(currentStartDate);
-            newStartDate.setDate(currentStartDate.getDate() + offset);
-
-            document.getElementById('monthStart').value = newStartDate.toISOString().split('T')[0];
+            currentStartDate.setDate(currentStartDate.getDate() + offset);
+            
+            const newDateStr = currentStartDate.toISOString().split('T')[0];
+            document.getElementById('monthStart').value = newDateStr;
             loadRota();
         }
 
+        // Function to set Current Day when Page Loads
         function setCurrentDay() {
             const today = new Date();
             document.getElementById('monthStart').value = today.toISOString().split('T')[0];
             loadRota();
         }
 
-        function gatherTableData() {
-            const monthStart = document.getElementById('monthStart').value;
-            const table = document.querySelector('#hoursSummary table');
-            const rows = table.querySelectorAll('tr');
-            const payslipData = [];
-
-            for (let i = 1; i < rows.length; i++) {
-                const cells = rows[i].querySelectorAll('td');
-                const name = cells[0].textContent.split(' ');
-                const firstName = name[0];
-                const lastName = name[1];
-                const totalHours = parseFloat(cells[1].textContent);
-                const tip = parseFloat(cells[2].textContent.replace('£', ''));
-
-                payslipData.push({ firstName, lastName, totalHours, tip, monthStart });
-            }
-
-            return payslipData;
-        }
-
-        function submitPayslips() {
-    const payslipData = gatherTableData();
-
-    fetch('/tip/submitPayslips', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payslipData),
-    })
-    .then(response => {
-        if (response.ok) {
-            alert('Data Submitted Successfully!');
-            location.reload(); // Reload the page after successful submission
-        } else {
-            return response.text().then(text => { throw new Error(text) });
-        }
-    })
-    .catch((error) => {
-        alert(`Error: ${error.message}`);
-        console.error('Error:', error);
-    });
-}
-
-
-        document.getElementById('monthStart').addEventListener('change', loadRota);
-        window.onload = setCurrentDay;
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            setCurrentDay();
+            createTipCalendar(); // Initialize the calendar
+            // Add event listener for Enter key in tip input
+            document.getElementById('tip').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    calculateTip();
+                }
+            });
+        });
     </script>
 </body>
 </html>

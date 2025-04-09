@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekly Cash Report | Solura</title>
+    <style>
+        :root {
+            --primary-blue: #0b3d6b;       /* Darker navy blue */
+            --secondary-blue: #1a6fc9;     /* Brighter medium blue */
+            --light-blue: #f0f7ff;         /* Very light blue */
+            --accent-blue: #4da6ff;        /* Bright blue */
+            --dark-blue: #082947;           /* Dark navy */
+            --success-green: #28a745;
+            --warning-red: #dc3545;
+            --light-grey: #f8f9fa;
+            --medium-grey: #e9ecef;
+            --dark-grey: #495057;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: white;
+            color: #333;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            width: 100%;
+            background: var(--primary-blue);
+            padding: 12px 20px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-left a {
+            margin-left: 15px;
+            font-weight: 500;
+        }
+
+        .navbar-right {
+            margin-right: 15px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            font-size: 0.95rem;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .navbar a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Main Content */
+        .main-container {
+            max-width: 95%;
+            margin: 80px auto 30px;
+            padding: 0 15px;
+        }
+
+        h1 {
+            color: var(--primary-blue);
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 2rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        /* Date Picker */
+        .date-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .date-controls input[type="date"] {
+            padding: 8px 12px;
+            border: 1px solid var(--medium-grey);
+            border-radius: 4px;
+            font-size: 16px;
+            color: var(--dark-grey);
+            transition: border-color 0.3s;
+        }
+
+        .date-controls input[type="date"]:focus {
+            outline: none;
+            border-color: var(--secondary-blue);
+            box-shadow: 0 0 0 2px rgba(0, 119, 204, 0.2);
+        }
+
+        .date-controls button {
+            padding: 8px 20px;
+            background-color: var(--secondary-blue);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .date-controls button:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-1px);
+        }
+
+        /* Table Styles */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 30px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+
+        th {
+            background-color: var(--primary-blue);
+            color: white;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--light-blue);
+        }
+
+        .day-header {
+            background-color: var(--dark-blue);
+            color: white;
+            font-weight: bold;
+        }
+
+        .denomination-header {
+            background-color: var(--secondary-blue);
+            color: white;
+        }
+
+        .total-row {
+            background-color: var(--light-blue);
+            font-weight: 600;
+        }
+
+        .summary-row {
+            background-color: var(--medium-grey);
+            font-weight: 500;
+        }
+
+        /* Input Styles */
+        input[type="number"] {
+            width: 70px;
+            padding: 6px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 2px rgba(77, 166, 255, 0.2);
+        }
+
+        .currency-symbol {
+            color: var(--dark-grey);
+            margin-left: 3px;
+        }
+
+        /* Status Indicators */
+        .status-missing {
+            background-color: var(--warning-red);
+            color: white;
+            font-weight: 500;
+        }
+
+        .status-excess {
+            background-color: var(--success-green);
+            color: white;
+            font-weight: 500;
+        }
+
+        .status-even {
+            background-color: var(--medium-grey);
+            font-weight: 500;
+        }
+
+        /* Button Styles */
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 10px 25px;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--secondary-blue);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--dark-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-secondary {
+            background-color: var(--medium-grey);
+            color: var(--dark-grey);
+        }
+
+        .btn-secondary:hover {
+            background-color: #d1d7dc;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 15px 0;
+            color: var(--dark-grey);
+            font-size: 0.85rem;
+            margin-top: 30px;
+            border-top: 1px solid var(--medium-grey);
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 1200px) {
+            .table-container {
+                font-size: 14px;
+            }
+            
+            input[type="number"] {
+                width: 60px;
+                padding: 4px;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                padding: 10px;
+            }
+            
+            .navbar-left, .navbar-right {
+                margin: 5px 0;
+            }
+            
+            .date-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            table {
+                font-size: 13px;
+            }
+            
+            th, td {
+                padding: 6px;
+            }
+            
+            input[type="number"] {
+                width: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/dashboard" class="navbar-brand">SOLURA</a>
+        <div class="navbar-menu">
+            <a href="/Admin.html" class="navbar-item"><i class="fas fa-home"></i> Dashboard</a>
+            <a href="/rota" class="navbar-item"><i class="fas fa-calendar-alt"></i> Rota</a>
+            <a href="/tip"><i class="fas fa-money-bill-wave"></i> Tips</a>
+            <a href="/" class="navbar-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <h1>Weekly Cash Report</h1>
+        
+        <!-- Date Controls -->
+        <div class="date-controls">
+            <input type="date" id="weekInput" class="form-control">
+            <button id="loadWeekBtn" class="btn btn-primary">Load Week</button>
+        </div>
+        
+        <!-- Cash Report Table -->
+        <div class="table-container">
+            <table id="cashReportTable">
+                <thead>
+                    <tr>
+                        <th id="mondayDate" colspan="2">Monday</th>
+                        <th id="tuesdayDate" colspan="2">Tuesday</th>
+                        <th id="wednesdayDate" colspan="2">Wednesday</th>
+                        <th id="thursdayDate" colspan="2">Thursday</th>
+                        <th id="fridayDate" colspan="2">Friday</th>
+                        <th id="saturdayDate" colspan="2">Saturday</th>
+                        <th id="sundayDate" colspan="2">Sunday</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Z Report Row -->
+                    <tr>
+                        <td class="denomination-header">Z Report</td>
+                        <td><input id="monday_z_report" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Z Report</td>
+                        <td><input id="tuesday_z_report" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Z Report</td>
+                        <td><input id="wednesday_z_report" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Z Report</td>
+                        <td><input id="thursday_z_report" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Z Report</td>
+                        <td><input id="friday_z_report" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Z Report</td>
+                        <td><input id="saturday_z_report" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Z Report</td>
+                        <td><input id="sunday_z_report" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <!-- Denomination Rows -->
+                    <tr>
+                        <td class="denomination-header">£50.00</td>
+                        <td><input id="monday_50" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£50.00</td>
+                        <td><input id="tuesday_50" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£50.00</td>
+                        <td><input id="wednesday_50" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£50.00</td>
+                        <td><input id="thursday_50" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£50.00</td>
+                        <td><input id="friday_50" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£50.00</td>
+                        <td><input id="saturday_50" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£50.00</td>
+                        <td><input id="sunday_50" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£20.00</td>
+                        <td><input id="monday_20" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£20.00</td>
+                        <td><input id="tuesday_20" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£20.00</td>
+                        <td><input id="wednesday_20" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£20.00</td>
+                        <td><input id="thursday_20" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£20.00</td>
+                        <td><input id="friday_20" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£20.00</td>
+                        <td><input id="saturday_20" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£20.00</td>
+                        <td><input id="sunday_20" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£10.00</td>
+                        <td><input id="monday_10" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£10.00</td>
+                        <td><input id="tuesday_10" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£10.00</td>
+                        <td><input id="wednesday_10" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£10.00</td>
+                        <td><input id="thursday_10" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£10.00</td>
+                        <td><input id="friday_10" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£10.00</td>
+                        <td><input id="saturday_10" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£10.00</td>
+                        <td><input id="sunday_10" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£5.00</td>
+                        <td><input id="monday_5" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£5.00</td>
+                        <td><input id="tuesday_5" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£5.00</td>
+                        <td><input id="wednesday_5" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£5.00</td>
+                        <td><input id="thursday_5" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£5.00</td>
+                        <td><input id="friday_5" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£5.00</td>
+                        <td><input id="saturday_5" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£5.00</td>
+                        <td><input id="sunday_5" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£2.00</td>
+                        <td><input id="monday_2" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£2.00</td>
+                        <td><input id="tuesday_2" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£2.00</td>
+                        <td><input id="wednesday_2" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£2.00</td>
+                        <td><input id="thursday_2" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£2.00</td>
+                        <td><input id="friday_2" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£2.00</td>
+                        <td><input id="saturday_2" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£2.00</td>
+                        <td><input id="sunday_2" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£1.00</td>
+                        <td><input id="monday_1" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£1.00</td>
+                        <td><input id="tuesday_1" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£1.00</td>
+                        <td><input id="wednesday_1" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£1.00</td>
+                        <td><input id="thursday_1" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£1.00</td>
+                        <td><input id="friday_1" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£1.00</td>
+                        <td><input id="saturday_1" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£1.00</td>
+                        <td><input id="sunday_1" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£0.50</td>
+                        <td><input id="monday_05" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.50</td>
+                        <td><input id="tuesday_05" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.50</td>
+                        <td><input id="wednesday_05" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.50</td>
+                        <td><input id="thursday_05" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.50</td>
+                        <td><input id="friday_05" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.50</td>
+                        <td><input id="saturday_05" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.50</td>
+                        <td><input id="sunday_05" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£0.20</td>
+                        <td><input id="monday_02" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.20</td>
+                        <td><input id="tuesday_02" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.20</td>
+                        <td><input id="wednesday_02" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.20</td>
+                        <td><input id="thursday_02" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.20</td>
+                        <td><input id="friday_02" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.20</td>
+                        <td><input id="saturday_02" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.20</td>
+                        <td><input id="sunday_02" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£0.10</td>
+                        <td><input id="monday_01" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.10</td>
+                        <td><input id="tuesday_01" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.10</td>
+                        <td><input id="wednesday_01" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.10</td>
+                        <td><input id="thursday_01" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.10</td>
+                        <td><input id="friday_01" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.10</td>
+                        <td><input id="saturday_01" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.10</td>
+                        <td><input id="sunday_01" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <tr>
+                        <td class="denomination-header">£0.05</td>
+                        <td><input id="monday_005" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.05</td>
+                        <td><input id="tuesday_005" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.05</td>
+                        <td><input id="wednesday_005" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.05</td>
+                        <td><input id="thursday_005" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.05</td>
+                        <td><input id="friday_005" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.05</td>
+                        <td><input id="saturday_005" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">£0.05</td>
+                        <td><input id="sunday_005" type="number" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <!-- Total Cash Row -->
+                    <tr class="total-row">
+                        <td>Total Cash</td>
+                        <td id="mondayCash">£0.00</td>
+                        <td>Total Cash</td>
+                        <td id="tuesdayCash">£0.00</td>
+                        <td>Total Cash</td>
+                        <td id="wednesdayCash">£0.00</td>
+                        <td>Total Cash</td>
+                        <td id="thursdayCash">£0.00</td>
+                        <td>Total Cash</td>
+                        <td id="fridayCash">£0.00</td>
+                        <td>Total Cash</td>
+                        <td id="saturdayCash">£0.00</td>
+                        <td>Total Cash</td>
+                        <td id="sundayCash">£0.00</td>
+                    </tr>
+                    
+                    <!-- Credit Card Row -->
+                    <tr>
+                        <td class="denomination-header">Credit Card</td>
+                        <td><input id="mondaycc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Credit Card</td>
+                        <td><input id="tuesdaycc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Credit Card</td>
+                        <td><input id="wednesdaycc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Credit Card</td>
+                        <td><input id="thursdaycc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Credit Card</td>
+                        <td><input id="fridaycc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Credit Card</td>
+                        <td><input id="saturdaycc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Credit Card</td>
+                        <td><input id="sundaycc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <!-- Service Charge Row -->
+                    <tr>
+                        <td class="denomination-header">Service</td>
+                        <td><input id="mondayservice" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Service</td>
+                        <td><input id="tuesdayservice" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Service</td>
+                        <td><input id="wednesdayservice" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Service</td>
+                        <td><input id="thursdayservice" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Service</td>
+                        <td><input id="fridayservice" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Service</td>
+                        <td><input id="saturdayservice" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Service</td>
+                        <td><input id="sundayservice" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <!-- Petty Cash Row -->
+                    <tr>
+                        <td class="denomination-header">Petty Cash</td>
+                        <td><input id="mondaypc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Petty Cash</td>
+                        <td><input id="tuesdaypc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Petty Cash</td>
+                        <td><input id="wednesdaypc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Petty Cash</td>
+                        <td><input id="thursdaypc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Petty Cash</td>
+                        <td><input id="fridaypc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Petty Cash</td>
+                        <td><input id="saturdaypc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Petty Cash</td>
+                        <td><input id="sundaypc" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <!-- On Account Row -->
+                    <tr>
+                        <td class="denomination-header">On Account</td>
+                        <td><input id="mondayoa" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">On Account</td>
+                        <td><input id="tuesdayoa" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">On Account</td>
+                        <td><input id="wednesdayoa" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">On Account</td>
+                        <td><input id="thursdayoa" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">On Account</td>
+                        <td><input id="fridayoa" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">On Account</td>
+                        <td><input id="saturdayoa" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">On Account</td>
+                        <td><input id="sundayoa" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <!-- Float Row -->
+                    <tr>
+                        <td class="denomination-header">Float</td>
+                        <td><input id="mondayfloat" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Float</td>
+                        <td><input id="tuesdayfloat" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Float</td>
+                        <td><input id="wednesdayfloat" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Float</td>
+                        <td><input id="thursdayfloat" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Float</td>
+                        <td><input id="fridayfloat" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Float</td>
+                        <td><input id="saturdayfloat" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                        <td class="denomination-header">Float</td>
+                        <td><input id="sundayfloat" type="number" step="0.01" class="currency-input"/><span class="currency-symbol">£</span></td>
+                    </tr>
+                    
+                    <!-- Daily Total Row -->
+                    <tr class="total-row">
+                        <td>Daily Total</td>
+                        <td id="mondaytotal">£0.00</td>
+                        <td>Daily Total</td>
+                        <td id="tuesdaytotal">£0.00</td>
+                        <td>Daily Total</td>
+                        <td id="wednesdaytotal">£0.00</td>
+                        <td>Daily Total</td>
+                        <td id="thursdaytotal">£0.00</td>
+                        <td>Daily Total</td>
+                        <td id="fridaytotal">£0.00</td>
+                        <td>Daily Total</td>
+                        <td id="saturdaytotal">£0.00</td>
+                        <td>Daily Total</td>
+                        <td id="sundaytotal">£0.00</td>
+                    </tr>
+                    
+                    <!-- EOD Status Row -->
+                    <tr class="summary-row">
+                        <td>EOD Status</td>
+                        <td id="mondayMissing" class="status-even">£0.00</td>
+                        <td>EOD Status</td>
+                        <td id="tuesdayMissing" class="status-even">£0.00</td>
+                        <td>EOD Status</td>
+                        <td id="wednesdayMissing" class="status-even">£0.00</td>
+                        <td>EOD Status</td>
+                        <td id="thursdayMissing" class="status-even">£0.00</td>
+                        <td>EOD Status</td>
+                        <td id="fridayMissing" class="status-even">£0.00</td>
+                        <td>EOD Status</td>
+                        <td id="saturdayMissing" class="status-even">£0.00</td>
+                        <td>EOD Status</td>
+                        <td id="sundayMissing" class="status-even">£0.00</td>
+                    </tr>
+                    
+                    <!-- Spacer Row -->
+                    <tr class="spacer-row">
+                        <td colspan="14"></td>
+                    </tr>
+                    
+                    <!-- Weekly Summary Row -->
+                    <tr class="summary-row">
+                        <td colspan="12"></td>
+                        <td><strong>Week Total</strong></td>
+                        <td id="cashsafe">£0.00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button id="saveBtn" class="btn btn-primary">Submit Report</button>
+
+        </div>
+    </div>
+
+<footer>
+        &copy; 2024 Solura Ltd. All rights reserved.
+</footer>
+<script>
+        // Function for Tab Key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Tab') {
+                const activeElement = document.activeElement;
+        
+                if (activeElement.tagName === 'INPUT' && activeElement.closest('table')) {
+                    const table = activeElement.closest('table');
+                    const cells = [...table.querySelectorAll('input')]; // Get all inputs in the table
+                    const index = cells.indexOf(activeElement);
+        
+                    if (index !== -1) {
+                        const columns = table.rows[0].cells.length; // Number of columns in the table
+                        const nextIndex = index + columns; // Move to the cell below
+        
+                        if (nextIndex < cells.length) {
+                            event.preventDefault(); // Prevent default only if a cell below exists
+                            
+                            // Clear the value in the next cell before focusing
+                            cells[nextIndex].value = '';
+                            
+                            // Focus on the next cell
+                            cells[nextIndex].focus();
+                            
+                            // Optional: Select all text in the new cell for immediate editing
+                            cells[nextIndex].select();
+                        }
+                    }
+                }
+            }
+        });
+        // End Day Functions
+        document.addEventListener("DOMContentLoaded", function () {
+            // Function to get the most recent Monday for a given date
+            function getMonday(d) {
+                const day = d.getDay(); // Get the current day (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+                const diff = day === 0 ? -6 : 1 - day; // If it's Sunday, go back 6 days, otherwise go back to the last Monday
+                const monday = new Date(d);
+                monday.setDate(d.getDate() + diff); // Calculate the most recent Monday
+                return monday;
+            }
+            // Function to get the formatted week dates based on the selected Monday
+            function getWeekDates(startDate) {
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i); // Get each day of the week
+                weekDates.push(date.toLocaleDateString('en-GB')); // Format: dd/mm/yyyy
+            }
+            return weekDates;
+            }
+            // Function to load and display the selected week's data
+            function loadWeekData(weekStartDate) {
+            const mondayDate = getMonday(new Date(weekStartDate)); // Ensure the date is a Date object
+            const weekDates = getWeekDates(mondayDate);
+        
+            // Display the formatted week dates in the respective cells
+            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+            days.forEach((day, index) => {
+                const dayCell = document.getElementById(`${day}Date`);
+                dayCell.innerText = `${day.charAt(0).toUpperCase() + day.slice(1)} ${weekDates[index]}`; // e.g., "Monday (dd/mm/yyyy)"
+            });
+        
+            // Fetch the week data from the server
+            const startDate = weekDates[0]; // Monday's date
+            const endDate = weekDates[6]; // Sunday's date
+            fetchCashReports(startDate, endDate);
+            }
+            // Add event listener for loading week data
+            document.getElementById("loadWeekBtn").addEventListener("click", function () {
+                const selectedDate = document.getElementById("weekInput").value;
+                if (selectedDate) {
+                    const selectedMonday = getMonday(new Date(selectedDate)); // Ensure we get the Monday for the selected date
+                    loadWeekData(selectedMonday);
+                } else {
+                    alert("Please select a date.");
+                }
+            });
+            // Function to calculate the result for each day
+            function calculateResults(day, formattedDate) {
+                // Get the Z report value (the expected total)
+                const zReport = parseFloat(document.getElementById(`${day}_z_report`).value);
+                // Get input values for calculations
+                const fifty = parseFloat(document.getElementById(`${day}_50`).value) || 0;
+                const twenty = parseFloat(document.getElementById(`${day}_20`).value) || 0;
+                const ten = parseFloat(document.getElementById(`${day}_10`).value) || 0;
+                const five = parseFloat(document.getElementById(`${day}_5`).value) || 0;
+                const two = parseFloat(document.getElementById(`${day}_2`).value) || 0;
+                const one = parseFloat(document.getElementById(`${day}_1`).value) || 0;
+                const fiftyPence = parseFloat(document.getElementById(`${day}_05`).value) || 0;
+                const twentyPence = parseFloat(document.getElementById(`${day}_02`).value) || 0;
+                const tenPence = parseFloat(document.getElementById(`${day}_01`).value) || 0;
+                const fivePence = parseFloat(document.getElementById(`${day}_005`).value) || 0;
+                const cc = parseFloat(document.getElementById(`${day}cc`).value) || 0;
+                const service = parseFloat(document.getElementById(`${day}service`).value) || 0;
+                const pettyCash = parseFloat(document.getElementById(`${day}pc`).value) || 0;
+                const onAccount = parseFloat(document.getElementById(`${day}oa`).value) || 0;
+                const float = parseFloat(document.getElementById(`${day}float`).value) || 0;
+                // Calculate the total cash value
+                const cash = fifty + twenty + ten + five + two + one + fiftyPence + twentyPence + tenPence + fivePence;
+                // Update the cash cell (output)
+                document.getElementById(`${day}Cash`).textContent = `£${cash.toFixed(2)}`;
+                // Calculate the total (including cash, credit card, service, and petty cash, minus float)
+                const totalSum = cash + cc - service + pettyCash + onAccount - float;
+                // Update the total cell (output)
+                document.getElementById(`${day}total`).textContent = `£${totalSum.toFixed(2)}`;
+                // Calculate the difference from the Z report
+                const missingAmount = zReport - totalSum;
+                // Get the cell to display the result
+                const resultCell = document.getElementById(`${day}Missing`);
+                // Determine the result
+                if (missingAmount > 0) {
+                    resultCell.textContent = `Missing: £${missingAmount.toFixed(2)}`;
+                    resultCell.style.backgroundColor = "red"; // Set background color to red
+                } else if (missingAmount < 0) {
+                    const excess = Math.abs(missingAmount);
+                    resultCell.textContent = `Excess: £${excess.toFixed(2)}`;
+                    resultCell.style.backgroundColor = "green"; // Set background color to green
+                } else {
+                    resultCell.textContent = `Even: £${totalSum.toFixed(2)}`;
+                    resultCell.style.backgroundColor = "white"; // Set background color to white
+                }
+            }
+            // Function to get the current week's dates (assuming start from Monday)
+            function getWeekDates(startDate) {
+                const dates = [];
+                const dayOfWeek = startDate.getDay();
+                const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Calculate Monday's offset from the current day
+            // Loop to create array of week dates starting from Monday
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + mondayOffset + i);
+                const formattedDate = (`0${date.getDate()}`).slice(-2) + '/' + (`0${date.getMonth() + 1}`).slice(-2) + '/' + date.getFullYear();
+                dates.push(formattedDate);
+            }
+            return dates;
+            }
+            // Function to sum cash values and return the total
+            function calculateTotalCash(weekStartDate) {
+            // Get the formatted week dates based on the selected Monday
+            const weekDates = getWeekDates(new Date(weekStartDate));
+            // Sum the cash values for the entire week
+            let totalCash = 0;
+            weekDates.forEach((date, index) => {
+                // Format the day ID to match the expected format
+                const dayId = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][index];
+                const cashValue = parseFloat(document.getElementById(`${dayId}Cash`).textContent.replace('£', '').replace(',', '')) || 0;
+                totalCash += cashValue;
+            });
+            // Display the total in the 'cashsafe' cell
+            document.getElementById('cashsafe').textContent = `£${totalCash.toFixed(2)}`;
+            return totalCash;
+            }
+            // Function to submit cash data to the backend
+            function submitCashData() {
+            const totalCash = calculateTotalCash(); // Get total cash
+        // Send the total cash value to the backend via POST
+        fetch('/endday/api/cash-reports', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ totalCash: totalCash })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('✅ Everything is successful!'); // Show success alert
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ An error occurred. Please try again.'); // Show error alert
+        });
+        
+            }
+            // Function to handle button click
+            function handleSaveButtonClick(event) {
+            event.preventDefault(); // Prevent any default action, if applicable
+            submitCashData(); // Call the function to submit cash data
+            saveWeekData();
+            }
+            // Add event listener to the save button
+            document.getElementById('saveBtn').addEventListener('click', handleSaveButtonClick);
+            // Add event listener to the save button
+            document.getElementById('saveBtn').addEventListener('click', saveWeekData);
+            // Add change event listener to inputs for each day
+            window.addEventListener('DOMContentLoaded', (event) => {
+                const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+                const weekDates = getWeekDates(new Date()); // Get the formatted dates for the current week
+        
+                days.forEach((day, index) => {
+                const inputs = [
+                    `${day}_50`, `${day}_20`, `${day}_10`, `${day}_5`,
+                    `${day}_2`, `${day}_1`, `${day}_05`, `${day}_02`,
+                    `${day}_01`, `${day}_005`, `${day}cc`, `${day}Cash`,`${day}service`,
+                    `${day}pc`, `${day}float`, `${day}_z_report`, `${day}oa`,
+                ];
+        
+                // Add oninput event listener to each input for that day
+                inputs.forEach(inputId => {
+                    const inputElement = document.getElementById(inputId);
+                    if (inputElement) {
+                        inputElement.oninput = function() {
+                            calculateResults(day, weekDates[index]); // Recalculate results for the specific day when input changes
+                            calculateTotalCash(); // This will sum up and send the cash values to the backend
+                            updateTable();
+                        };
+                    }
+                });
+                // Set the date in the display for the current day (you can create a separate cell for it)
+                document.getElementById(`${day}Date`).textContent = `${day.charAt(0).toUpperCase() + day.slice(1)} ${weekDates[index]}`;
+                });
+                // Initial calculation for each day of the week
+                days.forEach(day => calculateResults(day, weekDates[days.indexOf(day)]));
+        
+                // Add a click event listener to the entire document to trigger functions on mouse clicks
+                document.addEventListener('click', function() {
+                days.forEach((day, index) => {
+                    calculateResults(day, weekDates[index]);
+                });
+                calculateTotalCash(); // Update the total cash calculation
+                updateTable(); // Update the table with new values
+                getCashsafeValue(); // Get and update the cashsafe value
+                });
+                });
+            // Function to save cash reports data based on the selected week
+            function saveWeekData() {
+            const weekData = []; // Change from an object to an array
+        
+            const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+            days.forEach(day => {
+                // Create an object for each day and push it to the array
+                weekData.push({
+                    day: document.getElementById(`${day}Date`).textContent, // Get the dynamic date value
+                    zReport: parseFloat(document.getElementById(`${day}_z_report`).value) || 0,
+                    fifty: parseFloat(document.getElementById(`${day}_50`).value) || 0,
+                    twenty: parseFloat(document.getElementById(`${day}_20`).value) || 0,
+                    ten: parseFloat(document.getElementById(`${day}_10`).value) || 0,
+                    five: parseFloat(document.getElementById(`${day}_5`).value) || 0,
+                    two: parseFloat(document.getElementById(`${day}_2`).value) || 0,
+                    one: parseFloat(document.getElementById(`${day}_1`).value) || 0,
+                    fiftyPence: parseFloat(document.getElementById(`${day}_05`).value) || 0,
+                    twentyPence: parseFloat(document.getElementById(`${day}_02`).value) || 0,
+                    tenPence: parseFloat(document.getElementById(`${day}_01`).value) || 0,
+                    fivePence: parseFloat(document.getElementById(`${day}_005`).value) || 0,
+                    cash: parseFloat(document.getElementById(`${day}Cash`).textContent.replace('£', '')) || 0,
+                    total: parseFloat(document.getElementById(`${day}total`).textContent.replace('£', '')) || 0,
+                    cc: parseFloat(document.getElementById(`${day}cc`).value) || 0,
+                    service: parseFloat(document.getElementById(`${day}service`).value) || 0,
+                    pettyCash: parseFloat(document.getElementById(`${day}pc`).value) || 0,
+                    onAccount: parseFloat(document.getElementById(`${day}oa`).value) || 0,
+                    float: parseFloat(document.getElementById(`${day}float`).value) || 0,
+                    missing: document.getElementById(`${day}Missing`).textContent || '', // Handle missing data
+                });
+            });
+            // Send the array to the backend
+            fetch("/endday/api/cash-reports", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(weekData), // Send as an array
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Error: " + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+            // // Function to save week's Data
+            function fetchCashReports(startDate, endDate) {
+                fetch(`/endday/cashreport?startDate=${startDate}&endDate=${endDate}`)
+                .then(response => response.json())
+                .then(data => {
+                updateTable(data)})
+                .catch(error => console.error('Error fetching data:', error));
+            }
+            // Function to update the table
+            function updateTable(data) {
+            if (data.error) {
+                console.error('Error fetching data:', data.error);
+                return; // Stop further processing if there's an error
+            }
+            // Create a mapping of days to their respective input IDs
+            const dayMap = {
+            monday: {
+                z_report: 'monday_z_report',
+                fifty: 'monday_50',
+                twenty: 'monday_20',
+                ten: 'monday_10',
+                five: 'monday_5',
+                two: 'monday_2',
+                one: 'monday_1',
+                fifty_pence: 'monday_05',
+                twenty_pence: 'monday_02',
+                ten_pence: 'monday_01',
+                five_pence: 'monday_005',
+                totalCash: 'mondayCash',
+                card: 'mondaycc',
+                service: 'mondayservice',
+                petty: 'mondaypc',
+                onAccount: 'mondayoa',
+                float: 'mondayfloat',
+                total: 'mondaytotal',
+                missing: 'mondayMissing'
+            },
+            tuesday: {
+                z_report: 'tuesday_z_report',
+                fifty: 'tuesday_50',
+                twenty: 'tuesday_20',
+                ten: 'tuesday_10',
+                five: 'tuesday_5',
+                two: 'tuesday_2',
+                one: 'tuesday_1',
+                fifty_pence: 'tuesday_05',
+                twenty_pence: 'tuesday_02',
+                ten_pence: 'tuesday_01',
+                five_pence: 'tuesday_005',
+                totalCash: 'tuesdayCash',
+                card: 'tuesdaycc',
+                service: 'tuesdayservice',
+                petty: 'tuesdaypc',
+                onAccount: 'tuesdayoa',
+                float: 'tuesdayfloat',
+                total: 'tuesdaytotal',
+                missing: 'tuesdayMissing'
+            },
+            wednesday: {
+                z_report: 'wednesday_z_report',
+                fifty: 'wednesday_50',
+                twenty: 'wednesday_20',
+                ten: 'wednesday_10',
+                five: 'wednesday_5',
+                two: 'wednesday_2',
+                one: 'wednesday_1',
+                fifty_pence: 'wednesday_05',
+                twenty_pence: 'wednesday_02',
+                ten_pence: 'wednesday_01',
+                five_pence: 'wednesday_005',
+                totalCash: 'wednesdayCash',
+                card: 'wednesdaycc',
+                service: 'wednesdayservice',
+                petty: 'wednesdaypc',
+                onAccount: 'wednesdayoa',
+                float: 'wednesdayfloat',
+                total: 'wednesdaytotal',
+                missing: 'wednesdayMissing'
+            },
+            thursday: {
+                z_report: 'thursday_z_report',
+                fifty: 'thursday_50',
+                twenty: 'thursday_20',
+                ten: 'thursday_10',
+                five: 'thursday_5',
+                two: 'thursday_2',
+                one: 'thursday_1',
+                fifty_pence: 'thursday_05',
+                twenty_pence: 'thursday_02',
+                ten_pence: 'thursday_01',
+                five_pence: 'thursday_005',
+                totalCash: 'thursdayCash',
+                card: 'thursdaycc',
+                service: 'thursdayservice',
+                petty: 'thursdaypc',
+                onAccount: 'thursdayoa',
+                float: 'thursdayfloat',
+                total: 'thursdaytotal',
+                missing: 'thursdayMissing'
+            },
+            friday: {
+                z_report: 'friday_z_report',
+                fifty: 'friday_50',
+                twenty: 'friday_20',
+                ten: 'friday_10',
+                five: 'friday_5',
+                two: 'friday_2',
+                one: 'friday_1',
+                fifty_pence: 'friday_05',
+                twenty_pence: 'friday_02',
+                ten_pence: 'friday_01',
+                five_pence: 'friday_005',
+                totalCash: 'fridayCash',
+                card: 'fridaycc',
+                service: 'fridayservice',
+                petty: 'fridaypc',
+                onAccount: 'fridayoa',
+                float: 'fridayfloat',
+                total: 'fridaytotal',
+                missing: 'fridayMissing'
+            },
+            saturday: {
+                z_report: 'saturday_z_report',
+                fifty: 'saturday_50',
+                twenty: 'saturday_20',
+                ten: 'saturday_10',
+                five: 'saturday_5',
+                two: 'saturday_2',
+                one: 'saturday_1',
+                fifty_pence: 'saturday_05',
+                twenty_pence: 'saturday_02',
+                ten_pence: 'saturday_01',
+                five_pence: 'saturday_005',
+                totalCash: 'saturdayCash',
+                card: 'saturdaycc',
+                service: 'saturdayservice',
+                petty: 'saturdaypc',
+                onAccount: 'saturdayoa',
+                float: 'saturdayfloat',
+                total: 'saturdaytotal',
+                missing: 'saturdayMissing'
+            },
+            sunday: {
+                z_report: 'sunday_z_report',
+                fifty: 'sunday_50',
+                twenty: 'sunday_20',
+                ten: 'sunday_10',
+                five: 'sunday_5',
+                two: 'sunday_2',
+                one: 'sunday_1',
+                fifty_pence: 'sunday_05',
+                twenty_pence: 'sunday_02',
+                ten_pence: 'sunday_01',
+                five_pence: 'sunday_005',
+                totalCash: 'sundayCash',
+                card: 'sundaycc',
+                service: 'sundayservice',
+                petty: 'sundaypc',
+                onAccount: 'sundayoa',
+                float: 'sundayfloat',
+                total: 'sundaytotal',
+                missing: 'sundayMissing'
+            }
+            };
+            // Clear the table before updating it with new data
+            resetTable(dayMap);
+            // Initialize an empty object to track the reports by day
+            const reportsByDay = {};
+            // Assuming data is now an array of reports
+            data.forEach(report => {
+                // Extract the day of the week (first part of the string)
+                const dayOfWeek = report.day.split(' ')[0].toLowerCase(); // This gets the day, e.g., "monday"
+        
+                // Check if the day exists in the dayMap
+                if (dayMap[dayOfWeek]) {
+                    const ids = dayMap[dayOfWeek];
+        
+                    // Update the HTML elements with the report data
+                    document.getElementById(ids.z_report).value = report.zreport || 0; 
+                    document.getElementById(ids.fifty).value = report.fifty_pounds || 0; 
+                    document.getElementById(ids.twenty).value = report.twenty_pounds || 0;
+                    document.getElementById(ids.ten).value = report.ten_pounds || 0;
+                    document.getElementById(ids.five).value = report.five_pounds || 0;
+                    document.getElementById(ids.two).value = report.two_pounds || 0; // Add two pounds
+                    document.getElementById(ids.one).value = report.one_pound || 0; // Add one pound
+                    document.getElementById(ids.fifty_pence).value = report.fifty_pence || 0; // Add fifty pence
+                    document.getElementById(ids.twenty_pence).value = report.twenty_pence || 0; // Add twenty pence
+                    document.getElementById(ids.ten_pence).value = report.ten_pence || 0; // Add ten pence
+                    document.getElementById(ids.five_pence).value = report.five_pence || 0; // Add five pence
+                    document.getElementById(ids.totalCash).innerText = report.totalcash || 0; // Change to innerText for output
+                    document.getElementById(ids.card).value = report.card || 0; // Change to innerText for output
+                    document.getElementById(ids.service).value = report.service || 0; // Change to innerText for output
+                    document.getElementById(ids.petty).value = report.petty || 0; // Change to innerText for output
+                    document.getElementById(ids.onAccount).value = report.onaccount || 0; // Change to innerText for output
+                    document.getElementById(ids.float).value = report.floatday || 0; // Change to innerText for output
+                    document.getElementById(ids.total).innerText = report.total || 0; // Change to innerText for output
+                    document.getElementById(ids.missing).value = report.missing || 0;
+                    
+                } else {
+                
+                    console.error(`Invalid day: ${dayOfWeek}`);
+                }
+            });
+            }
+            // Load the current week's data on page load
+            const currentDate = new Date();
+            const currentMonday = getMonday(currentDate); // Get the current week's Monday
+            document.getElementById("weekInput").value = currentMonday.toISOString().split('T')[0]; // Set input value to current Monday
+            loadWeekData(currentMonday); // Load current week's data  
+            function resetTable(dayMap) {
+            // Loop through all days and reset the table values
+            Object.keys(dayMap).forEach(day => {
+                const ids = dayMap[day];
+        
+                // Reset the input values to 0 or a blank state
+                document.getElementById(ids.z_report).value = '£0.00'; 
+                document.getElementById(ids.fifty).value = '£0.00'; 
+                document.getElementById(ids.twenty).value = '£0.00';
+                document.getElementById(ids.ten).value = '£0.00';
+                document.getElementById(ids.five).value = '£0.00';
+                document.getElementById(ids.two).value = '£0.00'; 
+                document.getElementById(ids.one).value = '£0.00'; 
+                document.getElementById(ids.fifty_pence).value = '£0.00'; 
+                document.getElementById(ids.twenty_pence).value = '£0.00'; 
+                document.getElementById(ids.ten_pence).value = '£0.00'; 
+                document.getElementById(ids.five_pence).value = '£0.00';
+                document.getElementById(ids.totalCash).innerText = '£0.00';
+                document.getElementById(ids.card).value = '£0.00';
+                document.getElementById(ids.service).value = '£0.00';
+                document.getElementById(ids.petty).value = '£0.00';
+                document.getElementById(ids.onAccount).value = '£0.00';
+                document.getElementById(ids.float).value = '£0.00';
+                document.getElementById(ids.total).innerText = '£0.00';
+                document.getElementById(ids.missing).innerText = '£0.00';  // Reset the missing field
+            });
+            }
+            });
+            // Function to handle the button visibility
+            function setupSubmitButton() {
+            const saveBtn = document.getElementById('saveBtn');
+            
+            // Hide the button initially
+            saveBtn.style.display = 'none';
+            
+            // Show the button when any mouse click occurs on the document
+            document.addEventListener('click', function showButton() {
+                saveBtn.style.display = 'block';
+                // Remove the event listener after first click so it doesn't keep triggering
+                document.removeEventListener('click', showButton);
+            });
+        }
+            // Call the function when the page loads
+            window.addEventListener('DOMContentLoaded', setupSubmitButton);
+</script>
+</body>
+</html>

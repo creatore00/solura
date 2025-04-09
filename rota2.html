@@ -1,0 +1,1549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/png;base64,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" type="image/png">
+    <title>Work Hours Table</title>
+<style>
+    * {
+    box-sizing: border-box;
+}
+body {
+    background: #e2e2e2;
+    margin: 0;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    color: #333; /* Darker text color */
+    min-height: 100vh;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    text-transform: uppercase;
+}
+table {
+    width: 95%;
+    margin: 40px auto; /* This centers the table horizontally */
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: #fff; /* White background */
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Softer box shadow */
+    border: 1px solid #000000; /* Light grey border around the table */
+}
+th, td {
+    text-align: center;
+    border: 1px solid #000000; /* Light grey border for table cells */
+    padding: 12px;
+    white-space: nowrap;
+    background-color: #f1f3f5; /* Light grey background */
+    color: #333; /* Darker text color */
+    font-weight: bold; /* Bold text */
+}
+/* Style for the Write Off button */
+button.write-off-btn {
+    background-color: #ffcccb; /* Light red background for Write Off */
+    border: none;
+    color: black;
+    padding: 5px 15px;
+    font-size: 14px;
+    margin: 5px;
+    cursor: pointer;
+    border-radius: 5px;
+    transition: background-color 0.3s ease;
+}
+/* Style for time input fields */
+.time-input {
+    font-size: 15px; /* Set the font size */
+    border-radius: 5px; /* Rounded corners */
+    border: 4px solid #ccc; /* Light border color */
+    transition: border-color 0.3s ease, box-shadow 0.5s ease; /* Smooth transition for interactions */
+}
+.hidden-cell {
+    color: transparent; /* Makes the text invisible */
+    text-shadow: none; /* Removes any potential shadow effect */
+    user-select: none; /* Prevents text selection */
+    pointer-events: none; /* Disables interaction with the cell */
+}
+/* Focus effect */
+.time-input:focus {
+    border-color: #4CAF50; /* Change border color on focus */
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); /* Add a glow effect when focused */
+    outline: none; /* Remove default outline */
+}
+
+/* Placeholder text style */
+.time-input::placeholder {
+    color: #999; /* Light gray for placeholder text */
+    font-style: italic; /* Italicize placeholder */
+}
+
+/* Invalid time input */
+.time-input:invalid {
+    border-color: red; /* Red border for invalid input */
+    background-color: #fdd; /* Light red background */
+}
+
+/* Hover effect for Write Off button */
+button.write-off-btn:hover {
+    background-color: #ff9999; /* Darker red on hover */
+}
+.endtable {
+        text-align: right; /* Aligns all content in the row to the right */
+    }
+td.no-border {
+    border-left: none;   /* Remove left border */
+    border-right: none;  /* Remove right border */
+}
+td.yes {
+    border-right: none;  /* Remove right border */
+}
+td.right {
+    border-left: none;  /* Remove left border */
+}
+/* Styles for BOH and FOH rows */
+.boh-row {
+    background-color: #fffacd; /* Light Yellow */
+}
+.foh-row {
+    background-color: #add8e6; /* Light Blue */
+}
+.table1 {
+    width: 74%;
+    margin: 0 auto; /* This centers the table horizontally */
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: #fff; /* White background */
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Softer box shadow */
+    border: 0.1px solid #ccc; /* Light grey border around the table */
+}
+.td1, .td2 {
+    text-align: center;
+    border: 1px solid #000000; /* Light grey border for table cells */
+    padding: 5px;
+    white-space: nowrap;
+    background-color: #f1f3f5; /* Light grey background */
+    color: #333; /* Darker text color */
+    font-weight: bold; /* Bold text */
+    border-radius: 8px;
+}
+.btn, .btn1 {
+    background-color: #474747; /* Blue button background */
+    color: #fff; /* White text */
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    align-self: center;
+    width: 200px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    transition: background-color 0.3s ease; /* Smooth color transition */
+    font-size: 14px; /* Font size */
+}
+.btn:hover, .btn1:hover {
+    background-color: #000000; /* Darker blue button background on hover */
+    transform: scale(1.05); /* Increase size by 5% */
+    transition: transform 0.3s ease; /* Add smooth transition effect */
+}
+.draggable {
+    cursor: pointer;
+}
+.dragging {
+    opacity: 0.5;
+}
+.dragover {
+    background-color: #f1f1f1; /* Light grey background */
+}
+.time-frame {
+    margin-bottom: 5px;
+    cursor: move;
+    border: 1px solid #000000; /* Added for highlighting */
+}
+.selected {
+    background-color: #8f8f8f; /* Light blue background */
+    border-color: #000000; /* Light grey border */
+}
+.border{
+            border: none;
+        }
+#timeFrameInput {
+    display: none;
+    position:relative; /* Ensure it is positioned relative to the viewport */
+    width: 20%;
+    background: #919191; /* White background */
+    border: 1px solid #000000;
+    padding: 10px;
+    color: #333; /* Darker text color */
+    border-radius: 8px;
+}
+#timeFrameInput.show {
+    display: block;
+}
+#popupMessage {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #5c5c5c; /* Blue background */
+    color: white;
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 1000;
+    transition: opacity 0.3s ease; /* Smooth transition */
+}
+#popupMessage.show {
+    display: block;
+    opacity: 1;
+}
+#customWeekNavigation {
+    margin-bottom: 10px; /* Add some space above the new line */
+}
+.date, .date1 {
+    background-color: #868686; /* Blue background */
+    font-family: Arial, sans-serif;
+    text-transform: uppercase;
+    color: white;
+    border-radius: 5px; /* Rounded corners */
+    padding: 6px 12px; /* Adjust padding for better fit */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Softer shadow */
+}
+.holiday-cell {
+    background-color: rgb(79, 192, 79);
+    color: white;
+}
+#comment-section {
+    margin: 20px;
+}
+#comment-box {
+    color: #333; /* Darker text color */
+    border-radius: 5px;
+    width: 25%;
+    height: 100px;
+    margin-bottom: 10px;
+    background: #bebebe; /* White background */
+    border: 1px solid #ccc;
+    padding: 10px;
+}
+#char-count {
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #666; /* Grey text color */
+}
+#submit-comment {
+    padding: 10px 20px;
+    background-color: #818181; /* Blue background */
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+#submit-comment:hover:enabled {
+    background-color: #4d4d4d;
+}
+#submit-comment:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+/* Animation for table rows */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+tbody tr {
+    animation: fadeInUp 0.5s ease;
+}
+</style>
+</head>
+<body>
+    <h1>New Rota</h1>
+    <div id="customWeekNavigation">
+        <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); fetchAndPopulateRotaTable(); updateRotaWithHolidays()">
+    </div>
+    <div id="timeFrameInput" class="time-frame">
+        <label for="startTime">Start Time:</label>
+        <input type="time" id="startTime" class="date">
+        <label for="endTime">End Time:</label>
+        <input type="time" id="endTime" class="date">
+        <button class="btn" onclick="addTime()" >Add Time</button>
+        <button class="btn" onclick="deleteTime()">Delete Time</button>
+    </div>
+    <table id="hoursTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Last Name</th>
+                <th>Wage</th>
+                <th>Role</th>
+                <th id="mondayHeader" data-day="monday">Monday</th>
+                <th id="tuesdayHeader" data-day="tuesday">Tuesday</th>
+                <th id="wednesdayHeader" data-day="wednesday">Wednesday</th>
+                <th id="thursdayHeader" data-day="thursday">Thursday</th>
+                <th id="fridayHeader" data-day="friday">Friday</th>
+                <th id="saturdayHeader" data-day="saturday">Saturday</th>
+                <th id="sundayHeader" data-day="sunday">Sunday</th>
+                <th id="totalhours">Total Hours</th>
+                <th id="finaltotal">Total Spent</th>
+            </tr>
+        </thead>
+        <tbody id="employeeRows">
+            <!-- Employee rows will be dynamically generated here -->
+        </tbody>
+        <tfoot>
+            <tr id="totalrow">
+                <td class="yes" ></td>
+                <td class="no-border" >Total</td>
+                <td class="no-border" ></td>
+                <td class="right" ></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr class="endtable">
+                <td colspan="10"></td>
+                <td>Holiday Rate</td>
+                <td><input type="number" id="holidayPercentageInput" placeholder="Holiday %" style="width: 80px; text-align: center; border-radius: 6px; text-transform: uppercase; font-size: 17px;"
+                    onchange="saveHolidayPercentage(this.value), calculateHolidayPercentage(), calculateTotalCostWeek()" />%</td>                
+                <td id="result-holiday"></td>
+            </tr>
+            <tr class="endtable">
+                <td colspan="10"></td>
+                <td>Tax Rate</td>
+                <td><input type="number" id="taxPercentageInput" placeholder="Tax %" style="width: 80px; text-align: center; border-radius: 6px; text-transform: uppercase; font-size: 17px;"
+                    onchange="saveTaxPercentage(this.value), calculateTaxPercentage(), calculateTotalCostWeek()"/>%</td>                
+                <td id="result-tax"></td>
+            </tr>
+            <tr class="endtable">
+                <td colspan="10"></td>
+                <td>Pension Rate</td>
+                <td><input type="number" id="pensionPercentageInput" placeholder="Pension %" style="width: 80px; text-align: center; border-radius: 6px; text-transform: uppercase; font-size: 17px;"
+                    onchange="savePensionPercentage(this.value), calculatePensionPercentage(), calculateTotalCostWeek()" />%</td>                
+                <td id="result-pension"></td>
+            </tr>
+            <tr class="endtable">
+                <td colspan="11"></td>
+                <td>Total Cost Week</td>              
+                <td id="totalcostweek"></td>
+            </tr>                     
+        </tfoot>
+    </table>  
+    <div id="popupMessage">Rota Updated Successfully</div>
+    <button class="btn1" onclick="saveRotaData();">Save</button>
+    <button class="btn1" onclick="clearAllRotaData();">Clear All</button>
+<script>
+// Function to Calculate the Total Weekly Cost
+function calculateTotalCostWeek() {
+    try {
+        // Helper function to parse a value, remove £ symbol, and convert it to a float
+        const parseValue = (selector) => {
+            const cell = document.querySelector(selector);
+            if (cell) {
+                return parseFloat(cell.textContent.replace('£', '').trim()) || 0;
+            }
+            return 0;
+        };
+
+        // Get the values from the relevant cells
+        const pensionValue = parseValue('#result-pension');
+        const taxValue = parseValue('#result-tax');
+        const holidayValue = parseValue('#result-holiday');
+        const totalRowValue = parseValue('#totalrow td:nth-child(13)');
+
+        // Sum the values
+        const totalCost = pensionValue + taxValue + holidayValue + totalRowValue;
+
+        // Update the total cost in the cell #totalcostweek
+        const totalCostWeekCell = document.querySelector('#totalcostweek');
+        if (totalCostWeekCell) {
+            totalCostWeekCell.textContent = `£ ${totalCost.toFixed(2)}`;
+        } else {
+            console.error('Cell with ID #totalcostweek not found.');
+        }
+    } catch (error) {
+        console.error('Error calculating total cost for the week:', error);
+    }
+}
+// Calculates the holiday percentage of the total value in a specific cell
+function calculateHolidayPercentage() {
+    const percentageValue = parseFloat(document.getElementById('holidayPercentageInput').value);
+    const totalValue = parseFloat(document.querySelector('#totalrow td:nth-child(13)').textContent.replace('£', '').trim());
+    const result = (percentageValue / 100) * totalValue;
+    document.getElementById('result-holiday').textContent = '£ ' + result.toFixed(2);
+}
+// Calculates the tax percentage of the total value in a specific cell
+function calculateTaxPercentage() {
+    const taxValue = parseFloat(document.getElementById('taxPercentageInput').value);
+    const totalValue = parseFloat(document.querySelector('#totalrow td:nth-child(13)').textContent.replace('£', '').trim());
+    const result = (taxValue / 100) * totalValue;
+    document.getElementById('result-tax').textContent = '£ ' + result.toFixed(2);
+}
+// Calculates the pension percentage of the total value in a specific cell
+function calculatePensionPercentage() {
+    const pensionValue = parseFloat(document.getElementById('pensionPercentageInput').value);
+    const totalValue = parseFloat(document.querySelector('#totalrow td:nth-child(13)').textContent.replace('£', '').trim());
+    const result = (pensionValue / 100) * totalValue;
+    document.getElementById('result-pension').textContent = '£ ' + result.toFixed(2);
+}
+// Save holiday percentage dynamically when the value changes
+async function saveHolidayPercentage(percentage) {
+    if (percentage === "" || percentage < 0 || percentage > 100) {
+        alert('Please enter a valid percentage between 0 and 100.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/rota/save-holiday-percentage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ holiday: percentage }),
+        });
+
+        if (response.ok) {
+            console.log('Holiday percentage saved successfully!');
+        } else {
+            console.error('Failed to save holiday percentage.');
+        }
+    } catch (error) {
+        console.error('Error saving holiday percentage:', error);
+    }
+}
+// Load saved holiday percentage when the page loads
+async function loadHolidayPercentage() {
+    try {
+        const response = await fetch('/rota/get-holiday-percentage');
+        if (response.ok) {
+            const data = await response.json();
+            const inputField = document.getElementById('holidayPercentageInput');
+            inputField.value = data.holiday || ''; // Set the saved value
+        } else {
+            console.error('Failed to load holiday percentage.');
+        }
+    } catch (error) {
+        console.error('Error loading holiday percentage:', error);
+    }
+}
+// Save Tax percentage dynamically when the value changes
+async function saveTaxPercentage(percentage) {
+    if (percentage === "" || percentage < 0 || percentage > 100) {
+        alert('Please enter a valid percentage between 0 and 100.');
+        return;
+    }
+    try {
+        const response = await fetch('/rota/save-tax-percentage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tax: percentage }),
+        });
+    } catch (error) {
+        console.error('Error saving tax percentage:', error);
+    }
+}
+// Load saved tax percentage when the page loads
+async function loadTaxPercentage() {
+    try {
+        const response = await fetch('/rota/get-tax-percentage');
+        if (response.ok) {
+            const data = await response.json();
+            const inputField = document.getElementById('taxPercentageInput');
+            inputField.value = data.tax || ''; // Set the saved value
+        } else {
+            console.error('Failed to load tax percentage.');
+        }
+    } catch (error) {
+        console.error('Error loading tax percentage:', error);
+    }
+}
+// Save Pension percentage dynamically when the value changes
+async function savePensionPercentage(percentage) {
+    if (percentage === "" || percentage < 0 || percentage > 100) {
+        alert('Please enter a valid percentage between 0 and 100.');
+        return;
+    }
+    try {
+        const response = await fetch('/rota/save-pension-percentage', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ pension: percentage }),
+        });
+    } catch (error) {
+        console.error('Error saving pension percentage:', error);
+    }
+}
+// Load saved pension percentage when the page loads
+async function loadPensionPercentage() {
+    try {
+        const response = await fetch('/rota/get-pension-percentage');
+        if (response.ok) {
+            const data = await response.json();
+            const inputField = document.getElementById('pensionPercentageInput');
+            inputField.value = data.pension || ''; // Set the saved value
+        } else {
+            console.error('Failed to load pension percentage.');
+        }
+    } catch (error) {
+        console.error('Error loading pension percentage:', error);
+    }
+}
+// Function to display current week
+function displayCurrentWeek() {
+    // Get the current date
+    const currentDate = new Date();
+
+    // Get the current day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+    const dayOfWeek = currentDate.getDay();
+
+    // Calculate the difference between the current date and the last Monday (start of the week)
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+
+    // Get the current week's start (Monday) date
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() + diffToMonday);
+
+    // Create an array to hold the dates for the current week (Monday to Sunday)
+    const weekDates = [];
+
+    for (let i = 0; i < 7; i++) {
+        const currentDay = new Date(startOfWeek);
+        currentDay.setDate(startOfWeek.getDate() + i);
+
+        // Format the date as dd/mm/yyyy (Day)
+        const day = String(currentDay.getDate()).padStart(2, '0');
+        const month = String(currentDay.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+        const year = currentDay.getFullYear();
+        const weekday = currentDay.toLocaleDateString('en-GB', { weekday: 'long' }); // Get long weekday name
+
+        const formattedDate = `${day}/${month}/${year} (${weekday})`;
+        weekDates.push(formattedDate);
+    }
+
+    // Display the week dates in the table headers
+    const headers = document.querySelectorAll('[data-day]');
+    headers.forEach((header, index) => {
+        header.textContent = weekDates[index];
+    });
+} 
+// Function to update the table based on selected week
+function updateWeek() {
+    const weekStartDate = document.getElementById('weekStartDate').value;
+    const date = new Date(weekStartDate);
+    
+    // Ensure the date is a valid date
+    if (!isNaN(date)) {
+        const monday = getMonday(date);
+        const weekDates = getWeekDates(monday);
+        
+        // Update table headers with the correct dates and day names
+        updateTableHeaders(weekDates);
+        getSelectedWeekStart();
+    }
+}
+// Function to get the start date of the selected week (Monday)
+function getSelectedWeekStart() {
+    const selectedDate = document.getElementById('weekStartDate').value;
+    if (selectedDate) {
+        const date = new Date(selectedDate);
+        return getMonday(date);  // Use the getMonday function to find the Monday of the selected week
+    } else {
+        // If no date is selected, return the current week's Monday
+        const currentDate = new Date();
+        return getMonday(currentDate);
+    }
+}
+// Function to get the date of the Monday for the selected week
+function getMonday(date) {
+    const day = date.getDay(),
+          diff = date.getDate() - day + (day == 0 ? -6 : 1); // Get Monday date
+    return new Date(date.setDate(diff));
+}
+// Function to generate an array of dates for the week starting from Monday
+function getWeekDates(monday) {
+    const weekDates = [];
+    for (let i = 0; i < 7; i++) {
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+        weekDates.push(day);
+    }
+    return weekDates;
+}
+// Function to update table headers with correct day format (dd/mm/yyyy (day))
+function updateTableHeaders(weekDates) {
+    const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    
+    // Loop through the days and update the headers
+    daysOfWeek.forEach((day, index) => {
+        const dayHeader = document.getElementById(`${day.toLowerCase()}Header`);
+        const date = weekDates[index];
+        const formattedDate = formatDate(date);
+        dayHeader.innerText = `${formattedDate} (${day})`;
+        dayHeader.dataset.date = formattedDate;
+    });
+}
+// Helper function to format the date to dd/mm/yyyy
+function formatDate(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Month is 0-based
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+// Function to fetch employees data and populate the table
+function fetchEmployeeData() {
+    // Fetch employee data from the backend
+    fetch('/rota/employees')
+        .then(response => response.json())
+        .then(employees => {
+            // Call function to populate employee rows with fetched data
+            populateEmployeeRows(employees);
+        })
+        .catch(error => {
+            console.error('Error fetching employee data:', error);
+        });
+}
+// Function to populate employee rows in the table
+function populateEmployeeRows(employees) {
+    // Sort employees: BOH first, then FOH, within each by position, and finally by wage (descending order)
+    employees.sort((a, b) => {
+        if (a.designation === 'BOH' && b.designation !== 'BOH') {
+            return -1; // BOH comes first
+        } else if (a.designation !== 'BOH' && b.designation === 'BOH') {
+            return 1; // FOH comes after BOH
+        } else {
+            // Sort within the same designation by position first
+            const positionOrder = { manager: 1, supervisor: 2, tm: 3 };
+            const positionComparison = (positionOrder[a.position] || 4) - (positionOrder[b.position] || 4);
+
+            if (positionComparison !== 0) {
+                return positionComparison; // Sort by position first
+            }
+
+            // If positions are the same, sort by wage (descending)
+            return b.wage - a.wage;
+        }
+    });
+    
+    const employeeRowsContainer = document.getElementById('employeeRows');
+    let employeeRowsHTML = '';
+    employees.forEach(employee => {
+        
+        employeeRowsHTML += `
+            <tr data-designation="${employee.designation}" data-position="${employee.position}">
+            <td>${employee.name}</td>
+            <td>${employee.lastName}</td>
+            <td class="hidden-cell">${employee.wage}</td>
+            <td>${employee.designation}</td>
+            ${createTimeCells('monday')}
+            ${createTimeCells('tuesday')}
+            ${createTimeCells('wednesday')}
+            ${createTimeCells('thursday')}
+            ${createTimeCells('friday')}
+            ${createTimeCells('saturday')}
+            ${createTimeCells('sunday')}
+            <td class="total-hours"></td>
+            <td class="total-spent"></td>
+        </tr>
+            `;
+    });
+    employeeRowsContainer.innerHTML = employeeRowsHTML;
+    // Apply initial cell colors based on designation
+    applyRowColors();
+    // Add event listeners to time input fields
+    addTimeInputListeners();
+    // Call funtion to fetch and display rota data
+    fetchAndPopulateRotaTable();
+    // Function to fetch holidays from the database and color the cells in the rota table
+    updateRotaWithHolidays();
+}
+// Function to create the input fields for each day, with a button to change color
+function createTimeCells(day, startTime1, endTime1, startTime2, endTime2) {
+    return `
+        <td class="day-cell" data-day="${day}">
+            <input type="time" class="time-input" data-day="${day}" value="${startTime1 || ''}">
+            <input type="time" class="time-input" data-day="${day}" value="${endTime1 || ''}"><br>
+            <input type="time" class="time-input" data-day="${day}" value="${startTime2 || ''}">
+            <input type="time" class="time-input" data-day="${day}" value="${endTime2 || ''}"><br>
+            <button class="write-off-btn" onclick="toggleColor(event, '${day}')">Swap</button>
+            <button class="write-off-btn" onclick="writeOff(event, '${day}')">Off</button>
+        </td>
+    `;
+}
+// Apply row colors based on employee designation and position
+function applyRowColors() {
+    const rows = document.querySelectorAll('tr');
+    rows.forEach(row => {
+        const designation = row.getAttribute('data-designation');
+        const position = row.getAttribute('data-position');
+        const cells = row.querySelectorAll('td');
+
+        cells.forEach((cell, index) => {
+            if (position === 'manager' && designation === 'FOH') {
+                if (index >= 0 && index <= 3) {
+                    cell.style.backgroundColor = '#ffc0cb'; // Light Rose for Managers
+                }
+            } else if (position === 'supervisor') {
+                if (index >= 0 && index <= 3) {
+                    cell.style.backgroundColor = '#ffcc99'; // Light Orange for Supervisors
+                }
+            } else if (designation === 'BOH') {
+                if (index >= 0 && index <= 3) {
+                    cell.style.backgroundColor = '#fffacd'; // Light Yellow for BOH
+                }
+            } else if (designation === 'FOH') {
+                if (index >= 0 && index <= 3) {
+                    cell.style.backgroundColor = '#add8e6'; // Light Blue for FOH
+                }
+            }
+        });
+    });
+}
+// Function to remove timeframes (input fields) for "Off" state
+function removeTimeFrames(cell) {
+    const timeInputs = cell.querySelectorAll('input[type="time"]');
+    timeInputs.forEach(input => {
+        input.value = ''; // Clear the time values
+        input.style.display = 'none'; // Hide the time input fields
+    });
+}
+// Function to add timeframes back (input fields) for "On" state
+function addTimeFrames(cell) {
+    const timeInputs = cell.querySelectorAll('input[type="time"]');
+    timeInputs.forEach(input => {
+        input.style.display = 'inline'; // Show the time input fields
+    });
+}
+// Toggle color between Light Blue (FOH), Light Yellow (BOH), and Light Green (Holiday)
+function toggleColor(event, day) {
+    const cell = event.target.closest('td');
+    const currentColor = cell.style.backgroundColor;
+
+    // Cycle through the colors in the order: Light Blue (FOH) -> Light Yellow (BOH) -> Light Green (Holiday)
+    if (currentColor === 'rgb(173, 216, 230)' || currentColor === 'lightblue') { // Light Blue (FOH)
+        cell.style.backgroundColor = '#fffacd'; // Change to Light Yellow (BOH)
+        addTimeFrames(cell); // Add time frames back
+    } else if (currentColor === 'rgb(255, 250, 205)' || currentColor === 'lightyellow') { // Light Yellow (BOH)
+        cell.style.backgroundColor = '#90ee90'; // Change to Light Green (Holiday)
+        removeTimeFrames(cell); // Remove time frames for Holiday
+    } else { // Light Green (Holiday)
+        cell.style.backgroundColor = '#add8e6'; // Change to Light Blue (FOH)
+        addTimeFrames(cell); // Add time frames back
+    }
+}
+// Main function to fetch and populate the rota table
+function fetchAndPopulateRotaTable() {
+    // Get the selected week's Monday date
+    const selectedMonday = getSelectedWeekStart();
+    
+    // Get all the dates for the selected week (Monday to Sunday)
+    const weekDates = getWeekDates(selectedMonday);
+    
+    // Format the week dates and create the query string
+    const formattedWeekDates = weekDates.map(date => formatDateWithDay(date));
+    const queryString = formattedWeekDates.join(',');
+
+    // Fetch rota data using the dynamically created query string
+    fetch(`/rota/rota?days=${queryString}`)
+        .then(response => response.json())
+        .then(groupedData => {
+
+            // Clear all time input values and cell colors in the table
+            document.querySelectorAll("#employeeRows input[type='time']").forEach(input => {
+                input.value = ''; // Reset the time input
+            });
+            document.querySelectorAll("#employeeRows td").forEach(cell => {
+                cell.style.backgroundColor = ''; // Reset the background color
+            });
+
+            // Fill in rota data for each day
+            Object.keys(groupedData).forEach(day => {
+                const employees = groupedData[day];
+                if (Array.isArray(employees)) {
+                    // Group entries by name and lastName
+                    const employeeGroups = employees.reduce((acc, employee) => {
+                        const key = `${employee.name}_${employee.lastName}`;
+                        if (!acc[key]) {
+                            acc[key] = [];
+                        }
+                        acc[key].push(employee);
+                        return acc;
+                    }, {});
+
+                    Object.keys(employeeGroups).forEach(key => {
+                        const [name, lastName] = key.split('_');
+                        const groupedEntries = employeeGroups[key];
+
+                        const dayOfWeek = getWeekdayFromDate(day);
+                        if (!dayOfWeek) {
+                            console.warn(`Invalid day format: ${day}`);
+                            return;
+                        }
+
+                        const employeeRow = Array.from(document.querySelectorAll("#employeeRows tr")).find(row => {
+                            const nameCell = row.children[0]?.textContent.trim();
+                            const lastNameCell = row.children[1]?.textContent.trim();
+                            return nameCell === name && lastNameCell === lastName;
+                        });
+
+                        if (employeeRow) {
+                            const dayHeader = document.querySelector(`th[data-day="${dayOfWeek}"]`);
+                            if (dayHeader) {
+                                const dayIndex = Array.from(dayHeader.parentElement.children).indexOf(dayHeader);
+                                const dayCell = employeeRow.children[dayIndex];
+
+                                if (dayCell) {
+                                    // Combine and sort all time frames for this employee on this day
+                                    const timeFrames = groupedEntries
+                                        .map(entry => ({
+                                            start: entry.startTime || '',
+                                            end: entry.endTime || '',
+                                            color: entry.color || '' // Extract the color value
+                                        }))
+                                        .filter(frame => frame.start) // Ensure only valid frames are considered
+                                        .sort((a, b) => a.start.localeCompare(b.start)); // Sort by start time
+
+                                    // Flatten sorted time frames into four slots for two time periods
+                                    const startTime1 = timeFrames[0]?.start || '';
+                                    const endTime1 = timeFrames[0]?.end || '';
+                                    const startTime2 = timeFrames[1]?.start || '';
+                                    const endTime2 = timeFrames[1]?.end || '';
+                                    const cellColor = timeFrames[0]?.color || ''; // Get the color value
+
+                                    // Populate the inputs with new data
+                                    const timeInputs = dayCell.querySelectorAll("input[type='time']");
+                                    if (timeInputs[0]) timeInputs[0].value = startTime1;
+                                    if (timeInputs[1]) timeInputs[1].value = endTime1;
+                                    if (timeInputs[2]) timeInputs[2].value = startTime2;
+                                    if (timeInputs[3]) timeInputs[3].value = endTime2;
+
+                                    // Apply the color to the cell
+                                    if (cellColor) {
+                                        dayCell.style.backgroundColor = cellColor;
+                                    }
+                                } else {
+                                    console.warn(`No cell found for ${dayOfWeek} in row for ${name} ${lastName}`);
+                                }
+                            } else {
+                                console.warn(`No header found for day: ${dayOfWeek}`);
+                            }
+                        } else {
+                            console.warn(`Row for employee ${name} ${lastName} not found.`);
+                        }
+                    });
+                } else {
+                    console.error(`Data for day ${day} is not an array:`, employees);
+                }
+            });
+
+            // Apply styles and event listeners
+            applyRowColors();
+            // Function to calculate total daily hours and total daily spent
+            updateDailySpent();
+            // Function to calculate total weekly hours and total weekly spent
+            updateWeeklyTotals();
+            // Function to calculate total hours for a row
+            updateTotalHoursForRow();
+            // Function to add event listeners to time input fields
+            addTimeInputListeners();
+        })
+        .catch(error => {
+            console.error('Error fetching rota data:', error);
+        });
+}
+// Extract day from full date
+function getWeekdayFromDate(dateString) {
+    // Extract the day of the week from the date string (e.g., "29/11/2024 (Friday)")
+    const match = dateString.match(/\((\w+)\)/);
+    if (match) {
+        return match[1].toLowerCase();
+    } else {
+        console.warn(`No weekday found in date string: ${dateString}`);
+        return null;
+    }
+}
+// Helper function to format the date with the day
+function formatDateWithDay(date) {
+    const formattedDate = formatDate(date);  // Format as dd/mm/yyyy
+    const dayOfWeek = date.toLocaleString('en-us', { weekday: 'long' }); // Get the day of the week
+    return `${formattedDate} (${dayOfWeek})`;
+}
+// String replace helper to modify cell contents at the correct index
+String.prototype.replaceAtIndex = function (replace, index, newValue) {
+    const arr = this.split('');
+    arr.splice(index, 1, newValue);
+    return arr.join('');
+}
+// Add event listeners to time input fields (for example, to handle validation)
+function addTimeInputListeners() {
+    const timeInputs = document.querySelectorAll('input[type="time"]');
+    timeInputs.forEach(input => {
+        input.addEventListener('change', (e) => {
+            console.log('Time changed:', e.target.value);
+        });
+    });
+}
+// Function to calculate total hours for a row
+function updateTotalHoursForRow(row) {
+    let totalHours = 0;
+
+    // Get all the time input fields for the current row (start and end times)
+    const timeInputs = row.querySelectorAll('input[type="time"]');
+    
+    // Loop through the inputs to calculate the total hours
+    for (let i = 0; i < timeInputs.length; i += 2) {
+        const startTime = timeInputs[i].value;
+        const endTime = timeInputs[i + 1].value;
+
+        // If both start and end time are provided, calculate the time difference
+        if (startTime && endTime) {
+            const start = parseTime(startTime);
+            const end = parseTime(endTime);
+
+            if (start && end) {
+                let diff = (end - start) / (1000 * 60 * 60); // Convert milliseconds to hours
+                
+                // Handle crossing midnight
+                if (diff < 0) {
+                    diff += 24; // Add 24 hours to the difference
+                }
+
+                totalHours += diff;
+            }
+        }
+    }
+
+    // Update the "Total Hours" column in the current row
+    const totalHoursCell = row.querySelector('.total-hours');
+    totalHoursCell.textContent = totalHours.toFixed(2); // Round to 2 decimal places
+
+    // Get the wage for the row
+    const wageCell = row.querySelector('td:nth-child(3)'); // Assuming wage is in the 3rd column
+    const wage = parseFloat(wageCell.textContent);
+
+    // Calculate the total spent
+    const totalSpent = totalHours * wage;
+
+    // Update the "Total Spent" column in the current row
+    const totalSpentCell = row.querySelector('.total-spent');
+    totalSpentCell.textContent = `£ ${totalSpent.toFixed(2)}`; // Round to 2 decimal places
+}
+// Function to calculate total weekly hours and total weekly spent
+function updateWeeklyTotals() {
+    const totalRow = document.querySelector('#totalrow');
+    const rows = document.querySelectorAll('#employeeRows tr');
+    let weeklyTotalHours = 0;
+    let weeklyTotalSpent = 0;
+
+    if (!totalRow) {
+        console.error("Total row not found in the table.");
+        return;
+    }
+
+    // Loop through each row to calculate weekly totals
+    rows.forEach(row => {
+        let totalHoursForRow = 0;
+
+        // Loop through Monday to Sunday columns (columns 5 to 11 in your table)
+        for (let columnIndex = 5; columnIndex <= 11; columnIndex++) {
+            let totalHoursForDay = 0;
+
+            // Select time inputs for the current column (Monday to Sunday)
+            const timeInputs = row.querySelectorAll(`td:nth-child(${columnIndex}) input[type="time"]`);
+
+            // We should have four inputs (2 start and 2 end times)
+            if (timeInputs.length === 4) {
+                // Parse the start and end times for each pair (start and end)
+                for (let i = 0; i < 2; i++) {
+                    const startTime = timeInputs[i * 2].value;
+                    const endTime = timeInputs[i * 2 + 1].value;
+
+                    if (startTime && endTime) {
+                        const start = parseTime(startTime);
+                        const end = parseTime(endTime);
+
+                        if (start && end) {
+                            let diff = (end - start) / (1000 * 60 * 60); // Convert milliseconds to hours
+
+                            // Handle crossing midnight
+                            if (diff < 0) {
+                                diff += 24; // Add 24 hours to the difference
+                            }
+
+                            totalHoursForDay += diff;
+                        }
+                    }
+                }
+            }
+
+            // Add total hours for the current day to the row's total hours
+            totalHoursForRow += totalHoursForDay;
+        }
+
+        // Update total hours for the row
+        const totalHoursCell = row.querySelector('td:nth-child(12)');
+        if (totalHoursCell) {
+            totalHoursCell.textContent = totalHoursForRow.toFixed(2); // Round to 2 decimal places
+        }
+
+        // Add to the overall weekly totals
+        weeklyTotalHours += totalHoursForRow;
+
+        // Get the wage from the current row (column 3)
+        const wageCell = row.querySelector('td:nth-child(3)');
+        const wage = parseFloat(wageCell.textContent) || 0;
+
+        // Calculate the total spent for the row (Total Hours * Wage)
+        const totalSpentForRow = totalHoursForRow * wage;
+        weeklyTotalSpent += totalSpentForRow;
+    });
+
+    // Update total hours for the week in the totals row
+    const totalHoursWeekCell = totalRow.querySelector('td:nth-child(12)');
+    if (totalHoursWeekCell) {
+        totalHoursWeekCell.textContent = weeklyTotalHours.toFixed(2); // Round to 2 decimal places
+    }
+
+    // Update total spent for the week in the totals row
+    const totalSpentWeekCell = totalRow.querySelector('td:nth-child(13)');
+    if (totalSpentWeekCell) {
+        totalSpentWeekCell.textContent = `£ ${weeklyTotalSpent.toFixed(2)}`; // Round to 2 decimal places
+    }
+    // Calculates the holiday percentage of the total value in a specific cell
+    calculateHolidayPercentage();
+    // Calculates the tax percentage of the total value in a specific cell
+    calculateTaxPercentage();
+    // Calculates the pension percentage of the total value in a specific cell
+    calculatePensionPercentage();
+    // Call the function when needed, e.g., after updates
+    calculateTotalCostWeek();    
+}
+// Function to calculate total daily hours and total daily spent
+function updateDailySpent() {
+    const rows = document.querySelectorAll('#employeeRows tr'); // Select all rows
+
+    const dailyTotals = Array(7).fill(0); // Array to store total hours for each day (Monday to Sunday)
+    const dailySpentTotals = Array(7).fill(0); // Array to store total spent for each day (Monday to Sunday)
+
+    rows.forEach((row, rowIndex) => {
+        let totalHoursForRow = 0;
+
+        // Get wage for the current row
+        const wageCell = row.querySelector('td:nth-child(3)');
+        let wage = parseFloat(wageCell?.textContent?.trim()) || 0;
+
+        // Loop through columns for Monday to Sunday (5 to 11)
+        for (let columnIndex = 5; columnIndex <= 11; columnIndex++) {
+            let totalHoursForDay = 0;
+
+            // Select time inputs for the current column
+            const timeInputs = row.querySelectorAll(`td:nth-child(${columnIndex}) input[type="time"]`);
+
+            // Ensure there are exactly 4 time inputs (2 pairs: start and end)
+            if (timeInputs.length === 4) {
+                for (let i = 0; i < 2; i++) {
+                    const startTime = timeInputs[i * 2]?.value;
+                    const endTime = timeInputs[i * 2 + 1]?.value;
+
+                    if (startTime && endTime) {
+                        const start = parseTime(startTime);
+                        const end = parseTime(endTime);
+
+                        if (start && end) {
+                            let diff = (end - start) / (1000 * 60 * 60); // Convert ms to hours
+                            if (diff < 0) diff += 24; // Handle crossing midnight
+
+                            totalHoursForDay += diff;
+                        }
+                    }
+                }
+            } else {
+                console.warn(`Expected 4 inputs, but found ${timeInputs.length} in column ${columnIndex}`);
+            }
+
+            totalHoursForRow += totalHoursForDay;
+            dailyTotals[columnIndex - 5] += totalHoursForDay; // Add the hours to the daily total array
+            dailySpentTotals[columnIndex - 5] += totalHoursForDay * wage; // Add to the total spent for the day
+        }
+
+        // Calculate total spent for the row
+        const totalSpentForRow = totalHoursForRow * wage;
+
+        // Update total spent column for the current row
+        const totalSpentCell = row.querySelector('td:nth-child(13)');
+        if (totalSpentCell) {
+            totalSpentCell.textContent = `£${totalSpentForRow.toFixed(2)}`;
+        }
+    });
+
+    // Update the #totalrow with the aggregated daily totals
+    dailyTotals.forEach((total, index) => {
+        const totalsRowCell = document.querySelector(`#totalrow td:nth-child(${index + 5})`);
+        if (totalsRowCell) {
+            totalsRowCell.textContent = `${total.toFixed(2)} hrs`; // Display the total hours for the day
+        }
+    });
+
+    // Update the #totalrow with the aggregated daily spent totals
+    dailySpentTotals.forEach((total, index) => {
+        const totalsSpentRowCell = document.querySelector(`#totalrow td:nth-child(${index + 5})`);
+        if (totalsSpentRowCell) {
+            totalsSpentRowCell.textContent += ` / £${total.toFixed(2)}`; // Append the total spent for the day
+        }
+    });
+}
+// Function to parse time string (HH:mm) into a Date object
+function parseTime(timeStr) {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours);
+    date.setMinutes(minutes);
+    date.setSeconds(0);
+    date.setMilliseconds(0);
+    return date;
+}
+// Function to add event listeners to time input fields
+function addTimeInputListeners() {
+    // Get all time input fields
+    const timeInputs = document.querySelectorAll('input[type="time"]');
+
+    // Loop through each input field and add an event listener
+    timeInputs.forEach(input => {
+        input.addEventListener('input', () => {
+            const row = input.closest('tr');
+            updateTotalHoursForRow(row);  // Update total hours and total spent for the current row
+            updateWeeklyTotals();  // Update weekly totals
+            updateDailySpent();  // Update daily totals
+        });
+    });
+}
+// Function to send Rota data to the BackEnd
+function saveRotaData() {
+    const tableData = [];
+    const rows = document.querySelectorAll("#employeeRows tr"); // Ensure correct row selector
+
+    // Get the week start date from input (in yyyy-mm-dd format)
+    let weekStartDate = document.getElementById('weekStartDate')?.value;
+
+    // Determine the starting Monday date
+    let date;
+    if (weekStartDate) {
+        // Parse the provided date
+        date = new Date(weekStartDate);
+    } else {
+        // Default to the current date
+        date = new Date();
+    }
+
+    // Ensure the date is valid
+    if (isNaN(date)) {
+        console.error("Invalid week start date.");
+        return;
+    }
+
+    // Get the Monday of the week (if it's not already Monday)
+    const monday = getMonday(date);
+
+    // Format the Monday date and get the day of the week
+    const dayOfWeek = getDayOfWeek(monday);
+    const formattedMonday = formatDate(monday);
+
+    // Rebuild the week start date with the Monday and day of the week
+    weekStartDate = `${formattedMonday} (${dayOfWeek})`;
+
+    // Get the week dates (the full dates for the week starting from Monday)
+    const weekDates = getWeekDates(monday); // Get array of full Date objects for the week
+
+    // Iterate through each row and prepare the data
+    rows.forEach(row => {
+        const name = row.children[0]?.textContent.trim();
+        const lastName = row.children[1]?.textContent.trim();
+        const wage = row.children[2]?.textContent.trim();
+        const designation = row.children[3]?.textContent.trim();
+
+        // Iterate through each day column to extract time values and background color
+        for (let i = 4; i < row.children.length - 2; i++) { // Skip last two columns
+            const cell = row.children[i];
+            const dayOfWeek = cell.getAttribute('data-day'); // Correct way to get data-day
+
+            if (!dayOfWeek) continue;
+
+            const inputs = cell.querySelectorAll("input[type='time']");
+            const backgroundColor = cell.style.backgroundColor; // Extract the background color
+            console.log(backgroundColor);
+            if (inputs.length < 2) continue; // Skip if there are no time inputs
+
+            const startTime1 = inputs[0]?.value || "";
+            const endTime1 = inputs[1]?.value || "";
+            const startTime2 = inputs[2]?.value || "";
+            const endTime2 = inputs[3]?.value || "";
+
+            // Get the corresponding date for the current day in the week
+            const currentDate = weekDates[i - 4]; // Map the index to the correct day in the week
+            const formattedDate = formatDate(currentDate); // Use the formatDate function to format the date
+
+            // Get the day of the week (e.g., "Monday", "Tuesday")
+            const dayOfWeekForDate = getDayOfWeek(currentDate);
+
+            // Combine date and day of the week into one string like "dd/mm/yyyy (Day)"
+            const dayWithDayOfWeek = `${formattedDate} (${dayOfWeekForDate})`;
+
+            // Add data to the tableData array with day and dayOfWeek combined
+            if (startTime1 && endTime1) {
+                tableData.push({
+                    name, lastName, wage, designation, day: dayWithDayOfWeek,
+                    startTime: startTime1, endTime: endTime1, color: backgroundColor
+                });
+            }
+            if (startTime2 && endTime2) {
+                tableData.push({
+                    name, lastName, wage, designation, day: dayWithDayOfWeek,
+                    startTime: startTime2, endTime: endTime2, color: backgroundColor
+                });
+            }
+        }
+    });
+
+
+    // Send data to the backend using fetch API (adjust the URL to your backend)
+    fetch('/rota/saveData', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(tableData),
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Response from server:', data);
+        alert('Rota saved successfully!');
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+
+    // Stop execution here (do not send data to the server)
+    console.log('Data preparation complete. Data is being sent to the server.');
+}
+// Function to fetch holidays from the database and color the cells in the rota table
+function updateRotaWithHolidays() {
+    // Fetch accepted holidays from the backend
+    fetch('/rota/holidays')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Server returned status ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(holidays => {
+            console.log('Raw data from the server:', holidays);
+
+            if (!Array.isArray(holidays)) {
+                console.error('Expected an array, but received:', holidays);
+                return;
+            }
+
+            holidays.forEach(holiday => {
+                try {
+                    const { name, lastname, startDate, endDate } = holiday;
+
+                    // Validate required fields before processing
+                    if (!name || !lastname || !startDate || !endDate) {
+                        console.error('Invalid holiday data:', holiday);
+                        return;
+                    }
+
+                    console.log(`Processing holiday for ${name} ${lastname} from ${startDate} to ${endDate}`);
+
+                    // Function to format date as dd/mm/yyyy (Day)
+                    const formatDate = (dateStr) => {
+                        const [day, month, yearWithDay] = dateStr.split('/');
+                        const [year, dayOfWeek] = yearWithDay.split(' ');
+                        return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}/${year} ${dayOfWeek.trim()}`;
+                    };
+
+                    // Convert startDate and endDate to Date objects
+                    const [startDay, startMonth, startYearWithDay] = startDate.split('/');
+                    const [startYear, startDayOfWeek] = startYearWithDay.split(' ');
+                    const startDateObj = new Date(`${startMonth}/${startDay}/${startYear}`);
+
+                    const [endDay, endMonth, endYearWithDay] = endDate.split('/');
+                    const [endYear, endDayOfWeek] = endYearWithDay.split(' ');
+                    const endDateObj = new Date(`${endMonth}/${endDay}/${endYear}`);
+
+                    console.log('Formatted start date:', startDateObj, 'Formatted end date:', endDateObj);
+
+                    // Loop through the days in the range
+                    let currentDateObj = new Date(startDateObj);
+                    while (currentDateObj <= endDateObj) {
+                        // Format currentDate as dd/mm/yyyy (Day)
+                        const currentDate = formatDate(`${currentDateObj.getDate()}/${currentDateObj.getMonth() + 1}/${currentDateObj.getFullYear()} (${currentDateObj.toLocaleDateString('en-GB', { weekday: 'long' })})`);
+
+                        console.log('Checking date:', currentDate);
+
+                        // Find the row for the employee
+                        const row = Array.from(document.querySelectorAll('tr')).find(row => {
+                            const firstNameCell = row.children[0]; // First column contains the name
+                            const lastNameCell = row.children[1]; // Second column contains the last name
+
+                            // Log the first and last names from the table
+                            const firstNameText = firstNameCell ? firstNameCell.textContent.trim().toLowerCase() : '';
+                            const lastNameText = lastNameCell ? lastNameCell.textContent.trim().toLowerCase() : '';
+                            console.log(`Checking row: ${firstNameText} ${lastNameText}`);
+
+                            return firstNameText === name.toLowerCase() && lastNameText === lastname.toLowerCase();  // Compare names case-insensitively
+                        });
+
+                        if (row) {
+                            console.log(`Found row for ${name} ${lastname}`);
+
+                            // Loop through the header cells to find the matching date
+                            const headerCells = document.querySelectorAll('#hoursTable thead th');
+                            headerCells.forEach(cell => {
+                                const cellDateText = cell.textContent.trim(); // Get the cell's text content (date with day of week)
+
+                                // Skip non-date cells like "Total Hours" or "Total Spent"
+                                if (cellDateText.toLowerCase().includes('total')) {
+                                    return;  // Skip this iteration for non-date cells
+                                }
+
+                                // Normalize the day of the week (capitalize the first letter of the weekday)
+                                const normalizedCellDateText = cellDateText.replace(/\(\w/, (match) => match.toUpperCase());
+
+                                console.log(`Cell date: ${normalizedCellDateText}, Comparing with current date: ${currentDate}`);
+
+                                // Check if the cell's date matches the full date (dd/mm/yyyy (day))
+                                if (normalizedCellDateText === currentDate) {
+                                    console.log(`Found cell for ${currentDate}. Clearing and coloring.`);
+
+                                    // Find the corresponding cell in the row
+                                    const dateCell = row.querySelector(`th[data-day="${cell.getAttribute('data-day')}"]`);
+                                    console.log('Day: ', dateCell);
+                                    if (dateCell) {
+                                        dateCell.innerHTML = '';  // Clears any existing content
+                                        dateCell.style.backgroundColor = '#90ee90';  // Green color for holidays
+                                    }
+                                }
+                            });
+                        } else {
+                            console.log(`No row found for ${name} ${lastname}`);
+                        }
+
+                        // Increment the date (dd/mm/yyyy format)
+                        currentDateObj.setDate(currentDateObj.getDate() + 1);  // Move to the next day
+                    }
+                } catch (error) {
+                    console.error('Error processing holiday:', holiday, error);
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching holidays:', error);
+        });
+}
+// Function to handle the Write Off button click (toggle behavior)
+function writeOff(event, dayIndex) {
+    const cell = event.target.closest('td');
+    const button = event.target; // Reference to the Write Off button
+    const row = cell.closest('tr'); // Get the row for this particular employee
+
+    // Extract employee information (name, last name, etc.) from the row
+    const name = row.children[0].textContent.trim(); // First cell for employee's name
+    const lastName = row.children[1].textContent.trim(); // Second cell for employee's last name
+
+    // Get the week start date from input (in yyyy-mm-dd format)
+    let weekStartDate = document.getElementById('weekStartDate')?.value;
+
+    // Determine the starting Monday date
+    let date;
+    if (weekStartDate) {
+        // Parse the provided date
+        date = new Date(weekStartDate);
+    } else {
+        // Default to the current date
+        date = new Date();
+    }
+
+    // Ensure the date is valid
+    if (isNaN(date)) {
+        console.error("Invalid week start date.");
+        return;
+    }
+
+    // Get the Monday of the week (if it's not already Monday)
+    const monday = getMonday(date);
+
+    // Format the Monday date and get the day of the week
+    const dayOfWeek = getDayOfWeek(monday);
+    const formattedMonday = formatDate(monday);
+
+    // Rebuild the week start date with the Monday and day of the week
+    weekStartDate = `${formattedMonday} (${dayOfWeek})`;
+
+    // Debug: log the formatted date with the day
+    console.log("Formatted Week Start Date:", weekStartDate);
+
+    // Get the week dates (the full dates for the week starting from Monday)
+    const weekDates = getWeekDates(monday); // Get array of full Date objects for the week
+
+    // Check if the weekDates array is valid
+    if (!Array.isArray(weekDates) || weekDates.length !== 7) {
+        console.error("Invalid weekDates:", weekDates);
+        return;
+    }
+
+    // Create a mapping from day name to index
+    const dayMapping = {
+        "monday": 0,
+        "tuesday": 1,
+        "wednesday": 2,
+        "thursday": 3,
+        "friday": 4,
+        "saturday": 5,
+        "sunday": 6
+    };
+
+    // Ensure the dayIndex is valid and mapped to the correct number
+    const validDayIndex = dayMapping[dayIndex.toLowerCase()];
+    if (validDayIndex === undefined) {
+        console.error("Invalid dayIndex:", dayIndex);
+        return;
+    }
+
+    // Log dayIndex to check if it is within bounds
+    console.log("dayIndex:", validDayIndex);
+
+    // Get the specific date for the provided day index
+    const currentDate = weekDates[validDayIndex]; // Get the date for the given day index
+    console.log("currentDate:", currentDate);
+
+    // Check if currentDate is a valid Date object
+    if (!(currentDate instanceof Date) || isNaN(currentDate.getTime())) {
+        console.error("Invalid currentDate:", currentDate);
+        return;
+    }
+
+    // Format the currentDate and get the day of the week
+    const formattedDate = formatDate(currentDate); // Format as dd/mm/yyyy
+    const currentDayOfWeek = getDayOfWeek(currentDate); // Get the day name (e.g., Monday)
+
+    // Log the formatted date and day of the week for debugging
+    console.log("formattedDate:", formattedDate, "currentDayOfWeek:", currentDayOfWeek);
+
+    const fullDay = `${formattedDate} (${currentDayOfWeek})`; // Combine date and day name
+
+    // Check the current state of the button (whether it is "ON" or "OFF")
+    if (button.classList.contains('off')) {
+        // If the button is currently "OFF", change it to "ON"
+        button.style.backgroundColor = ''; // Reset to default color
+        button.style.color = ''; // Reset text color
+        button.textContent = 'Off'; // Change the button text back to "Off"
+
+        // Show the timeframes again (if not already added)
+        addTimeFrames(cell);
+
+        // Remove "off" class to indicate the "ON" state
+        button.classList.remove('off');
+    } else {
+        // If the button is currently "ON", change it to "OFF"
+        button.style.backgroundColor = 'white';
+        button.style.color = 'black'; // Optional: make the text color black to contrast with white
+        button.textContent = 'On'; // Change the button text to "On"
+
+        // Clear (remove) the timeframes from the cell
+        removeTimeFrames(cell);
+
+        // Add "off" class to indicate the "OFF" state
+        button.classList.add('off');
+
+        // Make a request to the backend to remove the data for this day and employee
+        removeDayDataFromDB(name, lastName, fullDay);
+    }
+
+    // Call the functions to update totals and daily values after toggling the button
+    updateTotalHoursForRow(row); // Update total hours and total spent for the current row
+    updateWeeklyTotals(); // Update weekly totals
+    updateDailySpent(); // Update daily totals
+}
+// Function to remove data for a specific day and employee from the database
+function removeDayDataFromDB(name, lastName, fullDay) {
+    // Prepare the data to send to the backend
+    const requestData = {
+        name,
+        lastName,
+        fullDay,
+    };
+    console.log('Day: ',fullDay,
+            'Name: ',name,
+            'Lastname: ',lastName
+        )
+    // Use fetch to send a DELETE request to the backend
+    fetch('/rota/removeDayData', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData),
+    })
+        .then(response => {
+            if (response.ok) {
+                return response.text();
+            } else {
+                throw new Error('Failed to remove data from the database.');
+            }
+        })
+        .then(data => {
+            console.log('Data removed successfully:', data);
+        })
+        .catch(error => {
+            console.error('Error removing data:', error);
+        });
+}
+// Function to get the day of the week (e.g., "Monday", "Tuesday", etc.)
+function getDayOfWeek(date) {
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return daysOfWeek[date.getDay()];
+}
+// Function to clear all data in the rota table
+function clearAllRotaData() {
+    // Find all time input fields and clear their values
+    document.querySelectorAll("#employeeRows input[type='time']").forEach(input => {
+        input.value = ''; // Reset the time input
+    });
+
+    // Optionally, you can clear other data fields if necessary
+    console.log("All rota data cleared.");
+}
+// Window on Load funtions call
+window.onload = () => {
+    // Fetch employee data when the page loads
+    fetchEmployeeData();
+    // Display Curren Week
+    displayCurrentWeek();
+    // Call the loader when the page loads
+    loadHolidayPercentage();
+    // Call the loader when the page loads
+    loadTaxPercentage();
+    // Call the loader when the page loads
+    loadPensionPercentage();
+    // Call the function when needed, e.g., after updates
+    calculateTotalCostWeek();
+};
+</script>
+</body>
+</html>

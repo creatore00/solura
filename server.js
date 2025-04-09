@@ -1,8 +1,10 @@
 const express = require('express');
+const { query } = require('./dbPromise');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const cron = require('node-cron');
 const newRota = require('./Rota.js');
+const newRota2 = require('./rota2.js');
 const confirmpassword = require('./ConfirmPassword.js'); 
 const token = require('./Token.js');
 const generate = require('./Generate.js');
@@ -17,14 +19,16 @@ const TotalHolidays = require('./TotalHolidays.js');
 const UserCrota = require('./UserCRota.js');
 const UserHolidays = require('./UserHolidays.js');
 const confirmrota = require('./ConfirmRota.js');
+const confirmrota2 = require('./confirmrota2.js');
 const profile = require('./Profile.js');
 const UserTotalHours = require('./UserTotalHours.js');
 const insertpayslip = require('./InsertPayslip.js');
 const modify = require('./Modify.js');
+const endday = require('./EndDay.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const pool = require('./db.js'); // Import the connection pool
+const { getPool, mainPool } = require('./db.js'); // Import the main pool
 const bcrypt = require('bcrypt');
 const saltRounds = 10; // Number of salt rounds, higher is more secure but slower
 const jwt = require('jsonwebtoken');
@@ -32,8 +36,8 @@ const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor, isUser } = re
 
 const app = express();
 const port = process.env.PORT || 8080;
-
 app.use('/rota', newRota);
+app.use('/rota2', newRota2);
 app.use('/confirmpassword', confirmpassword);
 app.use('/token', token);
 app.use('/generate', generate);
@@ -48,165 +52,230 @@ app.use('/TotalHolidays', TotalHolidays);
 app.use('/UserCrota', UserCrota);
 app.use('/UserHoliday', UserHolidays);
 app.use('/confirmrota', confirmrota);
+app.use('/confirmrota2', confirmrota2);
 app.use('/profile', profile);
 app.use('/UserTotalHours', UserTotalHours);
 app.use('/insertpayslip', insertpayslip);
 app.use('/modify', modify);
+app.use('/endday', endday);
 // Middleware to parse JSON data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
 // Cron job to run on the 1st day of every month at midnight (00:00)
 cron.schedule('0 0 1 * *', async () => {
-  try {
-      // Connect to the MySQL database
-      await connection.connect();
-
-      // Query to update Accrued column for all employees
-      const updateQuery = `
-          UPDATE Employees
-          SET Accrued = Accrued + 2.333
-      `;
-
-      // Execute the update query
-      await connection.execute(updateQuery);
-
-      console.log('Accrued column updated for all employees.');
-
-  } catch (error) {
-      console.error('Error updating Accrued column:', error);
-  } finally {
-      // Close the database connection
-      await connection.end();
-  }
-}, {
-  scheduled: true,
-  timezone: 'Europe/London' // Specify your timezone (e.g., 'America/New_York')
+    try {
+        // Get all database names from the main database
+        const [dbNames] = await mainPool.promise().query('SELECT db_name FROM users WHERE db_name IS NOT NULL');
+  
+        // Update Accrued column for all employees in each company database
+        for (const db of dbNames) {
+            const pool = getPool(db.db_name); // Get the correct connection pool
+            const updateQuery = `
+                UPDATE Employees
+                SET Accrued = Accrued + 2.333
+            `;
+  
+            await pool.promise().query(updateQuery);
+        }
+    } catch (error) {
+        console.error('Error updating Accrued column:', error);
+    }
+  }, {
+    scheduled: true,
+    timezone: 'Europe/London' // Specify your timezone
 });
-// Route to handle login
-app.post('/', (req, res) => {
-const { email, password } = req.body;
-// Query the database to check if the email belongs to an admin or a user
-const sql = `
-    SELECT u.Access, u.Password, u.Email, e.name, e.lastName
-    FROM users u
-    JOIN Employees e ON u.Email = e.email
-    WHERE u.Email = ?
-  `;
-pool.query(sql, [email], async (err, results) => {
-      if (err) {
-          console.error('Error querying database:', err);
-          return res.status(500).json({ error: 'Internal Server Error' });
-      }
+// Route to handle login and database selection
+app.post('/submit', (req, res) => {
+    const { email, password, dbName } = req.body;
 
-      if (results.length === 0) {
-          // Email not found in the database
-          return res.status(401).json({ message: 'Incorrect email or password' });
-      }
+    // Step 1: Fetch user details from the main database
+    const sql = `
+        SELECT u.Access, u.Password, u.Email, u.db_name
+        FROM users u
+        WHERE u.Email = ?
+    `;
 
-      const storedPassword = results[0].Password;
-      const role = results[0].Access;
-      const name = results[0].name;
-      const lastName = results[0].lastName;
+    mainPool.query(sql, [email], async (err, results) => {
+        if (err) {
+            console.error('Error querying database:', err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
 
-      // Compare the entered password with the hashed password in the database
-      try {
-          const isMatch = await bcrypt.compare(password, storedPassword);
-          if (!isMatch) {
-              return res.status(401).json({ message: 'Incorrect email or password' });
-          }
-      // Store user information in session
-      req.session.user = {
-        email: results[0].Email,
-        role: results[0].Access,
-        name: results[0].name,
-        lastName: results[0].lastName
-      };
-          // Create a query string with user information
-          const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+        if (results.length === 0) {
+            return res.status(401).json({ message: 'Incorrect email or password' });
+        }
 
-          if (role === 'admin') {
-              // Redirect to the admin page with user info
-              return res.redirect(`/Admin.html${queryString}`);
-          } if (role === 'user') {
-              // Redirect to the user page with user info
-              return res.redirect(`/User.html${queryString}`);
-          } else if (role === 'supervisor') {
-            // Redirect to the user page with user info
-              return res.redirect(`/Supervisor.html${queryString}`);
-          } else {
-              // Invalid role
-              return res.status(401).json({ message: 'Incorrect email or password' });
-          }
-      } catch (err) {
-          console.error('Error comparing passwords:', err);
-          return res.status(500).json({ error: 'Internal Server Error' });
-      }
-  });
+        // Step 2: Check all rows for the given email and password
+        let matchingDatabases = [];
+
+        for (const row of results) {
+            const storedPassword = row.Password;
+
+            try {
+                const isMatch = await bcrypt.compare(password, storedPassword);
+                if (isMatch) {
+                    matchingDatabases.push({
+                        db_name: row.db_name,
+                        access: row.Access,
+                    });
+                }
+            } catch (err) {
+                console.error('Error comparing passwords:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+        }
+
+        if (matchingDatabases.length === 0) {
+            return res.status(401).json({ message: 'Incorrect email or password' });
+        }
+
+        // Step 3: If multiple databases match and no database is selected, return the list to the frontend
+        if (matchingDatabases.length > 1 && !dbName) {
+            return res.status(200).json({
+                message: 'Multiple databases found',
+                databases: matchingDatabases,
+            });
+        }
+
+        // Step 4: If only one database matches or a database is selected, proceed
+        const userDetails = dbName
+            ? matchingDatabases.find((db) => db.db_name === dbName) // Use the selected database
+            : matchingDatabases[0]; // Use the only matching database
+
+        if (!userDetails) {
+            return res.status(400).json({ error: 'Invalid database selection' });
+        }
+
+        const companyPool = getPool(userDetails.db_name); // Get the correct connection pool
+        const companySql = `
+            SELECT name, lastName
+            FROM Employees
+            WHERE email = ?
+        `;
+
+        companyPool.query(companySql, [email], (err, companyResults) => {
+            if (err) {
+                console.error('Error querying company database:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+
+            if (companyResults.length === 0) {
+                return res.status(401).json({ message: 'User not found in company database' });
+            }
+
+            const name = companyResults[0].name;
+            const lastName = companyResults[0].lastName;
+
+            // Step 5: Store user information in session
+            req.session.user = {
+                email: email,
+                role: userDetails.access,
+                name: name,
+                lastName: lastName,
+                dbName: userDetails.db_name,
+            };
+
+            // Explicitly save the session
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Error saving session:', err);
+                    return res.status(500).json({ error: 'Internal Server Error' });
+                }
+
+                // Step 6: Redirect based on role
+                const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+
+                if (userDetails.access === 'admin') {
+                    return res.json({ success: true, redirectUrl: `/Admin.html${queryString}` });
+                } else if (userDetails.access === 'user') {
+                    return res.json({ success: true, redirectUrl: `/User.html${queryString}` });
+                } else if (userDetails.access === 'supervisor') {
+                    return res.json({ success: true, redirectUrl: `/Supervisor.html${queryString}` });
+                } else {
+                    return res.status(401).json({ message: 'Incorrect email or password' });
+                }
+            });
+        });
+    });
 });
 // Route to retrieve data from the database
-app.post('/getRota', (req, res) => {
-  const selectedDate = req.body.date;
-  console.log('Received date:', selectedDate); // Debugging statement to check received date
-  const query = 'SELECT who FROM ConfirmedRota WHERE day = ?';
-  pool.query(query, [selectedDate], (error, results) => {
-      if (error) {
-          console.error('Error executing query:', error);
-          res.status(500).json({ error: 'Server error' }); // Send error as JSON
-          return;
-      }
-      console.log('Query results:', results); // Debugging statement to check query results
-      if (results.length > 0) {
-          res.json({ rota: results[0].who }); // Ensure 'who' column is the correct one
-      } else {
-          res.status(404).json({ error: 'No data found for the selected date' }); // Send error as JSON
-      }
-  });
+app.post('/getRota', isAuthenticated, (req, res) => {
+    const selectedDate = req.body.date;
+    const dbName = req.session.user.dbName; // Get the database name from the session
+  
+    if (!dbName) {
+        return res.status(401).json({ error: 'User not authenticated' });
+    }
+  
+    const pool = getPool(dbName); // Get the correct connection pool
+    const query = 'SELECT who FROM ConfirmedRota WHERE day = ?';
+  
+    pool.query(query, [selectedDate], (error, results) => {
+        if (error) {
+            console.error('Error executing query:', error);
+            return res.status(500).json({ error: 'Server error' });
+        }
+  
+        if (results.length > 0) {
+            res.json({ rota: results[0].who });
+        } else {
+            res.status(404).json({ error: 'No data found for the selected date' });
+        }
+    });
 });
 // API endpoint to get rota data for a specific day
-app.get('/api/rota', (req, res) => {
-  const day = req.query.day;
-  if (!day) {
-      return res.status(400).json({ error: 'Day is required' });
-  }
-  const query = 'SELECT * FROM rota WHERE day = ?';
-  pool.query(query, [day], (err, results) => {
-      if (err) {
-          return res.status(500).json({ error: err.message });
-      }
-      res.json(results);
-  });
+app.get('/api/rota', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+  
+    if (!dbName) {
+        return res.status(401).json({ error: 'User not authenticated' });
+    }
+  
+    const pool = getPool(dbName); // Get the correct connection pool
+  
+    const day = req.query.day;
+    if (!day) {
+        return res.status(400).json({ error: 'Day is required' });
+    }
+  
+    const query = 'SELECT * FROM rota WHERE day = ?';
+    pool.query(query, [day], (err, results) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        res.json(results);
+    });
 });
 // Apply isAuthenticated middleware to all protected routes
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
-  res.sendFile(__dirname + '/Admin.html');
+    res.sendFile(path.join(__dirname, 'Admin.html'));
 });
 app.get('/User.html', isAuthenticated, isUser, (req, res) => {
-  res.sendFile(__dirname + '/User.html');
+    res.sendFile(path.join(__dirname, 'User.html'));
 });
 app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
-  res.sendFile(__dirname + '/Supervisor.html');
+    res.sendFile(path.join(__dirname, 'Supervisor.html'));
 });
+// Route to handle logout
 app.get('/logout', (req, res) => {
-  // Check if there is an active session
-  if (req.session && req.session.user) {
-    req.session.destroy(err => {
-      if (err) {
-        console.error('Failed to logout:', err);
-        return res.status(500).json({ error: 'Failed to logout' });
-      }
-      res.clearCookie('connect.sid'); // Clear the session cookie
-      res.redirect('/');
-    });
-  } else {
-    // If no active session, just redirect to the login page
-    res.redirect('/');
-  }
+    if (req.session && req.session.user) {
+        req.session.destroy(err => {
+            if (err) {
+                console.error('Failed to destroy session:', err);
+                return res.status(500).json({ error: 'Failed to logout' });
+            }
+            res.clearCookie('connect.sid'); // Ensure the name matches the session cookie
+            res.redirect('/');
+        });
+    } else {
+        res.redirect('/');
+    }
 });
 // Serve your HTML or other routes here...
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/Login.html');
+    res.sendFile(path.join(__dirname, 'Login.html'));
 });
 app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
+    console.log(`Server listening at http://localhost:${port}`);
 });

@@ -12,31 +12,33 @@
         }
         body {
             /* Set the background color with gradient effect */
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
+            background: #e2e2e2;
             margin: 0;
             font-family: Arial, sans-serif;
             text-align: center;
             text-transform: uppercase;
-            color: #60a2ee; /* Text color */
+            color: #333; /* Darker text color */
             overflow-x: hidden; /* Prevent horizontal scrolling */
         }
         table {
             width: 100%;
+            max-width: 1200px;
+            margin: 40px auto; /* This centers the table horizontally */
             border-collapse: separate;
             border-spacing: 0;
-            background-color: #1E90FF; /* Blue background */
+            background-color: #fff; /* White background */
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Added box shadow for depth */
-            border: 0.1px solid #000; /* Border around the table */
+            border: 1px solid #000000; /* Light grey border around the table */
         }
         th, td {
             text-align: center;
-            border: 1px solid #ffffff; /* Border for table cells */
+            border: 1px solid #000000; /* Light grey border for table cells */
             padding: 12px;
             white-space: nowrap;
-            background-color: #4A90E2; /* Light blue background */
-            color: #fff; /* White text */
+            background-color: #f1f3f5; /* Light grey background */
+            color: #333; /* Darker text color */
             font-weight: bold; /* Bold text */
         }
         .table1 {
@@ -44,7 +46,7 @@
             border-collapse: separate;
             margin: 0 auto; /* This centers the table horizontally */
             border-spacing: 0;
-            background-color: #1E90FF; /* Blue background */
+            background-color: #fff; /* White background */
             border-radius: 10px;
             overflow: hidden;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Added box shadow for depth */
@@ -55,7 +57,7 @@
             border: 1px solid #ffffff; /* Border for table cells */
             padding: 5px;
             white-space: nowrap;
-            background-color: #4A90E2; /* Light blue background */
+            background-color: #f1f3f5; /* Light grey background */
             color: #fff; /* White text */
             font-weight: bold; /* Bold text */
         }
@@ -70,7 +72,7 @@
             font-weight: bold; /* Bold text */
         }
         .btn, .btn1 {
-            background-color: #4A90E2; /* Light blue button background */
+            background-color: #474747; /* Blue button background */
             color: #fff; /* White text */
             padding: 10px 20px;
             border: none;
@@ -83,7 +85,7 @@
             font-size: 14px; /* Font size */
         }
         .btn:hover, .btn1:hover {
-            background-color: #1E90FF; /* Darker blue button background on hover */
+            background-color: #000000; /* Darker blue button background on hover */
             transform: scale(1.05); /* Increase size by 5% */
             transition: transform 0.3s ease; /* Add smooth transition effect */
         }
@@ -138,10 +140,10 @@
             margin-bottom: 10px; /* Add some space above the new line */
         }
         .date {
-            background-color: #70ace7; /* Blue background */
+            background: #e2e2e2;
             font-family: Arial, sans-serif;
             text-transform: uppercase;
-            color: white;
+            color: #333; /* Darker text color */
             border-radius: 5px; /* Rounded corners */
             padding: 6px 12px; /* Adjust padding for better fit */
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
@@ -204,13 +206,12 @@
         tbody tr {
             animation: fadeInUp 0.5s ease;
         }
-        </style>
+    </style>
 </head>
 <body>
     <h1>Work Hours Summary</h1>
-    <label class="text" for="monthStart">Select Month:</label>
-    <input type="month" class="month" id="monthStart">
-    <button class="btn1" onclick="loadRota()">Load Month</button>
+    <label class="text" for="monthStart" class="date">Select Month:</label>
+    <input type="month" class="date" id="monthStart">
     <div id="hoursSummary">
         <!-- Total hours and name will be displayed here -->
     </div>

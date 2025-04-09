@@ -3,400 +3,1367 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" href="data:image/png;base64,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" type="image/png">
-
-    <title>Work Hours Table</title>
+    <title>Confirm Rota | Solura</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        :root {
+            --navy-blue: #001f3f;
+            --light-blue: #0074D9;
+            --sky-blue: #7FDBFF;
+            --white: #ffffff;
+            --light-gray: #f8f9fa;
+            --medium-gray: #e9ecef;
+            --dark-gray: #495057;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-        /* Set the background color with gradient effect */
-        background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
-        margin: 0;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        text-transform: uppercase;
-        color: #60a2ee; /* Text color */
-    }
-    
-    table {
-        width: 80%;
-        margin: 0 auto; /* This centers the table horizontally */
-        border-collapse: separate;
-        border-spacing: 0;
-        background-color: #1E90FF; /* Blue background */
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Added box shadow for depth */
-    }
-    
-    th, td {
-        text-align: center;
-        padding: 12px;
-        white-space: nowrap;
-        background-color: #4A90E2; /* Light blue background */
-        color: #fff; /* White text */
-        font-weight: bold; /* Bold text */
-    }
-    
-    .btn, .btn1 {
-        background-color: #4A90E2; /* Light blue button background */
-        color: #fff; /* White text */
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        align-self: center;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        transition: background-color 0.3s ease; /* Smooth color transition */
-        font-size: 14px; /* Font size */
-    }
-    
-    .btn:hover, .btn1:hover {
-        background-color: #1E90FF; /* Darker blue button background on hover */
-        transform: scale(1.05); /* Increase size by 5% */
-        transition: transform 0.3s ease; /* Add smooth transition effect */
-    }
-    
-    .draggable {
-        cursor: pointer;
-    }
-    
-    .dragging {
-        opacity: 0.5;
-    }
-    
-    .dragover {
-        background-color: #70ace7; /* Lighter blue background */
-    }
-    
-    .time-frame {
-        margin-bottom: 5px;
-        cursor: move;
-        border: 1px solid transparent; /* Added for highlighting */
-    }
-    
-    .selected {
-        background-color: #70ace7; /* Lighter blue background */
-        border-color: #ccc; /* Added for highlighting */
-    }
-    
-    #timeFrameInput {
-        display: none;
-        position: absolute;
-        background-color: rgba(176, 224, 230, 0.8); /* Light blue background */
-        border: 1px solid #ccc;
-        padding: 10px;
-    }
-    
-    #timeFrameInput.show {
-        display: block;
-    }
-    
-    #popupMessage {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #4CAF50; /* Green background */
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
-        z-index: 1000;
-        transition: opacity 0.3s ease; /* Smooth transition */
-    }
-    
-    #popupMessage.show {
-        display: block;
-        opacity: 1;
-    }
-    
-    #customWeekNavigation {
-        margin-bottom: 10px; /* Add some space above the new line */
-    }
-    
-    .date {
-        background-color: #70ace7; /* Blue background */
-        font-family: Arial, sans-serif;
-        text-transform: uppercase;
-        color: white;
-        border-radius: 5px; /* Rounded corners */
-        padding: 6px 12px; /* Adjust padding for better fit */
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
-    }
-    
-    /* Animation for table rows */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: var(--white);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
-        to {
-            opacity: 1;
-            transform: translateY(0);
+
+        /* Navigation */
+        nav {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            padding: 1rem 2rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
-    }
-    
-    tbody tr {
-        animation: fadeInUp 0.5s ease;
-    }
-    
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--white);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo i {
+            margin-right: 10px;
+            color: var(--sky-blue);
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+        }
+
+        .nav-links li {
+            margin-left: 2rem;
+        }
+
+        .nav-links a {
+            color: var(--white);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-links a:hover {
+            color: var(--sky-blue);
+        }
+
+        .nav-links i {
+            margin-right: 5px;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        h1 {
+            color: var(--navy-blue);
+            margin-bottom: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background-color: var(--light-blue);
+        }
+
+        .controls-container {
+            background-color: var(--light-gray);
+            padding: 1.5rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-weight: 500;
+            color: var(--navy-blue);
+            min-width: 100px;
+        }
+
+        select, input[type="date"], input[type="time"] {
+            padding: 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        select:focus, input[type="date"]:focus, input[type="time"]:focus {
+            outline: none;
+            border-color: var(--light-blue);
+            box-shadow: 0 0 0 0.2rem rgba(0, 116, 217, 0.25);
+        }
+
+        /* Buttons */
+        .btn {
+            background-color: var(--light-blue);
+            color: var(--white);
+            border: none;
+            padding: 0.6rem 1.2rem;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            background-color: var(--navy-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn i {
+            font-size: 1rem;
+        }
+
+        .btn-remove {
+            background-color: #dc3545;
+        }
+
+        .btn-remove:hover {
+            background-color: #c82333;
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            margin-bottom: 2rem;
+            box-shadow: var(--shadow);
+            border-radius: var(--border-radius);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--white);
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+
+        th {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--light-gray);
+        }
+
+        tr:hover {
+            background-color: var(--medium-gray);
+        }
+
+        .status-confirmed1 {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .status-pending1 {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        /* Footer */
+        footer {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: auto;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-container {
+                flex-direction: column;
+            }
+
+            .nav-links {
+                margin-top: 1rem;
+                width: 100%;
+                justify-content: space-around;
+            }
+
+            .nav-links li {
+                margin-left: 0;
+            }
+
+            .controls-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .control-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            th, td {
+                padding: 0.75rem 0.5rem;
+                font-size: 0.85rem;
+            }
+        }
+
+        /* Custom styles for time inputs */
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .time-separator {
+            font-weight: bold;
+            color: var(--navy-blue);
+        }
+
+        /* Message styles */
+        .message {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: var(--border-radius);
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .message-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--white);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <h1>Confirm Rota</h1>
-    <!-- Date input field -->
-    <label for="rotaDate">Select Date:</label>
-    <input class="date" type="date" id="rotaDate">
-    <button id="fetchRotaButton">Fetch Rota</button>
-    <table id="rotaTable">
-        <thead>
-            <tr>
-                <th>Day</th>
-                <th>Name</th>
-                <th>Last Name</th>
-                <th>Designation</th>
-                <th>Start and End Times</th>
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Data will be inserted here by JavaScript -->
-        </tbody>
-    </table>
-    <button class="btn" id="confirmButton">Confirm Rota</button>
-<script>
-async function getRotaByDate(date) {
-    const response = await fetch(`/confirmrota/api/rota?day=${encodeURIComponent(date)}`);
-    if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-    return await response.json();
-}
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <a href="Admin.html" class="logo">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Solura Admin</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="/rota"><i class="fas fa-calendar-plus"></i> Rota</a></li>
+                <li><a href="/updateinfo"><i class="fas fa-users"></i> Employees</a></li>
+                <li><a href="/tip"><i class="fas fa-money-bill-wave"></i> Tips</a></li>
+                <li><a href="/"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </div>
+    </nav>
 
-function formatDateForDisplay(date) {
-    const [year, month, day] = date.split('-');
-    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const dayOfWeek = daysOfWeek[new Date(date).getDay()];
-    return `${day}/${month}/${year} (${dayOfWeek})`;
-}
+    <!-- Main Content -->
+    <main>
+        <h1>Confirm Rota</h1>
+        
+        <!-- Controls Section -->
+        <div class="controls-container fade-in">
+            <div class="control-group">
+                <label for="rotaDate"><i class="fas fa-calendar-day"></i> Select Date:</label>
+                <input type="date" id="rotaDate" class="date-input">
+            </div>
+            
+            <div class="control-group">
+                <label for="employeeDropdown"><i class="fas fa-user-plus"></i> Add Employee:</label>
+                <select id="employeeDropdown" class="employee-select"></select>
+                <button id="addEmployeeButton" class="btn">
+                    <i class="fas fa-plus"></i> Add
+                </button>
+            </div>
+        </div>
 
-async function populateTable(date) {
-    try {
-        const formattedDate = formatDateForDisplay(date);
-        console.log(`Fetching data for date: ${formattedDate}`);
-        const [rotaData, confirmedRotaData] = await Promise.all([getRotaByDate(formattedDate), getConfirmedRota()]);
-        console.log('Rota Data:', rotaData);
-        console.log('Confirmed Rota Data:', confirmedRotaData);
+        <!-- Status Message -->
+        <div id="statusMessage" class="message" style="display: none;"></div>
 
-        // Update the set to include the day in the unique key
-        const confirmedRotaSet = new Set(
-            confirmedRotaData.map(entry => `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation} ${entry.startTime} ${entry.endTime}`)
-        );
-        console.log('Confirmed Rota Set:', confirmedRotaSet);
+        <!-- Table Container -->
+        <div class="table-container fade-in">
+            <table id="rotaTable">
+                <thead>
+                    <tr>
+                        <th>Day</th>
+                        <th>Name</th>
+                        <th>Last Name</th>
+                        <th>Designation</th>
+                        <th>Working Hours</th>
+                        <th>Action</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
 
-        const tableBody = document.querySelector('#rotaTable tbody');
-        tableBody.innerHTML = ''; // Clear existing rows
+        <!-- Action Buttons -->
+        <div style="text-align: center; margin-top: 2rem;">
+            <button id="confirmButton" class="btn" style="display: none;">
+                <i class="fas fa-check-circle"></i> Confirm Rota
+            </button>
+            <button id="updateButton" class="btn" style="display: none;">
+                <i class="fas fa-sync-alt"></i> Update Rota
+            </button>
+        </div>
+    </main>
 
-        if (rotaData.length === 0) {
-            console.log(`No data for date: ${formattedDate}`);
-            const row = document.createElement('tr');
-            const cell = document.createElement('td');
-            cell.colSpan = 6;
-            cell.textContent = "No data for today.";
-            row.appendChild(cell);
-            tableBody.appendChild(row);
-        } else {
-            // Sort rotaData by designation (FOH first, then BOH)
-            rotaData.sort((a, b) => {
-                if (a.designation === 'FOH' && b.designation === 'BOH') return -1;
-                if (a.designation === 'BOH' && b.designation === 'FOH') return 1;
-                return 0;
-            });
-
-            // Group rotaData by name, designation, and day
-            const groupedData = rotaData.reduce((acc, entry) => {
-                const key = `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`;
-                if (!acc[key]) {
-                    acc[key] = {
-                        day: entry.day,
-                        name: entry.name,
-                        lastName: entry.lastName,
-                        wage: entry.wage,
-                        designation: entry.designation,
-                        times: []
-                    };
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <p>&copy; Solura Ltd 2024, All rights reserved</p>
+        </div>
+    </footer>
+    <script>
+        // Function to get Rota Data by Date
+        async function getRotaByDate(date) {
+            showLoading(true);
+            try {
+                const response = await fetch(`/confirmrota/api/rota?day=${encodeURIComponent(date)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
                 }
-                acc[key].times.push({ startTime: entry.startTime, endTime: entry.endTime });
-                return acc;
-            }, {});
+                return await response.json();
+            } catch (error) {
+                showMessage(`Error fetching rota data: ${error.message}`, 'error');
+                return [];
+            } finally {
+                showLoading(false);
+            }
+        }
 
-            console.log('Grouped Data:', groupedData);
+        // Function to Format the Date to Display
+        function formatDateForDisplay(date) {
+            if (!(date instanceof Date)) {
+                date = new Date(date);
+            }
 
-            // Loop through each entry in groupedData
-            Object.values(groupedData).forEach(entry => {
-                const timesKey = entry.times.map(time => `${time.startTime} ${time.endTime}`).join(' ');
-                const uniqueKey = `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation} ${timesKey}`;
-                console.log('Unique Key:', uniqueKey);
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', date);
+                return '';
+            }
 
-                if (!confirmedRotaSet.has(uniqueKey)) { // Check if the entry is not in ConfirmedRota
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+
+            const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const dayOfWeek = daysOfWeek[date.getDay()];
+
+            return `${day}/${month}/${year} (${dayOfWeek})`;
+        }
+
+        // Check if Rota has been confirmed by Supervisor
+        async function checkConfirmedRota2(date) {
+            showLoading(true);
+            try {
+                const response = await fetch(`/confirmrota/api/check-confirmed-rota2?day=${encodeURIComponent(date)}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json();
+                return data.exists;
+            } catch (error) {
+                showMessage(`Error checking confirmed rota: ${error.message}`, 'error');
+                return false;
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Function to Populate Table by Rota Data
+        async function populateTable(date) {
+            showLoading(true);
+            try {
+                const formattedDate = formatDateForDisplay(date);
+                
+                // Check if the date exists in ConfirmedRota2
+                const existsInConfirmedRota2 = await checkConfirmedRota2(formattedDate);
+
+                // Display status message
+                const statusMessage = document.getElementById('statusMessage');
+                statusMessage.textContent = existsInConfirmedRota2 
+                    ? 'This rota has already been confirmed by a supervisor.' 
+                    : 'This rota is pending confirmation.';
+                statusMessage.className = `message ${existsInConfirmedRota2 ? 'message-success' : 'message-error'}`;
+                statusMessage.style.display = 'block';
+
+                const [rotaData, confirmedRotaData] = await Promise.all([
+                    getRotaByDate(formattedDate), 
+                    getConfirmedRota(formattedDate)
+                ]);
+
+                const tableBody = document.querySelector('#rotaTable tbody');
+                tableBody.innerHTML = '';
+
+                if (rotaData.length === 0 && confirmedRotaData.length === 0) {
                     const row = document.createElement('tr');
-
-                    const dayCell = document.createElement('td');
-                    dayCell.textContent = entry.day;
-                    row.appendChild(dayCell);
-
-                    const nameCell = document.createElement('td');
-                    nameCell.textContent = entry.name;
-                    row.appendChild(nameCell);
-
-                    const lastNameCell = document.createElement('td');
-                    lastNameCell.textContent = entry.lastName;
-                    row.appendChild(lastNameCell);
-
-                    const designationCell = document.createElement('td');
-                    designationCell.textContent = entry.designation;
-                    row.appendChild(designationCell);
-
-                    const timesCell = document.createElement('td');
-                    entry.times.forEach((time, index) => {
-                        const startTimeInput = document.createElement('input');
-                        startTimeInput.type = 'time';
-                        startTimeInput.value = time.startTime;
-                        startTimeInput.dataset.timeIndex = index;
-                        startTimeInput.dataset.name = entry.name;
-                        startTimeInput.dataset.lastName = entry.lastName;
-                        startTimeInput.dataset.designation = entry.designation;
-                        startTimeInput.dataset.timeType = 'start'; // Attribute to distinguish start time
-                        startTimeInput.classList.add('time-input');
-
-                        const endTimeInput = document.createElement('input');
-                        endTimeInput.type = 'time';
-                        endTimeInput.value = time.endTime;
-                        endTimeInput.dataset.timeIndex = index;
-                        endTimeInput.dataset.name = entry.name;
-                        endTimeInput.dataset.lastName = entry.lastName;
-                        endTimeInput.dataset.designation = entry.designation;
-                        endTimeInput.dataset.timeType = 'end'; // Attribute to distinguish end time
-                        endTimeInput.classList.add('time-input');
-
-                        timesCell.appendChild(startTimeInput);
-                        timesCell.appendChild(document.createTextNode(' - '));
-                        timesCell.appendChild(endTimeInput);
-                        timesCell.appendChild(document.createElement('br'));
-                    });
-                    row.appendChild(timesCell);
-
+                    const cell = document.createElement('td');
+                    cell.colSpan = 7;
+                    cell.textContent = "No rota data found for the selected date.";
+                    cell.style.textAlign = 'center';
+                    cell.style.padding = '2rem';
+                    row.appendChild(cell);
                     tableBody.appendChild(row);
                 } else {
-                    console.log(`Entry already confirmed: ${uniqueKey}`);
+                    const allRotaData = [...rotaData, ...confirmedRotaData];
+                    
+                    // Sort rotaData by designation (FOH first, then BOH)
+                    allRotaData.sort((a, b) => {
+                        if (a.designation === 'FOH' && b.designation === 'BOH') return -1;
+                        if (a.designation === 'BOH' && b.designation === 'FOH') return 1;
+                        return 0;
+                    });
+
+                    // Group rotaData by name, designation, and day
+                    const groupedData = allRotaData.reduce((acc, entry) => {
+                        const key = `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`;
+                        if (!acc[key]) {
+                            acc[key] = {
+                                day: entry.day,
+                                name: entry.name,
+                                lastName: entry.lastName,
+                                wage: entry.wage,
+                                designation: entry.designation,
+                                times: []
+                            };
+                        }
+                        acc[key].times.push({ startTime: entry.startTime, endTime: entry.endTime });
+                        return acc;
+                    }, {});
+
+                    // Loop through each entry in groupedData
+                    Object.values(groupedData).forEach(entry => {
+                        const row = document.createElement('tr');
+                        row.className = 'fade-in';
+
+                        // Day cell
+                        const dayCell = document.createElement('td');
+                        dayCell.textContent = entry.day;
+                        row.appendChild(dayCell);
+
+                        // Name cell
+                        const nameCell = document.createElement('td');
+                        nameCell.textContent = entry.name;
+                        row.appendChild(nameCell);
+
+                        // Last name cell
+                        const lastNameCell = document.createElement('td');
+                        lastNameCell.textContent = entry.lastName;
+                        row.appendChild(lastNameCell);
+
+                        // Designation cell
+                        const designationCell = document.createElement('td');
+                        designationCell.textContent = entry.designation;
+                        row.appendChild(designationCell);
+
+                        // Times cell
+                        const timesCell = document.createElement('td');
+                        
+                        // Create time input groups
+                        for (let i = 0; i < 2; i++) {
+                            const timeGroup = document.createElement('div');
+                            timeGroup.className = 'time-input-group';
+                            
+                            const { startTime = '', endTime = '' } = entry.times[i] || {};
+                            
+                            const startTimeInput = createTimeInput('start', i, entry, startTime);
+                            const separator = document.createElement('span');
+                            separator.className = 'time-separator';
+                            separator.textContent = '-';
+                            const endTimeInput = createTimeInput('end', i, entry, endTime);
+                            
+                            timeGroup.appendChild(startTimeInput);
+                            timeGroup.appendChild(separator);
+                            timeGroup.appendChild(endTimeInput);
+                            
+                            timesCell.appendChild(timeGroup);
+                        }
+                        
+                        row.appendChild(timesCell);
+
+                        // Remove button cell
+                        const removeCell = document.createElement('td');
+                        const removeButton = document.createElement('button');
+                        removeButton.textContent = "Remove";
+                        removeButton.className = 'btn btn-remove';
+                        removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+                        
+                        removeButton.addEventListener('click', () => removeEmployee(entry, row));
+                        removeCell.appendChild(removeButton);
+                        row.appendChild(removeCell);
+
+                        // Status cell
+                        const statusCell = document.createElement('td');
+                        const isConfirmed = confirmedRotaData.some(confirmedEntry =>
+                            `${confirmedEntry.day} ${confirmedEntry.name} ${confirmedEntry.lastName} ${confirmedEntry.designation}` === 
+                            `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`
+                        );
+                        
+                        statusCell.innerHTML = isConfirmed 
+                            ? '<span class="status-confirmed1"><i class="fas fa-check-circle"></i> Confirmed</span>' 
+                            : '<span class="status-pending1"><i class="fas fa-clock"></i> Pending</span>';
+                        row.appendChild(statusCell);
+                        
+                        tableBody.appendChild(row);
+                    });
                 }
-            });
+            } catch (error) {
+                showMessage(`Error populating table: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+                checkAndUpdateRotaButton();
+            }
         }
-    } catch (error) {
-        console.error('Error fetching rota data:', error);
-    }
-}
 
-async function getConfirmedRota() {
-    try {
-        const response = await fetch('/confirmrota/api/confirmed-rota');
-        return response.json();
-    } catch (error) {
-        console.error('Error fetching confirmed rota data:', error);
-    }
-}
+        // Helper function to create time inputs
+        function createTimeInput(timeType, index, entry, value) {
+            const input = document.createElement('input');
+            input.type = 'time';
+            input.value = value;
+            input.dataset.timeIndex = index;
+            input.dataset.name = entry.name;
+            input.dataset.lastName = entry.lastName;
+            input.dataset.designation = entry.designation;
+            input.dataset.timeType = timeType;
+            input.className = 'time-input';
+            
+            input.addEventListener('change', () => {
+                updateStatusToPending(input.closest('tr'));
+            });
+            
+            return input;
+        }
 
-function confirmRota() {
-    try {
-        const dateInput = document.getElementById('rotaDate').value;
-        const tableRows = document.querySelectorAll('#rotaTable tbody tr');
+        // Helper function to update the status to 'Pending' when time is changed
+        function updateStatusToPending(row) {
+            const statusCell = row.querySelector('td:last-child');
+            if (statusCell) {
+                statusCell.innerHTML = '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
+            }
+        }
 
-        // Extract data from the table rows
-        const formattedData = Array.from(tableRows).map(row => {
-            const day = row.querySelector('td:nth-child(1)').textContent;
-            const name = row.querySelector('td:nth-child(2)').textContent;
-            const lastName = row.querySelector('td:nth-child(3)').textContent;
-            const designation = row.querySelector('td:nth-child(4)').textContent;
+        // Function to Modify the Button Accordingly
+        async function checkAndUpdateRotaButton() {
+            try {
+                const statusCells = document.querySelectorAll('#rotaTable tbody tr td:last-child');
+                let allConfirmed = true;
+                let allPending = true;
 
-            // Select all time inputs for this entry
-            const timeInputs = row.querySelectorAll('input[data-name][data-last-name][data-designation]');
+                statusCells.forEach(cell => {
+                    const statusText = cell.textContent.trim().toLowerCase();
+                    if (statusText !== 'confirmed') allConfirmed = false;
+                    if (statusText !== 'pending') allPending = false;
+                });
 
-            // Process time inputs
-            const times = Array.from(timeInputs).reduce((acc, input) => {
-                const timeIndex = input.dataset.timeIndex;
-                const timeType = input.dataset.timeType;
+                const confirmButton = document.getElementById('confirmButton');
+                const updateButton = document.getElementById('updateButton');
 
-                if (!acc[timeIndex]) {
-                    acc[timeIndex] = {};
+                if (statusCells.length === 0) {
+                    confirmButton.style.display = 'none';
+                    updateButton.style.display = 'none';
+                    return;
                 }
 
-                if (input.type === 'time') {
-                    if (timeType === 'start') {
-                        acc[timeIndex].startTime = input.value;
-                    } else if (timeType === 'end') {
-                        acc[timeIndex].endTime = input.value;
+                if (allConfirmed) {
+                    confirmButton.style.display = 'none';
+                    updateButton.style.display = 'inline-block';
+                } else if (allPending) {
+                    confirmButton.style.display = 'inline-block';
+                    updateButton.style.display = 'none';
+                } else {
+                    confirmButton.style.display = 'none';
+                    updateButton.style.display = 'inline-block';
+                }
+            } catch (error) {
+                console.error('Error checking and updating rota button:', error);
+            }
+        }
+
+        // Function to get Employees 
+        async function fetchEmployees() {
+            showLoading(true);
+            try {
+                const response = await fetch('/confirmrota/api/employees');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const employees = await response.json();
+                const employeeDropdown = document.getElementById('employeeDropdown');
+                employeeDropdown.innerHTML = '<option value="">Select Employee</option>';
+
+                employees.forEach(employee => {
+                    const option = document.createElement('option');
+                    option.value = `${employee.name} ${employee.lastName} ${employee.designation}`;
+                    option.textContent = `${employee.name} ${employee.lastName} (${employee.designation})`;
+                    option.dataset.name = employee.name;
+                    option.dataset.lastName = employee.lastName;
+                    option.dataset.designation = employee.designation;
+                    employeeDropdown.appendChild(option);
+                });
+            } catch (error) {
+                showMessage(`Error fetching employees: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Function to Confirm the Rota
+        async function confirmRota() {
+            showLoading(true, 'confirmButton');
+            try {
+                const tableRows = document.querySelectorAll('#rotaTable tbody tr');
+                const formattedData = Array.from(tableRows).map(row => {
+                    const day = row.querySelector('td:nth-child(1)').textContent;
+                    const name = row.querySelector('td:nth-child(2)').textContent;
+                    const lastName = row.querySelector('td:nth-child(3)').textContent;
+                    const designation = row.querySelector('td:nth-child(4)').textContent;
+
+                    const timeInputs = row.querySelectorAll('input[type="time"]');
+                    const times = [];
+
+                    for (let i = 0; i < timeInputs.length; i += 2) {
+                        const startTimeInput = timeInputs[i];
+                        const endTimeInput = timeInputs[i + 1];
+
+                        if (startTimeInput && endTimeInput && startTimeInput.value && endTimeInput.value) {
+                            times.push({
+                                startTime: startTimeInput.value,
+                                endTime: endTimeInput.value
+                            });
+                        }
+                    }
+
+                    return {
+                        name,
+                        lastName,
+                        day,
+                        designation,
+                        times
+                    };
+                });
+
+                const filteredData = formattedData.filter(data => data.times.length > 0);
+
+                const response = await fetch('/confirmrota/confirm-rota', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(filteredData)
+                });
+
+                if (response.ok) {
+                    showMessage('Rota confirmed successfully!', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to confirm rota');
+                }
+            } catch (error) {
+                showMessage(`Error confirming rota: ${error.message}`, 'error');
+            } finally {
+                showLoading(false, 'confirmButton');
+            }
+        }
+
+        // Function to get the Confirmed Rota by date
+        async function getConfirmedRota(dateString) {
+            showLoading(true);
+            try {
+                const dateParts = dateString.split(' ')[0];
+                const [day, month, year] = dateParts.split('/');
+                const date = new Date(`${month}/${day}/${year}`);
+
+                if (isNaN(date.getTime())) {
+                    console.error('Invalid date:', date);
+                    return [];
+                }
+
+                const formattedDate = formatDateForDisplay(date);
+                const response = await fetch(`/confirmrota/api/confirmed-rota?day=${encodeURIComponent(formattedDate)}`);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                showMessage(`Error fetching confirmed rota: ${error.message}`, 'error');
+                return [];
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Function to Update Rota with All Data for the Day
+        async function updateRotaData() {
+            showLoading(true, 'updateButton');
+            try {
+                const table = document.querySelector('#rotaTable tbody');
+                const rows = table.querySelectorAll('tr');
+                const updatedData = [];
+
+                rows.forEach(row => {
+                    const day = row.querySelector('td:nth-child(1)').textContent.trim();
+                    const name = row.querySelector('td:nth-child(2)').textContent.trim();
+                    const lastName = row.querySelector('td:nth-child(3)').textContent.trim();
+                    const designation = row.querySelector('td:nth-child(4)').textContent.trim();
+
+                    if (!day || !name || !lastName || !designation) {
+                        console.warn(`Skipping row with missing data: ${row}`);
+                        return;
+                    }
+
+                    const timeInputs = row.querySelectorAll('.time-input');
+
+                    for (let i = 0; i < timeInputs.length; i += 2) {
+                        const startTime = timeInputs[i]?.value.trim();
+                        const endTime = timeInputs[i + 1]?.value.trim();
+
+                        const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+                        if (startTime && endTime && timeRegex.test(startTime) && timeRegex.test(endTime)) {
+                            updatedData.push({
+                                day,
+                                name,
+                                lastName,
+                                designation,
+                                startTime,
+                                endTime,
+                                source: 'client'
+                            });
+                        } else if (startTime || endTime) {
+                            console.warn(`Invalid time input for row: StartTime="${startTime}", EndTime="${endTime}"`);
+                        }
+                    }
+                });
+
+                if (updatedData.length === 0) {
+                    showMessage('No valid data to update.', 'error');
+                    return;
+                }
+
+                const response = await fetch('/confirmrota/updateRotaData', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedData)
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('Rota data updated successfully!', 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    throw new Error(data.message || 'Failed to update rota data');
+                }
+            } catch (error) {
+                showMessage(`Error updating rota: ${error.message}`, 'error');
+            } finally {
+                showLoading(false, 'updateButton');
+            }
+        }
+
+        // Function to Add the Employees to Add into the Table
+        async function addEmployeeToTable() {
+            showLoading(true, 'addEmployeeButton');
+            try {
+                const dropdown = document.getElementById('employeeDropdown');
+                const selectedOption = dropdown.options[dropdown.selectedIndex];
+
+                if (!selectedOption || selectedOption.value === "") {
+                    showMessage('Please select an employee from the dropdown.', 'error');
+                    return;
+                }
+
+                const name = selectedOption.dataset.name;
+                const lastName = selectedOption.dataset.lastName;
+                const designation = selectedOption.dataset.designation;
+
+                const rows = document.querySelectorAll('#rotaTable tbody tr');
+                const dayInput = rows[0]?.querySelector('td:nth-child(1)').textContent.trim();
+                const dateMatch = dayInput.match(/^(\d{2}\/\d{2}\/\d{4}) \((\w+)\)$/);
+
+                if (!dateMatch) {
+                    showMessage('Invalid date format in table.', 'error');
+                    return;
+                }
+
+                const dayDate = dateMatch[1];
+                const weekday = dateMatch[2];
+                const day = `${dayDate} (${weekday})`;
+
+                // Check if employee already exists
+                let employeeExists = false;
+                rows.forEach(row => {
+                    const rowName = row.querySelector('td:nth-child(2)').textContent.trim();
+                    const rowLastName = row.querySelector('td:nth-child(3)').textContent.trim();
+
+                    if (rowName === name && rowLastName === lastName) {
+                        employeeExists = true;
+                    }
+                });
+
+                if (employeeExists) {
+                    const userConfirmed = confirm(`${name} ${lastName} is already in the Rota. Do you want to add them again?`);
+                    if (!userConfirmed) return;
+                }
+
+                const tableBody = document.querySelector('#rotaTable tbody');
+                if (!tableBody) {
+                    showMessage('Table body not found!', 'error');
+                    return;
+                }
+
+                const row = document.createElement('tr');
+                row.className = 'fade-in';
+
+                // Day cell
+                const dayCell = document.createElement('td');
+                dayCell.textContent = day;
+                row.appendChild(dayCell);
+
+                // Name cell
+                const nameCell = document.createElement('td');
+                nameCell.textContent = name;
+                row.appendChild(nameCell);
+
+                // Last name cell
+                const lastNameCell = document.createElement('td');
+                lastNameCell.textContent = lastName;
+                row.appendChild(lastNameCell);
+
+                // Designation cell
+                const designationCell = document.createElement('td');
+                designationCell.textContent = designation;
+                row.appendChild(designationCell);
+
+                // Times cell with two pairs of time inputs
+                const timesCell = document.createElement('td');
+                for (let i = 0; i < 2; i++) {
+                    const timeGroup = document.createElement('div');
+                    timeGroup.className = 'time-input-group';
+                    
+                    const startTimeInput = createTimeInput('start', i, { name, lastName, designation }, '');
+                    const separator = document.createElement('span');
+                    separator.className = 'time-separator';
+                    separator.textContent = '-';
+                    const endTimeInput = createTimeInput('end', i, { name, lastName, designation }, '');
+                    
+                    timeGroup.appendChild(startTimeInput);
+                    timeGroup.appendChild(separator);
+                    timeGroup.appendChild(endTimeInput);
+                    
+                    timesCell.appendChild(timeGroup);
+                }
+                row.appendChild(timesCell);
+
+                // Remove button cell
+                const removeCell = document.createElement('td');
+                const removeButton = document.createElement('button');
+                removeButton.className = 'btn btn-remove';
+                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+                removeButton.addEventListener('click', () => removeEmployee({
+                    name,
+                    lastName,
+                    designation,
+                    day
+                }, row));
+                removeCell.appendChild(removeButton);
+                row.appendChild(removeCell);
+
+                // Status cell (default to pending)
+                const statusCell = document.createElement('td');
+                statusCell.innerHTML = '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
+                row.appendChild(statusCell);
+
+                tableBody.appendChild(row);
+                showMessage(`${name} ${lastName} added to rota.`, 'success');
+            } catch (error) {
+                showMessage(`Error adding employee: ${error.message}`, 'error');
+            } finally {
+                showLoading(false, 'addEmployeeButton');
+                checkAndUpdateRotaButton();
+            }
+        }
+
+        // Function to remove an employee
+        async function removeEmployee(employee, row) {
+            if (!confirm(`Are you sure you want to remove ${employee.name} ${employee.lastName} from the rota?`)) {
+                return;
+            }
+
+            showLoading(true);
+            try {
+                row.remove();
+                
+                const data = {
+                    name: employee.name,
+                    lastName: employee.lastName,
+                    designation: employee.designation,
+                    day: employee.day,
+                };
+
+                const response = await fetch('/confirmrota/delete-employee', {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showMessage(`Successfully removed ${employee.name} ${employee.lastName} from the rota.`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to remove employee');
+                }
+            } catch (error) {
+                showMessage(`Error removing employee: ${error.message}`, 'error');
+            } finally {
+                showLoading(false);
+                checkAndUpdateRotaButton();
+            }
+        }
+
+        // Function to create the calendar visualization
+        async function createRotaCalendar() {
+    // Create calendar container if it doesn't exist
+    let calendarContainer = document.querySelector('.calendar-container');
+    if (!calendarContainer) {
+        calendarContainer = document.createElement('div');
+        calendarContainer.className = 'calendar-container';
+        
+        // Insert before the main content
+        const main = document.querySelector('main');
+        main.insertBefore(calendarContainer, main.firstChild);
+    }
+    
+    calendarContainer.innerHTML = `
+        <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Rota Status Calendar</h2>
+        <div class="calendar-controls">
+            <button id="prevMonth" class="btn calendar-nav" style="padding: 0.3rem 0.8rem;"><i class="fas fa-chevron-left"></i></button>
+            <h3 id="currentMonthYear" style="margin: 0 0.5rem; font-size: 1rem;"></h3>
+            <button id="nextMonth" class="btn calendar-nav" style="padding: 0.3rem 0.8rem;"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="calendar-legend" style="margin-top: 0.5rem; font-size: 0.8rem;">
+            <div><span class="legend-confirmed"></span> Confirmed</div>
+            <div><span class="legend-pending"></span> Pending</div>
+            <div><span class="legend-no-data"></span> No Data</div>
+        </div>
+    `;
+    
+    // Add compact styles
+    const style = document.createElement('style');
+    style.textContent = `
+        .calendar-container {
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            background: #f8f9fa;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
+        }
+        .calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+        .calendar-day {
+            padding: 4px 2px;
+            text-align: center;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .calendar-day:hover {
+            transform: scale(1.03);
+            background: rgba(0,0,0,0.05);
+        }
+        .calendar-day-header {
+            font-weight: bold;
+            text-align: center;
+            padding: 2px;
+            font-size: 0.8rem;
+        }
+        .day-number {
+            font-weight: bold;
+            margin-bottom: 2px;
+            font-size: 0.85rem;
+        }
+        .day-status {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin: 0 auto;
+        }
+        .status-confirmed {
+            background-color: #28a745;
+        }
+        .status-pending {
+            background-color: #dc3545;
+        }
+        .status-no-data {
+            background-color: #6c757d;
+        }
+        .calendar-legend {
+            display: flex;
+            justify-content: center;
+            gap: 0.8rem;
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+        }
+        .calendar-legend span {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 3px;
+        }
+        .legend-confirmed {
+            background-color: #28a745;
+        }
+        .legend-pending {
+            background-color: #dc3545;
+        }
+        .legend-no-data {
+            background-color: #6c757d;
+        }
+        .calendar-nav {
+            min-width: 30px;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Initialize calendar with current month
+    const currentDate = new Date();
+    let currentMonth = currentDate.getMonth();
+    let currentYear = currentDate.getFullYear();
+    
+    // Render the calendar
+    renderCalendar(currentMonth, currentYear);
+    
+    // Event listeners for navigation
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
+        }
+        renderCalendar(currentMonth, currentYear);
+    });
+    
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+        renderCalendar(currentMonth, currentYear);
+    });
+
+    // Modified renderCalendar function with Monday as first day
+    async function renderCalendar(month, year) {
+        const monthNames = ["January", "February", "March", "April", "May", "June",
+                           "July", "August", "September", "October", "November", "December"];
+        
+        document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+        
+        const firstDay = new Date(year, month, 1);
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        // Adjust to make Monday the first day (0 = Sunday, 1 = Monday, etc.)
+        let firstDayOfWeek = firstDay.getDay();
+        if (firstDayOfWeek === 0) firstDayOfWeek = 6; // Sunday becomes 6
+        else firstDayOfWeek--; // Other days shift down by 1
+        
+        const calendarGrid = document.getElementById('calendarGrid');
+        calendarGrid.innerHTML = '';
+        
+        // Day headers starting with Monday
+        const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        dayNames.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'calendar-day-header';
+            dayHeader.textContent = day;
+            calendarGrid.appendChild(dayHeader);
+        });
+        
+        // Add empty cells for days before the first day of the month
+        for (let i = 0; i < firstDayOfWeek; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'calendar-day empty-day';
+            calendarGrid.appendChild(emptyDay);
+        }
+        
+        // Add days of the current month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            const dayElement = document.createElement('div');
+            dayElement.className = 'calendar-day';
+            dayElement.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = day;
+            dayElement.appendChild(dayNumber);
+            
+            const statusIndicator = document.createElement('div');
+            statusIndicator.className = 'day-status status-no-data';
+            dayElement.appendChild(statusIndicator);
+            
+            calendarGrid.appendChild(dayElement);
+            
+            dayElement.addEventListener('click', () => {
+    // Use the dataset.date directly (it's already in yyyy-mm-dd format)
+    document.getElementById('rotaDate').value = dayElement.dataset.date;
+    populateTable(dayElement.dataset.date);
+});
+        }
+        
+        await updateCalendarStatuses(month, year);
+    }
+}
+
+        // Helper function to format date for calendar
+        function formatDateForCalendar(dateString) {
+    // Parse the yyyy-mm-dd format
+    const [year, month, day] = dateString.split('-');
+    const date = new Date(year, month - 1, day);
+    
+    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const dayOfWeek = daysOfWeek[date.getDay()];
+    
+    return `${day}/${month}/${year} (${dayOfWeek})`;
+}
+        // Function to Update Calendar Status
+        async function updateCalendarStatuses(month, year) {
+    try {
+        // Fetch confirmed rotas for this month using updated endpoint
+        const response = await fetch(`/confirmrota/api/confirmed-rota-month?year=${year}&month=${month + 1}`);
+        if (!response.ok) throw new Error('Failed to fetch confirmed rotas');
+
+        const { data } = await response.json(); // 'data' is a grouped object
+
+        // Create a Set of confirmed dates (in dd/mm/yyyy format)
+        const confirmedSet = new Set(Object.keys(data));
+
+        // Process each calendar day
+        const calendarDays = document.querySelectorAll('.calendar-day:not(.empty-day)');
+
+        const dayProcessing = Array.from(calendarDays).map(async (dayElement) => {
+            const date = new Date(dayElement.dataset.date);
+            if (isNaN(date.getTime())) return;
+
+            const day = String(date.getDate()).padStart(2, '0');
+            const monthFormatted = String(date.getMonth() + 1).padStart(2, '0');
+            const formattedDate = `${day}/${monthFormatted}/${date.getFullYear()}`;
+
+            const statusIndicator = dayElement.querySelector('.day-status');
+            if (!statusIndicator) return;
+
+            // Confirmed
+            if (confirmedSet.has(formattedDate)) {
+                statusIndicator.className = 'day-status status-confirmed';
+            } else {
+                // Pending or No Data
+                const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+                const fullFormattedDate = `${formattedDate} (${weekday})`;
+
+                const rotaData = await getRotaByDate(fullFormattedDate);
+                statusIndicator.className = rotaData?.length > 0
+                    ? 'day-status status-pending'
+                    : 'day-status status-no-data';
+            }
+        });
+
+        await Promise.all(dayProcessing);
+
+    } catch (error) {
+        console.error('Error updating calendar statuses:', error);
+        showMessage('Error loading calendar statuses', 'error');
+    }
+}
+
+        // Helper function to show loading state
+        function showLoading(isLoading, elementId = null) {
+            if (elementId) {
+                const button = document.getElementById(elementId);
+                if (button) {
+                    if (isLoading) {
+                        button.disabled = true;
+                        button.innerHTML = `<span class="spinner"></span> Processing...`;
+                    } else {
+                        button.disabled = false;
+                        if (elementId === 'confirmButton') {
+                            button.innerHTML = `<i class="fas fa-check-circle"></i> Confirm Rota`;
+                        } else if (elementId === 'updateButton') {
+                            button.innerHTML = `<i class="fas fa-sync-alt"></i> Update Rota`;
+                        } else if (elementId === 'addEmployeeButton') {
+                            button.innerHTML = `<i class="fas fa-plus"></i> Add`;
+                        }
                     }
                 }
-
-                return acc;
-            }, {});
-
-            // Convert the times object to an array
-            const timesArray = Object.values(times);
-
-            return {
-                name: name,
-                lastName: lastName,
-                wage: row.querySelector('td:nth-child(5)').textContent,
-                day: day,
-                designation: designation,
-                times: timesArray
-            };
-        });
-
-        // Log formattedData to ensure it's correctly populated
-        console.log('Formatted data:', formattedData);
-
-        fetch('/confirmrota/confirm-rota', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(formattedData) // Send formatted data to server
-        }).then(response => {
-            if (response.ok) {
-                console.log('Rota confirmed successfully.');
-            } else {
-                response.text().then(errorText => {
-                    console.error('Error confirming rota:', errorText);
-                });
             }
-        }).catch(error => {
-            console.error('Error confirming rota:', error.message);
+        }
+
+        // Helper function to show messages
+        function showMessage(message, type) {
+            const messageElement = document.getElementById('statusMessage');
+            messageElement.textContent = message;
+            messageElement.className = `message message-${type === 'error' ? 'error' : 'success'}`;
+            messageElement.style.display = 'block';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageElement.style.display = 'none';
+            }, 5000);
+        }
+
+        // Event Listeners
+        document.getElementById('rotaDate').addEventListener('change', function() {
+            populateTable(this.value);
         });
-    } catch (error) {
-        console.error('Error confirming rota:', error.message);
-    }
-}
 
-// Add event listener to fetch rota button
-const fetchRotaButton = document.getElementById('fetchRotaButton');
-fetchRotaButton.addEventListener('click', () => {
-    const dateInput = document.getElementById('rotaDate').value;
-    populateTable(dateInput);
-});
+        document.getElementById('addEmployeeButton').addEventListener('click', addEmployeeToTable);
+        document.getElementById('confirmButton').addEventListener('click', confirmRota);
+        document.getElementById('updateButton').addEventListener('click', updateRotaData);
 
-// Add event listener to confirm button
-const confirmButton = document.getElementById('confirmButton');
-confirmButton.addEventListener('click', confirmRota);
-
-// Fetch rota data when the page loads with today's date as default
-window.onload = () => {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('rotaDate').value = today;
-    populateTable(today);
-};
-
-</script>
+        // Initialize the page
+        window.onload = () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('rotaDate').value = today;
+            populateTable(today);
+            fetchEmployees();
+            createRotaCalendar(); // Add this line
+        };
+    </script>
 </body>
 </html>

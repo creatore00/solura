@@ -7,28 +7,46 @@ const bodyParser = require('body-parser');
 const { PDFDocument, rgb } = require('pdf-lib');
 const { v4: uuidv4 } = require('uuid');
 const nodemailer = require('nodemailer');
-const pool = require('./db.js'); // Import the connection pool
+const puppeteer = require('puppeteer');
+const path = require('path');
+const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
 const pdf = require('html-pdf');
-const app = express();
 const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor, isUser } = require('./sessionConfig'); // Adjust the path as needed
+
+const app = express();
+
+// Middleware
 app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 // Route to retrieve data from the "ConfirmedRota" table
-app.get('/rota', (req, res) => {
+app.get('/rota', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
+
     const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7); // Default to current month in YYYY-MM format
 
     const query = `
         SELECT 
-            name,
-            lastName,
-            wage, 
-            startTime, 
-            endTime
+            cr.name,
+            cr.lastName,
+            e.wage,
+            cr.startTime,
+            cr.endTime
         FROM 
-            ConfirmedRota
+            ConfirmedRota cr
+        JOIN 
+            Employees e
+        ON 
+            cr.name = e.name AND cr.lastName = e.lastName
         WHERE 
-            DATE_FORMAT(STR_TO_DATE(day, '%d/%m/%Y'), '%Y-%m') = ?
+            DATE_FORMAT(STR_TO_DATE(cr.day, '%d/%m/%Y'), '%Y-%m') = ?
     `;
 
     pool.query(query, [selectedMonth], (err, results) => {
@@ -40,20 +58,132 @@ app.get('/rota', (req, res) => {
         res.json(results);
     });
 });
-// Route to retrieve data from the "tip" table
-app.get('/tip', (req, res) => {
-    const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7); // Default to current month in YYYY-MM format
 
+// Route to retrieve holiday data with proper overlapping support
+app.get('/holidays', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7); // e.g. "2025-04"
+
+    console.log(`[GET /holidays] User database: ${dbName}`);
+    console.log(`[GET /holidays] Selected month: ${selectedMonth}`);
+
+    const pool = getPool(dbName);
+
+    // Start of month (e.g. 2025-04-01)
+    const monthStart = `${selectedMonth}-01`;
+
+    // End of month (e.g. 2025-04-30)
+    monthEnd = `${selectedMonth}-31`;
+
+    console.log(`[GET /holidays] Month range: ${monthStart} to ${monthEnd} (inclusive)`);
+
+    // Query to find any overlapping holidays
     const query = `
         SELECT 
             name,
-            lastName, 
-            tip,
-            totalHours
+            lastName,
+            startDate,
+            endDate
+        FROM 
+            Holiday
+        WHERE
+            accepted = 'true'
+            AND (
+                (STR_TO_DATE(startDate, '%d/%m/%Y') BETWEEN ? AND ?) OR
+                (STR_TO_DATE(endDate, '%d/%m/%Y') BETWEEN ? AND ?) OR
+                (STR_TO_DATE(startDate, '%d/%m/%Y') <= ? AND STR_TO_DATE(endDate, '%d/%m/%Y') >= ?)
+            );
+    `;
+
+    console.log('[GET /holidays] Executing query:', query);
+    console.log('[GET /holidays] Query values:', [monthStart, monthEnd, monthStart, monthEnd, monthStart, monthEnd]);
+
+    pool.query(query, [monthStart, monthEnd, monthStart, monthEnd, monthStart, monthEnd], (err, results) => {
+        if (err) {
+            console.error('[GET /holidays] Error fetching holiday data:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+        
+        // Process the results to ensure proper date format (without day names in parentheses)
+        const processedResults = results.map(holiday => ({
+            ...holiday,
+            startDate: holiday.startDate.split(' ')[0], // Removing any extra text like day names
+            endDate: holiday.endDate.split(' ')[0]
+        }));
+        
+        console.log(`[GET /holidays] Retrieved ${processedResults.length} results`, processedResults);
+        res.json(processedResults);
+    });
+});
+
+// Route to retrieve holiday year settings
+app.get('/holiday-year-settings', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    const pool = getPool(dbName);
+    
+    const query = `
+        SELECT 
+            HolidayYearStart,
+            HolidayYearEnd
+        FROM 
+            HolidayYearSettings
+        LIMIT 1;
+    `;
+
+    pool.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching holiday year settings:', err);
+            res.status(500).json({ success: false, message: 'Server error' });
+            return;
+        }
+        res.json(results[0] || {});
+    });
+});
+
+// Route to retrieve employees' start dates
+app.get('/employees-start-dates', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    const pool = getPool(dbName);
+    
+    const query = `
+        SELECT 
+            name,
+            lastName,
+            dateStart
+        FROM 
+            Employees;
+    `;
+
+    pool.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching employees start dates:', err);
+            res.status(500).json({ success: false, message: 'Server error' });
+            return;
+        }
+        res.json(results);
+    });
+});
+
+// Route to retrieve data from the "Tip" table
+app.get('/tip', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
+
+    const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7); // Default to current month
+    const query = `
+        SELECT 
+            name,
+            lastName,
+            tip
         FROM 
             tip
-        WHERE 
-            DATE_FORMAT(STR_TO_DATE(day, '%d/%m/%Y'), '%Y-%m') = ?
+        WHERE
+            DATE_FORMAT(day, '%Y-%m') = ?;
     `;
 
     pool.query(query, [selectedMonth], (err, results) => {
@@ -65,52 +195,57 @@ app.get('/tip', (req, res) => {
         res.json(results);
     });
 });
-// Route to generate the PDF dynamically
-app.post('/generate-pdf', async (req, res) => {
+
+// Route to generate PDF
+app.post('/generate-pdf', isAuthenticated, async (req, res) => {
+    let browser;
     try {
-        // Get the HTML content of the table from the request body
-        const tableHTML = req.body.tableHTML;
+        const { htmlContent, month } = req.body;
 
-        // Get the selected month
-        const selectedMonth = req.body.selectedMonth;
-
-        // Generate PDF from HTML
-        pdf.create(tableHTML).toFile(`./Tips_${selectedMonth}.pdf`, (err, _) => {
-            if (err) {
-                console.error('Error generating PDF:', err);
-                res.status(500).send('Error generating PDF');
-            } else {
-                console.log('PDF generated successfully');
-                res.send('PDF generated successfully');
-            }
+        // Launch browser
+        browser = await puppeteer.launch({
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            headless: 'new'
         });
-    } catch (error) {
-        console.error('Error generating PDF:', error);
-        res.status(500).send('Internal Server Error');
-    }
-});
-// Route to handle downloading the PDF file
-app.get('/download-pdf', async (req, res) => {
-    try {
-        // Get the selected month
-        const selectedMonth = req.query.selectedMonth;
 
-        // Read the PDF file
-        const pdfBuffer = fs.readFileSync(`./Tips_${selectedMonth}.pdf`);
+        const page = await browser.newPage();
+        
+        // Set content and wait for resources to load
+        await page.setContent(htmlContent, {
+            waitUntil: 'networkidle0',
+            timeout: 30000
+        });
 
-        // Set response headers
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="Tips_${selectedMonth}.pdf"`);
+        // Generate PDF
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            margin: {
+                top: '20mm',
+                right: '10mm',
+                bottom: '20mm',
+                left: '10mm'
+            },
+            printBackground: true
+        });
 
-        // Send the PDF file as response
+        // Send the PDF
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="Monthly_Report_${month}.pdf"`
+        });
         res.send(pdfBuffer);
+
     } catch (error) {
-        console.error('Error downloading PDF:', error);
-        res.status(500).send('Internal Server Error');
+        console.error('PDF generation error:', error);
+        res.status(500).json({ error: 'Failed to generate PDF' });
+    } finally {
+        if (browser) await browser.close();
     }
 });
-app.get('/', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/Hours.html');
-});
-module.exports = app; // Export the entire Express application
 
+// Route to serve the Hours.html file
+app.get('/', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'Hours.html'));
+});
+
+module.exports = app; // Export the entire Express application

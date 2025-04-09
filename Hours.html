@@ -1,168 +1,298 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <link rel="icon" href="data:image/png;base64,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" type="image/png">
-
-    <title>Work Hours Summary</title>
-    <style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monthly Report</title>
+<style>
+        /* General Styles */
         body {
-            /* Set the background color with gradient effect */
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
+            background: linear-gradient(135deg, #e6f2ff, #f0f8ff);
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+    
+/* Navbar Styles */
+.navbar {
+    width: 100%;
+    background: rgba(11, 106, 184, 0.7); /* Semi-transparent black */
+    padding: 15px 20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(64, 88, 133, 0.1);
+}
+
+.navbar-left a {
+    margin-left: 20px;
+}
+
+.navbar-right {
+    margin-right: 20px;
+    display: flex;
+    gap: 20px;
+}
+
+.navbar a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 10px 15px;
+    border-radius: 5px;
+    transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.navbar a:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+    
+        /* Main Content */
+        .content-container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 1200px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-top: 80px;
+            margin-bottom: 40px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h1 {
+            color: #3a6ea5;
             text-align: center;
-            text-transform: uppercase;
-            color: #60a2ee; /* Text color */
+            margin-bottom: 30px;
+            font-size: 2.2rem;
+            font-weight: 600;
         }
 
-        table {
-            width: 80%;
-            border-collapse: separate;
-            margin: 0 auto; /* This centers the table horizontally */
-            background-color: #1E90FF; /* Blue background */
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Added box shadow for depth */
-        }
-
-        th, td {
+        /* Form Elements */
+        #monthSelector {
             text-align: center;
-            padding: 12px;
-            white-space: nowrap;
-            background-color: #4A90E2; /* Light blue background */
-            color: #fff; /* White text */
-            font-weight: bold; /* Bold text */
-        }
-
-        .btn, .btn1 {
-            background-color: #4A90E2; /* Light blue button background */
-            color: #fff; /* White text */
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            align-self: center;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            transition: background-color 0.3s ease; /* Smooth color transition */
-            font-size: 14px; /* Font size */
-        }
-
-        .btn:hover, .btn1:hover {
-            background-color: #1E90FF; /* Darker blue button background on hover */
-            transform: scale(1.05); /* Increase size by 5% */
-            transition: transform 0.3s ease; /* Add smooth transition effect */
-        }
-
-        .draggable {
-            cursor: pointer;
-        }
-
-        .dragging {
-            opacity: 0.5;
-        }
-
-        .dragover {
-            background-color: #70ace7; /* Lighter blue background */
-        }
-
-        .time-frame {
-            margin-bottom: 5px;
-            cursor: move;
-            border: 1px solid transparent; /* Added for highlighting */
-        }
-
-        .selected {
-            background-color: #70ace7; /* Lighter blue background */
-            border-color: #ccc; /* Added for highlighting */
-        }
-
-        #timeFrameInput {
-            display: none;
-            position: absolute;
-            background-color: rgba(176, 224, 230, 0.8); /* Light blue background */
-            border: 1px solid #ccc;
-            padding: 10px;
-        }
-
-        #timeFrameInput.show {
-            display: block;
-        }
-
-        #popupMessage {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: #4CAF50; /* Green background */
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 1000;
-            transition: opacity 0.3s ease; /* Smooth transition */
-        }
-
-        #popupMessage.show {
-            display: block;
-            opacity: 1;
-        }
-
-        #customWeekNavigation {
-            margin-bottom: 10px; /* Add some space above the new line */
+            margin: 25px 0;
         }
 
         .date {
-            background-color: #70ace7; /* Blue background */
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
+            padding: 10px 15px;
+            border: 1px solid #d1e0ff;
+            border-radius: 6px;
+            background: white;
+            font-size: 16px;
+            color: #333;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* Table Styles */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 25px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        th {
+            background: #5a8fd8;
             color: white;
-            border-radius: 5px; /* Rounded corners */
-            padding: 6px 12px; /* Adjust padding for better fit */
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
+            padding: 15px;
+            text-align: center;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        /* Animation for table rows */
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
+        td {
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #e6f0ff;
+            background: white;
+            color: #555;
+        }
+
+        tr:hover td {
+            background: #f5f9ff;
+        }
+
+        .editable {
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .editable:hover {
+            background: #e9ecef;
+        }
+
+        .holiday-cell {
+            background-color: #d4edda;
+            color: #155724;
+            font-weight: bold;
+        }
+
+        /* No Data Message */
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            color: #666;
+            font-size: 1.2rem;
+            font-style: italic;
+        }
+
+        /* Button Styles */
+        .btn {
+            background: #5a8fd8;
+            color: white;
+            padding: 10px 25px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin: 10px;
+        }
+
+        .btn:hover {
+            background: #3a6ea5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .btn-save {
+            background: #28a745;
+        }
+
+        .btn-save:hover {
+            background: #218838;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 400px;
+            max-width: 90%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .content-container {
+                padding: 20px;
+                width: 95%;
             }
-            to {
-                opacity: 1;
-                transform: translateY(0);
+            
+            h1 {
+                font-size: 1.8rem;
+                color: rgba(11, 106, 184, 0.7);
+            }
+            
+            th, td {
+                padding: 10px;
+                font-size: 14px;
             }
         }
-
-        tbody tr {
-            animation: fadeInUp 0.5s ease;
-        }
-
-    </style>
+</style>
 </head>
 <body>
-    <h1>Work Hours Summary</h1>
-    
-    <div id="monthSelector">
-        <label for="month">Select Month:</label>
-        <input class="date" type="month" id="month" onchange="retrieveAndPrintData()"><br>
-    </div>
-    
-    <div id="hoursSummary">
-        <!-- Total hours, wage, tip, result before tax, tax, and result after tax will be displayed here -->
-    </div>
-    
-    <footer>
-        <div>
-            <button id="submitBtn" onclick="downloadPDF()" class="btn">Download</button>
+    <!-- Navbar -->
+    <div class="navbar">
+        <div class="navbar-left">
+            <a href="/Admin.html">Home</a>
         </div>
-    </footer>
-    
-    <script>
-        // Function to get the list of months in the format 'YYYY-MM'
-        function getMonthList(startYear, endYear) {
+        <div class="navbar-right">
+            <a href="/rota">Rota</a>
+            <a href="/confirmrota">Approve Hours</a>
+            <a href="/tip">Approve Tips</a>
+            <a href="/logout">Logout</a>
+        </div>
+    </div>
+    <br><br><br>
+    <div class="content-container">
+        <h1>Monthly Report</h1>
+        <div id="monthSelector">
+            <label for="month">Month:</label>
+            <input class="date" type="month" id="month" onchange="retrieveAndPrintData()">
+        </div>
+        
+        <div id="hoursSummary">
+            <!-- Table will be dynamically inserted here -->
+        </div>
+        
+        <div style="text-align: center;">
+            <button id="saveBtn" onclick="saveChanges()" class="btn btn-save">Save Changes</button>
+            <button id="submitBtn" onclick="downloadPDF()" class="btn">Download PDF</button>
+        </div>
+    </div>
+
+    <!-- Modal for adding hours -->
+    <div id="editModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h3>Add Hours</h3>
+        <div style="margin: 20px 0;">
+            <label for="editHours">Hours to Add:</label>
+            <input type="number" id="editHours" step="0.01" min="0" style="width: 100%; padding: 8px; margin-top: 5px;">
+        </div>
+        <div style="margin-bottom: 20px;">
+            <strong>Current Total:</strong> <span id="currentTotal">0.00</span>
+        </div>
+        <button onclick="saveAddedHours()" class="btn btn-save">Add Hours</button>
+    </div>
+    </div>
+
+<script>
+// Global variables
+let currentEditingCell = null;
+let employeeData = {};
+let currentMonth = '';
+// Function to get the list of months in the format 'YYYY-MM'
+function getMonthList(startYear, endYear) {
             const months = [];
             for (let year = startYear; year <= endYear; year++) {
                 for (let month = 1; month <= 12; month++) {
@@ -172,12 +302,11 @@
             }
             return months;
         }
-
-        // Function to populate month dropdown
-        function populateMonthDropdown() {
+// Function to populate month dropdown
+function populateMonthDropdown() {
             const monthSelect = document.getElementById('month');
-            const startYear = 2000; // Set your start year here
-            const endYear = 2100;   // Set your end year here
+            const startYear = 2000;
+            const endYear = 2100;
 
             const months = getMonthList(startYear, endYear);
             months.forEach(month => {
@@ -186,28 +315,40 @@
                 option.text = month;
                 monthSelect.appendChild(option);
             });
-            monthSelect.value = getCurrentMonth(); // Set default to current month
+            monthSelect.value = getCurrentMonth();
         }
-
-        // Function to get the current month in the format 'YYYY-MM'
-        function getCurrentMonth() {
+// Function to get the current month in the format 'YYYY-MM'
+function getCurrentMonth() {
             const currentDate = new Date();
             const year = currentDate.getFullYear();
             let month = currentDate.getMonth() + 1;
             month = month < 10 ? '0' + month : month;
             return `${year}-${month}`;
         }
+// Function to retrieve data for the selected Month
+async function retrieveAndPrintData() {
+    const currentMonth = document.getElementById('month').value;
+    const [year, month] = currentMonth.split('-');
 
-        function retrieveAndPrintData() {
-    const selectedMonth = document.getElementById('month').value;
+    try {
+        // Fetch data from all needed tables for the selected month
+        const [rotaData, tipData, holidaysData, holidayYearSettings, employeesStartDates] = await Promise.all([
+            fetch(`/hours/rota?month=${currentMonth}`).then(response => response.json()),
+            fetch(`/hours/tip?month=${currentMonth}`).then(response => response.json()),
+            fetch(`/hours/holidays?month=${currentMonth}`).then(response => response.json()),
+            fetch('/hours/holiday-year-settings').then(response => response.json()),
+            fetch('/hours/employees-start-dates').then(response => response.json())
+        ]);
 
-    // Fetch data from both tables for the selected month
-    Promise.all([
-        fetch(`/hours/rota?month=${selectedMonth}`).then(response => response.json()),
-        fetch(`/hours/tip?month=${selectedMonth}`).then(response => response.json())
-    ]).then(([rotaData, tipData]) => {
-        console.log('Rota Data:', rotaData);
-        console.log('Tip Data:', tipData);
+        // Check if there's no data
+        if (rotaData.length === 0 && tipData.length === 0) {
+            showNoDataMessage();
+            return;
+        }
+
+        // Process holiday year settings
+        const holidayYearStart = holidayYearSettings.HolidayYearStart; // format dd/mm/yyyy
+        const holidayYearEnd = holidayYearSettings.HolidayYearEnd; // format dd/mm/yyyy
 
         // Merge tip data by employee name and sum the tip values
         const tipMap = new Map();
@@ -223,10 +364,32 @@
                 tipMap.set(name, tipValue);
             }
         });
-        console.log('Tip Map:', Array.from(tipMap.entries()));
+
+        // Process holidays data - count days taken in selected month
+        const holidaysMap = new Map();
+        holidaysData.forEach(holiday => {
+            const name = holiday.name + ' ' + holiday.lastName;
+            const startDate = parseDate(holiday.startDate);
+            const endDate = parseDate(holiday.endDate);
+            
+            // Check if holiday falls in selected month
+            const holidayMonth = startDate.getMonth() + 1;
+            const holidayYear = startDate.getFullYear();
+            
+            if (holidayMonth === parseInt(month) && holidayYear === parseInt(year)) {
+                // Calculate number of days (inclusive)
+                const daysTaken = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                
+                if (holidaysMap.has(name)) {
+                    holidaysMap.set(name, holidaysMap.get(name) + daysTaken);
+                } else {
+                    holidaysMap.set(name, daysTaken);
+                }
+            }
+        });
 
         // Calculate total hours and total tips for each employee
-        const employeeData = {};
+        employeeData = {};
         rotaData.forEach(entry => {
             const name = entry.name + ' ' + entry.lastName;
             if (!employeeData[name]) {
@@ -235,7 +398,9 @@
                     lastName: entry.lastName,
                     wage: entry.wage,
                     totalHours: 0,
-                    totalTips: 0
+                    totalTips: 0,
+                    holidays: 0,
+                    holidayDays: 0
                 };
             }
             const startTime = new Date(`1970-01-01T${entry.startTime}Z`);
@@ -243,52 +408,366 @@
             const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
             employeeData[name].totalHours += hoursWorked;
             employeeData[name].totalTips = tipMap.get(name) || 0;
+            
+            // Add holiday days if any
+            if (holidaysMap.has(name)) {
+                employeeData[name].holidayDays = holidaysMap.get(name);
+            }
         });
+
+        // Now calculate holiday hours for each employee
+        await calculateHolidayHours(currentMonth, employeeData, employeesStartDates);
 
         // Print the data in the table
-        const container = document.getElementById('hoursSummary');
-        container.innerHTML = '';
+        printDataTable();
 
-        const table = document.createElement('table');
-        const headerRow = document.createElement('tr');
-        headerRow.innerHTML = '<th>Name</th><th>Last Name</th><th>Wage</th><th>Total Hours</th><th>Total Tips</th>';
-        table.appendChild(headerRow);
+    } catch (error) {
+        console.error('Error retrieving and printing data:', error);
+        showNoDataMessage();
+    }
+}
+// Helper function to parse date in dd/mm/yyyy format
+function parseDate(dateStr) {
+    const [day, month, year] = dateStr.split('/');
+    return new Date(year, month - 1, day);
+}
+// Function to calculate holiday hours for each employee
+async function calculateHolidayHours(selectedMonth, employeeData, employeesStartDates) {
+    const [year, month] = selectedMonth.split('-');
+    const currentDate = new Date(year, month - 1, 1);
+    const currentDateEnd = new Date(year, month, 0); // Last day of selected month
 
-        Object.values(employeeData).forEach(employee => {
-            const row = document.createElement('tr');
-            row.innerHTML = `<td>${employee.name}</td><td>${employee.lastName}</td><td>${employee.wage}</td><td>${employee.totalHours.toFixed(2)}</td><td>${parseFloat(employee.totalTips).toFixed(2)}</td>`;
-            table.appendChild(row);
+    // Calculate the three previous months
+    const previousMonths = [];
+    for (let i = 1; i <= 3; i++) {
+        const prevDate = new Date(currentDate);
+        prevDate.setMonth(prevDate.getMonth() - i);
+        const prevMonth = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+        previousMonths.push(prevMonth);
+    }
+
+    // Fetch rota data for previous months
+    const previousMonthsData = await Promise.all(
+        previousMonths.map(month => 
+            fetch(`/hours/rota?month=${month}`).then(response => response.json())
+    ));
+
+    // Process each employee
+    for (const [name, data] of Object.entries(employeeData)) {
+        if (data.holidayDays > 0) {
+            // Find employee start date
+            const startDate = employeesStartDates.find(e => 
+                e.name === data.name && e.lastName === data.lastName
+            )?.dateStart;
+            
+            if (!startDate) {
+                console.warn(`[calculateHolidayHours] Start date not found for ${data.name} ${data.lastName}`);
+                continue;
+            }
+            
+            const parsedStartDate = parseDate(startDate);
+            
+            // Calculate total hours from previous months
+            let totalPreviousHours = 0;
+            let monthsAvailable = 0;
+            
+            for (let i = 0; i < previousMonthsData.length; i++) {
+                const monthData = previousMonthsData[i];
+                const monthHours = monthData
+                    .filter(entry => entry.name === data.name && entry.lastName === data.lastName)
+                    .reduce((sum, entry) => {
+                        const startTime = new Date(`1970-01-01T${entry.startTime}Z`);
+                        const endTime = new Date(`1970-01-01T${entry.endTime}Z`);
+                        const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
+                        return sum + hoursWorked;
+                    }, 0);
+                
+                if (monthHours > 0) {
+                    totalPreviousHours += monthHours;
+                    monthsAvailable++;
+                }
+            }
+            
+            // Calculate average weekly hours with precise date-based calculation
+            let averageWeeklyHours;
+            
+            // If employee started during the 3-month period
+            if (parsedStartDate > new Date(previousMonths[previousMonths.length-1])) {
+                // Calculate exact days worked
+                const daysWorked = Math.floor((currentDate - parsedStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                const weeksWorked = daysWorked / 7;
+                averageWeeklyHours = weeksWorked > 0 ? totalPreviousHours / weeksWorked : 0;
+            } 
+            // Full 3 months available
+            else if (monthsAvailable >= 3) {
+                averageWeeklyHours = totalPreviousHours / 12.9; // 3 months ≈ 12.9 weeks
+            }
+            // Partial months available
+            else {
+                const weeksAvailable = monthsAvailable * 4.3; // Approximate weeks per month
+                averageWeeklyHours = weeksAvailable > 0 ? totalPreviousHours / weeksAvailable : 0;
+            }
+            
+            // Calculate average daily hours (assuming 5-day work week)
+            const averageDailyHours = averageWeeklyHours / 5;
+            
+            // Calculate holiday hours (multiply by days taken)
+            data.holidays = averageDailyHours * data.holidayDays;
+            
+            console.log(`Calculated for ${data.name} ${data.lastName}:`);
+            console.log(`- Total previous hours: ${totalPreviousHours}`);
+            console.log(`- Average weekly hours: ${averageWeeklyHours.toFixed(2)}`);
+            console.log(`- Holiday hours: ${data.holidays.toFixed(2)} (${data.holidayDays} days)`);
+        }
+    }
+}
+// Helper function to parse date strings
+function parseDate(dateString) {
+    if (dateString.includes('/')) {
+        const [day, month, year] = dateString.split('/');
+        return new Date(`${year}-${month}-${day}`);
+    }
+    return new Date(dateString);
+}
+// Helper function to calculate month difference between two dates
+function monthDiff(startDate, endDate) {
+    let months;
+    months = (endDate.getFullYear() - startDate.getFullYear()) * 12;
+    months -= startDate.getMonth();
+    months += endDate.getMonth();
+    return months <= 0 ? 0 : months;
+}
+// Function to print the data table (updated to show holiday days)
+function printDataTable() {
+    const container = document.getElementById('hoursSummary');
+    container.innerHTML = '';
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    headerRow.innerHTML = `
+        <th>Name</th>
+        <th>Last Name</th>
+        <th>Wage</th>
+        <th>Total Hours</th>
+        <th>Holidays (Days)</th>
+        <th>Total Tips</th>
+    `;
+    table.appendChild(headerRow);
+
+    Object.values(employeeData).forEach(employee => {
+    const row = document.createElement('tr');
+    
+    // Check if holidayDays is 1, use "Day", otherwise "Days"
+    const holidayDayText = employee.holidayDays === 1 ? 'Day' : 'Days';
+    
+    row.innerHTML = `
+        <td>${employee.name}</td>
+        <td>${employee.lastName}</td>
+        <td>${employee.wage}</td>
+        <td class="editable" onclick="openEditModal(this, 'hours')">${employee.totalHours.toFixed(2)}</td>
+        <td class="holiday-cell">${employee.holidays.toFixed(2)} / ${employee.holidayDays} ${holidayDayText}</td>
+        <td>${parseFloat(employee.totalTips).toFixed(2)}</td>
+    `;
+    
+    table.appendChild(row);
+    });
+
+    container.appendChild(table);
+}
+// Function to show no data message
+function showNoDataMessage() {
+            const container = document.getElementById('hoursSummary');
+            container.innerHTML = '<div class="no-data">No data for this month yet</div>';
+            employeeData = {};
+        }
+// Function to open edit modal
+function openEditModal(cell, type) {
+        currentEditingCell = cell;
+        const modal = document.getElementById('editModal');
+        const editHoursInput = document.getElementById('editHours');
+        const currentTotalSpan = document.getElementById('currentTotal');
+
+        // Set current total
+        const currentValue = parseFloat(cell.textContent) || 0;
+        currentTotalSpan.textContent = currentValue.toFixed(2);
+        
+        // Reset input field
+        editHoursInput.value = '';
+        
+        // Configure based on what we're editing
+        if (type === 'hours') {
+            document.querySelector('.modal-content h3').textContent = 'Add Hours';
+        } else {
+            document.querySelector('.modal-content h3').textContent = 'Add Holiday Hours';
+        }
+
+        modal.style.display = 'block';
+        
+        // Focus the input field
+        editHoursInput.focus();
+    }
+// Function to save added hours
+function saveAddedHours() {
+        const editHoursInput = document.getElementById('editHours');
+        const hoursToAdd = parseFloat(editHoursInput.value) || 0;
+        
+        if (hoursToAdd <= 0) {
+            alert('Please enter a positive number of hours to add');
+            return;
+        }
+
+        const currentTotal = parseFloat(document.getElementById('currentTotal').textContent) || 0;
+        const newTotal = currentTotal + hoursToAdd;
+
+        // Update the cell
+        currentEditingCell.textContent = newTotal.toFixed(2);
+
+        // Update the employee data
+        const row = currentEditingCell.parentElement;
+        const name = row.cells[0].textContent + ' ' + row.cells[1].textContent;
+        
+        if (currentEditingCell.cellIndex === 3) { // Hours column
+            employeeData[name].totalHours = newTotal;
+        } else if (currentEditingCell.cellIndex === 4) { // Holidays column
+            employeeData[name].holidays = newTotal;
+        }
+
+        closeModal();
+    }
+// Rename the old save function to avoid confusion
+function saveEditedHours() {
+        saveAddedHours(); // Now we just call the new function
+    }
+// Function to save changes to server
+function saveChanges() {
+            if (Object.keys(employeeData).length === 0) {
+                alert('No data to save for this month');
+                return;
+            }
+            alert('Changes saved successfully!');
+        }
+// Function to close the modal
+function closeModal() {
+    document.getElementById('editModal').style.display = 'none';
+}
+// Function to download PDF
+async function downloadPDF() {
+    if (Object.keys(employeeData).length === 0) {
+        alert('No data to download for this month');
+        return;
+    }
+
+    // Show loading state
+    const submitBtn = document.getElementById('submitBtn');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Generating PDF...';
+
+    try {
+        // Get the table HTML and selected month
+        const tableHTML = document.getElementById('hoursSummary').innerHTML;
+        const selectedMonth = document.getElementById('month').value;
+
+        // Create a clean version of the HTML
+        const cleanHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Monthly Report - ${selectedMonth}</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px;
+        }
+        h1 { 
+            color: #3a6ea5; 
+            text-align: center; 
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #5a8fd8;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <h1>Monthly Report - ${selectedMonth}</h1>
+    ${tableHTML}
+</body>
+</html>`;
+
+        // Send the HTML to the server to generate the PDF
+        const response = await fetch('/hours/generate-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                htmlContent: cleanHTML,
+                month: selectedMonth
+            })
         });
 
-        container.appendChild(table);
-    }).catch(error => {
-        console.error('Error retrieving and printing data:', error);
-    });
-}
-
-function downloadPDF() {
-            const tableHTML = document.getElementById('hoursSummary').innerHTML;
-            const selectedMonth = document.getElementById('month').value;
-
-            fetch('/hours/generate-pdf', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tableHTML, selectedMonth })
-            })
-            .then(response => {
-                window.location.href = `/hours/download-pdf?selectedMonth=${selectedMonth}`;
-            })
-            .catch(error => {
-                console.error('Error generating PDF:', error);
-            });
+        // Handle errors from the server
+        if (!response.ok) {
+            throw new Error('Failed to generate PDF');
         }
-        window.onload = () => {
+
+        // Create a download link for the PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Monthly_Report_${selectedMonth}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up the created link after download
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        alert('Error generating PDF. Please try again.');
+    } finally {
+        // Reset loading state
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+}
+// Initialize the page
+window.onload = () => {
             populateMonthDropdown();
-            retrieveAndPrintData(); // Initial data load
+            retrieveAndPrintData();
+            
+            // Close modal when clicking outside
+            window.onclick = function(event) {
+                const modal = document.getElementById('editModal');
+                if (event.target == modal) {
+                    closeModal();
+                }
+            }
         };
-    </script>
+</script>
+<footer style="position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgba(11, 106, 184, 0.7); font-size: 0.9rem;">
+    &copy; 2024 Solura Ltd. All rights reserved.
+</footer>
 </body>
 </html>
-

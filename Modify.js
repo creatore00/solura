@@ -5,23 +5,25 @@ const nodemailer = require('nodemailer');
 const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
-const server = require('./server.js');
-const http = require('http');
-const pool = require('./db.js'); // Import the connection pool
+const fs = require('fs'); // Added fs module for file system operations
+const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
 const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor, isUser } = require('./sessionConfig'); // Adjust the path as needed
 const app = express();
+
+// Middleware
 app.use(sessionMiddleware);
-// Middleware to parse JSON data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(bodyParser.json()); // Parse JSON request bodies
+
 // List of tables to exclude
 const excludedTables = ['sessions', 'comments', 'Sessions', 'payslips', 'users', 'forecast', 'rota', 'Holiday'];
+
 // Configure Multer for file uploads
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         const uploadDir = './uploads';
-        if (!fs.existsSync(uploadDir)){
+        if (!fs.existsSync(uploadDir)) {
             fs.mkdirSync(uploadDir);
         }
         cb(null, uploadDir);
@@ -34,7 +36,15 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Retrieve the list of tables
-app.get('/tables', (req, res) => {
+app.get('/tables', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
+
     pool.query('SHOW TABLES', (err, tables) => {
         if (err) {
             console.error('Error retrieving tables: ' + err.stack);
@@ -43,7 +53,7 @@ app.get('/tables', (req, res) => {
         }
 
         const tableNames = tables
-            .map(tableObj => tableObj[`Tables_in_${pool.config.connectionConfig.database}`])
+            .map(tableObj => tableObj[`Tables_in_${dbName}`])
             .filter(tableName => !excludedTables.includes(tableName)); // Exclude specific tables
 
         res.json(tableNames);
@@ -51,8 +61,15 @@ app.get('/tables', (req, res) => {
 });
 
 // Retrieve data from a specific table
-app.get('/table/:tableName', (req, res) => {
+app.get('/table/:tableName', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
     const tableName = req.params.tableName;
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
 
     // Check if the table is excluded
     if (excludedTables.includes(tableName)) {
@@ -72,9 +89,16 @@ app.get('/table/:tableName', (req, res) => {
 });
 
 // Update a specific cell in the table
-app.post('/table/:tableName/update', (req, res) => {
+app.post('/table/:tableName/update', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
     const tableName = req.params.tableName;
     const { primaryKey, primaryKeyValue, column, value } = req.body;
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
 
     // Check if the table is excluded
     if (excludedTables.includes(tableName)) {
@@ -96,9 +120,16 @@ app.post('/table/:tableName/update', (req, res) => {
 });
 
 // Upload or update a PDF file in the table
-app.post('/table/:tableName/upload', upload.single('pdf'), (req, res) => {
+app.post('/table/:tableName/upload', isAuthenticated, upload.single('pdf'), (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
     const tableName = req.params.tableName;
     const { primaryKey, primaryKeyValue, column } = req.body;
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
 
     // Check if the table is excluded
     if (excludedTables.includes(tableName)) {
@@ -121,9 +152,16 @@ app.post('/table/:tableName/upload', upload.single('pdf'), (req, res) => {
 });
 
 // Delete a PDF file from the table
-app.post('/table/:tableName/delete', (req, res) => {
+app.post('/table/:tableName/delete', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
     const tableName = req.params.tableName;
     const { primaryKey, primaryKeyValue, column } = req.body;
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
 
     // Check if the table is excluded
     if (excludedTables.includes(tableName)) {
@@ -147,7 +185,9 @@ app.post('/table/:tableName/delete', (req, res) => {
 // Serve the uploaded files
 app.use('/uploads', express.static('uploads'));
 
+// Route to serve the Modify.html file
 app.get('/', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(__dirname + '/Modify.html');
+    res.sendFile(path.join(__dirname, 'Modify.html'));
 });
+
 module.exports = app; // Export the entire Express application

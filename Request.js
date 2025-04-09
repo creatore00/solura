@@ -4,32 +4,36 @@ const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const server = require('./server.js');
 const nodemailer = require('nodemailer');
-const pool = require('./db.js'); // Import the connection pool
-const app = express();
+const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
 const { sessionMiddleware, isAuthenticated, isAdmin } = require('./sessionConfig'); // Adjust the path as needed
+
+const app = express();
+
+// Middleware
 app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 // Function to send email
 function sendEmail(recipients, message) {
     // Create a transporter
     const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
-      user: 'oxfordbbuona@gmail.com',
-      pass: 'vkav xtuc ufwz sphn'
+            user: 'oxfordbbuona@gmail.com',
+            pass: 'vkav xtuc ufwz sphn'
         }
     });
 
-// Setup email data
-const mailOptions = {
-    from: 'oxfordbbuona@gmail.com',
-    to: recipients.join(','), // Convert array of emails to comma-separated string
-    subject: 'Updates on your Holiday Request',
-    text: message // Include the message retrieved from the request body
-};
+    // Setup email data
+    const mailOptions = {
+        from: 'oxfordbbuona@gmail.com',
+        to: recipients.join(','), // Convert array of emails to comma-separated string
+        subject: 'Updates on your Holiday Request',
+        text: message // Include the message retrieved from the request body
+    };
+
     // Send email
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
@@ -39,8 +43,17 @@ const mailOptions = {
         }
     });
 }
+
 // Route to get all holiday requests
-app.get('/holidays', (req, res) => {
+app.get('/holidays', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
+
     // Query the database to get holiday requests
     pool.query('SELECT * FROM Holiday', (err, results) => {
         if (err) {
@@ -51,7 +64,17 @@ app.get('/holidays', (req, res) => {
         }
     });
 });
-app.post('/updateRequest/:id', (req, res) => {
+
+// Route to update a holiday request
+app.post('/updateRequest/:id', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
+
     const requestId = req.params.id;
 
     // Query to get the holiday request details
@@ -112,8 +135,17 @@ app.post('/updateRequest/:id', (req, res) => {
         });
     });
 });
+
 // Route to delete a holiday request
-app.post('/deleteRequest/:id', (req, res) => {
+app.post('/deleteRequest/:id', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
+
     const requestId = req.params.id;
     const message = req.body.message;
     const name = req.body.name;
@@ -129,23 +161,26 @@ app.post('/deleteRequest/:id', (req, res) => {
         } else {
             console.log('Request deleted successfully');
             res.sendStatus(200); // Send success response
-            
+
             // Get email addresses from the database based on employee name and last name
             pool.query('SELECT email FROM Employees WHERE name = ? AND lastName = ?', [name, lastName], (emailErr, emailResults) => {
                 if (emailErr) {
                     console.error('Error fetching emails from the database:', emailErr);
                     return res.status(500).send('Error sending emails');
                 }
-        
+
                 const recipients = emailResults.map(row => row.email);
-        
+
                 // Send email to recipients
                 sendEmail(recipients, message);
             });
         }
     });
 });
+
+// Route to serve the Request.html file
 app.get('/', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Request.html'));
 });
+
 module.exports = app; // Export the entire Express application

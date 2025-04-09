@@ -3,264 +3,972 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/png;base64,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" type="image/png">
-
-    <title>Holiday Report</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.3/jspdf.umd.min.js"></script>
+    <title>Holiday Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
+        :root {
+            --primary-color: #001f3f;
+            --secondary-color: #0074D9;
+            --light-gray: #f8f9fa;
+            --dark-gray: #343a40;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+        }
+        .status-approved { color: var(--success-color); font-weight: 600; }
+        .status-unpaid { color: var(--warning-color); font-weight: 600; }
+        .status-pending { color: var(--warning-color); font-weight: 600; }
         body {
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
-            margin: 0;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            text-transform: uppercase;
-            color: #60a2ee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
         }
         
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background-color: #1E90FF;
+        .card {
             border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
-        
-        th, td {
-            text-align: center;
-            padding: 12px;
-            white-space: nowrap;
-            background-color: #4A90E2;
-            color: #fff;
-            font-weight: bold;
-        }
-        
-        .btn {
-            background-color: #4A90E2;
-            color: #fff;
-            padding: 10px 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
             border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            align-self: center;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            transition: background-color 0.3s ease;
-            font-size: 14px;
         }
         
-        .btn:hover {
-            background-color: #1E90FF;
-            transform: scale(1.05);
-            transition: transform 0.3s ease;
-        }
-        
-        .date {
-            background-color: #70ace7;
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
+        .card-header {
+            background-color: var(--primary-color);
             color: white;
-            border-radius: 5px;
-            padding: 6px 12px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+            border-radius: 10px 10px 0 0 !important;
+            font-weight: 600;
         }
         
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .table-responsive {
+            border-radius: 0 0 10px 10px;
+            overflow-x: auto;
         }
         
-        tbody tr {
-            animation: fadeInUp 0.5s ease;
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
         }
         
+        .table th, .table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6;
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+                /* Add this to your existing styles */
+                .holiday-year-card {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .current-year-indicator {
+            font-weight: bold;
+            color: #0074D9;
+        }
+        .year-range-display {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.04);
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .editable {
+            background-color: rgba(0, 116, 217, 0.05);
+            cursor: pointer;
+        }
+        
+        .editable:focus {
+            background-color: white;
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.25rem rgba(0, 116, 217, 0.25);
+        }
+        
+        .status-pending {
+            color: var(--warning-color);
+            font-weight: 600;
+        }
+        
+        .status-approved {
+            color: var(--success-color);
+            font-weight: 600;
+        }
+        
+        .status-rejected {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+        
+        .tab-content {
+            padding: 20px 0;
+        }
+        
+        .nav-tabs .nav-link.active {
+            font-weight: 600;
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--secondary-color);
+        }
+        
+        .badge-count {
+            font-size: 0.75rem;
+            margin-left: 5px;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <h2>Holiday Report</h2>
-    <input class="btn" type="month" id="monthSelector" onchange="handleMonthSelection()">
-    <table id="employeeData">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Last Name</th>
-                <th>Wage</th>
-                <th>Total Hours Worked</th>
-                <th>Total Days on Holiday</th>
-                <th>Cost per Day of Holiday</th>
-            </tr>
-        </thead>
-        <tbody id="tableBody">
-            <!-- Data will be inserted here -->
-        </tbody>
-    </table>
-    <button class="btn" onclick="downloadPDF()">Download PDF</button>
-    <script>
-window.onload = function () {
-            handleMonthSelection(); // Fetch data for the current month on page load
-        }
-// Function to calculate average hours worked per day
-function calculateAverageHours(employeeName, employeeLastName) {
-    const threeMonthsAgo = new Date();
-    threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-    const rotaStartDate = threeMonthsAgo.toISOString().split('T')[0];
+    <div class="container-fluid py-4">
+        <h2 class="mb-4"><i class="bi bi-calendar-range"></i> Holiday Management System</h2>
+        
+        <ul class="nav nav-tabs" id="holidayTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="employees-tab" data-bs-toggle="tab" data-bs-target="#employees" type="button" role="tab">
+                    Employee Entitlements
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="requests-tab" data-bs-toggle="tab" data-bs-target="#requests" type="button" role="tab">
+                    Holiday Requests
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">
+                    <i class="bi bi-gear"></i> Holiday Year Settings
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="holidayTabContent">
+            <!-- Employee Entitlements Tab -->
+            <div class="tab-pane fade show active" id="employees" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-people-fill"></i> Employee Holiday Entitlements</span>
+                        <button id="updateAccrualsBtn" class="btn btn-sm btn-outline-light">
+                            <i class="bi bi-calculator"></i> Update Accruals
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="employeesTable" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Last Name</th>
+                                    <th>Start Date</th>
+                                    <th>Start Holiday</th>
+                                    <th>Total Holiday Left</th>
+                                    <th>Accrued</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeesTableBody">
+                                <!-- Data will be loaded via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Holiday Requests Tab -->
+            <div class="tab-pane fade" id="requests" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="bi bi-calendar-check"></i> Holiday Requests
+                    </div>
+                    <div class="table-responsive">
+                        <table id="holidaysTable" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Last Name</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="holidaysTableBody">
+                                <!-- Data will be loaded via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Holiday Year Settings Tab -->
+            <div class="tab-pane fade" id="settings" role="tabpanel">
+                <div class="card holiday-year-card">
+                    <div class="card-header">
+                        <i class="bi bi-calendar-event"></i> Holiday Year Configuration
+                    </div>
+                    <div class="card-body">
+                        <div id="currentSettings" class="year-range-display text-center mb-4">
+                            <p>Current holiday year: <span id="currentYearRange" class="current-year-indicator">Loading...</span></p>
+                        </div>
+                        
+                        <form id="holidayYearForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="yearStart" class="form-label">Holiday Year Start Date</label>
+                                    <input type="date" class="form-control" id="yearStartInput" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="yearEnd" class="form-label">Holiday Year End Date</label>
+                                    <input type="date" class="form-control" id="yearEndInput" required>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary" id="saveSettingsBtn">
+                                    <span id="saveBtnText">Save Settings</span>
+                                    <span id="saveSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
-    return fetch(`/TotalHolidays/rota?name=${employeeName}&lastName=${employeeLastName}&startDate=${rotaStartDate}&endDate=${endDate}`)
-        .then(response => response.json())
-        .then(rotaData => {
-            const totalDays = rotaData.length;
-            if (totalDays === 0) {
-                return 0; // Return 0 if no data found
-            }
-            const totalHours = rotaData.reduce((sum, entry) => {
-                const startTime = new Date(`2000-01-01T${entry.startTime}`);
-                const endTime = new Date(`2000-01-01T${entry.endTime}`);
-                const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
-                return sum + hoursWorked;
-            }, 0);
-            return totalHours / totalDays; // Return average hours worked per day
-        })
-        .catch(error => {
-            console.error('Error calculating average hours:', error);
-            return 0; // Return 0 in case of error
-        });
-}
-function fetchDataForMonth(startDate, endDate) {
-    fetch(`/TotalHolidays/rota?startDate=${startDate}&endDate=${endDate}`)
-        .then(response => response.json())
-        .then(rotaData => {
-            console.log('Rota data:', rotaData);
-            const tableBody = document.getElementById('tableBody');
-            const employeeData = {};
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Confirm Deletion</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete this record? This action cannot be undone.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Bootstrap components
+            const tabElms = document.querySelectorAll('[data-bs-toggle="tab"]');
+            const tabs = Array.from(tabElms).map(tabEl => new bootstrap.Tab(tabEl));
+            const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+            
+            // State
+            let deleteId = null;
+            let employeesData = [];
+            let holidaysData = [];
+            
+            // DOM Elements
+            const employeesTableBody = document.getElementById('employeesTableBody');
+            const holidaysTableBody = document.getElementById('holidaysTableBody');
+            const updateAccrualsBtn = document.getElementById('updateAccrualsBtn');
+            const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+            
+            // Initialize
+            loadEmployees();
+            loadAndRenderHolidays();
+            
+            // Event Listeners
+            updateAccrualsBtn.addEventListener('click', updateAccruals);
+            confirmDeleteBtn.addEventListener('click', confirmDelete);
 
-            // Process rota data to calculate total hours worked
-            rotaData.forEach(entry => {
-                if (!employeeData[entry.name]) {
-                    employeeData[entry.name] = {
-                        name: entry.name,
-                        lastName: entry.lastName,
-                        wage: entry.wage,
-                        totalHours: 0,
-                        totalDaysOnHoliday: 0,
-                        costPerDay: 0
-                    };
-                }
-                const startTime = new Date(`2000-01-01T${entry.startTime}`);
-                const endTime = new Date(`2000-01-01T${entry.endTime}`);
-                const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
-                employeeData[entry.name].totalHours += hoursWorked;
+            // Load current settings
+            loadHolidayYearSettings();
+            
+            // Form submission
+            holidayYearForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveHolidayYearSettings();
             });
-
-            // Fetch holiday data
-            fetch(`/TotalHolidays/holiday?startDate=${startDate}&endDate=${endDate}`)
-                .then(response => response.json())
-                .then(holidayData => {
-                    console.log('Holiday data:', holidayData);
-
-                    // Process each holiday data and calculate total days on holiday
-                    holidayData.forEach(holiday => {
-                        const matchingEmployee = employeeData[holiday.name];
-                        if (matchingEmployee) {
-                            const start = new Date(holiday.startDate);
-                            const end = new Date(holiday.endDate);
-                            const timeDifference = Math.abs(end.getTime() - start.getTime());
-                            const totalDaysOnHoliday = Math.ceil(timeDifference / (1000 * 3600 * 24)) + 1;
-                            matchingEmployee.totalDaysOnHoliday += totalDaysOnHoliday;
-
-                            // Calculate average hours and cost per day
-                            calculateAverageHours(matchingEmployee.name, matchingEmployee.lastName)
-                                .then(averageHours => {
-                                    if (averageHours > 0) {
-                                        const costPerDay = averageHours * matchingEmployee.wage;
-                                        matchingEmployee.costPerDay = costPerDay.toFixed(2);
-                                    } else {
-                                        matchingEmployee.costPerDay = 0; // Default to 0 if average hours calculation fails
-                                    }
-
-                                    // Update the table after all calculations are complete
-                                    updateTable(employeeData, tableBody);
-                                })
-                                .catch(error => {
-                                    console.error('Error calculating average hours:', error);
-                                    matchingEmployee.costPerDay = 0; // Default to 0 in case of error
-                                    updateTable(employeeData, tableBody); // Still update table on error
-                                });
+            
+            // End date validation
+            yearStartInput.addEventListener('change', function() {
+                if (yearStartInput.value && yearEndInput.value && yearStartInput.value > yearEndInput.value) {
+                    yearEndInput.value = '';
+                }
+                yearEndInput.min = yearStartInput.value;
+            });
+            
+            // Load current holiday year settings
+            function loadHolidayYearSettings() {
+                fetch('/TotalHolidays/api/holidays/year-settings')
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to load settings');
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data && data.HolidayYearStart && data.HolidayYearEnd) {
+                            const startDate = new Date(data.HolidayYearStart);
+                            const endDate = new Date(data.HolidayYearEnd);
+                            
+                            // Format dates for display
+                            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                            const displayText = `${startDate.toLocaleDateString(undefined, options)} to ${endDate.toLocaleDateString(undefined, options)}`;
+                            currentYearRange.textContent = displayText;
+                            
+                            // Set form values
+                            yearStartInput.value = data.HolidayYearStart.split('T')[0];
+                            yearEndInput.value = data.HolidayYearEnd.split('T')[0];
+                        } else {
+                            currentYearRange.textContent = 'No holiday year configured';
                         }
+                    })
+                    .catch(error => {
+                        console.error('Error loading settings:', error);
+                        currentYearRange.textContent = 'Error loading settings';
                     });
-
-                    // Update the table if there are no holiday entries
-                    if (holidayData.length === 0) {
-                        updateTable(employeeData, tableBody);
-                    }
+            }
+            
+            // Save holiday year settings
+            function saveHolidayYearSettings() {
+                const startDate = yearStartInput.value;
+                const endDate = yearEndInput.value;
+                
+                if (!startDate || !endDate) {
+                    alert('Please select both start and end dates');
+                    return;
+                }
+                
+                if (startDate >= endDate) {
+                    alert('End date must be after start date');
+                    return;
+                }
+                
+                // Show loading state
+                saveBtnText.textContent = 'Saving...';
+                saveSpinner.classList.remove('d-none');
+                saveSettingsBtn.disabled = true;
+                
+                fetch('/TotalHolidays/api/holidays/year-settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        HolidayYearStart: startDate,
+                        HolidayYearEnd: endDate
+                    })
                 })
-                .catch(error => console.error('Error fetching holiday data:', error));
-        })
-        .catch(error => console.error('Error fetching rota data:', error));
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to save settings');
+                    return response.json();
+                })
+                .then(data => {
+                    alert('Holiday year settings saved successfully!');
+                    loadHolidayYearSettings(); // Refresh the display
+                })
+                .catch(error => {
+                    console.error('Error saving settings:', error);
+                    alert('Error saving settings: ' + error.message);
+                })
+                .finally(() => {
+                    // Reset button state
+                    saveBtnText.textContent = 'Save Settings';
+                    saveSpinner.classList.add('d-none');
+                    saveSettingsBtn.disabled = false;
+                });
+            }
+
+            // Function to Load Employees
+            async function loadEmployees() {
+                try {
+                    showLoading(employeesTableBody);
+                    const response = await fetch('/TotalHolidays/api/holidays/employees');
+                    if (!response.ok) throw new Error('Failed to load employees');
+                    
+                    employeesData = await response.json();
+                    renderEmployeesTable();
+                } catch (error) {
+                    console.error('Error loading employees:', error);
+                    employeesTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error loading data: ${error.message}</td></tr>`;
+                }
+            }
+            
+            // Function to Load Holidays
+            async function loadAndRenderHolidays() {
+    try {
+        showLoading(holidaysTableBody);
+        const response = await fetch('/TotalHolidays/api/holidays/requests');
+        if (!response.ok) throw new Error('Failed to load holidays');
+        
+        holidaysData = await response.json();
+        renderHolidaysTable();
+    } catch (error) {
+        console.error('Error loading holidays:', error);
+        holidaysTableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center text-danger">
+                    Error loading data: ${error.message}
+                </td>
+            </tr>`;
+    }
 }
 
-// Function to update the table with employee data
-function updateTable(employeeData, tableBody) {
-    tableBody.innerHTML = '';
-    Object.values(employeeData).forEach(employee => {
-        if (employee.totalDaysOnHoliday > 0) {
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${employee.name}</td>
-                <td>${employee.lastName}</td>
-                <td>${employee.wage}</td>
-                <td>${employee.totalHours.toFixed(2)}</td>
-                <td>${employee.totalDaysOnHoliday}</td>
-                <td>${employee.costPerDay}</td>`;
-            tableBody.appendChild(row);
+            // Function to Render Holidays Table
+            function renderHolidaysTable() {
+    holidaysTableBody.innerHTML = '';
+
+    if (holidaysData.length === 0) {
+        holidaysTableBody.innerHTML = `
+            <tr>
+                <td colspan="8" class="text-center">
+                    No holiday requests found
+                </td>
+            </tr>`;
+        return;
+    }
+
+    holidaysData.forEach(holiday => {
+        // Ensure dates are properly formatted
+        const formattedStartDate = formatDate(holiday.startDate);
+        const formattedEndDate = formatDate(holiday.endDate);
+
+        // Validate and recalculate days if needed
+        if (!holiday.days || isNaN(holiday.days)) {
+            updateHolidayDays(holiday, holiday.id);
+        }
+
+        const accepted = {
+    value: holiday.accepted === 'true' ? 'Paid Leave' : 
+           holiday.accepted === 'unpaid' ? 'Unpaid Leave' : '', // Remove 'Pending'
+    class: holiday.accepted === 'true' ? 'status-approved' : 
+           holiday.accepted === 'unpaid' ? 'status-unpaid' : '' // Remove 'Pending'
+};
+
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${holiday.name}</td>
+            <td>${holiday.lastName}</td>
+            <td class="editable" data-field="startDate" data-id="${holiday.id}">
+                ${formattedStartDate}
+            </td>
+            <td class="editable" data-field="endDate" data-id="${holiday.id}">
+                ${formattedEndDate}
+            </td>
+            <td class="days-count" data-id="${holiday.id}">${holiday.days}</td>
+            <td class="${accepted.class}">
+                <select class="form-select form-select-sm status-select" data-id="${holiday.id}">
+                    <option value="true" ${holiday.accepted === 'true' ? 'selected' : ''}>
+                        Paid Leave
+                    </option>
+                    <option value="unpaid" ${holiday.accepted === 'unpaid' ? 'selected' : ''}>
+                        Unpaid Leave
+                    </option>
+                </select>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary save-holiday-btn" data-id="${holiday.id}">
+                    <i class="bi bi-save"></i> Save
+                </button>
+                <button class="btn btn-sm btn-outline-danger delete-holiday-btn" data-id="${holiday.id}">
+                    <i class="bi bi-trash"></i> Delete
+                </button>
+            </td>
+        `;
+        holidaysTableBody.appendChild(row);
+    });
+
+    setupEditableCellsWithDayCalculation('holidaysTableBody');
+    setupSaveButtons('.save-holiday-btn', saveHoliday);
+    setupDeleteButtons();
+
+    document.querySelectorAll('.status-select').forEach(select => {
+        select.addEventListener('change', function () {
+            const holiday = holidaysData.find(h => h.id == this.dataset.id);
+            if (holiday) holiday.accepted = this.value;
+        });
+    });
+}
+
+            // Function to Edit Cells in Holidays with Date Picker and Day Calculation
+            function setupEditableCellsWithDayCalculation(tableBodyId) {
+    const tableBody = document.getElementById(tableBodyId);
+
+    tableBody.addEventListener('click', function (e) {
+        const cell = e.target.closest('.editable[data-field="startDate"], .editable[data-field="endDate"]');
+        if (!cell) return;
+
+        e.stopPropagation();
+
+        const currentValue = cell.textContent.trim();
+        const field = cell.dataset.field;
+        const id = cell.dataset.id;
+        const holiday = holidaysData.find(h => h.id == id);
+        if (!holiday) return;
+
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.className = 'form-control form-control-sm';
+
+        // Convert dd/mm/yyyy to yyyy-mm-dd for input
+        if (currentValue && currentValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            const [day, month, year] = currentValue.split('/');
+            input.value = `${year}-${month}-${day}`;
+        }
+
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+
+        function saveDate() {
+            const isoDate = input.value;
+            if (!isoDate) return;
+
+            const formattedDate = formatDateFromInput(isoDate); // yyyy-mm-dd → dd/mm/yyyy
+
+            // Validate selected date
+            const [year, month, day] = isoDate.split('-');
+            const selectedDate = new Date(`${year}-${month}-${day}`);
+            if (isNaN(selectedDate.getTime())) {
+                alert('Invalid date selected');
+                return;
+            }
+
+            // Temporarily update the field for validation purposes
+            holiday[field] = formattedDate;
+            cell.textContent = formattedDate;
+
+            // Recalculate days if both dates are valid
+            if (holiday.startDate && holiday.endDate) {
+                updateHolidayDays(holiday, id);
+            }
+        }
+
+        input.addEventListener('blur', saveDate);
+        input.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') saveDate();
+        });
+    });
+
+    // Handle other editable fields
+    tableBody.addEventListener('focusout', function (e) {
+        const target = e.target;
+        if (target.classList.contains('editable')) {
+            const id = target.dataset.id;
+            const field = target.dataset.field;
+            const holiday = holidaysData.find(h => h.id == id);
+
+            if (holiday && field !== 'startDate' && field !== 'endDate') {
+                holiday[field] = target.textContent;
+            }
+        }
+    });
+
+    // Set contenteditable for non-date cells
+    tableBody.querySelectorAll('.editable').forEach(cell => {
+        if (!cell.dataset.field.match(/startDate|endDate/)) {
+            cell.setAttribute('contenteditable', 'true');
         }
     });
 }
-function handleMonthSelection() {
-            const selectedMonth = document.getElementById('monthSelector').value;
-            const [year, month] = selectedMonth.split('-');
-            const startDate = `${year}-${month}-01`;
-            const lastDay = new Date(year, month, 0).getDate();
-            const endDate = `${year}-${month}-${lastDay}`;
-            fetchDataForMonth(startDate, endDate);
+
+            // Update the holiday days calculation to handle dd/mm/yyyy format
+            function updateHolidayDays(holiday, id) {
+    try {
+        const parseDate = (dateStr) => {
+            if (!dateStr) return null;
+            if (dateStr.includes('T')) return new Date(dateStr);
+            if (dateStr.includes('/')) {
+                const [day, month, year] = dateStr.split('/');
+                return new Date(`${year}-${month}-${day}`);
+            }
+            return null;
+        };
+
+        let startDate = parseDate(holiday.startDate);
+        let endDate = parseDate(holiday.endDate);
+
+        // Handle case where only one date is changed
+        if (!startDate && holiday.startDate) {
+            startDate = parseDate(holiday.startDate);
         }
-// Initial load: Fetch data for the current month
-const currentDate = new Date();
-const currentMonth = currentDate.getMonth() + 1;
-const currentYear = currentDate.getFullYear();
-const startDate = `${currentYear}-${currentMonth}-01`;
-const lastDay = new Date(currentYear, currentMonth, 0).getDate();
-const endDate = `${currentYear}-${currentMonth}-${lastDay}`;
-fetchDataForMonth(startDate, endDate);
-function downloadPDF() {
-    const table = document.getElementById('employeeData');
-    const html = table.outerHTML;
-    const selectedMonth = document.getElementById('monthSelector').value;
-    fetch('/TotalHolidays/generate-pdf', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ html: html })
-    })
-    .then(response => response.blob())
-    .then(blob => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `Holiday_${selectedMonth}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-    })
-    .catch(error => console.error('Error generating PDF:', error));
+        if (!endDate && holiday.endDate) {
+            endDate = parseDate(holiday.endDate);
+        }
+
+        // Only proceed if both dates are valid
+        const validStart = startDate && !isNaN(startDate.getTime());
+        const validEnd = endDate && !isNaN(endDate.getTime());
+
+        if (!validStart || !validEnd) {
+            // Display 0 if one date is missing
+            holiday.days = 0;
+            const daysElement = document.querySelector(`.days-count[data-id="${id}"]`);
+            if (daysElement) daysElement.textContent = '-';
+            return;
+        }
+
+        if (startDate > endDate) {
+            holiday.days = 0;
+            const daysElement = document.querySelector(`.days-count[data-id="${id}"]`);
+            if (daysElement) daysElement.textContent = '-';
+            console.warn(`Start date is after end date for ID ${id}.`);
+            return;
+        }
+
+        const timeDiff = endDate - startDate;
+        const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+
+        holiday.days = daysDiff > 0 ? daysDiff : 1;
+        const daysElement = document.querySelector(`.days-count[data-id="${id}"]`);
+        if (daysElement) {
+            daysElement.textContent = holiday.days;
+        }
+    } catch (error) {
+        console.error(`Error calculating days for ID ${id}:`, error);
+    }
 }
-</script>
+
+            // Function to edit Cells in Employees
+            function setupEditableCells(tableBodyId) {
+    const tableBody = document.getElementById(tableBodyId);
+    
+    tableBody.addEventListener('click', function(e) {
+        const cell = e.target.closest('.editable');
+        if (!cell) return;
+        
+        // Skip if clicking on a select dropdown
+        if (e.target.tagName === 'SELECT') return;
+        
+        const currentValue = cell.textContent.trim();
+        const field = cell.getAttribute('data-field');
+        const isDateField = field === 'startDate' || field === 'endDate' || field === 'dateStart';
+        
+        let input;
+        if (isDateField) {
+            // Parse current date correctly (handles dd/mm/yyyy format)
+            const [day, month, year] = currentValue.split('/');
+            const jsDate = new Date(`${year}-${month}-${day}`);
+            
+            input = document.createElement('input');
+            input.type = 'date';
+            input.className = 'form-control form-control-sm';
+            
+            // Format for date input (YYYY-MM-DD)
+            if (!isNaN(jsDate.getTime())) {
+                const yyyy = jsDate.getFullYear();
+                const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
+                const dd = String(jsDate.getDate()).padStart(2, '0');
+                input.value = `${yyyy}-${mm}-${dd}`;
+            }
+        } else {
+            input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control form-control-sm';
+            input.value = currentValue;
+        }
+        
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        input.focus();
+        
+        function saveEdit() {
+            let newValue = input.value;
+            
+            if (isDateField) {
+                // Convert date input (YYYY-MM-DD) to ISO string
+                const dateObj = new Date(newValue);
+                if (!isNaN(dateObj.getTime())) {
+                    newValue = dateObj.toISOString();
+                } else {
+                    // Handle invalid dates
+                    newValue = cell.getAttribute('data-original-value') || '';
+                }
+            }
+            
+            // Format display value based on field type
+            const displayValue = isDateField ? formatDate(newValue) : newValue;
+            cell.textContent = displayValue;
+            
+            // Update our data array
+            const id = cell.getAttribute('data-id');
+            const dataArray = tableBodyId === 'employeesTableBody' ? employeesData : holidaysData;
+            const item = dataArray.find(item => item.id == id);
+            
+            if (item) {
+                item[field] = newValue;
+                
+                // Recalculate days if holiday dates changed
+                if (tableBodyId === 'holidaysTableBody' && (field === 'startDate' || field === 'endDate')) {
+                    const startDate = new Date(item.startDate);
+                    const endDate = new Date(item.endDate);
+                    
+                    if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                        const timeDiff = endDate - startDate;
+                        item.days = Math.floor(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+                        
+                        // Update days display
+                        const row = cell.closest('tr');
+                        if (row) {
+                            const daysCell = row.querySelector('td:nth-child(5)');
+                            if (daysCell) {
+                                daysCell.textContent = item.days;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Store original value in case we need to revert
+        cell.setAttribute('data-original-value', currentValue);
+        
+        input.addEventListener('blur', saveEdit);
+        input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                saveEdit();
+            }
+        });
+    });
+}
+
+            // Function to Convert Date for Employees
+            function convertToUKDateFormat(dateString) {
+    if (!dateString) return '';
+
+    // Replace dashes with slashes to standardize input (in case it's yyyy-mm-dd)
+    const sanitized = dateString.replace(/-/g, '/');
+
+    const [year, month, day] = sanitized.split('/');
+
+    // Basic validation
+    if (!year || !month || !day) return '';
+
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
+}
+
+            // Function to Render Employee Table
+            function renderEmployeesTable() {
+                employeesTableBody.innerHTML = '';
+                if (employeesData.length === 0) {
+                    employeesTableBody.innerHTML = `<tr><td colspan="8" class="text-center">No employee data found</td></tr>`;
+                    return;
+                }
+                
+                employeesData.forEach(employee => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${employee.name}</td>
+                        <td>${employee.lastName}</td>
+                        <td>${convertToUKDateFormat(employee.dateStart)}</td>
+                        <td class="editable" data-field="startHoliday" data-id="${employee.id}">${employee.startHoliday}</td>
+                        <td class="editable" data-field="TotalHoliday" data-id="${employee.id}">${employee.TotalHoliday}</td>
+                        <td class="editable" data-field="Accrued" data-id="${employee.id}">${employee.Accrued}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary save-btn" data-id="${employee.id}">
+                                <i class="bi bi-save"></i> Save
+                            </button>
+                        </td>
+                    `;
+                    employeesTableBody.appendChild(row);
+                    console.log(convertToUKDateFormat(employee.dateStart))
+                });
+                
+                setupEditableCells('employeesTableBody');
+                setupSaveButtons('.save-btn', saveEmployee);
+            }
+
+            // Function for Save Buttons
+            function setupSaveButtons(selector, saveFunction) {
+                document.addEventListener('click', function(e) {
+                    const btn = e.target.closest(selector);
+                    if (!btn) return;
+                    
+                    const id = btn.getAttribute('data-id');
+                    saveFunction(id);
+                });
+            }
+            
+            // Function for Delete Buttons
+            function setupDeleteButtons() {
+                document.addEventListener('click', function(e) {
+                    const btn = e.target.closest('.delete-holiday-btn');
+                    if (!btn) return;
+                    
+                    deleteId = btn.getAttribute('data-id');
+                    confirmDeleteModal.show();
+                });
+            }
+            
+            // Function to Save Employee Tab
+            async function saveEmployee(id) {
+                const employee = employeesData.find(emp => emp.id == id);
+                if (!employee) return;
+                
+                try {
+                    const response = await fetch(`/TotalHolidays/api/holidays/employees/${id}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            dateStart: employee.dateStart,
+                            startHoliday: parseFloat(employee.startHoliday) || 0,
+                            TotalHoliday: parseFloat(employee.TotalHoliday) || 0,
+                            Accrued: parseFloat(employee.Accrued) || 0
+                        })
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to save employee');
+                    
+                    alert('Employee data updated successfully!');
+                    loadEmployees(); // Refresh data
+                } catch (error) {
+                    console.error('Error saving employee:', error);
+                    alert('Error updating employee data: ' + error.message);
+                }
+            }
+            
+            // Function to Save Holiday Tab
+            async function saveHoliday(id) {
+    const holiday = holidaysData.find(h => h.id == id);
+    if (!holiday) return;
+    
+    try {
+        // Get the current selected status from the dropdown
+        const statusSelect = document.querySelector(`.status-select[data-id="${id}"]`);
+        if (statusSelect) {
+            holiday.accepted = statusSelect.value; // Update the holiday object with current selection
+        }
+
+        const response = await fetch(`/TotalHolidays/api/holidays-update/requests/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                startDate: holiday.startDate,
+                endDate: holiday.endDate,
+                days: holiday.days,
+                accepted: holiday.accepted // Now includes the updated value
+            })
+        });
+        
+        if (!response.ok) throw new Error('Failed to save holiday');
+        
+        alert('Holiday request updated successfully!');
+        loadAndRenderHolidays(); // Refresh data
+    } catch (error) {
+        console.error('Error saving holiday:', error);
+        alert('Error updating holiday request: ' + error.message);
+    }
+}
+
+            // Function to Confirm Deletion
+            async function confirmDelete() {
+    if (!deleteId) return;
+    
+    try {
+        const response = await fetch(`/TotalHolidays/api/holidays/requests/${deleteId}/delete`, {
+            method: 'POST'  // Changed to POST to match backend
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete holiday');
+        
+        const result = await response.json();
+        confirmDeleteModal.hide();
+        
+        if (result.daysRestored > 0) {
+            alert(`Holiday request deleted successfully! ${result.daysRestored} days restored to employee's balance.`);
+        } else {
+            alert('Holiday request deleted successfully! (No days restored - was unpaid leave)');
+        }
+        
+        loadAndRenderHolidays(); // Refresh the list
+        loadEmployees(); // Refresh employee balances
+    } catch (error) {
+        console.error('Error deleting holiday:', error);
+        alert('Error deleting holiday request: ' + error.message);
+    }
+}
+
+            // Functio to Update Accruals
+            async function updateAccruals() {
+                if (!confirm('Are you sure you want to update holiday accruals for all employees? This should typically be done once per month.')) {
+                    return;
+                }
+                
+                try {
+                    updateAccrualsBtn.disabled = true;
+                    updateAccrualsBtn.innerHTML = '<span class="loading-spinner"></span> Updating...';
+                    
+                    const response = await fetch('/TotalHolidays/api/holidays/update-accruals', {
+                        method: 'POST'
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to update accruals');
+                    
+                    const result = await response.json();
+                    alert(result.message);
+                    loadEmployees(); // Refresh data
+                } catch (error) {
+                    console.error('Error updating accruals:', error);
+                    alert('Error updating accruals: ' + error.message);
+                } finally {
+                    updateAccrualsBtn.disabled = false;
+                    updateAccrualsBtn.innerHTML = '<i class="bi bi-calculator"></i> Update Accruals';
+                }
+            }
+            
+            // Function to Format Date to dd/mm/yyyy
+            function formatDate(dateString) {
+    if (!dateString) return '';
+
+    // Extract the first 10 characters which represent dd/mm/yyyy
+    return dateString.slice(0, 10);
+}
+
+            // Function to Format Date to dd/mm/yyyy
+            function formatDateFromInput(dateString) {
+    if (!dateString) return '';
+    const [year, month, day] = dateString.split('-');
+    return `${day}/${month}/${year}`;
+}
+            
+            // Function to Show Loading
+            function showLoading(element) {
+                if (!element) return;
+                element.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center">
+                            <span class="loading-spinner"></span> Loading...
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+    </script>
 </body>
 </html>

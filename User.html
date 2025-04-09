@@ -8,180 +8,249 @@
     <title>User Dashboard</title>
     <style>
         body {
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
-            margin: 0;
             font-family: 'Arial', sans-serif;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-            align-items: center;
-            justify-content: center;
-        }
-        .sidebar {
-            height: 100%;
-            width: 250px;
-            position: fixed;
-            top: 0;
-            left: -250px;
-            background: linear-gradient(135deg, #1E90FF 0%, #ADD8E6 100%);
-            color: white;
-            transition: left 0.5s ease;
-            padding-top: 60px;
-            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-        }
-        .sidebar a {
-            padding: 15px 25px;
-            text-decoration: none;
-            font-size: 18px;
-            color: white;
-            display: block;
-            transition: background-color 0.3s ease;
-        }
-        .sidebar a:hover {
-            background-color: #4682B4;
-        }
-        .main {
-            margin-left: 0;
-            transition: margin-left 0.5s ease;
-            flex-grow: 1;
+            margin: 0;
+            padding: 0;
+            background: #f4f6f9;
+            color: #333;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            min-height: 100vh;
         }
-        .menu-btn {
-            position: absolute;
-            top: 15px;
-            left: 15px;
-            font-size: 30px;
-            cursor: pointer;
-            background-color: #4682B4;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            transition: background-color 0.3s ease, transform 0.3s ease;
-        }
-        .menu-btn:hover {
-            background-color: #1E90FF;
-            transform: rotate(90deg);
-        }
-        .header {
-            text-align: center;
+        
+        header {
+            background: #004f9e;
+            color: #fff;
             padding: 20px;
-            background: linear-gradient(135deg, #1E90FF 0%, #ADD8E6 100%);
-            width: 100%;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            color: white;
-            transition: background-color 0.5s ease;
-        }
-        .header h1 {
-            margin: 0;
-            font-size: 2.5em;
-        }
-        .button-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-            margin-top: 20px;
-        }
-        .button-group a {
-            background-color: #4682B4;
-            color: white;
-            padding: 15px 30px;
-            border-radius: 5px;
             text-align: center;
-            text-decoration: none;
-            transition: background-color 0.3s ease, transform 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative; /* Ensure the dropdown content is positioned relative to the header */
         }
-        .button-group a:hover {
-            background-color: #1E90FF;
-            transform: scale(1.1);
+        
+        header h1 {
+            margin: 0;
+            font-size: 2em;
         }
+        
         .dropdown {
-            position: absolute;
-            top: 15px;
-            right: 15px;
+            position: absolute; /* Position dropdown absolutely */
+            top: 20px;
+            right: 20px;
         }
+        
         .dropbtn {
-            background-color: #4682B4;
+            background-color: #007acc;
             color: white;
             padding: 10px 20px;
+            font-size: 16px;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.3s ease;
         }
-        .dropbtn:hover {
-            background-color: #1E90FF;
-        }
+        
         .dropdown-content {
             display: none;
-            position: absolute;
+            position: absolute; /* Position dropdown content absolutely */
+            top: 100%; /* Position below the button */
             right: 0;
-            background-color: white;
+            background-color: #f9f9f9;
             min-width: 160px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
             z-index: 1;
-            border-radius: 5px;
-            overflow: hidden;
+            border-radius: 8px; /* Rounded corners for dropdown content */
         }
+        
         .dropdown-content a {
-            color: #333;
+            color: black;
             padding: 12px 16px;
             text-decoration: none;
             display: block;
-            transition: background-color 0.3s ease, transform 0.3s ease;
+            border-radius: 8px; /* Rounded corners for dropdown items */
         }
+        
         .dropdown-content a:hover {
             background-color: #f1f1f1;
-            transform: scale(1.05);
         }
+        
         .dropdown:hover .dropdown-content {
             display: block;
-            animation: fadeIn 0.3s ease;
         }
-        .dropdown:hover .dropbtn {
-            background-color: #1E90FF;
+        .date {
+                    background: #e2e2e2;
+                    font-family: Arial, sans-serif;
+                    text-transform: uppercase;
+                    color: #333; /* Darker text color */
+                    border-radius: 5px; /* Rounded corners */
+                    padding: 6px 12px; /* Adjust padding for better fit */
+                    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
+                }
+        .container {
+            width: 90%;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        
+        .button-group {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
         }
-        .open-menu {
-            margin-left: 250px;
+        
+        .button-group a {
+            text-decoration: none;
+            background: #007acc;
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: background 0.3s ease;
+            font-weight: bold;
         }
-        .open-sidebar {
-            left: 0;
+        
+        .button-group a:hover {
+            background: #005fa3;
         }
-    </style>
-</head>
-<body>
-    <div class="sidebar" id="sidebar">
-        <a href="/UserCrota">Current Rota</a>
-        <a href="/userholidays">Holidays Request</a>
-        <a href="/UserHolidays">Holidays</a>
-    </div>
-    <div class="main" id="main">
-        <span class="menu-btn" id="menuBtn">&#9776;</span>
-        <div class="header">
-            <h1>Welcome to the Dashboard</h1>
-        </div>
-        <div class="button-group">
-            <a href="/UserCrota">Current Rota</a>
-            <a href="/userholidays">Holidays Request</a>
-            <a href="/UserHoliday">Holidays</a>
-        </div>
-        <div class="dropdown">
-            <button class="dropbtn">Account</button>
-            <div class="dropdown-content">
-                <a href="/profile">Profile</a>
-                <a href="/pastpayslips">Past Payslips</a>
-                <a href="#" id="logoutBtn">Logout</a>
+        
+        .features {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+        
+        .feature {
+            flex: 1;
+            padding: 20px;
+            background: #f1f3f5;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .feature h2 {
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            color: #004f9e;
+        }
+        
+        .feature p {
+            font-size: 1em;
+            color: #666;
+        }
+        
+        .rota-form {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .rota-form label {
+            font-size: 1em;
+            font-weight: bold;
+        }
+        
+        .rota-form input[type="date"] {
+            padding: 8px;
+            font-size: 1em;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        
+        .rota-form button {
+            padding: 10px 20px;
+            background: #007acc;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        
+        .rota-form button:hover {
+            background: #005fa3;
+        }
+        
+        footer {
+            background: #004f9e;
+            color: #fff;
+            text-align: center;
+            padding: 10px 0;
+            margin-top: auto;
+            box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        footer p {
+            margin: 0;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 768px) {
+            .features {
+                flex-direction: column;
+                align-items: center;
+            }
+        
+            .feature {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+        
+            .button-group {
+                flex-direction: column;
+                align-items: center;
+            }
+        
+            .button-group a {
+                width: 100%;
+                text-align: center;
+                margin-bottom: 10px;
+            }
+        }
+        
+        </style>
+        </head>
+        <body>
+            <header>
+                <h1>Rota Management System</h1>
+                <div class="dropdown">
+                    <button class="dropbtn">Account</button>
+                    <div class="dropdown-content">
+                        <a href="/profile">My Profile</a>
+                        <a href="/pastpayslips">Past Payslips</a>
+                        <a href="#" id="logoutBtn">Sign Out</a>                
+                    </div>
+                </div>
+            </header>
+        
+            <div class="container">
+                <div class="button-group">
+                    <a href="/UserCrota">Current Rota</a>
+                    <a href="/userholidays">Book Holidays</a>
+                    <a href="/UserHoliday">My Holidays</a>
+                </div>
+        
+                <div class="features">
+                    <div class="feature">
+                        <h2>Efficient Scheduling</h2>
+                        <p>Organize your team’s work schedule effortlessly.</p>
+                    </div>
+                    <div class="feature">
+                        <h2>Real-Time Updates</h2>
+                        <p>Instant notifications for any schedule changes.</p>
+                    </div>
+                    <div class="feature">
+                        <h2>Detailed Reporting</h2>
+                        <p>Track hours, shifts, and performance with ease.</p>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
-
+            <footer>
+                <p>&copy; 2024 YQode All Rights Reserved.</p>
+            </footer>
     <script>
         let inactivityTimer;
 const resetInactivityTimer = () => {

@@ -2,206 +2,742 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=100%, initial-scale=1.0">
-    <link rel="icon" href="data:image/png;base64,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" type="image/png">
-
-    <title>Holiday Requests</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holiday Requests Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        body {
-            /* Set the initial background color */
-            background-color: #4A90E2;
-            background-image: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
+        :root {
+            --navy-blue: #001f3f;
+            --navy-light: #1a3a5a;
+            --white: #ffffff;
+            --light-gray: #f8f9fa;
+            --success: #4CAF50;
+            --warning: #FFC107;
+            --danger: #F44336;
+        }
+        
+        * {
             margin: 0;
-            font-family: Arial, sans-serif;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+        }
+        
+        body {
+            background-color: var(--white);
+            color: var(--navy-blue);
+            line-height: 1.6;
+        }
+        
+        .navbar {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-decoration: none;
+            color: var(--white);
+            display: flex;
+            align-items: center;
+        }
+        
+        .navbar-brand i {
+            margin-right: 10px;
+            font-size: 1.5rem;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        
+        .header {
             text-align: center;
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background-color: var(--navy-blue);
+            color: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background-color: var(--white);
+            border-radius: 10px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+            padding: 2rem;
+            margin-bottom: 3rem;
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+            margin-top: 1.5rem;
+            border-radius: 8px;
+        }
+        
+        .holiday-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        
+        .holiday-table th {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            padding: 16px 20px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            font-weight: 600;
             text-transform: uppercase;
-            color: #60a2ee; /* Text color */
-            animation: changeBackgroundColor 5s infinite alternate; /* Animation for color change */
-        } 
-            table {
-                width: 100%;
-                border-collapse: separate;
-                border-spacing: 0;
-                background-color: #1E90FF; /* Blue background */
-                border-radius: 10px;
-                overflow: hidden;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.5); /* Added box shadow for depth */
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .holiday-table td {
+            padding: 14px 20px;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: middle;
+        }
+        
+        .holiday-table tr:nth-child(even) {
+            background-color: var(--light-gray);
+        }
+        
+        .holiday-table tr:hover {
+            background-color: rgba(0, 31, 63, 0.05);
+        }
+        
+        .status-pending {
+            color: var(--warning);
+            font-weight: 600;
+        }
+        
+        .status-approved {
+            color: var(--success);
+            font-weight: 600;
+        }
+        
+        .status-rejected {
+            color: var(--danger);
+            font-weight: 600;
+        }
+        
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .approve-btn {
+            background-color: var(--success);
+            color: var(--white);
+        }
+        
+        .reject-btn {
+            background-color: var(--danger);
+            color: var(--white);
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .date-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: var(--navy-light);
+            color: var(--white);
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .search-container {
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .search-box {
+            flex: 1;
+            max-width: 400px;
+            position: relative;
+        }
+        
+        .search-box input {
+            width: 100%;
+            padding: 12px 20px 12px 40px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--navy-blue);
+            box-shadow: 0 0 0 2px rgba(0, 31, 63, 0.2);
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #777;
+        }
+        
+        .filter-container {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .filter-select {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: var(--white);
+            font-size: 0.95rem;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+            gap: 8px;
+        }
+        
+        .page-btn {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background-color: var(--white);
+            color: var(--navy-blue);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .page-btn.active {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            border-color: var(--navy-blue);
+        }
+        
+        .page-btn:hover:not(.active) {
+            background-color: var(--light-gray);
+        }
+        
+        .footer {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 3rem;
+            font-size: 0.9rem;
+        }
+        
+        /* Animation for table rows */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
             }
-            
-            th, td {
-                text-align: center;
-                padding: 12px;
-                white-space: nowrap;
-                background-color: #4A90E2; /* Light blue background */
-                color: #fff; /* White text */
-                font-weight: bold; /* Bold text */
-            }
-            
-            .btn, .btn1, button {
-                background-color: #4A90E2; /* Light blue button background */
-                color: #fff; /* White text */
-                padding: 10px 20px;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                align-self: center;
-                margin-top: 10px;
-                margin-bottom: 10px;
-                transition: background-color 0.3s ease; /* Smooth color transition */
-                font-size: 14px; /* Font size */
-                text-transform: uppercase;
-                font-family: Arial, sans-serif;
-            }
-            
-            .btn:hover, .btn1:hover, button:hover {
-                background-color: #1E90FF; /* Darker blue button background on hover */
-                transform: scale(1.05); /* Increase size by 5% */
-                transition: transform 0.3s ease; /* Add smooth transition effect */
-            }
-            
-            .draggable {
-                cursor: pointer;
-            }
-            
-            .dragging {
-                opacity: 0.5;
-            }
-            
-            .dragover {
-                background-color: #70ace7; /* Lighter blue background */
-            }
-            
-            .time-frame {
-                margin-bottom: 5px;
-                cursor: move;
-                border: 1px solid transparent; /* Added for highlighting */
-            }
-            
-            .selected {
-                background-color: #70ace7; /* Lighter blue background */
-                border-color: #ccc; /* Added for highlighting */
-            }
-            
-            #timeFrameInput {
-                display: none;
-                position: absolute;
-                background-color: rgba(176, 224, 230, 0.8); /* Light blue background */
-                border: 1px solid #ccc;
-                padding: 10px;
-            }
-            
-            #timeFrameInput.show {
-                display: block;
-            }
-            
-            #popupMessage {
-                display: none;
-                position: fixed;
-                bottom: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                background-color: #4CAF50; /* Green background */
-                color: white;
-                padding: 10px;
-                border-radius: 5px;
-                z-index: 1000;
-                transition: opacity 0.3s ease; /* Smooth transition */
-            }
-            
-            #popupMessage.show {
-                display: block;
+            to {
                 opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        tbody tr {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+            .container {
+                padding: 0 1.5rem;
             }
             
-            #customWeekNavigation {
-                margin-bottom: 10px; /* Add some space above the new line */
+            .search-container {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
             }
             
-            .date {
-                background-color: #70ace7; /* Blue background */
-                font-family: Arial, sans-serif;
-                text-transform: uppercase;
-                color: white;
-                border-radius: 5px; /* Rounded corners */
-                padding: 6px 12px; /* Adjust padding for better fit */
-                box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
+            .search-box {
+                max-width: 100%;
+                width: 100%;
             }
             
-            /* Animation for table rows */
-            @keyframes fadeInUp {
-                from {
-                    opacity: 0;
-                    transform: translateY(20px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
+            .filter-container {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .holiday-table {
+                display: block;
+                width: 100%;
             }
             
-            tbody tr {
-                animation: fadeInUp 0.5s ease;
+            .holiday-table thead {
+                display: none;
             }
             
+            .holiday-table tr {
+                display: block;
+                margin-bottom: 1rem;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 1rem;
+            }
+            
+            .holiday-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px 15px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .holiday-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: var(--navy-blue);
+                margin-right: 1rem;
+            }
+            
+            .holiday-table td:last-child {
+                border-bottom: none;
+            }
+            
+            .action-btns {
+                display: flex;
+                justify-content: center;
+                margin-top: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <h2>Holiday Requests</h2>
-    <table id="holidayTable">
-        <thead>
-            <tr>
-                <tr>
-                    <th>Name</th>
-                    <th>Last Name</th>
-                    <th>Email</th>
-                    <th>Start Date</th>
-                    <th>End Date</th>
-                    <th>Request Date</th>
-                </tr>
-            </tr>
-        </thead>
-        <tbody id="holidayTableBody">
-            <!-- Holiday requests will be dynamically added here -->
-        </tbody>
-    </table>
-
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-    const tableBody = document.getElementById('holidayTableBody');
-
-    // Function to add a new row to the table
-    function addRow(request) {
-        const formattedStartDate = new Date(request.startDate).toLocaleDateString('en-US', { timeZone: 'UTC', dateStyle: 'medium' });
-        const formattedEndDate = new Date(request.endDate).toLocaleDateString('en-US', { timeZone: 'UTC', dateStyle: 'medium' });
-        const formattedRequestDate = new Date(request.requestDate).toLocaleString('en-US', {timeZone: 'UTC'});
+    <nav class="navbar">
+        <a href="#" class="navbar-brand">
+            <i class="fas fa-umbrella-beach"></i> Holiday Requests
+        </a>
+        <div class="user-info">
+            <span class="user-name">Admin Dashboard</span>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-calendar-alt"></i> Holiday Requests Management</h1>
+            <p>Review and manage employee holiday requests</p>
+        </div>
         
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${request.name}</td>
-            <td>${request.lastName}</td>
-            <td>${request.email}</td>
-            <td>${formattedStartDate}</td>
-            <td>${formattedEndDate}</td>
-            <td>${formattedRequestDate}</td>
-        `;
-        tableBody.appendChild(row);
-    }
+        <div class="card">
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search by name, email or status...">
+                </div>
+                <div class="filter-container">
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                    <select class="filter-select" id="dateFilter">
+                        <option value="">All Dates</option>
+                        <option value="thisWeek">This Week</option>
+                        <option value="thisMonth">This Month</option>
+                        <option value="nextMonth">Next Month</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="holiday-table" id="holidayTable">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Email</th>
+                            <th>Start Date</th>
+                            <th>End Date</th>
+                            <th>Requested On</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holidayTableBody">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="pagination" id="pagination">
+                <!-- Pagination will be generated here -->
+            </div>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p>&copy; 2023 Solura Ltd. All rights reserved. | Holiday Management System v2.0</p>
+    </footer>
 
-    // Function to fetch holiday requests from the server
-    function fetchHolidayRequests() {
-        fetch('/UserHoliday/holidays')
-            .then(response => response.json())
-            .then(data => {
-                data.forEach(request => {
-                    addRow(request);
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tableBody = document.getElementById('holidayTableBody');
+            const searchInput = document.getElementById('searchInput');
+            const statusFilter = document.getElementById('statusFilter');
+            const dateFilter = document.getElementById('dateFilter');
+            const pagination = document.getElementById('pagination');
+            
+            let currentPage = 1;
+            const itemsPerPage = 10;
+            let allRequests = [];
+            let filteredRequests = [];
+            
+            // Sample data - in a real app, this would come from your API
+            const sampleRequests = [
+                {
+                    id: 1,
+                    name: "John",
+                    lastName: "Smith",
+                    email: "john.smith@example.com",
+                    startDate: "2023-11-15",
+                    endDate: "2023-11-22",
+                    requestDate: "2023-10-01T09:30:00",
+                    status: "pending",
+                    notes: "Family vacation"
+                },
+                {
+                    id: 2,
+                    name: "Sarah",
+                    lastName: "Johnson",
+                    email: "sarah.j@example.com",
+                    startDate: "2023-12-10",
+                    endDate: "2023-12-20",
+                    requestDate: "2023-10-05T14:15:00",
+                    status: "approved",
+                    notes: "Winter holidays"
+                },
+                {
+                    id: 3,
+                    name: "Michael",
+                    lastName: "Brown",
+                    email: "michael.b@example.com",
+                    startDate: "2023-11-01",
+                    endDate: "2023-11-05",
+                    requestDate: "2023-09-28T11:45:00",
+                    status: "rejected",
+                    notes: "Personal time"
+                },
+                // Add more sample data as needed
+            ];
+            
+            // In a real app, you would fetch from your API:
+            // fetch('/UserHoliday/holidays')
+            //     .then(response => response.json())
+            //     .then(data => {
+            //         allRequests = data;
+            //         filteredRequests = [...allRequests];
+            //         renderTable();
+            //     });
+            
+            // For this demo, we'll use sample data
+            allRequests = sampleRequests;
+            filteredRequests = [...allRequests];
+            renderTable();
+            
+            // Event listeners for filtering
+            searchInput.addEventListener('input', filterRequests);
+            statusFilter.addEventListener('change', filterRequests);
+            dateFilter.addEventListener('change', filterRequests);
+            
+            function filterRequests() {
+                const searchTerm = searchInput.value.toLowerCase();
+                const status = statusFilter.value;
+                const dateRange = dateFilter.value;
+                
+                filteredRequests = allRequests.filter(request => {
+                    // Search filter
+                    const matchesSearch = 
+                        request.name.toLowerCase().includes(searchTerm) ||
+                        request.lastName.toLowerCase().includes(searchTerm) ||
+                        request.email.toLowerCase().includes(searchTerm) ||
+                        request.status.toLowerCase().includes(searchTerm);
+                    
+                    // Status filter
+                    const matchesStatus = status === '' || request.status === status;
+                    
+                    // Date range filter
+                    let matchesDate = true;
+                    if (dateRange !== '') {
+                        const today = new Date();
+                        const startDate = new Date(request.startDate);
+                        
+                        switch(dateRange) {
+                            case 'thisWeek':
+                                const startOfWeek = new Date(today);
+                                startOfWeek.setDate(today.getDate() - today.getDay());
+                                const endOfWeek = new Date(startOfWeek);
+                                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                                matchesDate = startDate >= startOfWeek && startDate <= endOfWeek;
+                                break;
+                            case 'thisMonth':
+                                matchesDate = startDate.getMonth() === today.getMonth() && 
+                                              startDate.getFullYear() === today.getFullYear();
+                                break;
+                            case 'nextMonth':
+                                const nextMonth = today.getMonth() + 1;
+                                const nextMonthYear = nextMonth > 11 ? today.getFullYear() + 1 : today.getFullYear();
+                                matchesDate = startDate.getMonth() === nextMonth % 12 && 
+                                              startDate.getFullYear() === nextMonthYear;
+                                break;
+                        }
+                    }
+                    
+                    return matchesSearch && matchesStatus && matchesDate;
                 });
-            })
-            .catch(error => console.error('Error fetching holiday requests:', error));
-    }
-
-    fetchHolidayRequests();
-});
-
-</script>
+                
+                currentPage = 1;
+                renderTable();
+            }
+            
+            function renderTable() {
+                // Clear existing rows
+                tableBody.innerHTML = '';
+                
+                if (filteredRequests.length === 0) {
+                    tableBody.innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 2rem;">
+                                No holiday requests found matching your criteria.
+                            </td>
+                        </tr>
+                    `;
+                    pagination.innerHTML = '';
+                    return;
+                }
+                
+                // Calculate pagination
+                const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = Math.min(startIndex + itemsPerPage, filteredRequests.length);
+                const paginatedRequests = filteredRequests.slice(startIndex, endIndex);
+                
+                // Add rows for current page
+                paginatedRequests.forEach((request, index) => {
+                    const row = document.createElement('tr');
+                    const formattedStartDate = formatDate(request.startDate);
+                    const formattedEndDate = formatDate(request.endDate);
+                    const formattedRequestDate = formatDateTime(request.requestDate);
+                    const duration = calculateDuration(request.startDate, request.endDate);
+                    
+                    row.innerHTML = `
+                        <td data-label="Employee">
+                            <strong>${request.name} ${request.lastName}</strong>
+                        </td>
+                        <td data-label="Email">${request.email}</td>
+                        <td data-label="Start Date">
+                            <span class="date-badge">${formattedStartDate}</span>
+                        </td>
+                        <td data-label="End Date">
+                            <span class="date-badge">${formattedEndDate}</span>
+                            <small style="display: block; color: #666;">${duration} days</small>
+                        </td>
+                        <td data-label="Requested">${formattedRequestDate}</td>
+                        <td data-label="Status">
+                            <span class="status-${request.status}">
+                                ${capitalizeFirstLetter(request.status)}
+                            </span>
+                        </td>
+                        <td data-label="Actions" class="action-btns">
+                            <button class="action-btn approve-btn" data-id="${request.id}">
+                                <i class="fas fa-check"></i> Approve
+                            </button>
+                            <button class="action-btn reject-btn" data-id="${request.id}">
+                                <i class="fas fa-times"></i> Reject
+                            </button>
+                        </td>
+                    `;
+                    
+                    tableBody.appendChild(row);
+                    
+                    // Add click handlers for action buttons
+                    row.querySelector('.approve-btn').addEventListener('click', () => updateRequestStatus(request.id, 'approved'));
+                    row.querySelector('.reject-btn').addEventListener('click', () => updateRequestStatus(request.id, 'rejected'));
+                });
+                
+                // Render pagination
+                renderPagination(totalPages);
+            }
+            
+            function renderPagination(totalPages) {
+                pagination.innerHTML = '';
+                
+                if (totalPages <= 1) return;
+                
+                // Previous button
+                const prevBtn = document.createElement('button');
+                prevBtn.className = 'page-btn';
+                prevBtn.innerHTML = '<i class="fas fa-chevron-left"></i>';
+                prevBtn.disabled = currentPage === 1;
+                prevBtn.addEventListener('click', () => {
+                    if (currentPage > 1) {
+                        currentPage--;
+                        renderTable();
+                    }
+                });
+                pagination.appendChild(prevBtn);
+                
+                // Page buttons
+                for (let i = 1; i <= totalPages; i++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.className = `page-btn ${i === currentPage ? 'active' : ''}`;
+                    pageBtn.textContent = i;
+                    pageBtn.addEventListener('click', () => {
+                        currentPage = i;
+                        renderTable();
+                    });
+                    pagination.appendChild(pageBtn);
+                }
+                
+                // Next button
+                const nextBtn = document.createElement('button');
+                nextBtn.className = 'page-btn';
+                nextBtn.innerHTML = '<i class="fas fa-chevron-right"></i>';
+                nextBtn.disabled = currentPage === totalPages;
+                nextBtn.addEventListener('click', () => {
+                    if (currentPage < totalPages) {
+                        currentPage++;
+                        renderTable();
+                    }
+                });
+                pagination.appendChild(nextBtn);
+            }
+            
+            function updateRequestStatus(id, status) {
+                // In a real app, you would make an API call here:
+                // fetch(`/UserHoliday/holidays/${id}`, {
+                //     method: 'PUT',
+                //     headers: {
+                //         'Content-Type': 'application/json',
+                //     },
+                //     body: JSON.stringify({ status })
+                // })
+                // .then(response => response.json())
+                // .then(updatedRequest => {
+                //     // Update the local data
+                //     const index = allRequests.findIndex(req => req.id === id);
+                //     if (index !== -1) {
+                //         allRequests[index] = updatedRequest;
+                //     }
+                //     filterRequests();
+                // });
+                
+                // For this demo, we'll just update the local data
+                const request = allRequests.find(req => req.id === id);
+                if (request) {
+                    request.status = status;
+                    filterRequests();
+                    
+                    // Show a confirmation message
+                    showToast(`Request ${status} successfully!`, 'success');
+                }
+            }
+            
+            function showToast(message, type) {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.innerHTML = `
+                    <div class="toast-message">${message}</div>
+                    <button class="toast-close">&times;</button>
+                `;
+                
+                document.body.appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.classList.add('show');
+                }, 10);
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                }, 3000);
+                
+                toast.querySelector('.toast-close').addEventListener('click', () => {
+                    toast.classList.remove('show');
+                    setTimeout(() => {
+                        toast.remove();
+                    }, 300);
+                });
+            }
+            
+            // Helper functions
+            function formatDate(dateString) {
+                const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                return new Date(dateString).toLocaleDateString('en-US', options);
+            }
+            
+            function formatDateTime(dateTimeString) {
+                const options = { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                };
+                return new Date(dateTimeString).toLocaleDateString('en-US', options);
+            }
+            
+            function calculateDuration(startDate, endDate) {
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                const diffTime = Math.abs(end - start);
+                return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            }
+            
+            function capitalizeFirstLetter(string) {
+                return string.charAt(0).toUpperCase() + string.slice(1);
+            }
+        });
+    </script>
 </body>
 </html>

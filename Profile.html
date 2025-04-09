@@ -1,166 +1,183 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/png;base64,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" type="image/png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="Front.ico" type="image/png">
+<title>Profile</title>
+<style>
+/* General Styles */
+body {
+    background: linear-gradient(135deg, #003366, #002244); /* Navy blue gradient */
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    color: #fff; /* White text */
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-transform: uppercase;
+    overflow-x: hidden;
+}
 
-    <title>User Profile</title>
-    <style>
-        body {
-            background: linear-gradient(135deg, #4A90E2 0%, #B0E0E6 100%);
-            margin: 0;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            text-transform: uppercase;
-            color: #60a2ee;
-        }
-        
-        table {
-            text-align: left;
-            align-content: baseline;
-            margin: 0 auto;
-            width: 50%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background-color: #1E90FF;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-        }
-        
-        th, td {
-            text-align: center;
-            padding: 12px;
-            white-space: nowrap;
-            background-color: #4A90E2;
-            color: #fff;
-            font-weight: bold;
-        }
-        
-        .btn {
-            background-color: #4A90E2;
-            color: #fff;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            align-self: center;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            transition: background-color 0.3s ease;
-            font-size: 14px;
-        }
-        
-        .btn:hover {
-            background-color: #1E90FF;
-            transform: scale(1.05);
-            transition: transform 0.3s ease;
-        }
-        
-        .date {
-            background-color: #70ace7;
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
-            color: white;
-            border-radius: 5px;
-            padding: 6px 12px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        tbody tr {
-            animation: fadeInUp 0.5s ease;
-        }
-        
-    </style>
+/* Navbar Styles */
+.navbar {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.3); /* Semi-transparent black */
+    padding: 15px 20px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(165, 194, 248, 0.1);
+}
+
+.navbar-left a {
+    margin-left: 20px;
+}
+
+.navbar-right {
+    margin-right: 20px;
+    display: flex;
+    gap: 20px;
+}
+
+.navbar a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 1rem;
+    padding: 10px 15px;
+    border-radius: 5px;
+    transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.navbar a:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+/* Profile Container */
+.profile-container {
+    background: rgba(255, 255, 255, 0.1); /* Semi-transparent white */
+    backdrop-filter: blur(10px); /* Frosted glass effect */
+    border-radius: 20px;
+    padding: 20px;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: fadeIn 1s ease-in-out;
+    margin-top: 0px; /* Prevent overlap with navbar */
+}
+
+/* Fade-in Animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+h1 {
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 2.5rem;
+    letter-spacing: 2px;
+}
+
+/* Table Styles */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+th, td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+th {
+    background: rgba(0, 0, 0, 0.2); /* Darker background for headers */
+    color: #fff;
+    font-weight: bold;
+}
+
+td {
+    background: rgba(255, 255, 255, 0.05); /* Light background for cells */
+    color: #fff;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+    .profile-container {
+        padding: 20px;
+    }
+    h1 {
+        font-size: 2rem;
+    }
+    th, td {
+        padding: 10px;
+    }
+}
+</style>
 </head>
 <body>
-    <h1 class="center">User Profile</h1>
+<!-- Navbar -->
+<div class="navbar">
+    <div class="navbar-left">
+        <a href="/Admin.html">Home</a>
+    </div>
+    <div class="navbar-right">
+        <a href="/pastpayslips">Payslips</a>
+        <a href="/logout">Logout</a>
+    </div>
+</div>
+<h3 style="text-align: center; margin-top: 320px;">
+    If anything changed or is wrong, please contact your manager to change it.
+</h3>
+<!-- Profile Section -->
+<div class="profile-container">
+    <h1>Profile</h1>
     <table>
-    <th>
-        <tr>
-            <th>Name:</th>
-            <td id="name"></td>
-        </tr>
-        <tr>
-            <th>Last Name:</th>
-            <td id="lastName"></td>
-        </tr>
-        <tr>
-            <th>Email:</th>
-            <td id="email"></td>
-        </tr>
-        <tr>
-            <th>Holiday Left:</th>
-            <td id="TotalHoliday"></td>
-        </tr>
-        <tr>
-            <th>Holiday Accrued:</th>
-            <td id="Accrued"></td>
-        </tr>
-        <tr>
-            <th>Wage:</th>
-            <td id="wage"></td>
-        </tr>
-        <tr>
-            <th>Date Employment Started:</th>
-            <td id="dateStart"></td>
-        </tr>
-        <tr>
-            <th>Designation:</th>
-            <td id="designation"></td>
-        </tr>
-    </th>
-        <th>
-            <td colspan="2" class="center">
-                <h2>Change Password</h2>
-                <input class="date" type="password" id="newPassword" placeholder="New Password">
-                <button class="btn" type="button" onclick="updatePassword()">Change Password</button>
-            </td>
-        </th>
+        <tr><th>Name:</th><td id="name">Loading...</td></tr>
+        <tr><th>Last Name:</th><td id="lastName">Loading...</td></tr>
+        <tr><th>Email:</th><td id="email">Loading...</td></tr>
+        <tr><th>Address:</th><td id="address">Loading...</td></tr>
+        <tr><th>Phone Number:</th><td id="phone">Loading...</td></tr>
+        <tr><th>NIN:</th><td id="nin">Loading...</td></tr>
+        <tr><th>Holidays Left:</th><td id="TotalHoliday">Loading...</td></tr>
+        <tr><th>Holidays Accrued:</th><td id="Accrued">Loading...</td></tr>
+        <tr><th>Wage:</th><td id="wage">Loading...</td></tr>
+        <tr><th>Position:</th><td id="position">Loading...</td></tr>
+        <tr><th>With the Company Since:</th><td id="dateStart">Loading...</td></tr>
     </table>
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const email = urlParams.get('email');
-        fetch(`/profile/api/profile?email=${email}`)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('name').textContent = data.name;
-                document.getElementById('lastName').textContent = data.lastName;
-                document.getElementById('email').textContent = data.email;
-                document.getElementById('TotalHoliday').textContent = data.TotalHoliday;
-                document.getElementById('Accrued').textContent = data.Accrued;
-                document.getElementById('wage').textContent = data.wage;
-                document.getElementById('dateStart').textContent = data.dateStart;
-                document.getElementById('designation').textContent = data.designation;
-            })
-            .catch(error => console.error('Error fetching profile data:', error));
-
-            function updatePassword() {
-            const newPassword = document.getElementById('newPassword').value;
-
-            fetch('/profile/api/update-password', { // Note the endpoint correction
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ newPassword })
-            })
-                .then(response => response.text())
-                .then(data => alert(data))
-                .catch(error => console.error('Error updating password:', error));
-        }
-    </script>
+</div>
+<script>
+const urlParams = new URLSearchParams(window.location.search);
+const email = urlParams.get('email');
+// Fetch profile data
+fetch(`/profile/api/profile?email=${email}`)
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('name').textContent = data.name;
+        document.getElementById('lastName').textContent = data.lastName;
+        document.getElementById('email').textContent = data.email;
+        document.getElementById('TotalHoliday').textContent = data.TotalHoliday;
+        document.getElementById('Accrued').textContent = data.Accrued;
+        document.getElementById('wage').textContent = data.wage;
+        document.getElementById('dateStart').textContent = data.dateStart;
+        document.getElementById('position').textContent = data.position;
+        document.getElementById('address').textContent = data.address;
+        document.getElementById('phone').textContent = data.phone;
+        document.getElementById('nin').textContent = data.nin;
+    })
+    .catch(error => console.error('Error fetching profile data:', error));
+</script>
+<footer style="position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgba(255, 255, 255, 0.7); font-size: 0.9rem;">
+    &copy; 2024 Solura Ltd. All rights reserved.
+</footer>
 </body>
 </html>
