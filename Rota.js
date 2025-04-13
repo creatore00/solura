@@ -132,37 +132,36 @@ const generatePDF = async (tableData) => {
 
     // Generate PDF with landscape orientation
     try {
-        // Configuration that works for both local (Windows) and Heroku (Linux)
         const launchOptions = {
-            headless: true, // Always run headless in both environments
+            headless: 'new',
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
-                '--disable-gpu',
-                '--single-process'
-            ],
+                '--disable-gpu'
+            ]
         };
-    
-        // For local Windows development only
+
+        // Windows development
         if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
             launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
         }
-        // For Heroku production
+        // Heroku production - let Puppeteer handle it automatically
         else if (process.env.NODE_ENV === 'production') {
-            launchOptions.executablePath = process.env.CHROME_BIN || '/app/.apt/opt/google/chrome/chrome';
+            // Use Puppeteer's bundled Chrome
+            launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
         }
-    
+
         const browser = await puppeteer.launch(launchOptions);
         const page = await browser.newPage();
         await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
         
-        const pdfBuffer = await page.pdf({ 
-            format: 'A4', 
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
             landscape: true,
-            path: process.env.NODE_ENV === 'production' ? undefined : 'output.pdf'
+            printBackground: true
         });
-    
+
         await browser.close();
         return pdfBuffer;
     } catch (error) {
