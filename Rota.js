@@ -17,7 +17,7 @@ const app = express();
 // Middleware
 app.use(sessionMiddleware);
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: true }));  
 
 // Function to generate PDF to be sent as Email
 const generatePDF = async (tableData) => {
@@ -132,9 +132,8 @@ const generatePDF = async (tableData) => {
 
     // Generate PDF with landscape orientation
     const browser = await puppeteer.launch({
-        executablePath: '/app/.chrome-for-testing/chrome-linux64/chrome',
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--headless'],
-      });
+    });
     const page = await browser.newPage();
     await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({ format: 'A4', landscape: true });
@@ -157,7 +156,7 @@ const sendEmail = async (pdfBuffer, emailAddresses) => {
 
     for (const email of emailAddresses) {
         const mailOptions = {
-            from: 'Solura WorkForce', // Update with your actual sender email
+            from: 'Solura WorkForce <founder@solura.uk>', // Update with your actual sender email
             to: email,
             subject: 'Your Weekly Work Schedule',
             text: `
@@ -188,7 +187,7 @@ const sendEmail = async (pdfBuffer, emailAddresses) => {
 };
 
 // Update submitData to include PDF generation and email sending
-app.post('/submitData', isAuthenticated, async (req, res) => {
+app.post('/submitData', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
     if (!dbName) {
@@ -203,117 +202,149 @@ app.post('/submitData', isAuthenticated, async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const updateQueryByDetails = `
-        UPDATE rota 
-        SET wage = ?, designation = ?, color = ?
-        WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?
-    `;
+    UPDATE rota 
+    SET wage = ?, designation = ?, color = ?
+    WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?
+    LIMIT 1`; // Adding LIMIT 1 reduces lock scope
 
     const operationMessages = []; // Store messages for logging operations
 
-    const processRow = (row) => {
-        return new Promise((resolve, reject) => {
-            const { name, lastName, wage, designation, day, startTime, endTime, color } = row;
+    let processedRows = 0;
+    let hasError = false;
 
-            // Check if a record with the same name, day, start time, and end time exists
-            pool.query(
-                'SELECT id FROM rota WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?',
-                [name, lastName, day, startTime, endTime],
-                (err, result) => {
-                    if (err) {
-                        console.error('Error checking existing data:', err);
-                        return reject(err);
-                    }
+    const processRow = (row, callback) => {
+        const { name, lastName, wage, designation, day, startTime, endTime, color } = row;
 
-                    if (result.length > 0) {
-                        // If the record exists, update it
+        // Check if a record with the same name, day, start time, and end time exists
+        pool.query(
+            'SELECT id FROM rota WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?',
+            [name, lastName, day, startTime, endTime],
+            (err, result) => {
+                if (err) {
+                    console.error('Error checking existing data:', err);
+                    return callback(err);
+                }
+
+                if (result.length > 0) {
+                    // If the record exists, update it
+                    pool.query(
+                        updateQueryByDetails,
+                        [wage, designation, color, name, lastName, day, startTime, endTime],
+                        (updateErr) => {
+                            if (updateErr) {
+                                console.error('Error updating record:', updateErr);
+                                return callback(updateErr);
+                            }
+                            console.log(`Record for ${name} ${lastName} on ${day} updated.`);
+                            operationMessages.push(`Updated: ${name} ${lastName} (${day})`);
+                            callback(null);
+                        }
+                    );
+                } else {
+                    // Generate a unique ID for new data
+                    let newId = generateUniqueId();
+
+                    const ensureUniqueId = (id, callback) => {
                         pool.query(
-                            updateQueryByDetails,
-                            [wage, designation, color, name, lastName, day, startTime, endTime],
-                            (updateErr) => {
-                                if (updateErr) {
-                                    console.error('Error updating record:', updateErr);
-                                    return reject(updateErr);
+                            'SELECT id FROM rota WHERE id = ?',
+                            [id],
+                            (checkErr, checkResult) => {
+                                if (checkErr) {
+                                    console.error('Error checking unique ID:', checkErr);
+                                    return callback(checkErr);
                                 }
-                                console.log(`Record for ${name} ${lastName} on ${day} updated.`);
-                                operationMessages.push(`Updated: ${name} ${lastName} (${day})`);
-                                resolve();
+
+                                if (checkResult.length > 0) {
+                                    // ID already exists, generate a new one
+                                    newId = generateUniqueId();
+                                    return ensureUniqueId(newId, callback);
+                                }
+                                callback(null, id);
                             }
                         );
-                    } else {
-                        // Generate a unique ID for new data
-                        let newId = generateUniqueId();
+                    };
 
-                        // Ensure the generated ID is unique
-                        const ensureUniqueId = () => {
-                            return new Promise((resolveUnique, rejectUnique) => {
-                                pool.query(
-                                    'SELECT id FROM rota WHERE id = ?',
-                                    [newId],
-                                    (checkErr, checkResult) => {
-                                        if (checkErr) {
-                                            console.error('Error checking unique ID:', checkErr);
-                                            return rejectUnique(checkErr);
-                                        }
+                    ensureUniqueId(newId, (err, uniqueId) => {
+                        if (err) {
+                            return callback(err);
+                        }
 
-                                        if (checkResult.length > 0) {
-                                            // ID already exists, generate a new one
-                                            newId = generateUniqueId();
-                                            return resolveUnique(ensureUniqueId());
-                                        }
-                                        resolveUnique(newId);
-                                    }
-                                );
-                            });
-                        };
-
-                        // Ensure unique ID and insert the record
-                        ensureUniqueId().then(() => {
-                            pool.query(
-                                insertQuery,
-                                [newId, name, lastName, wage, day, startTime, endTime, designation, color],
-                                (insertErr) => {
-                                    if (insertErr) {
-                                        console.error('Error inserting record:', insertErr);
-                                        return reject(insertErr);
-                                    }
-                                    console.log(`New record inserted for ${name} ${lastName} on ${day}.`);
-                                    operationMessages.push(`Inserted: ${name} ${lastName} (${day})`);
-                                    resolve();
+                        pool.query(
+                            insertQuery,
+                            [uniqueId, name, lastName, wage, day, startTime, endTime, designation, color],
+                            (insertErr) => {
+                                if (insertErr) {
+                                    console.error('Error inserting record:', insertErr);
+                                    return callback(insertErr);
                                 }
-                            );
-                        }).catch(reject);
-                    }
+                                console.log(`New record inserted for ${name} ${lastName} on ${day}.`);
+                                operationMessages.push(`Inserted: ${name} ${lastName} (${day})`);
+                                callback(null);
+                            }
+                        );
+                    });
                 }
-            );
-        });
+            }
+        );
     };
 
-    try {
-        // Process and save data
-        await Promise.all(tableData.map(processRow));
-
-        // Generate PDF
-        const pdfBuffer = await generatePDF(tableData); // This function generates the PDF as a buffer
-
-        // Fetch recipient emails from the database
-        pool.query('SELECT email FROM Employees', async (err, results) => {
+    // Process all rows
+    tableData.forEach(row => {
+        processRow(row, (err) => {
             if (err) {
-                console.error('Error fetching emails:', err);
-                res.status(500).send('Error fetching email addresses.');
+                hasError = true;
+                console.error('Error processing row:', err);
+                if (!res.headersSent) {
+                    res.status(500).send('Error processing data.');
+                }
                 return;
             }
 
-            const emailAddresses = results.map(result => result.email);
+            processedRows++;
+            
+            // When all rows are processed
+            if (processedRows === tableData.length && !hasError) {
+                // Generate PDF
+                generatePDF(tableData, (pdfErr, pdfBuffer) => {
+                    if (pdfErr) {
+                        console.error('Error generating PDF:', pdfErr);
+                        if (!res.headersSent) {
+                            res.status(500).send('Error generating PDF.');
+                        }
+                        return;
+                    }
 
-            // Send email with the PDF attachment
-            await sendEmail(pdfBuffer, emailAddresses);
+                    // Fetch recipient emails from the database
+                    pool.query('SELECT email FROM Employees WHERE email = "yassir.nini27@gmail.com"', async (err, results) => {
+                        if (err) {
+                            console.error('Error fetching emails:', err);
+                            if (!res.headersSent) {
+                                res.status(500).send('Error fetching email addresses.');
+                            }
+                            return;
+                        }
 
-            res.status(200).send('Rota saved and emails sent successfully!');
+                        const emailAddresses = results.map(result => result.email);
+
+                        // Send email with the PDF attachment
+                        sendEmail(pdfBuffer, emailAddresses, (emailErr) => {
+                            if (emailErr) {
+                                console.error('Error sending email:', emailErr);
+                                if (!res.headersSent) {
+                                    res.status(500).send('Error sending email.');
+                                }
+                                return;
+                            }
+
+                            if (!res.headersSent) {
+                                res.status(200).send('Rota saved and emails sent successfully!');
+                            }
+                        });
+                    });
+                });
+            }
         });
-    } catch (error) {
-        console.error('Error processing data:', error);
-        res.status(500).send('Error processing data.');
-    }
+    });
 });
 
 // Function to generate a unique 16-digit ID

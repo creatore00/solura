@@ -5,7 +5,7 @@ const commonConfig = {
   host: 'sv41.byethost41.org',
   user: 'yassir_yassir',
   password: 'Qazokm123890',
-  connectionLimit: 30, // Limit the number of connections
+  connectionLimit: 350, // Limit the number of connections
   waitForConnections: true,
   queueLimit: 0,
   connectTimeout: 10000, // Timeout for connecting
