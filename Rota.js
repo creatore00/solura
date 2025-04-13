@@ -132,6 +132,7 @@ const generatePDF = async (tableData) => {
 
     // Generate PDF with landscape orientation
     const browser = await puppeteer.launch({
+        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--headless'],
     });
     const page = await browser.newPage();
