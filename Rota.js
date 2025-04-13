@@ -90,10 +90,10 @@ const generatePDF = async (tableData) => {
     <style>
         table { width: 100%; border-collapse: collapse; }
         th, td { border: 1px solid #ddd; text-transform: uppercase; }
-        th { background-color: #f2f2f2; text-align: center; padding: 8px; } /* Center-align headers */
-        td:not(:nth-child(1)):not(:nth-child(2)) { text-align: center; } /* Center-align all but the first two columns */
-        td:nth-child(1), td:nth-child(2) { padding: 8px; } /* Padding for the first two columns */
-        .role-header { background-color: #add8e6; text-align: center; font-weight: bold; padding: 10px; } /* Role Section Header */
+        th { background-color: #f2f2f2; text-align: center; padding: 8px; }
+        td:not(:nth-child(1)):not(:nth-child(2)) { text-align: center; }
+        td:nth-child(1), td:nth-child(2) { padding: 8px; }
+        .role-header { background-color: #add8e6; text-align: center; font-weight: bold; padding: 10px; }
     </style>
     </head>
     <body>
@@ -131,222 +131,148 @@ const generatePDF = async (tableData) => {
     `;
 
     // Generate PDF with landscape orientation
-    const browser = await puppeteer.launch({
-        executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--headless'],
-    });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4', landscape: true });
-    await browser.close();
+    try {
+        console.log("[1/4] Launching browser...");
+        
+        // Configuration that works for both local (Windows) and Heroku (Linux)
+        const launchOptions = {
+            headless: process.env.NODE_ENV === 'production' ? true : false, // Show browser window locally
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        };
 
-    return pdfBuffer;
+        // For local Windows development only
+        if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
+            launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        }
+
+        const browser = await puppeteer.launch(launchOptions);
+        console.log("[2/4] Browser launched, creating page...");
+        
+        const page = await browser.newPage();
+        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+        console.log("[3/4] Content set, generating PDF...");
+        
+        const pdfBuffer = await page.pdf({ 
+            format: 'A4', 
+            landscape: true,
+            path: process.env.NODE_ENV === 'production' ? undefined : 'output.pdf' // Save to file only locally
+        });
+        
+        console.log("[4/4] PDF generated successfully!");
+        await browser.close();
+        
+        return pdfBuffer;
+    } catch (error) {
+        console.error("PDF Generation Error:", error);
+        throw error;
+    }
 };
 
-// Function to send email with PDF
-const sendEmail = async (pdfBuffer, emailAddresses) => {
+// Update submitData to include PDF generation and email sending
+app.post('/submitData', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const tableData = req.body;
+
+    try {
+        // 1. First process all database operations
+        await processDatabaseOperations(pool, tableData);
+
+        // 2. Generate PDF
+        const pdfBuffer = await generatePDF(tableData);
+        console.log('PDF generated successfully');
+
+        // 3. Get recipient emails and send
+        const [results] = await pool.promise().query('SELECT email FROM Employees WHERE email = "yassir.nini27@gmail.com"');
+        const emailAddresses = results.map(result => result.email);
+        
+        await sendEmail(pdfBuffer, emailAddresses);
+        console.log('Emails sent successfully');
+
+        res.status(200).send('Rota saved and emails sent successfully!');
+    } catch (error) {
+        console.error('Error in /submitData:', error);
+        res.status(500).send('Error processing request: ' + error.message);
+    }
+});
+
+// Helper function to process database operations
+async function processDatabaseOperations(pool, tableData) {
+    const updateQuery = `UPDATE rota SET wage = ?, designation = ?, color = ? 
+                       WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?`;
+    const insertQuery = `INSERT INTO rota (id, name, lastName, wage, day, startTime, endTime, designation, color) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+
+    for (const row of tableData) {
+        const { name, lastName, wage, designation, day, startTime, endTime, color } = row;
+
+        // Check if record exists
+        const [existing] = await pool.promise().query(
+            'SELECT id FROM rota WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?',
+            [name, lastName, day, startTime, endTime]
+        );
+
+        if (existing.length > 0) {
+            await pool.promise().query(updateQuery, 
+                [wage, designation, color, name, lastName, day, startTime, endTime]);
+            console.log(`Updated: ${name} ${lastName} (${day})`);
+        } else {
+            const newId = await generateUniqueId(pool);
+            await pool.promise().query(insertQuery,
+                [newId, name, lastName, wage, day, startTime, endTime, designation, color]);
+            console.log(`Inserted: ${name} ${lastName} (${day})`);
+        }
+    }
+}
+
+// Helper function to generate unique ID
+async function generateUniqueId(pool) {
+    let id;
+    do {
+        id = crypto.randomBytes(4).toString('hex');
+        const [existing] = await pool.promise().query('SELECT id FROM rota WHERE id = ?', [id]);
+        if (existing.length === 0) return id;
+    } while (true);
+}
+
+// Modified sendEmail function (make it return a promise)
+const sendEmail = (pdfBuffer, emailAddresses) => {
     const transporter = nodemailer.createTransport({
-        host: 'smtp0001.neo.space', // Your SMTP Host
-        port: 465, // SSL Port
-        secure: true, // `true` for SSL (port 465)
+        host: 'smtp0001.neo.space',
+        port: 465,
+        secure: true,
         auth: {
             user: 'founder@solura.uk',
             pass: 'Salvemini01@'
         }
     });
 
-    for (const email of emailAddresses) {
+    const sendPromises = emailAddresses.map(email => {
         const mailOptions = {
-            from: 'Solura WorkForce <founder@solura.uk>', // Update with your actual sender email
+            from: 'Solura WorkForce <founder@solura.uk>',
             to: email,
             subject: 'Your Weekly Work Schedule',
-            text: `
-    Hello,
-    
-    Attached is your rota for the upcoming week.
-    
-    Please review it carefully and let us know if you have any questions or availability changes.
-    
-    Best regards,  
-    Management Team
-            `.trim(),
-            attachments: [
-                {
-                    filename: 'Weekly_Rota.pdf',
-                    content: pdfBuffer
-                }
-            ]
+            text: `Hello,\n\nAttached is your rota for the upcoming week.\n\nBest regards,\nManagement Team`,
+            attachments: [{
+                filename: 'Weekly_Rota.pdf',
+                content: pdfBuffer
+            }]
         };
 
-        try {
-            await transporter.sendMail(mailOptions);
-            console.log(`Email sent successfully to ${email}.`);
-        } catch (err) {
-            console.error(`Failed to send email to ${email}:`, err);
-        }
-    }
-};
-
-// Update submitData to include PDF generation and email sending
-app.post('/submitData', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-    const tableData = req.body;
-
-    const insertQuery = `
-        INSERT INTO rota (id, name, lastName, wage, day, startTime, endTime, designation, color) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    const updateQueryByDetails = `
-    UPDATE rota 
-    SET wage = ?, designation = ?, color = ?
-    WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?
-    LIMIT 1`; // Adding LIMIT 1 reduces lock scope
-
-    const operationMessages = []; // Store messages for logging operations
-
-    let processedRows = 0;
-    let hasError = false;
-
-    const processRow = (row, callback) => {
-        const { name, lastName, wage, designation, day, startTime, endTime, color } = row;
-
-        // Check if a record with the same name, day, start time, and end time exists
-        pool.query(
-            'SELECT id FROM rota WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?',
-            [name, lastName, day, startTime, endTime],
-            (err, result) => {
-                if (err) {
-                    console.error('Error checking existing data:', err);
-                    return callback(err);
-                }
-
-                if (result.length > 0) {
-                    // If the record exists, update it
-                    pool.query(
-                        updateQueryByDetails,
-                        [wage, designation, color, name, lastName, day, startTime, endTime],
-                        (updateErr) => {
-                            if (updateErr) {
-                                console.error('Error updating record:', updateErr);
-                                return callback(updateErr);
-                            }
-                            console.log(`Record for ${name} ${lastName} on ${day} updated.`);
-                            operationMessages.push(`Updated: ${name} ${lastName} (${day})`);
-                            callback(null);
-                        }
-                    );
-                } else {
-                    // Generate a unique ID for new data
-                    let newId = generateUniqueId();
-
-                    const ensureUniqueId = (id, callback) => {
-                        pool.query(
-                            'SELECT id FROM rota WHERE id = ?',
-                            [id],
-                            (checkErr, checkResult) => {
-                                if (checkErr) {
-                                    console.error('Error checking unique ID:', checkErr);
-                                    return callback(checkErr);
-                                }
-
-                                if (checkResult.length > 0) {
-                                    // ID already exists, generate a new one
-                                    newId = generateUniqueId();
-                                    return ensureUniqueId(newId, callback);
-                                }
-                                callback(null, id);
-                            }
-                        );
-                    };
-
-                    ensureUniqueId(newId, (err, uniqueId) => {
-                        if (err) {
-                            return callback(err);
-                        }
-
-                        pool.query(
-                            insertQuery,
-                            [uniqueId, name, lastName, wage, day, startTime, endTime, designation, color],
-                            (insertErr) => {
-                                if (insertErr) {
-                                    console.error('Error inserting record:', insertErr);
-                                    return callback(insertErr);
-                                }
-                                console.log(`New record inserted for ${name} ${lastName} on ${day}.`);
-                                operationMessages.push(`Inserted: ${name} ${lastName} (${day})`);
-                                callback(null);
-                            }
-                        );
-                    });
-                }
-            }
-        );
-    };
-
-    // Process all rows
-    tableData.forEach(row => {
-        processRow(row, (err) => {
-            if (err) {
-                hasError = true;
-                console.error('Error processing row:', err);
-                if (!res.headersSent) {
-                    res.status(500).send('Error processing data.');
-                }
-                return;
-            }
-
-            processedRows++;
-            
-            // When all rows are processed
-            if (processedRows === tableData.length && !hasError) {
-                // Generate PDF
-                generatePDF(tableData, (pdfErr, pdfBuffer) => {
-                    if (pdfErr) {
-                        console.error('Error generating PDF:', pdfErr);
-                        if (!res.headersSent) {
-                            res.status(500).send('Error generating PDF.');
-                        }
-                        return;
-                    }
-
-                    // Fetch recipient emails from the database
-                    pool.query('SELECT email FROM Employees WHERE email = "yassir.nini27@gmail.com"', async (err, results) => {
-                        if (err) {
-                            console.error('Error fetching emails:', err);
-                            if (!res.headersSent) {
-                                res.status(500).send('Error fetching email addresses.');
-                            }
-                            return;
-                        }
-
-                        const emailAddresses = results.map(result => result.email);
-
-                        // Send email with the PDF attachment
-                        sendEmail(pdfBuffer, emailAddresses, (emailErr) => {
-                            if (emailErr) {
-                                console.error('Error sending email:', emailErr);
-                                if (!res.headersSent) {
-                                    res.status(500).send('Error sending email.');
-                                }
-                                return;
-                            }
-
-                            if (!res.headersSent) {
-                                res.status(200).send('Rota saved and emails sent successfully!');
-                            }
-                        });
-                    });
-                });
-            }
-        });
+        return transporter.sendMail(mailOptions)
+            .then(() => console.log(`Email sent to ${email}`))
+            .catch(err => {
+                console.error(`Failed to send to ${email}:`, err);
+                throw err; // Rethrow to catch in the main flow
+            });
     });
-});
+
+    return Promise.all(sendPromises);
+};
 
 // Function to generate a unique 16-digit ID
 function generateUniqueId() {
