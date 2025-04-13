@@ -131,41 +131,39 @@ const generatePDF = async (tableData) => {
     `;
 
     // Generate PDF with landscape orientation
-    try {
-        console.log("[1/4] Launching browser...");
-        
-        // Configuration that works for both local (Windows) and Heroku (Linux)
-        const launchOptions = {
-            headless: process.env.NODE_ENV === 'production' ? true : false, // Show browser window locally
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-        };
+        try {            
+            const launchOptions = {
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-accelerated-2d-canvas',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--single-process',
+                    '--disable-gpu'
+                ],
+                headless: 'new',
+                executablePath: process.env.CHROME_BIN || undefined
+            };
+    
+            const browser = await puppeteer.launch(launchOptions);
+            
+            const page = await browser.newPage();
+            await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+            
+            const pdfBuffer = await page.pdf({ 
+                format: 'A4', 
+                landscape: true,
+                printBackground: true
+            });
 
-        // For local Windows development only
-        if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
-            launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+            await browser.close();
+            return pdfBuffer;
+        } catch (error) {
+            console.error("PDF Generation Error:", error);
+            throw error;
         }
-
-        const browser = await puppeteer.launch(launchOptions);
-        console.log("[2/4] Browser launched, creating page...");
-        
-        const page = await browser.newPage();
-        await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
-        console.log("[3/4] Content set, generating PDF...");
-        
-        const pdfBuffer = await page.pdf({ 
-            format: 'A4', 
-            landscape: true,
-            path: process.env.NODE_ENV === 'production' ? undefined : 'output.pdf' // Save to file only locally
-        });
-        
-        console.log("[4/4] PDF generated successfully!");
-        await browser.close();
-        
-        return pdfBuffer;
-    } catch (error) {
-        console.error("PDF Generation Error:", error);
-        throw error;
-    }
 };
 
 // Update submitData to include PDF generation and email sending
