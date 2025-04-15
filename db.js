@@ -1,31 +1,38 @@
 const mysql = require('mysql2');
 
-// Common database connection settings
-const commonConfig = {
+// Base configuration with common settings
+const baseConfig = {
   host: 'sv41.byethost41.org',
-  user: 'yassir_yassir',
-  password: 'Qazokm123890',
-  connectionLimit: 350, // Limit the number of connections
+  connectionLimit: 350,
   waitForConnections: true,
   queueLimit: 0,
-  connectTimeout: 10000, // Timeout for connecting
+  connectTimeout: 10000,
 };
 
-// Database configurations for each company
+// Database configurations for each company with specific users
 const dbConfigs = {
   '100%pastaoxford': {
-    ...commonConfig,
+    ...baseConfig,
     database: 'yassir_100%pastaoxford',
+    user: 'yassir_100pastaoxford',
+    password: 'Qazokm123890'
   },
   'bbuonaoxford': {
-    ...commonConfig,
+    ...baseConfig,
     database: 'yassir_bbuonaoxford',
+    user: 'yassir_bbuonaoxford',
+    password: 'Qazokm123890'
   },
   main: {
-    ...commonConfig,
+    ...baseConfig,
     database: 'yassir_access',
+    user: 'yassir_yassir',
+    password: 'Qazokm123890'
   },
 };
+
+Object.keys(dbConfigs).forEach(db => {
+});
 
 // Cache for storing connection pools for each database
 const pools = {};
@@ -34,57 +41,70 @@ const pools = {};
 const mainPool = mysql.createPool(dbConfigs.main);
 pools['main'] = mainPool;
 
+// Log main pool creation
+mainPool.on('connection', (connection) => {
+});
+
 // Function to get a connection pool based on the database name
 function getPool(dbName) {
+  
   if (pools[dbName]) {
-    // Return cached pool if it exists
     return pools[dbName];
   }
 
   if (!dbConfigs[dbName]) {
+    console.error(`Configuration for ${dbName} not found!`);
     throw new Error(`Database configuration for ${dbName} not found.`);
   }
-
+  
   // Create and cache a new pool for the database
   const newPool = mysql.createPool(dbConfigs[dbName]);
   pools[dbName] = newPool;
+
+  // Add connection event logging for this pool
+  newPool.on('connection', (connection) => {
+  });
+
+  newPool.on('acquire', (connection) => {
+  });
+
+  newPool.on('release', (connection) => {
+  });
 
   return newPool;
 }
 
 // Close unused connections after 10 minutes for each pool
 function closeIdleConnections() {
-  console.log('Checking for idle connections...');
   
   Object.keys(pools).forEach((dbName) => {
     const pool = pools[dbName];
     
     pool.getConnection((err, connection) => {
       if (err) {
-        console.error(`Error getting connection for ${dbName}:`, err);
+        console.error(`[${dbName.toUpperCase()}] Error getting connection:`, err);
         return;
       }
 
       // Fetch process list to identify idle connections
       connection.query('SHOW PROCESSLIST', (err, results) => {
         if (err) {
-          console.error(`Error fetching process list for ${dbName}:`, err);
+          console.error(`[${dbName.toUpperCase()}] Error fetching process list:`, err);
         } else {
           results.forEach((process) => {
             if (process.Time > 600) { // 600 seconds = 10 minutes
-              console.log(`Closing idle connection (ID: ${process.Id}) in database ${dbName}`);
               connection.query(`KILL ${process.Id}`);
             }
           });
         }
-        connection.release(); // Always release connection after query
+        connection.release();
       });
     });
   });
 }
 
 // Run idle connection cleanup every 10 minutes
-setInterval(closeIdleConnections, 60000); // Run every minute to check idle connections
+setInterval(closeIdleConnections, 60000);
 
 // Export the main pool and getPool function for use in other files
 module.exports = { getPool, mainPool };

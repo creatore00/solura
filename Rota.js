@@ -149,7 +149,7 @@ const generatePDF = async (tableData) => {
         // Heroku production - let Puppeteer handle it automatically
         else if (process.env.NODE_ENV === 'production') {
             // Use Puppeteer's bundled Chrome
-            launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+            launchOptions.executablePath = '/app/.chrome-for-testing/chrome-linux64/chrome';
         }
 
         const browser = await puppeteer.launch(launchOptions);
