@@ -32,7 +32,7 @@ app.post('/', isAuthenticated, upload, (req, res) => {
 
     console.log('Request Body:', req.body);
     // Destructure fields from req.body
-    const { name, lastName, email, phone, address, nin, wage, designation, position, holiday, dateStart } = req.body;
+    const { name, lastName, email, phone, address, nin, wage, designation, position, contractHours, holiday, dateStart } = req.body;
     const passportImageFile = req.files['passportImage'] ? req.files['passportImage'][0] : null;
     const visaFile = req.files['visa'] ? req.files['visa'][0] : null;
 
@@ -46,9 +46,9 @@ app.post('/', isAuthenticated, upload, (req, res) => {
     const visaContent = visaFile.buffer;
 
     // Insert data into the database
-    const query = 'INSERT INTO Employees (name, lastName, email, phone, address, nin, wage, designation, position, passportImage, visa, TotalHoliday, startHoliday, dateStart) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'INSERT INTO Employees (name, lastName, email, phone, address, nin, wage, designation, position, contractHours, passportImage, visa, TotalHoliday, startHoliday, dateStart) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
-    pool.query(query, [name, lastName, email, phone, address, nin, wage, designation, position, passportImageContent, visaContent, holiday, holiday, dateStart], (err, result) => {
+    pool.query(query, [name, lastName, email, phone, address, nin, wage, designation, position, contractHours, passportImageContent, visaContent, holiday, holiday, dateStart], (err, result) => {
         if (err) {
             console.error('Error inserting data:', err);
             res.status(500).json({ success: false, message: 'Server error' });
@@ -68,7 +68,7 @@ app.get('/employees', isAuthenticated, (req, res) => {
 
     const pool = getPool(dbName); // Get the correct connection pool
 
-    const query = 'SELECT id, name, lastName, email, phone, address, nin, wage, designation, position, dateStart, startHoliday, TotalHoliday, Accrued FROM Employees';
+    const query = 'SELECT id, name, lastName, email, phone, address, nin, wage, designation, position, contractHours, dateStart, startHoliday, TotalHoliday, Accrued FROM Employees';
     pool.query(query, (err, results) => {
         if (err) {
             console.error('Error fetching data:', err);
@@ -91,7 +91,7 @@ app.get('/edit-employee/:id', isAuthenticated, (req, res) => {
 
     pool.query(
         `SELECT id, name, lastName, email, phone, address, nin, wage, 
-         designation, position, dateStart, startHoliday 
+         designation, position, contractHours, dateStart, startHoliday 
          FROM Employees WHERE id = ?`,
         [id],
         (err, rows) => {
@@ -133,7 +133,7 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
     const pool = getPool(dbName);
     const { id } = req.params;
     const { name, lastName, email, phone, address, nin, wage, 
-           designation, position, holiday, dateStart } = req.body;
+           designation, position, contractHours, holiday, dateStart } = req.body;
 
     // First get the current employee data to compare holiday values
     pool.query('SELECT startHoliday, TotalHoliday FROM Employees WHERE id = ?', [id], (err, currentData) => {
@@ -163,12 +163,12 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
         // Build the dynamic query based on what's being updated
         let query = `UPDATE Employees SET 
             name = ?, lastName = ?, email = ?, phone = ?, address = ?,
-            nin = ?, wage = ?, designation = ?, position = ?,
+            nin = ?, wage = ?, designation = ?, position = ?, contractHours = ?,
             dateStart = ?, startHoliday = ?, TotalHoliday = ?`;
         
         const queryParams = [
             name, lastName, email, phone, address, 
-            nin, wage, designation, position,
+            nin, wage, designation, position, contractHours,
             dateStart, holiday, updatedTotalHoliday
         ];
 

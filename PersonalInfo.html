@@ -539,6 +539,7 @@
                         <th>Wage</th>
                         <th>Designation</th>
                         <th>Position</th>
+                        <th>Contractual Hours</th>
                         <th>Start Date</th>
                         <th>Holidays</th>
                         <th>Documents</th>
@@ -649,7 +650,12 @@
                             </div>
                         </div>
                     </div>
-
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="contractHours" class="form-label">Contractual Hours</label>
+                            <input type="text" id="contractHours" name="contractHours" class="form-control" required>
+                        </div>
+                    </div>
                     <div class="form-row">
                         <div class="form-col">
                             <div class="form-group">
@@ -677,7 +683,7 @@
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="visa" class="form-label">Visa</label>
-                                <input type="file" id="visa" name="visa" class="form-file" accept=".pdf,.jpg,.jpeg,.png" >
+                                <input type="file" id="visa" name="visa" class="form-file" accept=".pdf,.jpg,.jpeg,.png">
                             </div>
                         </div>
                     </div>
@@ -730,6 +736,12 @@
                             <div class="form-group">
                                 <label for="editPhone" class="form-label">Phone Number</label>
                                 <input type="text" id="editPhone" name="phone" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editcontractHours" class="form-label">Contractual Hours</label>
+                                <input type="text" id="editcontractHours" name="contractHours" class="form-control" required>
                             </div>
                         </div>
                     </div>
@@ -1008,6 +1020,7 @@ holidayYearStartInput.value = `${today.getFullYear()}-01-01`;
                             <td>£${employee.wage}</td>
                             <td><span class="badge badge-${employee.designation.toLowerCase()}">${employee.designation}</span></td>
                             <td><span class="badge badge-${employee.position}">${employee.position.charAt(0).toUpperCase() + employee.position.slice(1)}</span></td>
+                            <td>${employee.contractHours}</td>
                             <td>${formatDate(employee.dateStart)}</td>
                             <td>
                                 <div>Total: ${employee.startHoliday}</div>
@@ -1136,6 +1149,7 @@ holidayYearStartInput.value = `${today.getFullYear()}-01-01`;
         document.getElementById('editAddress').value = data.address || '';
         document.getElementById('editNin').value = data.nin || '';
         document.getElementById('editWage').value = data.wage || '';
+        document.getElementById('editcontractHours').value = data.contractHours || '';
         document.getElementById('editHoliday').value = data.startHoliday || '';
         document.getElementById('editDateStart').value = data.dateStart || '';
         
