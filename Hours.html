@@ -513,11 +513,6 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
             
             // Calculate holiday hours (multiply by days taken)
             data.holidays = averageDailyHours * data.holidayDays;
-            
-            console.log(`Calculated for ${data.name} ${data.lastName}:`);
-            console.log(`- Total previous hours: ${totalPreviousHours}`);
-            console.log(`- Average weekly hours: ${averageWeeklyHours.toFixed(2)}`);
-            console.log(`- Holiday hours: ${data.holidays.toFixed(2)} (${data.holidayDays} days)`);
         }
     }
 }

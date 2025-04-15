@@ -64,9 +64,6 @@ app.get('/holidays', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
     const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7); // e.g. "2025-04"
 
-    console.log(`[GET /holidays] User database: ${dbName}`);
-    console.log(`[GET /holidays] Selected month: ${selectedMonth}`);
-
     const pool = getPool(dbName);
 
     // Start of month (e.g. 2025-04-01)
@@ -74,8 +71,6 @@ app.get('/holidays', isAuthenticated, (req, res) => {
 
     // End of month (e.g. 2025-04-30)
     monthEnd = `${selectedMonth}-31`;
-
-    console.log(`[GET /holidays] Month range: ${monthStart} to ${monthEnd} (inclusive)`);
 
     // Query to find any overlapping holidays
     const query = `
@@ -95,9 +90,6 @@ app.get('/holidays', isAuthenticated, (req, res) => {
             );
     `;
 
-    console.log('[GET /holidays] Executing query:', query);
-    console.log('[GET /holidays] Query values:', [monthStart, monthEnd, monthStart, monthEnd, monthStart, monthEnd]);
-
     pool.query(query, [monthStart, monthEnd, monthStart, monthEnd, monthStart, monthEnd], (err, results) => {
         if (err) {
             console.error('[GET /holidays] Error fetching holiday data:', err);
@@ -110,8 +102,6 @@ app.get('/holidays', isAuthenticated, (req, res) => {
             startDate: holiday.startDate.split(' ')[0], // Removing any extra text like day names
             endDate: holiday.endDate.split(' ')[0]
         }));
-        
-        console.log(`[GET /holidays] Retrieved ${processedResults.length} results`, processedResults);
         res.json(processedResults);
     });
 });
@@ -198,46 +188,59 @@ app.get('/tip', isAuthenticated, (req, res) => {
 
 // Route to generate PDF
 app.post('/generate-pdf', isAuthenticated, async (req, res) => {
+    const { htmlContent, month } = req.body;
     let browser;
+
     try {
-        const { htmlContent, month } = req.body;
+        const launchOptions = {
+            headless: 'new',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
+        };
 
-        // Launch browser
-        browser = await puppeteer.launch({
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            headless: 'new'
-        });
+        // Dev on Windows
+        if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
+            launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        }
+        // Heroku production
+        else if (process.env.NODE_ENV === 'production') {
+            launchOptions.executablePath = '/app/.chrome-for-testing/chrome-linux64/chrome';
+        }
 
+        browser = await puppeteer.launch(launchOptions);
         const page = await browser.newPage();
-        
-        // Set content and wait for resources to load
+
         await page.setContent(htmlContent, {
             waitUntil: 'networkidle0',
             timeout: 30000
         });
 
-        // Generate PDF
         const pdfBuffer = await page.pdf({
             format: 'A4',
+            landscape: true,
+            printBackground: true,
             margin: {
                 top: '20mm',
                 right: '10mm',
                 bottom: '20mm',
                 left: '10mm'
-            },
-            printBackground: true
+            }
         });
 
-        // Send the PDF
-        res.set({
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': `attachment; filename="Monthly_Report_${month}.pdf"`
-        });
-        res.send(pdfBuffer);
+        // ✅ Correct way to send PDF as a downloadable file
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Monthly_Report_${month}.pdf"`);
+        res.end(pdfBuffer);
 
     } catch (error) {
-        console.error('PDF generation error:', error);
-        res.status(500).json({ error: 'Failed to generate PDF' });
+        console.error('PDF Generation Error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to generate PDF' });
+        }
     } finally {
         if (browser) await browser.close();
     }

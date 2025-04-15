@@ -1289,7 +1289,9 @@ app.get('/employees-holiday', (req, res) => {
             }
             res.json(result.map(row => ({
                 name: row.name,
-                lastname: row.lastname || row.lastName // Handle both casing variations
+                lastname: row.lastname || row.lastName, // Handle both casing variations
+                Accrued: row.Accrued,
+                TotalHoliday: row.TotalHoliday
             })));
         }
     );
