@@ -106,6 +106,73 @@ app.get('/holidays', isAuthenticated, (req, res) => {
     });
 });
 
+// New endpoint to get holiday year start date
+app.get('/holiday-settings', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    pool.query('SELECT HolidayYearStart FROM HolidayYearSettings LIMIT 1', (err, results) => {
+        if (err) {
+            console.error('Error fetching holiday settings:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+        res.json(results[0] || {});
+    });
+});
+
+// Modified rota endpoint to accept date range with added logs
+app.get('/rota-since-date', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+
+    if (!dbName) {
+        console.warn('Access denied: User not authenticated or dbName missing in session');
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    console.log(`[rota-since-date] Requested by DB: ${dbName}`);
+    console.log(`[rota-since-date] Date range: ${startDate} to ${endDate}`);
+
+    if (!startDate || !endDate) {
+        console.warn('Missing startDate or endDate in request');
+        return res.status(400).json({ message: 'Both startDate and endDate parameters are required' });
+    }
+
+    const pool = getPool(dbName);
+    const query = `
+        SELECT 
+            cr.name,
+            cr.lastName,
+            cr.day,
+            cr.startTime,
+            cr.endTime,
+            e.contractHours
+        FROM 
+            ConfirmedRota cr
+        JOIN 
+            Employees e ON cr.name = e.name AND cr.lastName = e.lastName
+        WHERE 
+            STR_TO_DATE(cr.day, '%d/%m/%Y') BETWEEN ? AND ?
+        ORDER BY
+            cr.name, cr.lastName, cr.day
+    `;
+
+    console.log('[rota-since-date] Executing SQL query with parameters:', [startDate, endDate]);
+
+    pool.query(query, [startDate, endDate], (err, results) => {
+        if (err) {
+            console.error('[rota-since-date] Error fetching rota data:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+        res.json(results);
+    });
+});
+
 // Route to retrieve holiday year settings
 app.get('/holiday-year-settings', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
