@@ -562,7 +562,7 @@ input[type="date"]:read-only {
                 <button class="btn btn-secondary" onclick="copyFromPreviousWeek()">
                     <i class="fas fa-copy"></i> Copy From Previous Week
                 </button>
-                <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); updateRotaWithHolidays(); fetchAndPopulateRotaTable(); updateRotaWithHolidays()">
+                <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); fetchAndPopulateRotaTable(); updateRotaWithHolidays()">
                 <button class="btn btn-success" onclick="saveRotaData();">
                     <i class="fas fa-save"></i> Save
                 </button>
@@ -1348,9 +1348,8 @@ async function handleDrop(event) {
         if (currentDraggedCell) {
             updateTotalHoursForRow(currentDraggedCell.closest('tr'));
         }
-        updateTotalHoursForRow(targetRow);
-        updateWeeklyTotals();
-        updateDailySpent();
+
+
         
         showPopup('Shift copied successfully', 'success');
     } catch (error) {
@@ -1986,6 +1985,7 @@ function updateTotalHoursForRow(row) {
     // Update the "Total Spent" column in the current row
     const totalSpentCell = row.querySelector('.total-spent');
     totalSpentCell.textContent = `£ ${totalSpent.toFixed(2)}`; // Round to 2 decimal places
+    updateDailySpent();
 }
 // Function to update weekly totals
 function updateWeeklyTotals() {
@@ -2260,6 +2260,7 @@ function updateDailySpent() {
             totalsSpentRowCell.textContent += ` / £${total.toFixed(2)}`; // Append the total spent for the day
         }
     });
+    updateWeeklyTotals();
 }
 // Function to parse time string (HH:mm) into a Date object
 function parseTime(timeStr) {
@@ -2971,6 +2972,9 @@ function createTimeCells(day, startTime1, endTime1, startTime2, endTime2) {
     const buttonStyle = hasTimeValues ? '' : 'background-color:white;color:black;';
     const inputDisplay = hasTimeValues ? 'inline' : 'none';
 
+    // Create a unique identifier for each day's inputs to attach event listeners
+    const dayId = day.toLowerCase();
+
     return `
         <td class="day-cell" data-day="${day}" draggable="true"
             ondragstart="handleDragStart(event)"
@@ -2978,14 +2982,18 @@ function createTimeCells(day, startTime1, endTime1, startTime2, endTime2) {
             ondrop="handleDrop(event)">
             
             <!-- Always create 4 time inputs, but control visibility -->
-            <input type="time" class="time-input" data-day="${day}" 
-                   value="${startTime1 || ''}" style="display:${inputDisplay}">
-            <input type="time" class="time-input" data-day="${day}" 
-                   value="${endTime1 || ''}" style="display:${inputDisplay}"><br>
-            <input type="time" class="time-input" data-day="${day}" 
-                   value="${startTime2 || ''}" style="display:${inputDisplay}">
-            <input type="time" class="time-input" data-day="${day}" 
-                   value="${endTime2 || ''}" style="display:${inputDisplay}"><br>
+            <input type="time" class="time-input" data-day="${day}" id="start1-${dayId}"
+                   value="${startTime1 || ''}" style="display:${inputDisplay}"
+                   onchange="handleTimeChange('${day}')">
+            <input type="time" class="time-input" data-day="${day}" id="end1-${dayId}"
+                   value="${endTime1 || ''}" style="display:${inputDisplay}"
+                   onchange="handleTimeChange('${day}')"><br>
+            <input type="time" class="time-input" data-day="${day}" id="start2-${dayId}"
+                   value="${startTime2 || ''}" style="display:${inputDisplay}"
+                   onchange="handleTimeChange('${day}')">
+            <input type="time" class="time-input" data-day="${day}" id="end2-${dayId}"
+                   value="${endTime2 || ''}" style="display:${inputDisplay}"
+                   onchange="handleTimeChange('${day}')"><br>
             
             <!-- Action Buttons -->
             <button class="write-off-btn" onclick="toggleColor(event, '${day}')">Swap</button>
@@ -2996,6 +3004,10 @@ function createTimeCells(day, startTime1, endTime1, startTime2, endTime2) {
             </button>
         </td>
     `;
+}
+// New function to handle time changes and update calculations
+function handleTimeChange(day) {
+    updateTotalHoursForRow();
 }
 // Function to handle the Write Off button click
 function writeOff(event, dayIndex) {
@@ -3121,11 +3133,37 @@ function getDayOfWeek(date) {
     const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     return daysOfWeek[date.getDay()];
 }
-// Function to clear all data in the rota table
+// Function to Erase Data for the selected week
 function clearAllRotaData() {
-    // Find all time input fields and clear their values
+    // Clear UI time inputs
     document.querySelectorAll("#employeeRows input[type='time']").forEach(input => {
-        input.value = ''; // Reset the time input
+        input.value = '';
+    });
+
+    // Get the week start date (user-selected or current)
+    let weekStartDate = document.getElementById('weekStartDate')?.value;
+    let date = weekStartDate ? new Date(weekStartDate) : new Date();
+
+    // Get Monday of the selected week
+    const monday = getMonday(date);
+    const weekDates = getWeekDates(monday); // You already have this function
+
+    // Format dates as strings (same format used in DB e.g. 'dd/mm/yyyy (Day)')
+    const formattedDays = weekDates.map(d => `${formatDate(d)} (${getDayOfWeek(d)})`);
+
+    // Send request to backend to delete these days
+    fetch('/rota/clearWeek', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daysToDelete: formattedDays })
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Cleared from database:', data);
+        alert('Rota cleared successfully for this week!');
+    })
+    .catch(error => {
+        console.error('Error clearing rota:', error);
     });
 }
 // Window on Load funtions call
