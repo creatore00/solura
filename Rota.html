@@ -559,7 +559,7 @@ input[type="date"]:read-only {
             <h1 class="header">Workforce Management</h1>
             
             <div class="controls">
-                <button class="btn btn-secondary" onclick="copyFromPreviousWeek()">
+                <button class="btn btn-secondary" onclick="copyFromPreviousWeek(); fetchAndPopulateRotaTable(); updateRotaWithHolidays()">
                     <i class="fas fa-copy"></i> Copy From Previous Week
                 </button>
                 <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); fetchAndPopulateRotaTable(); updateRotaWithHolidays()">
@@ -1870,6 +1870,8 @@ function fetchAndPopulateRotaTable() {
             updateTotalHoursForRow();
             // Add event listeners to time input fields
             addTimeInputListeners(); 
+            // Function to Fetch Holiday Data
+            updateRotaWithHolidays();
         })
         .catch(error => {
             console.error('Error fetching rota data:', error);
