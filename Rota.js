@@ -1200,7 +1200,7 @@ app.post('/submit-holiday', (req, res) => {
             // 1. Insert the holiday request
             connection.query(
                 `INSERT INTO Holiday 
-                 (name, lastName, startDate, endDate, requestDate, days, accepted) 
+                 (name, lastName, startDate, endDate, requestDate, day, accepted) 
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [name, lastName, formattedStartDate, formattedEndDate, currentDate, days, acceptedValue],
                 (insertErr, insertResult) => {
