@@ -110,7 +110,7 @@ setInterval(() => {
 
 // Route to serve the FP.html file
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'FP.html'));
+    res.sendFile(path.join(__dirname, 'ForgotPassword.html'));
 });
 
 module.exports = app;
