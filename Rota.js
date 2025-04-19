@@ -494,114 +494,164 @@ function formatDate(date) {
 
 // Function to Save new Data into db
 app.post('/saveData', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
+    const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    console.log('Request Body:', req.body);
+    const pool = getPool(dbName);
     const tableData = req.body;
+    const operationMessages = [];
 
-    // Extract unique days from the incoming data
-    const uniqueDays = [...new Set(tableData.map(row => row.day))];
+    // Validate input data
+    if (!tableData || !Array.isArray(tableData)) {
+        return res.status(400).json({ success: false, message: 'Invalid data format' });
+    }
 
-    const deleteQuery = `
-        DELETE FROM rota WHERE day IN (?)
-    `;
+    // Get connection from pool
+    pool.getConnection((err, connection) => {
+        if (err) {
+            console.error('Error getting database connection:', err);
+            return res.status(500).send('Database connection error');
+        }
 
-    const insertQuery = `
-        INSERT INTO rota (id, name, lastName, wage, day, startTime, endTime, designation, color) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+        // Begin transaction
+        connection.beginTransaction((beginErr) => {
+            if (beginErr) {
+                connection.release();
+                console.error('Error beginning transaction:', beginErr);
+                return res.status(500).send('Transaction error');
+            }
 
-    const operationMessages = []; // Store messages for logging operations
+            // Extract unique days
+            const uniqueDays = [...new Set(tableData.map(row => row.day))];
 
-    // Function to delete existing data for the specified days
-    const deleteExistingData = () => {
-        return new Promise((resolve, reject) => {
-            pool.query(deleteQuery, [uniqueDays], (deleteErr, deleteResult) => {
-                if (deleteErr) {
-                    console.error('Error deleting existing data:', deleteErr);
-                    return reject(deleteErr);
+            // 1. Delete existing data if needed
+            const deleteData = (callback) => {
+                if (uniqueDays.length === 0) {
+                    operationMessages.push('No days to delete.');
+                    return callback(null);
                 }
-                console.log(`Deleted existing data for days: ${uniqueDays.join(', ')}`);
-                operationMessages.push(`Deleted existing data for days: ${uniqueDays.join(', ')}`);
-                resolve();
-            });
-        });
-    };
 
-    // Function to insert new data
-    const insertNewData = () => {
-        return Promise.all(tableData.map(row => {
-            return new Promise((resolve, reject) => {
-                const { name, lastName, wage, designation, day, startTime, endTime, color } = row;
+                const deleteQuery = `DELETE FROM rota WHERE day IN (?)`;
+                connection.query(deleteQuery, [uniqueDays], (deleteErr) => {
+                    if (deleteErr) {
+                        return callback(deleteErr);
+                    }
+                    operationMessages.push(`Deleted existing data for days: ${uniqueDays.join(', ')}`);
+                    callback(null);
+                });
+            };
 
-                // Generate a unique ID for new data
-                let newId = generateUniqueId();
+            // 2. Insert new data
+            const insertData = (callback) => {
+                const insertQuery = `
+                    INSERT INTO rota (id, name, lastName, wage, day, startTime, endTime, designation, color) 
+                    VALUES ?
+                `;
 
-                // Ensure the generated ID is unique
-                const ensureUniqueId = () => {
-                    return new Promise((resolveUnique, rejectUnique) => {
-                        pool.query(
-                            'SELECT id FROM rota WHERE id = ?',
-                            [newId],
-                            (checkErr, checkResult) => {
-                                if (checkErr) {
-                                    console.error('Error checking unique ID:', checkErr);
-                                    return rejectUnique(checkErr);
+                // Generate all values with unique IDs
+                const generateValues = (valuesCallback) => {
+                    const values = [];
+                    let processed = 0;
+
+                    const checkNext = (index) => {
+                        if (index >= tableData.length) {
+                            return valuesCallback(null, values);
+                        }
+
+                        const row = tableData[index];
+                        let newId = generateUniqueId();
+
+                        const checkId = (id) => {
+                            connection.query(
+                                'SELECT id FROM rota WHERE id = ?',
+                                [id],
+                                (checkErr, checkResult) => {
+                                    if (checkErr) {
+                                        return valuesCallback(checkErr);
+                                    }
+
+                                    if (checkResult.length > 0) {
+                                        // ID exists, generate new one
+                                        newId = generateUniqueId();
+                                        return checkId(newId);
+                                    }
+
+                                    // ID is unique, add to values
+                                    values.push([
+                                        newId,
+                                        row.name,
+                                        row.lastName,
+                                        row.wage,
+                                        row.day,
+                                        row.startTime,
+                                        row.endTime,
+                                        row.designation,
+                                        row.color
+                                    ]);
+
+                                    operationMessages.push(`Inserted: ${row.name} ${row.lastName} (${row.day})`);
+                                    checkNext(index + 1);
                                 }
+                            );
+                        };
 
-                                if (checkResult.length > 0) {
-                                    // ID already exists, generate a new one
-                                    newId = generateUniqueId();
-                                    return resolveUnique(ensureUniqueId());
-                                }
-                                resolveUnique(newId);
-                            }
-                        );
-                    });
+                        checkId(newId);
+                    };
+
+                    checkNext(0);
                 };
 
-                // Ensure unique ID and insert the record
-                ensureUniqueId().then(() => {
-                    pool.query(
-                        insertQuery,
-                        [newId, name, lastName, wage, day, startTime, endTime, designation, color],
-                        (insertErr) => {
-                            if (insertErr) {
-                                console.error('Error inserting record:', insertErr);
-                                return reject(insertErr);
-                            }
-                            console.log(`New record inserted for ${name} ${lastName} on ${day}.`);
-                            operationMessages.push(`Inserted: ${name} ${lastName} (${day})`);
-                            resolve();
-                        }
-                    );
-                }).catch(reject);
-            });
-        }));
-    };
+                generateValues((genErr, values) => {
+                    if (genErr) {
+                        return callback(genErr);
+                    }
 
-    // First, delete existing data for the specified days
-    const proceed = uniqueDays.length > 0 
-    ? deleteExistingData() : Promise.resolve(operationMessages.push('No days to delete.'));
-    proceed
-        .then(() => {
-            return insertNewData();
-        })
-    
-        .then(() => {
-            res.status(200).send(operationMessages.join('\n'));
-        })
-        .catch((error) => {
-            console.error('Error saving data:', error);
-            res.status(500).send('Error saving data.');
+                    if (values.length === 0) {
+                        return callback(null);
+                    }
+
+                    connection.query(insertQuery, [values], (insertErr) => {
+                        callback(insertErr);
+                    });
+                });
+            };
+
+            // Execute operations in sequence
+            deleteData((delErr) => {
+                if (delErr) {
+                    return rollback(connection, delErr);
+                }
+
+                insertData((insErr) => {
+                    if (insErr) {
+                        return rollback(connection, insErr);
+                    }
+
+                    // Commit transaction
+                    connection.commit((commitErr) => {
+                        if (commitErr) {
+                            return rollback(connection, commitErr);
+                        }
+
+                        connection.release();
+                        res.status(200).send(operationMessages.join('\n'));
+                    });
+                });
+            });
         });
+    });
 });
+
+// Helper function for transaction rollback
+function rollback(connection, error) {
+    connection.rollback(() => {
+        connection.release();
+        console.error('Transaction error:', error);
+        res.status(500).send('Error saving data');
+    });
+}
 
 // Function to Delete time frame
 app.delete('/removeDayData', isAuthenticated, (req, res) => {
@@ -1200,7 +1250,7 @@ app.post('/submit-holiday', (req, res) => {
             // 1. Insert the holiday request
             connection.query(
                 `INSERT INTO Holiday 
-                 (name, lastName, startDate, endDate, requestDate, day, accepted) 
+                 (name, lastName, startDate, endDate, requestDate, days, accepted) 
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [name, lastName, formattedStartDate, formattedEndDate, currentDate, days, acceptedValue],
                 (insertErr, insertResult) => {
