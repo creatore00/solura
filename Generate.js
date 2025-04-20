@@ -226,7 +226,7 @@ app.post('/submit', (req, res) => {
         });
 
         const mailOptions = {
-            from: 'Solura WorkForce',
+            from: 'Solura WorkForce <founder@solura.uk>',
             to: email,
             subject: 'Password Reset Link',
             text: `Click the link to reset your password: ${resetLink} This is your token for security measures ${token}`
