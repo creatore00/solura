@@ -1,0 +1,50 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+    repositories {
+        google()        // Google's Maven repository
+        mavenCentral()  // Maven Central repository
+    }
+    dependencies {
+        // Gradle plugin for Android build system
+        classpath 'com.android.tools.build:gradle:8.5.2'
+
+        // Google services plugin (for Firebase and other services)
+        classpath 'com.google.gms:google-services:4.4.2'
+
+        // Add any other classpath dependencies required for the build system here
+    }
+}
+
+apply from: "variables.gradle"  // Apply the external variables.gradle configuration
+
+allprojects {
+    repositories {
+        google()        // Google's Maven repository
+        mavenCentral()  // Maven Central repository
+    }
+}
+
+task clean(type: Delete) {
+    // Cleaning task to delete the build directory of the root project
+    delete rootProject.buildDir
+}
+
+// Set Java compatibility for all subprojects
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        } else {
+            tasks.withType(JavaCompile) {
+                sourceCompatibility = JavaVersion.VERSION_17
+                targetCompatibility = JavaVersion.VERSION_17
+            }
+        }
+    }
+}

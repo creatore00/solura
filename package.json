@@ -13,6 +13,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@capacitor/android": "^7.2.0",
+    "@capacitor/cli": "^7.2.0",
+    "@capacitor/core": "^7.2.0",
+    "@capacitor/ios": "^7.2.0",
     "@google-cloud/storage": "^7.10.2",
     "@react-native-firebase/app": "^21.13.0",
     "@react-native-firebase/messaging": "^21.13.0",
