@@ -729,8 +729,9 @@
         </div>
     </footer>
 
-    <script>// Database switcher functionality
-        document.addEventListener('DOMContentLoaded', function() {
+<script>
+// Database switcher functionality
+document.addEventListener('DOMContentLoaded', function() {
             // Get user session info (you may need to adjust this based on how you store session info)
             const userEmail = new URLSearchParams(window.location.search).get('email');
             
@@ -807,61 +808,10 @@
                 console.error('Error fetching user databases:', error);
             });
         });
-        document.getElementById('rotaForm').addEventListener('submit', function(event) {
-            event.preventDefault();
-            const date = document.getElementById('date').value;
-            const formattedDate = formatDate(date);
 
-            fetch('/getRota', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ date: formattedDate })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.rota) {
-                    const tableHtml = `
-                        <table style="margin-top: 1.5rem;">
-                            <thead>
-                                <tr>
-                                    <th>Selected Date</th>
-                                    <th>Confirmed By</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>${formattedDate}</td>
-                                    <td>${data.rota}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    `;
-                    document.getElementById('who').innerHTML = tableHtml;
-                } else {
-                    document.getElementById('who').innerHTML = '<div class="date" style="margin-top: 1.5rem;">No data found for the selected date</div>';
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-                document.getElementById('who').innerHTML = '<div class="date" style="margin-top: 1.5rem; color: #d32f2f;">Error fetching data. Please try again.</div>';
-            });
-        });
-
-        function formatDate(date) {
-            const dateObj = new Date(date);
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const year = dateObj.getFullYear();
-            const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
-
-            return `${day}/${month}/${year} (${dayName})`;
-        }
-
-        // Inactivity timer
-        let inactivityTimer;
-        const resetInactivityTimer = () => {
+// Inactivity timer
+let inactivityTimer;
+const resetInactivityTimer = () => {
             clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(() => {
                 alert('You have been logged out due to inactivity.');
@@ -869,45 +819,15 @@
             }, 60 * 60 * 1000); // 60 minutes
         };
 
-        // Initialize timer and event listeners
-        window.onload = function() {
-            renderTable();
+// Initialize timer and event listeners
+window.onload = function() {
             resetInactivityTimer();
         };
-        window.onmousemove = resetInactivityTimer;
-        window.onkeypress = resetInactivityTimer;
+window.onmousemove = resetInactivityTimer;
+window.onkeypress = resetInactivityTimer;
 
-        // Render the weekly labor cost table
-        function renderTable() {
-            fetch("/banda")
-                .then(response => response.json())
-                .then(data => {
-                    const tableBody = document.getElementById("tableBody");
-                    tableBody.innerHTML = "";
-
-                    data.forEach(row => {
-                        const dateStr = row.day.split(' ')[0];
-                        const day = new Date(dateStr.split('/').reverse().join('-'));
-                        const after = new Date(day);
-                        after.setDate(day.getDate() + 6);
-
-                        const formattedDay = day.toLocaleDateString('en-GB');
-                        const formattedAfter = after.toLocaleDateString('en-GB');
-
-                        const tr = document.createElement("tr");
-                        tr.innerHTML = `
-                            <td>${formattedDay} - ${formattedAfter}</td>
-                            <td>£${row.before}</td>
-                            <td>£${row.after}</td>
-                        `;
-                        tableBody.appendChild(tr);
-                    });
-                })
-                .catch(err => console.error("Error fetching data:", err));
-        }
-
-        // Logout functionality
-        document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+// Logout functionality
+document.getElementById('logoutBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             try {
                 const response = await fetch('/logout', {
@@ -926,6 +846,6 @@
                 alert('Failed to logout. Please try again.');
             }
         });
-    </script>
+</script>
 </body>
 </html>

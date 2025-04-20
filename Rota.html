@@ -367,7 +367,7 @@ input[type="date"]:read-only {
     opacity: 0;
     transition: opacity 0.3s ease;
     height: 0;
-
+    overflow:scroll;
 }
 
 .tab-content.active {
@@ -566,10 +566,10 @@ input[type="date"]:read-only {
             <h1 class="header">Workforce Management</h1>
             
             <div class="controls">
-                <button class="btn btn-secondary" onclick="copyFromPreviousWeek(); fetchAndPopulateRotaTable(); updateRotaWithHolidays()">
+                <button class="btn btn-secondary" onclick="copyFromPreviousWeek(); fetchAndPopulateRotaTable()">
                     <i class="fas fa-copy"></i> Copy From Previous Week
                 </button>
-                <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); fetchAndPopulateRotaTable(); updateRotaWithHolidays()">
+                <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); fetchAndPopulateRotaTable()">
                 <button class="btn btn-success" onclick="saveRotaData();">
                     <i class="fas fa-save"></i> Save
                 </button>
@@ -1864,7 +1864,8 @@ function fetchAndPopulateRotaTable() {
                     console.error(`Data for day ${day} is not an array:`, employees);
                 }
             });
-            
+            // Function to Fetch Holiday Data
+            updateRotaWithHolidays();
             // After populating the table, check for empty cells and remove time frames if necessary
             checkAndRemoveEmptyTimeFrames();
             // Apply styles and event listeners
@@ -1877,8 +1878,6 @@ function fetchAndPopulateRotaTable() {
             updateTotalHoursForRow();
             // Add event listeners to time input fields
             addTimeInputListeners(); 
-            // Function to Fetch Holiday Data
-            updateRotaWithHolidays();
         })
         .catch(error => {
             console.error('Error fetching rota data:', error);
@@ -3189,8 +3188,6 @@ window.onload = () => {
     loadPensionPercentage();
     // Call the function when needed, e.g., after updates
     calculateTotalCostWeek();
-    // Function to fetch holidays from the database and color the cells in the rota table
-    updateRotaWithHolidays();
 };
 </script>
 </body>

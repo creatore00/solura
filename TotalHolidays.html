@@ -170,9 +170,6 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span><i class="bi bi-people-fill"></i> Employee Holiday Entitlements</span>
-                        <button id="updateAccrualsBtn" class="btn btn-sm btn-outline-light">
-                            <i class="bi bi-calculator"></i> Update Accruals
-                        </button>
                     </div>
                     <div class="table-responsive">
                         <table id="employeesTable" class="table table-striped table-hover">
@@ -842,8 +839,6 @@
                     });
                     
                     if (!response.ok) throw new Error('Failed to save employee');
-                    
-                    alert('Employee data updated successfully!');
                     loadEmployees(); // Refresh data
                 } catch (error) {
                     console.error('Error saving employee:', error);
@@ -914,34 +909,6 @@
     }
 }
 
-            // Functio to Update Accruals
-            async function updateAccruals() {
-                if (!confirm('Are you sure you want to update holiday accruals for all employees? This should typically be done once per month.')) {
-                    return;
-                }
-                
-                try {
-                    updateAccrualsBtn.disabled = true;
-                    updateAccrualsBtn.innerHTML = '<span class="loading-spinner"></span> Updating...';
-                    
-                    const response = await fetch('/TotalHolidays/api/holidays/update-accruals', {
-                        method: 'POST'
-                    });
-                    
-                    if (!response.ok) throw new Error('Failed to update accruals');
-                    
-                    const result = await response.json();
-                    alert(result.message);
-                    loadEmployees(); // Refresh data
-                } catch (error) {
-                    console.error('Error updating accruals:', error);
-                    alert('Error updating accruals: ' + error.message);
-                } finally {
-                    updateAccrualsBtn.disabled = false;
-                    updateAccrualsBtn.innerHTML = '<i class="bi bi-calculator"></i> Update Accruals';
-                }
-            }
-            
             // Function to Format Date to dd/mm/yyyy
             function formatDate(dateString) {
     if (!dateString) return '';

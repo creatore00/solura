@@ -53,7 +53,7 @@ app.post('/api/holidays/employees/:id', isAuthenticated, isAdmin, (req, res) => 
             console.error('Error updating employee:', error);
             return res.status(500).json({ message: 'Error updating employee data' });
         }
-        res.json({ success: true, message: 'Employee updated successfully' });
+        res.json({ success: true,});
     });
 });
 
@@ -174,76 +174,6 @@ app.post('/api/holidays/requests/:id/delete', isAuthenticated, isAdmin, (req, re
         }
     );
 });
-
-
-// Function to update accrued holidays for all employees
-function updateAccruedHolidays(pool, callback) {
-    // 1. Get holiday year settings
-    pool.query('SELECT HolidayYearStart, HolidayYearEnd FROM HolidayYearSettings LIMIT 1', (err, yearSettings) => {
-        if (err) return callback(err);
-        if (!yearSettings || yearSettings.length === 0) {
-            return callback(new Error('Holiday year settings not found'));
-        }
-
-        const holidayYearStart = new Date(yearSettings[0].HolidayYearStart);
-        const holidayYearEnd = new Date(yearSettings[0].HolidayYearEnd);
-        const currentDate = new Date();
-
-        // Only run if current date is within holiday year
-        if (currentDate < holidayYearStart || currentDate > holidayYearEnd) {
-            return callback(null, { 
-                message: 'Not currently within holiday year - no updates made',
-                updatedCount: 0
-            });
-        }
-
-        // 2. Get all employees
-        pool.query('SELECT id, name, lastName, startHoliday, dateStart, Accrued FROM Employees', (err, employees) => {
-            if (err) return callback(err);
-
-            let updatedCount = 0;
-            const updatePromises = employees.map(employee => {
-                return new Promise((resolve) => {
-                    const employeeStartDate = new Date(employee.dateStart);
-                    const startHoliday = parseFloat(employee.startHoliday) || 0;
-                    let monthlyAccrual = 0;
-
-                    if (employeeStartDate <= holidayYearStart) {
-                        // Full year entitlement
-                        monthlyAccrual = startHoliday / 12;
-                    } else if (employeeStartDate <= holidayYearEnd) {
-                        // Pro-rated for mid-year starters
-                        const monthsRemaining = monthDiff(employeeStartDate, holidayYearEnd);
-                        monthlyAccrual = monthsRemaining > 0 ? startHoliday / monthsRemaining : 0;
-                    }
-
-                    monthlyAccrual = Math.round(monthlyAccrual * 100) / 100;
-                    const newAccrued = (parseFloat(employee.Accrued) || 0) + monthlyAccrual;
-
-                    pool.query(
-                        'UPDATE Employees SET Accrued = ? WHERE id = ?',
-                        [newAccrued, employee.id],
-                        (err) => {
-                            if (err) {
-                                console.error(`Error updating ${employee.name} ${employee.lastName}:`, err);
-                                return resolve();
-                            }
-                            updatedCount++;
-                            resolve();
-                        }
-                    );
-                });
-            });
-
-            Promise.all(updatePromises)
-                .then(() => callback(null, { 
-                    message: `Successfully updated ${updatedCount} employees`,
-                    updatedCount
-                }))
-                .catch(err => callback(err));
-        });
-    });
-}
 
 // Helper function to calculate months between dates
 function monthDiff(startDate, endDate) {

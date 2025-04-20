@@ -229,7 +229,6 @@ app.post('/getUserDatabases', (req, res) => {
         });
     });
 });
-
 // Route to switch databases
 app.post('/switchDatabase', (req, res) => {
     const { email, dbName } = req.body;
@@ -266,54 +265,6 @@ app.post('/switchDatabase', (req, res) => {
             
             res.json({ success: true });
         });
-    });
-});
-// Route to retrieve data from the database
-app.post('/getRota', isAuthenticated, (req, res) => {
-    const selectedDate = req.body.date;
-    const dbName = req.session.user.dbName; // Get the database name from the session
-  
-    if (!dbName) {
-        return res.status(401).json({ error: 'User not authenticated' });
-    }
-  
-    const pool = getPool(dbName); // Get the correct connection pool
-    const query = 'SELECT who FROM ConfirmedRota WHERE day = ?';
-  
-    pool.query(query, [selectedDate], (error, results) => {
-        if (error) {
-            console.error('Error executing query:', error);
-            return res.status(500).json({ error: 'Server error' });
-        }
-  
-        if (results.length > 0) {
-            res.json({ rota: results[0].who });
-        } else {
-            res.status(404).json({ error: 'No data found for the selected date' });
-        }
-    });
-});
-// API endpoint to get rota data for a specific day
-app.get('/api/rota', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-  
-    if (!dbName) {
-        return res.status(401).json({ error: 'User not authenticated' });
-    }
-  
-    const pool = getPool(dbName); // Get the correct connection pool
-  
-    const day = req.query.day;
-    if (!day) {
-        return res.status(400).json({ error: 'Day is required' });
-    }
-  
-    const query = 'SELECT * FROM rota WHERE day = ?';
-    pool.query(query, [day], (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        res.json(results);
     });
 });
 // Apply isAuthenticated middleware to all protected routes
