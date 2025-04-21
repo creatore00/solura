@@ -189,7 +189,7 @@ app.post('/submitData', isAuthenticated, async (req, res) => {
         console.log('PDF generated successfully');
 
         // 3. Get recipient emails and send
-        const [results] = await pool.promise().query('SELECT email FROM Employees WHERE email = "yassir.nini27@gmail.com"');
+        const [results] = await pool.promise().query('SELECT email FROM Employees');
         const emailAddresses = results.map(result => result.email);
         
         await sendEmail(pdfBuffer, emailAddresses);
@@ -276,6 +276,53 @@ const sendEmail = (pdfBuffer, emailAddresses) => {
     return Promise.all(sendPromises);
 };
 
+// In your server-side code
+app.post('/api/updateWeeklyCost', (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const { weekly_cost_before, week_start } = req.body;
+
+    // Validate inputs
+    if (typeof weekly_cost_before !== 'number' || isNaN(weekly_cost_before)) {
+        return res.status(400).json({ error: 'Invalid weekly cost value' });
+    }
+
+    if (!isValidDate(week_start)) { // Implement this date validation function
+        return res.status(400).json({ error: 'Invalid week start date' });
+    }
+
+    const query = `
+        INSERT INTO Data (Weekly_Cost_Before, Weekly_Cost_After, WeekStart)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+            Weekly_Cost_Before = VALUES(Weekly_Cost_Before),
+            WeekStart = VALUES(WeekStart)
+    `;
+
+    const params = [weekly_cost_before, weekly_cost_before, week_start];
+
+    pool.query(query, params, (err, result) => {
+        if (err) {
+            console.error('Database update error:', err);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+
+        res.json({ 
+            success: true,
+            affectedRows: result.affectedRows
+        });
+    });
+});
+
+// Helper function to validate date
+function isValidDate(dateString) {
+    return !isNaN(Date.parse(dateString));
+}
+
 // Function to generate a unique 16-digit ID
 function generateUniqueId() {
     return Math.floor(1000000000000000 + Math.random() * 9000000000000000).toString();
@@ -357,119 +404,157 @@ app.post('/insert-copied-rota', (req, res) => {
         return `${dd}/${mm}/${yyyy}`;
     };
 
-    // First delete existing entries for the entire current week
-    pool.query(
-        `DELETE FROM rota 
-         WHERE SUBSTRING_INDEX(day, ' (', 1) 
-         BETWEEN ? AND ?`,
-        [formatDateForQuery(startDate), formatDateForQuery(endDate)],
-        (deleteErr, deleteResult) => {
-            if (deleteErr) {
-                console.error('Error deleting existing entries:', deleteErr);
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Delete operation failed' 
-                });
-            }
+    // Format date with day name (dd/mm/yyyy (Dayname))
+    const formatDate = (date) => {
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    };
 
-            console.log(`Deleted ${deleteResult.affectedRows} existing entries`);
-
-            if (rotaData.length === 0) {
-                return res.json({ success: true });
-            }
-
-            let completed = 0;
-            let hasError = false;
-
-            // Function to check if ID exists
-            const checkIdExists = (id, callback) => {
-                pool.query(
-                    'SELECT id FROM rota WHERE id = ?',
-                    [id],
-                    (err, results) => {
-                        if (err) return callback(err);
-                        callback(null, results.length > 0);
-                    }
-                );
-            };
-
-            // Function to insert entry with unique ID and proper date mapping
-            const insertEntryWithUniqueId = (entry, callback) => {
-                // Extract day name from original entry (e.g., "Monday")
-                const dayName = entry.day.match(/\(([^)]+)\)/)[1];
-                
-                // Calculate the corresponding date in the current week
-                const currentWeekDay = new Date(startDate);
-                const dayOffset = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-                    .indexOf(dayName);
-                
-                currentWeekDay.setDate(startDate.getDate() + dayOffset);
-                
-                // Format the new date with day name (dd/mm/yyyy (Dayname))
-                const formattedDate = formatDate(currentWeekDay);
-                const newDay = `${formattedDate} (${dayName})`;
-
-                const attemptInsert = () => {
-                    const newId = generateUniqueId();
-                    
-                    checkIdExists(newId, (err, exists) => {
-                        if (err) return callback(err);
-                        
-                        if (exists) {
-                            // If ID exists, try again
-                            return attemptInsert();
-                        }
-
-                        // Insert with the unique ID and properly mapped date
-                        pool.query(
-                            `INSERT INTO rota
-                            (id, name, lastName, wage, designation, day, startTime, endTime, color) 
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                            [
-                                newId,
-                                entry.name,
-                                entry.lastName,
-                                entry.wage,
-                                entry.designation,
-                                newDay,
-                                entry.startTime,
-                                entry.endTime,
-                                entry.color
-                            ],
-                            (insertErr) => {
-                                if (insertErr) return callback(insertErr);
-                                callback(null);
-                            }
-                        );
-                    });
-                };
-
-                attemptInsert();
-            };
-
-            // Process all entries
-            rotaData.forEach(entry => {
-                insertEntryWithUniqueId(entry, (err) => {
-                    if (hasError) return;
-
-                    if (err) {
-                        hasError = true;
-                        console.error('Error inserting entry:', err);
-                        return res.status(500).json({ 
-                            success: false, 
-                            message: 'Insert operation failed' 
-                        });
-                    }
-
-                    completed++;
-                    if (completed === rotaData.length) {
-                        res.json({ success: true });
-                    }
-                });
+    // Get a connection from the pool
+    pool.getConnection((connErr, connection) => {
+        if (connErr) {
+            console.error('Error getting database connection:', connErr);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database connection failed' 
             });
         }
-    );
+
+        // Start transaction
+        connection.beginTransaction((beginErr) => {
+            if (beginErr) {
+                connection.release();
+                console.error('Error starting transaction:', beginErr);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Transaction start failed' 
+                });
+            }
+
+            // First delete existing entries for the entire current week
+            connection.query(
+                `DELETE FROM rota 
+                 WHERE SUBSTRING_INDEX(day, ' (', 1) 
+                 BETWEEN ? AND ?`,
+                [formatDateForQuery(startDate), formatDateForQuery(endDate)],
+                (deleteErr, deleteResult) => {
+                    if (deleteErr) {
+                        return rollbackAndRespond(connection, 'Error deleting existing entries:', deleteErr);
+                    }
+
+                    console.log(`Deleted ${deleteResult.affectedRows} existing entries`);
+
+                    if (rotaData.length === 0) {
+                        return commitAndRespond(connection, res);
+                    }
+
+                    // Process all entries
+                    let completed = 0;
+                    let hasError = false;
+
+                    const processNextEntry = (index) => {
+                        if (index >= rotaData.length || hasError) {
+                            if (!hasError) {
+                                return commitAndRespond(connection, res);
+                            }
+                            return;
+                        }
+
+                        const entry = rotaData[index];
+                        
+                        // Extract day name from original entry (e.g., "Monday")
+                        const dayName = entry.day.match(/\(([^)]+)\)/)[1];
+                        
+                        // Calculate the corresponding date in the current week
+                        const currentWeekDay = new Date(startDate);
+                        const dayOffset = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                            .indexOf(dayName);
+                        
+                        currentWeekDay.setDate(startDate.getDate() + dayOffset);
+                        
+                        // Format the new date with day name (dd/mm/yyyy (Dayname))
+                        const formattedDate = formatDate(currentWeekDay);
+                        const newDay = `${formattedDate} (${dayName})`;
+
+                        const newId = generateUniqueId();
+
+                        // Check if ID exists
+                        connection.query(
+                            'SELECT id FROM rota WHERE id = ?',
+                            [newId],
+                            (checkErr, results) => {
+                                if (checkErr) {
+                                    hasError = true;
+                                    return rollbackAndRespond(connection, 'Error checking ID:', checkErr);
+                                }
+
+                                if (results.length > 0) {
+                                    // If ID exists, try again with a new ID
+                                    return processNextEntry(index);
+                                }
+
+                                // Insert with the unique ID and properly mapped date
+                                connection.query(
+                                    `INSERT INTO rota
+                                    (id, name, lastName, wage, designation, day, startTime, endTime, color) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                    [
+                                        newId,
+                                        entry.name,
+                                        entry.lastName,
+                                        entry.wage,
+                                        entry.designation,
+                                        newDay,
+                                        entry.startTime,
+                                        entry.endTime,
+                                        entry.color
+                                    ],
+                                    (insertErr) => {
+                                        if (insertErr) {
+                                            hasError = true;
+                                            return rollbackAndRespond(connection, 'Error inserting entry:', insertErr);
+                                        }
+
+                                        completed++;
+                                        processNextEntry(index + 1);
+                                    }
+                                );
+                            }
+                        );
+                    };
+
+                    // Start processing entries
+                    processNextEntry(0);
+                }
+            );
+        });
+    });
 });
+
+// Helper functions for transaction management
+function rollbackAndRespond(connection, errorMessage, error) {
+    console.error(errorMessage, error);
+    connection.rollback(() => {
+        connection.release();
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Operation failed' 
+        });
+    });
+}
+
+// Helper functions for transaction management
+function commitAndRespond(connection, res) {
+    connection.commit((commitErr) => {
+        if (commitErr) {
+            return rollbackAndRespond(connection, 'Error committing transaction:', commitErr);
+        }
+        connection.release();
+        res.json({ success: true });
+    });
+}
 
 // Helper function to format date for SQL query
 function formatDateForQuery(date) {
@@ -477,11 +562,6 @@ function formatDateForQuery(date) {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const yyyy = date.getFullYear();
     return `${dd}/${mm}/${yyyy}`;
-}
-
-// Function to generate a unique 16-digit ID
-function generateUniqueId() {
-    return Math.floor(1000000000000000 + Math.random() * 9000000000000000).toString();
 }
 
 // Helper function to format date as dd/mm/yyyy
@@ -617,7 +697,7 @@ app.post('/saveData', isAuthenticated, (req, res) => {
                     });
                 });
             };
-
+           
             // Execute operations in sequence
             deleteData((delErr) => {
                 if (delErr) {

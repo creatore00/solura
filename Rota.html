@@ -555,7 +555,6 @@ input[type="date"]:read-only {
                 <li class="nav-item"><a href="#" class="nav-link active" data-tab="rota-tab">Rota</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="forecast-tab">Forecast</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="holiday-tab">Holidays</a></li>
-                <li class="nav-item"><a href="#" class="nav-link" data-tab="reports-tab">Reports</a></li>
             </ul>
         </div>
     </nav>
@@ -570,13 +569,13 @@ input[type="date"]:read-only {
                     <i class="fas fa-copy"></i> Copy From Previous Week
                 </button>
                 <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); fetchAndPopulateRotaTable()">
-                <button class="btn btn-success" onclick="saveRotaData();">
+                <button class="btn btn-success" onclick="saveRotaData(); updateWeeklyCostInDatabase()">
                     <i class="fas fa-save"></i> Save
                 </button>
                 <button class="btn btn-warning" onclick="clearAllRotaData();">
                     <i class="fas fa-trash-alt"></i> Clear All
                 </button>
-                <button class="btn btn-primary" onclick="submitRotaData();">
+                <button class="btn btn-primary" onclick="submitRotaData()">
                     <i class="fas fa-paper-plane"></i> Publish
                 </button>
             </div>
@@ -804,12 +803,6 @@ input[type="date"]:read-only {
                     </tr>
                 </tbody>
             </table>
-        </div>
-
-        <!-- Reports Tab -->
-        <div id="reports-tab" class="tab-content">
-            <h1 class="header">Reports</h1>
-            <p>Reports functionality will be implemented here.</p>
         </div>
     </div>
 
@@ -2193,6 +2186,60 @@ function calculateTotalCostWeek() {
         }
     } catch (error) {
         console.error('Error calculating total cost for the week:', error);
+    }
+}
+// Function to insert Week Cost
+async function updateWeeklyCostInDatabase() {
+    try {
+        // Get the total cost value
+        const totalCostWeekCell = document.querySelector('#totalcostweek');
+        if (!totalCostWeekCell) {
+            throw new Error('Total cost cell not found');
+        }
+        
+        const totalCost = parseFloat(totalCostWeekCell.textContent.replace('£', '').trim());
+        if (isNaN(totalCost)) {
+            throw new Error('Invalid total cost value');
+        }
+
+        // Get the week start date (assuming it's available in your form)
+        const weekStartInput = document.querySelector('#weekStartDate'); // Adjust selector as needed
+        if (!weekStartInput) {
+            throw new Error('Week start date input not found');
+        }
+        
+        const weekStartDate = weekStartInput.value;
+        if (!weekStartDate) {
+            throw new Error('Week start date not specified');
+        }
+
+        // Prepare the data to send to the server
+        const updateData = {
+            weekly_cost_before: totalCost,
+            week_start: weekStartDate
+        };
+
+        // Send the data to your backend endpoint
+        const response = await fetch('/rota/api/updateWeeklyCost', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify(updateData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to update weekly cost');
+        }
+
+        const result = await response.json();
+        return result;
+    } catch (error) {
+        console.error('Error updating weekly cost:', error);
+        alert(`Error: ${error.message}`);
+        throw error; // Re-throw if you want to handle it further up the chain
     }
 }
 // Function to calculate total daily hours and total daily spent

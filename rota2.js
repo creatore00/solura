@@ -46,83 +46,88 @@ app.delete('/deleteTimeFrame', isAuthenticated, (req, res) => {
 
 // Function to save rota
 app.post('/saveData', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    console.log('Request Body:', req.body);
+    const pool = getPool(dbName);
     const tableData = req.body;
-    const insertQuery = 'INSERT INTO rota (id, name, lastName, wage, day, startTime, endTime, designation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
-    const updateQuery = 'UPDATE rota SET name = ?, lastName = ?, wage = ?, day = ?, startTime = ?, endTime = ?, designation = ? WHERE id = ?';
-    const updateByNameDayQuery = 'UPDATE rota SET wage = ?, designation = ? WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?';
 
-    // Initialize an array to collect messages
-    const operationMessages = [];
+    if (!Array.isArray(tableData) || tableData.length === 0) {
+        return res.status(400).json({ success: false, message: 'Invalid data' });
+    }
 
-    tableData.forEach(row => {
-        const id = generateUniqueId();
-        const { name, lastName, wage, day, startTime, endTime, designation } = row;
+    const day = tableData[0].day;
 
-        // Check for existing record based on id
-        pool.query('SELECT id FROM rota WHERE id = ?', [id], (checkIdErr, checkIdResult) => {
-            if (checkIdErr) {
-                console.error('Error checking data by ID in the main database:', checkIdErr);
-                return res.status(500).send('Error saving data');
+    pool.getConnection((connErr, connection) => {
+        if (connErr) {
+            console.error('Error getting DB connection:', connErr);
+            return res.status(500).send('Database connection error');
+        }
+
+        connection.beginTransaction(err => {
+            if (err) {
+                connection.release();
+                console.error('Error starting transaction:', err);
+                return res.status(500).send('Transaction error');
             }
 
-            if (checkIdResult.length > 0) {
-                // If the record with the same id exists, update it
-                pool.query(updateQuery, [name, lastName, wage, day, startTime, endTime, designation, id], (updateIdErr, updateIdResult) => {
-                    if (updateIdErr) {
-                        console.error('Error updating data by ID in the main database:', updateIdErr);
-                        return res.status(500).send('Error saving data');
-                    } else {
-                        console.log(`Record with ID ${id} updated.`);
-                        operationMessages.push(`Record with ID ${id} updated.`);
-                    }
-                });
-            } else {
-                // Check for existing record based on name, lastName, day, startTime, and endTime
-                pool.query('SELECT id FROM rota WHERE name = ? AND lastName = ? AND day = ? AND startTime = ? AND endTime = ?', [name, lastName, day, startTime, endTime], (checkNameDayErr, checkNameDayResult) => {
-                    if (checkNameDayErr) {
-                        console.error('Error checking data by name, day, startTime, and endTime in the main database:', checkNameDayErr);
-                        return res.status(500).send('Error saving data');
+            console.log('Deleting existing data for day:', day);
+
+            connection.query('DELETE FROM rota WHERE day = ?', [day], (deleteErr, deleteResult) => {
+                if (deleteErr) {
+                    return connection.rollback(() => {
+                        connection.release();
+                        console.error('Error deleting old data:', deleteErr);
+                        res.status(500).send('Error deleting data');
+                    });
+                }
+
+                console.log(`Deleted ${deleteResult.affectedRows} rows.`);
+
+                const insertQuery = 'INSERT INTO rota (id, name, lastName, wage, day, startTime, endTime, designation) VALUES ?';
+
+                const values = tableData.map(row => [
+                    generateUniqueId(),
+                    row.name,
+                    row.lastName,
+                    row.wage,
+                    row.day,
+                    row.startTime,
+                    row.endTime,
+                    row.designation
+                ]);
+
+                console.log('Inserting new rota entries:', values);
+
+                connection.query(insertQuery, [values], (insertErr, insertResult) => {
+                    if (insertErr) {
+                        return connection.rollback(() => {
+                            connection.release();
+                            console.error('Error inserting new data:', insertErr);
+                            res.status(500).send('Error inserting data');
+                        });
                     }
 
-                    if (checkNameDayResult.length > 0) {
-                        // If the record with the same name, lastName, day, startTime, and endTime exists, update it
-                        pool.query(updateByNameDayQuery, [wage, designation, name, lastName, day, startTime, endTime], (updateNameDayErr, updateNameDayResult) => {
-                            if (updateNameDayErr) {
-                                console.error('Error updating data by name, day, startTime, and endTime in the main database:', updateNameDayErr);
-                                return res.status(500).send('Error saving data');
-                            } else {
-                                console.log(`Record for ${name} ${lastName} on ${day} from ${startTime} to ${endTime} updated.`);
-                                operationMessages.push(`Record for ${name} ${lastName} on ${day} from ${startTime} to ${endTime} updated.`);
-                            }
-                        });
-                    } else {
-                        // If the record with the same name, lastName, day, startTime, and endTime does not exist, insert a new record
-                        pool.query(insertQuery, [id, name, lastName, wage, day, startTime, endTime, designation], (insertErr, insertResult) => {
-                            if (insertErr) {
-                                console.error('Error inserting data into the main database:', insertErr);
-                                return res.status(500).send('Error saving data');
-                            } else {
-                                console.log(`New record inserted with ID ${id}.`);
-                                operationMessages.push(`New record inserted with ID ${id}.`);
-                            }
-                        });
-                    }
+                    connection.commit(commitErr => {
+                        if (commitErr) {
+                            return connection.rollback(() => {
+                                connection.release();
+                                console.error('Error committing transaction:', commitErr);
+                                res.status(500).send('Error committing changes');
+                            });
+                        }
+
+                        connection.release();
+                        console.log(`Inserted ${insertResult.affectedRows} new rows.`);
+                        res.status(200).send(`Successfully saved ${insertResult.affectedRows} rota entries for ${day}.`);
+                    });
                 });
-            }
+            });
         });
     });
-
-    // Send a success response after all rows have been processed
-    res.status(200).send(operationMessages.join('\n'));
 });
 
 // Helper function to group and merge time frames for the same person on the same day
@@ -277,6 +282,234 @@ app.post('/api/insert-total-spent', isAuthenticated, (req, res) => {
         res.status(200).json({ success: true, message: 'Total spent value inserted successfully' });
     });
 });
+
+// Function to retrieve previous week's rota data for entire week
+app.get('/get-previous-week-rota', (req, res) => {
+    const dbName = req.session.user.dbName;
+    const { prevWeek } = req.query;
+    const pool = getPool(dbName);
+
+    // Extract the Monday date from the formatted string "dd/mm/yyyy (Monday)"
+    const datePart = prevWeek.split(' (')[0];
+    const [day, month, year] = datePart.split('/');
+    
+    // Create Date object for Monday of previous week
+    const mondayDate = new Date(`${year}-${month}-${day}`);
+    
+    // Calculate Sunday of the same week (6 days after Monday)
+    const sundayDate = new Date(mondayDate);
+    sundayDate.setDate(mondayDate.getDate() + 6);
+
+    // Format dates to match database format (dd/mm/yyyy)
+    const formatToDB = (date) => {
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    };
+
+    // Get all days between Monday and Sunday in db format
+    const days = [];
+    for (let d = new Date(mondayDate); d <= sundayDate; d.setDate(d.getDate() + 1)) {
+        days.push(formatToDB(d));
+    }
+
+    pool.query(
+        `SELECT name, lastName, wage, day, startTime, endTime, designation, color
+         FROM rota 
+         WHERE SUBSTRING_INDEX(day, ' (', 1) IN (?)`,
+        [days],
+        (err, results) => {
+            if (err) {
+                console.error('Error fetching previous week rota:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to fetch previous week rota' 
+                });
+            }
+
+            res.json({ 
+                success: true,
+                data: results 
+            });
+        }
+    );
+});
+
+// Function to insert previous week's rota data into new week
+app.post('/insert-copied-rota', (req, res) => {
+    const dbName = req.session.user.dbName;
+    const { currentWeek, rotaData } = req.body;
+    const pool = getPool(dbName);
+
+    // Extract the Monday date from currentWeek (format: "dd/mm/yyyy (Monday)")
+    const mondayDate = currentWeek.split(' (')[0];
+    const [day, month, year] = mondayDate.split('/');
+
+    // Calculate date range for the full current week (Monday to Sunday)
+    const startDate = new Date(`${year}-${month}-${day}`);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+
+    // Format dates for SQL query (dd/mm/yyyy)
+    const formatDateForQuery = (date) => {
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    };
+
+    // Format date with day name (dd/mm/yyyy (Dayname))
+    const formatDate = (date) => {
+        const dd = String(date.getDate()).padStart(2, '0');
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        return `${dd}/${mm}/${yyyy}`;
+    };
+
+    // Get a connection from the pool
+    pool.getConnection((connErr, connection) => {
+        if (connErr) {
+            console.error('Error getting database connection:', connErr);
+            return res.status(500).json({ 
+                success: false, 
+                message: 'Database connection failed' 
+            });
+        }
+
+        // Start transaction
+        connection.beginTransaction((beginErr) => {
+            if (beginErr) {
+                connection.release();
+                console.error('Error starting transaction:', beginErr);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Transaction start failed' 
+                });
+            }
+
+            // First delete existing entries for the entire current week
+            connection.query(
+                `DELETE FROM rota 
+                 WHERE SUBSTRING_INDEX(day, ' (', 1) 
+                 BETWEEN ? AND ?`,
+                [formatDateForQuery(startDate), formatDateForQuery(endDate)],
+                (deleteErr, deleteResult) => {
+                    if (deleteErr) {
+                        return rollbackAndRespond(connection, 'Error deleting existing entries:', deleteErr);
+                    }
+
+                    console.log(`Deleted ${deleteResult.affectedRows} existing entries`);
+
+                    if (rotaData.length === 0) {
+                        return commitAndRespond(connection, res);
+                    }
+
+                    // Process all entries
+                    let completed = 0;
+                    let hasError = false;
+
+                    const processNextEntry = (index) => {
+                        if (index >= rotaData.length || hasError) {
+                            if (!hasError) {
+                                return commitAndRespond(connection, res);
+                            }
+                            return;
+                        }
+
+                        const entry = rotaData[index];
+                        
+                        // Extract day name from original entry (e.g., "Monday")
+                        const dayName = entry.day.match(/\(([^)]+)\)/)[1];
+                        
+                        // Calculate the corresponding date in the current week
+                        const currentWeekDay = new Date(startDate);
+                        const dayOffset = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+                            .indexOf(dayName);
+                        
+                        currentWeekDay.setDate(startDate.getDate() + dayOffset);
+                        
+                        // Format the new date with day name (dd/mm/yyyy (Dayname))
+                        const formattedDate = formatDate(currentWeekDay);
+                        const newDay = `${formattedDate} (${dayName})`;
+
+                        const newId = generateUniqueId();
+
+                        // Check if ID exists
+                        connection.query(
+                            'SELECT id FROM rota WHERE id = ?',
+                            [newId],
+                            (checkErr, results) => {
+                                if (checkErr) {
+                                    hasError = true;
+                                    return rollbackAndRespond(connection, 'Error checking ID:', checkErr);
+                                }
+
+                                if (results.length > 0) {
+                                    // If ID exists, try again with a new ID
+                                    return processNextEntry(index);
+                                }
+
+                                // Insert with the unique ID and properly mapped date
+                                connection.query(
+                                    `INSERT INTO rota
+                                    (id, name, lastName, wage, designation, day, startTime, endTime, color) 
+                                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                                    [
+                                        newId,
+                                        entry.name,
+                                        entry.lastName,
+                                        entry.wage,
+                                        entry.designation,
+                                        newDay,
+                                        entry.startTime,
+                                        entry.endTime,
+                                        entry.color
+                                    ],
+                                    (insertErr) => {
+                                        if (insertErr) {
+                                            hasError = true;
+                                            return rollbackAndRespond(connection, 'Error inserting entry:', insertErr);
+                                        }
+
+                                        completed++;
+                                        processNextEntry(index + 1);
+                                    }
+                                );
+                            }
+                        );
+                    };
+
+                    // Start processing entries
+                    processNextEntry(0);
+                }
+            );
+        });
+    });
+});
+
+// Helper functions for transaction management
+function rollbackAndRespond(connection, errorMessage, error) {
+    console.error(errorMessage, error);
+    connection.rollback(() => {
+        connection.release();
+        return res.status(500).json({ 
+            success: false, 
+            message: 'Operation failed' 
+        });
+    });
+}
+
+// Helper functions for transaction management
+function commitAndRespond(connection, res) {
+    connection.commit((commitErr) => {
+        if (commitErr) {
+            return rollbackAndRespond(connection, 'Error committing transaction:', commitErr);
+        }
+        connection.release();
+        res.json({ success: true });
+    });
+}
 
 // Route to serve the rota2.html file
 app.get('/', isAuthenticated, (req, res) => {

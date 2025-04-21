@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="google-site-verification" content="8ofMS1Q0Mg_6Cfda97eMOpKxNo-TSOO0QcmOaZBcORA" />
-    <title>Solura | WorkForce</title>
+    <title>Solura | Workforce Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -13,7 +12,6 @@
             --accent-color: #00a8ff;
             --light-gray: #f4f6f9;
             --dark-gray: #333;
-            --medium-gray: #666;
             --white: #ffffff;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
@@ -26,710 +24,658 @@
         
         body {
             font-family: 'Segoe UI', 'Arial', sans-serif;
-            margin: 0;
-            padding: 0;
             background: var(--light-gray);
             color: var(--dark-gray);
-            display: flex;
-            flex-direction: column;
             min-height: 100vh;
-            line-height: 1.6;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
         }
         
-        /* Header & Navigation */
-        .top-bar {
+        /* Header */
+        .app-header {
             background-color: var(--white);
-            padding: 0.5rem 2rem;
+            padding: 0.75rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
         
-        .logo-container {
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .app-controls {
             display: flex;
             align-items: center;
             gap: 1rem;
         }
         
-        .logo-img {
-            height: 50px;
-            width: auto;
-        }
-        
-        .logo-text {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--primary-color);
-        }
-        
-        .logo-subtext {
+        /* Database Switcher */
+        #databaseSwitcher {
+            background-color: var(--white);
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             font-size: 0.9rem;
-            color: var(--medium-gray);
-            margin-top: 0.2rem;
-        }
-        
-        nav {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-        }
-        
-        .nav-link {
-            text-decoration: none;
-            color: var(--dark-gray);
-            font-weight: 500;
-            transition: color 0.3s ease;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
         
-        .nav-link:hover {
-            color: var(--secondary-color);
+        #currentDbDisplay {
+            font-weight: 500;
+        }
+        
+        #dbSelector {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        #switchDbBtn {
+            padding: 0.25rem 0.75rem;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        #switchDbBtn:hover {
+            background-color: var(--primary-color);
+        }
+        
+        /* Main App Grid */
+        .app-container {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            height: calc(100vh - 120px);
+        }
+        
+        /* Sidebar Navigation */
+        .app-sidebar {
+            background: var(--white);
+            padding: 1.5rem 0;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+        }
+        
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .nav-section-title {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: var(--dark-gray);
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(0, 122, 204, 0.1);
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
         }
         
         .nav-link i {
+            width: 24px;
+            text-align: center;
+            margin-right: 0.75rem;
             font-size: 1.1rem;
         }
         
-        /* Main Content */
-        .main-container {
-            flex: 1;
-            padding: 2rem;
+        /* Main Content Area */
+        .app-content {
+            padding: 1.5rem;
+            overflow-y: auto;
+            background-color: #f8fafc;
         }
         
-        .hero {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: var(--white);
-            padding: 3rem 2rem;
-            border-radius: 10px;
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .content-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        /* Dashboard Widgets */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
             margin-bottom: 2rem;
-            text-align: center;
+        }
+        
+        .dashboard-widget {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1.5rem;
             box-shadow: var(--shadow);
         }
         
-        .hero h1 {
-            font-size: 2.5rem;
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 1rem;
         }
         
-        .hero p {
-            font-size: 1.2rem;
-            max-width: 800px;
-            margin: 0 auto 1.5rem;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            background-color: var(--white);
-            color: var(--primary-color);
-            padding: 0.8rem 1.8rem;
-            border-radius: 30px;
-            text-decoration: none;
+        .widget-title {
+            font-size: 1rem;
             font-weight: 600;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-        
-        .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
-        }
-        
-        /* Dashboard Sections */
-        .dashboard-section {
-            margin-bottom: 3rem;
-        }
-        
-        .section-title {
             color: var(--primary-color);
-            margin-bottom: 1.5rem;
-            font-size: 1.8rem;
-            position: relative;
-            padding-bottom: 0.5rem;
         }
         
-        .section-title::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 60px;
-            height: 3px;
-            background-color: var(--accent-color);
+        .widget-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--dark-gray);
+            margin: 0.5rem 0;
+        }
+        
+        .widget-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #666;
         }
         
         /* Quick Actions */
         .quick-actions {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
             margin-bottom: 2rem;
         }
         
-        .action-card {
+        .action-btn {
             background: var(--white);
             border-radius: 8px;
-            padding: 1.5rem;
-            text-align: center;
+            padding: 1.25rem;
             box-shadow: var(--shadow);
-            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            color: var(--dark-gray);
+            transition: transform 0.2s ease;
         }
         
-        .action-card:hover {
-            transform: translateY(-5px);
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
         
         .action-icon {
-            font-size: 2rem;
+            font-size: 1.75rem;
             color: var(--secondary-color);
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
         }
         
-        .action-title {
-            font-size: 1.2rem;
-            margin-bottom: 0.5rem;
-            color: var(--primary-color);
+        .action-label {
+            font-weight: 500;
         }
         
-        .action-link {
-            display: inline-block;
-            margin-top: 1rem;
-            padding: 0.5rem 1rem;
-            background-color: var(--secondary-color);
-            color: var(--white);
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 0.9rem;
-            transition: background-color 0.3s ease;
-        }
-        
-        .action-link:hover {
-            background-color: var(--primary-color);
-        }
-        
-        /* Tables */
-        table {
+        /* Data Tables */
+        .data-table {
             width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            background-color: var(--white);
+            background: var(--white);
             border-radius: 8px;
+            box-shadow: var(--shadow);
             overflow: hidden;
-            box-shadow: var(--shadow);
-            margin: 2rem 0;
+            margin-bottom: 1.5rem;
         }
         
-        th, td {
-            padding: 1rem;
+        .data-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 0.75rem 1rem;
             text-align: left;
-            border-bottom: 1px solid #e0e0e0;
+            font-weight: 500;
         }
         
-        th {
-            background-color: var(--primary-color);
-            color: var(--white);
-            font-weight: 600;
+        .data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
         }
         
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
+        .data-table tr:last-child td {
+            border-bottom: none;
         }
         
-        tr:hover {
-            background-color: #f1f1f1;
-        }
-        
-        /* Forms */
-        .form-container {
-            background: var(--white);
-            border-radius: 8px;
-            padding: 2rem;
-            box-shadow: var(--shadow);
-            margin-bottom: 2rem;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-        
-        .form-input {
-            width: 100%;
-            padding: 0.8rem;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease;
-        }
-        
-        .form-input:focus {
-            border-color: var(--secondary-color);
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
-        }
-        
-        .form-button {
-            background-color: var(--secondary-color);
-            color: var(--white);
-            border: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 4px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        
-        .form-button:hover {
-            background-color: var(--primary-color);
-        }
-        
-        /* Features Grid */
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin: 2rem 0;
-        }
-        
-        .feature-card {
-            background: var(--white);
-            border-radius: 8px;
-            padding: 2rem;
-            box-shadow: var(--shadow);
-            transition: transform 0.3s ease;
-        }
-        
-        .feature-card:hover {
-            transform: translateY(-5px);
-        }
-        
-        .feature-icon {
-            font-size: 2.5rem;
-            color: var(--secondary-color);
-            margin-bottom: 1.5rem;
-        }
-        
-        .feature-title {
-            font-size: 1.3rem;
-            margin-bottom: 1rem;
-            color: var(--primary-color);
+        .data-table tr:hover td {
+            background-color: #f5f9ff;
         }
         
         /* Footer */
-        footer {
+        .app-footer {
             background: var(--primary-color);
             color: var(--white);
-            padding: 2rem;
+            padding: 1rem;
             text-align: center;
-            margin-top: auto;
-        }
-        
-        .footer-content {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 2rem;
-            text-align: left;
-        }
-        
-        .footer-logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1rem;
-        }
-        
-        .footer-logo-img {
-            height: 40px;
-            width: auto;
-        }
-        
-        .footer-logo-text {
-            font-size: 1.2rem;
-            font-weight: 700;
-        }
-        
-        .footer-heading {
-            font-size: 1.2rem;
-            margin-bottom: 1rem;
-            font-weight: 600;
-        }
-        #databaseSwitcher {
-    background-color: #f8f9fa;
-    padding: 8px 12px;
-    border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    font-size: 14px;
-}
-
-#dbSelector {
-    padding: 4px 8px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-}
-
-#switchDbBtn {
-    padding: 4px 8px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-#switchDbBtn:hover {
-    background-color: #0069d9;
-}
-        .footer-links {
-            list-style: none;
-        }
-        
-        .footer-link {
-            margin-bottom: 0.5rem;
-        }
-        
-        .footer-link a {
-            color: #ccc;
-            text-decoration: none;
-            transition: color 0.3s ease;
-        }
-        
-        .footer-link a:hover {
-            color: var(--white);
-        }
-        
-        .footer-bottom {
-            margin-top: 2rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        /* Dropdown */
-        .dropdown {
-            position: relative;
-            display: inline-block;
-        }
-        
-        .dropdown-toggle {
-            background-color: var(--secondary-color);
-            color: var(--white);
-            padding: 0.8rem 1.5rem;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-weight: 500;
-            transition: background-color 0.3s ease;
-        }
-        
-        .dropdown-toggle:hover {
-            background-color: var(--primary-color);
-        }
-        
-        .dropdown-menu {
-            display: none;
-            position: absolute;
-            right: 0;
-            background-color: var(--white);
-            min-width: 200px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-            z-index: 1;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        
-        .dropdown:hover .dropdown-menu {
-            display: block;
-        }
-        
-        .dropdown-item {
-            display: block;
-            padding: 0.8rem 1rem;
-            text-decoration: none;
-            color: var(--dark-gray);
-            transition: background-color 0.3s ease;
-        }
-        
-        .dropdown-item:hover {
-            background-color: #f5f5f5;
-        }
-        
-        .dropdown-item i {
-            margin-right: 0.5rem;
-            width: 20px;
-            text-align: center;
-        }
-        
-        /* Date Styling */
-        .date {
-            background: #e2e2e2;
-            font-family: Arial, sans-serif;
-            text-transform: uppercase;
-            color: var(--dark-gray);
-            border-radius: 5px;
-            padding: 6px 12px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-            display: inline-block;
-        }
-        
-        /* Pagination */
-        .pagination {
-            display: flex;
-            justify-content: center;
-            margin: 2rem 0;
-            gap: 0.5rem;
-        }
-        
-        .pagination-button {
-            padding: 0.8rem 1.2rem;
-            background-color: var(--secondary-color);
-            color: var(--white);
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        
-        .pagination-button:hover:not(:disabled) {
-            background-color: var(--primary-color);
-        }
-        
-        .pagination-button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+            font-size: 0.85rem;
         }
         
         /* Responsive Design */
         @media (max-width: 992px) {
-            .top-bar {
-                flex-direction: column;
-                padding: 1rem;
-            }
-            
-            .logo-container {
-                margin-bottom: 1rem;
-            }
-            
-            nav {
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            
-            .hero h1 {
-                font-size: 2rem;
-            }
-            
-            .hero p {
-                font-size: 1rem;
+            .app-container {
+                grid-template-columns: 200px 1fr;
             }
         }
         
         @media (max-width: 768px) {
-            .quick-actions {
+            .app-container {
                 grid-template-columns: 1fr;
             }
             
-            .features-grid {
-                grid-template-columns: 1fr;
+            .app-sidebar {
+                display: none;
             }
             
-            .footer-content {
-                grid-template-columns: 1fr;
-                text-align: center;
-            }
-            
-            .footer-logo {
-                justify-content: center;
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
             }
         }
         
         @media (max-width: 576px) {
-            .main-container {
-                padding: 1rem;
+            .dashboard-grid,
+            .quick-actions {
+                grid-template-columns: 1fr;
             }
             
-            .hero {
-                padding: 2rem 1rem;
+            .app-header {
+                flex-direction: column;
+                gap: 0.75rem;
+                padding: 0.75rem;
             }
             
-            .section-title {
-                font-size: 1.5rem;
+            #databaseSwitcher {
+                width: 100%;
+                justify-content: center;
             }
         }
     </style>
 </head>
 <body>
-    <!-- Top Navigation Bar -->
-    <div class="top-bar">
-        <div class="logo-container">
-            <!-- Replace with your actual logo -->
-            <div>
-                <div class="logo-text">Solura</div>
-                <div class="logo-subtext">Rota Management System</div>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="app-title">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Solura Workforce</span>
+        </div>
+        
+        <div class="app-controls">
+            <div id="databaseSwitcher">
+                <span id="currentDbDisplay">Loading database...</span>
+                <select id="dbSelector"></select>
+                <button id="switchDbBtn">Switch</button>
             </div>
         </div>
-        <!-- Add this near the top of your page, maybe in the header -->
-<div id="databaseSwitcher" style="position: fixed; top: 10px; right: 1200px; background: white; padding: 10px; border: 1px solid #ccc; border-radius: 5px; z-index: 1000;">
-    <span id="currentDbDisplay">Current Database: Loading...</span>
-    <select id="dbSelector" style="margin-left: 10px; display: none;">
-        <!-- Options will be populated by JavaScript -->
-    </select>
-    <button id="switchDbBtn" style="margin-left: 10px; display: none;">Switch</button>
-</div>
-        <nav>
-            <a href="/rota" class="nav-link"><i class="fas fa-calendar-alt"></i> Rotas</a>
-            <a href="/updateinfo" class="nav-link"><i class="fas fa-users"></i> Employees</a>
-            <a href="/reports" class="nav-link"><i class="fas fa-chart-bar"></i> Reports</a>
+    </header>
+    
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="app-sidebar">
+            <div class="nav-section">
+                <div class="nav-section-title">Management</div>
+                <a href="#" class="nav-link active">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/updateinfo" class="nav-link">
+                    <i class="fas fa-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="/rota" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Rotas</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Daily</div>
+                <a href="/endday" class="nav-link">
+                    <i class="fas fa-clock"></i>
+                    <span>End Of Day</span>
+                </a>
+                <a href="/confirmrota" class="nav-link">
+                    <i class="fas fa-check-double"></i>
+                    <span>Approve Rota</span>
+                </a>
+                <a href="/tip" class="nav-link">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Tips</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Holidays</div>
+                <a href="/TotalHolidays" class="nav-link">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Holidays Management</span>
+                </a>
+                <a href="/request" class="nav-link">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approve/Reject Holidays</span>
+                </a>
+                <a href="/userholidays" class="nav-link">
+                    <i class="fas fa-umbrella-beach"></i>
+                    <span>Request Holidays</span>
+                </a>
+            </div>
             
-            <div class="dropdown">
-                <button class="dropdown-toggle">
-                    <i class="fas fa-user-circle"></i> My Account
-                </button>
-                <div class="dropdown-menu">
-                    <a href="/profile" class="dropdown-item"><i class="fas fa-user"></i> My Profile</a>
-                    <a href="/generate" class="dropdown-item"><i class="fas fa-key"></i> Manage Access</a>
-                    <a href="/hours" class="dropdown-item"><i class="fas fa-file-alt"></i> Monthly Report</a>
-                    <a href="/TotalHolidays" class="dropdown-item"><i class="fas fa-umbrella-beach"></i> Manage Holidays</a>
-                    <a href="/userholidays" class="dropdown-item"><i class="fas fa-calendar-check"></i> Holiday Booking</a>
-                    <a href="/request" class="dropdown-item"><i class="fas fa-check-circle"></i> Approve Request</a>
-                    <a href="/insertpayslip" class="dropdown-item"><i class="fas fa-file-invoice-dollar"></i> New Payslips</a>
-                    <a href="/pastpayslips" class="dropdown-item"><i class="fas fa-history"></i> Past Payslips</a>
-                    <div class="dropdown-divider"></div>
-                    <a href="/" class="dropdown-item" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</a>
+            <div class="nav-section">
+                <div class="nav-section-title">Finance</div>
+                <a href="#" class="nav-link">
+                    <i class="fas fa-clock"></i>
+                    <span>Time Tracking</span>
+                </a>
+                <a href="/insertpayslip" class="nav-link">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Insert Payslips</span>
+                </a>
+                <a href="/pastpayslips" class="nav-link">
+                    <i class="fas fa-receipt"></i>
+                    <span>Past Payslips</span>
+                </a>
+                <a href="#" class="nav-link" id="reportsLink">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+
+        <!-- Reports Popup Window (Modal) -->
+        <div id="reportsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; border-radius: 8px; width: 80%; max-width: 500px; max-height: 80vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; background: #f8f9fa;">
+            <h3 style="margin: 0; font-size: 1.2rem; color: #004f9e;">Available Reports</h3>
+            <button id="closeReportsModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+            <!-- Report Item 1 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Monthly Report</div>
+                    <div style="font-size: 0.85rem; color: #666;">Comprehensive monthly overview</div>
                 </div>
+                <a href="/hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+            
+            <!-- Report Item 2 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Weekly Summary</div>
+                    <div style="font-size: 0.85rem; color: #666;">Weekly performance metrics</div>
+                </div>
+                <a href="/weekly-summary" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+            
+            <!-- Report Item 3 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Employee Hours</div>
+                    <div style="font-size: 0.85rem; color: #666;">Detailed hours tracking</div>
+                </div>
+                <a href="/employee-hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+            
+            <!-- Report Item 4 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Payroll Analysis</div>
+                    <div style="font-size: 0.85rem; color: #666;">Payroll statistics and trends</div>
+                </div>
+                <a href="/payroll-analysis" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
+            <div class="nav-section">
+                <div class="nav-section-title">System</div>
+                <a href="/profile" class="nav-link">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Account</span>
+                </a>
+                <a href="/generate" class="nav-link">
+                    <i class="fas fa-cog"></i>
+                    <span>Manage Access</span>
+                </a>
+                <a href="/logout" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
             </div>
         </nav>
-    </div>
-
-    <!-- Main Content -->
-    <div class="main-container">
-        <!-- Hero Section -->
-        <section class="hero">
-            <h1>Streamline Your Workforce Management</h1>
-            <p>Solura's Rota Management System empowers businesses to efficiently schedule staff, track hours, and optimize labor costs with intuitive tools and real-time insights.</p>
-            <a href="/rota" class="cta-button">Create New Rota</a>
-        </section>
         
-        <!-- Quick Actions -->
-        <section class="dashboard-section">
-            <h2 class="section-title">Quick Actions</h2>
+        <!-- Main Content -->
+        <main class="app-content">
+            <div class="content-header">
+                <h1 class="content-title">Dashboard</h1>
+                <div class="date">
+                    <i class="fas fa-calendar-day"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+            
+            <!-- Stats Widgets -->
+            <div class="dashboard-grid">
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Employees On Shift</h3>
+                        <i class="fas fa-users" style="color: var(--secondary-color);"></i>
+                    </div>
+                    <div class="widget-value">24</div>
+                    <div class="widget-footer">
+                        <span>Currently working</span>
+                        <a href="#" style="color: var(--secondary-color);">View All</a>
+                    </div>
+                </div>
+                
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Pending Approvals</h3>
+                        <i class="fas fa-clock" style="color: #ff9800;"></i>
+                    </div>
+                    <div class="widget-value">8</div>
+                    <div class="widget-footer">
+                        <span>Requests waiting</span>
+                        <a href="#" style="color: var(--secondary-color);">Review</a>
+                    </div>
+                </div>
+                
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Holiday Requests</h3>
+                        <i class="fas fa-umbrella-beach" style="color: #4caf50;"></i>
+                    </div>
+                    <div class="widget-value">5</div>
+                    <div class="widget-footer">
+                        <span>This week</span>
+                        <a href="#" style="color: var(--secondary-color);">Manage</a>
+                    </div>
+                </div>
+                
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Labor Cost</h3>
+                        <i class="fas fa-pound-sign" style="color: #f44336;"></i>
+                    </div>
+                    <div class="widget-value">£12,450</div>
+                    <div class="widget-footer">
+                        <span>This period</span>
+                        <a href="#" style="color: var(--secondary-color);">Details</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Quick Actions</h2>
             <div class="quick-actions">
-                <div class="action-card">
+                <a href="/rota" class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-calendar-plus"></i>
                     </div>
-                    <h3 class="action-title">Create Rota</h3>
-                    <p>Set up new work schedules for your team</p>
-                    <a href="/rota" class="action-link">Get Started</a>
-                </div>
+                    <div class="action-label">Create Rota</div>
+                </a>
                 
-                <div class="action-card">
+                <a href="/confirmrota" class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-check-double"></i>
                     </div>
-                    <h3 class="action-title">Approve Rota</h3>
-                    <p>Review and confirm scheduled shifts</p>
-                    <a href="/confirmrota" class="action-link">Review Now</a>
-                </div>
+                    <div class="action-label">Approve Rota</div>
+                </a>
                 
-                <div class="action-card">
+                <a href="endday" class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-clock"></i>
                     </div>
-                    <h3 class="action-title">End of Day</h3>
-                    <p>Complete daily operations</p>
-                    <a href="/endday" class="action-link">Complete Tasks</a>
-                </div>
+                    <div class="action-label">End of Day</div>
+                </a>
                 
-                <div class="action-card">
+                <a href="tip" class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-hand-holding-usd"></i>
                     </div>
-                    <h3 class="action-title">Daily Tips</h3>
-                    <p>Record and distribute tips</p>
-                    <a href="/tip" class="action-link">Enter Tips</a>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Features Section -->
-        <section class="dashboard-section">
-            <h2 class="section-title">Why Choose Solura RMS</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-tachometer-alt"></i>
-                    </div>
-                    <h3 class="feature-title">Efficient Scheduling</h3>
-                    <p>Create, modify, and optimize staff schedules in minutes with our intuitive drag-and-drop interface. Reduce scheduling conflicts and ensure proper coverage.</p>
-                </div>
+                    <div class="action-label">Daily Tips</div>
+                </a>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-sync-alt"></i>
+                <a href="insertpayslip" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-file-invoice-dollar"></i>
                     </div>
-                    <h3 class="feature-title">Real-Time Updates</h3>
-                    <p>Get instant notifications for shift changes, time-off requests, and schedule updates. Keep everyone informed with automated alerts.</p>
-                </div>
+                    <div class="action-label">New Payslips</div>
+                </a>
                 
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-chart-pie"></i>
+                <a href="/userholidays" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-calendar-check"></i>
                     </div>
-                    <h3 class="feature-title">Detailed Reporting</h3>
-                    <p>Generate comprehensive reports on labor costs, overtime, attendance, and productivity. Make data-driven decisions with actionable insights.</p>
-                </div>
+                    <div class="action-label">Holiday Booking</div>
+                </a>
             </div>
-        </section>
+                        <!-- Recent Activity -->
+                        <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Recent Activity</h2>
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Employee</th>
+                                    <th>Activity</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>10:45 AM</td>
+                                    <td>John Smith</td>
+                                    <td>Shift started</td>
+                                    <td>Front of House</td>
+                                </tr>
+                                <tr>
+                                    <td>09:30 AM</td>
+                                    <td>Sarah Johnson</td>
+                                    <td>Holiday requested</td>
+                                    <td>15-20 July</td>
+                                </tr>
+                                <tr>
+                                    <td>Yesterday</td>
+                                    <td>Michael Brown</td>
+                                    <td>Payslip generated</td>
+                                    <td>June 2024</td>
+                                </tr>
+                                <tr>
+                                    <td>Yesterday</td>
+                                    <td>Emma Wilson</td>
+                                    <td>Tips recorded</td>
+                                    <td>£120.50</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </main>
+                </div>
+        </main>
     </div>
     
-    <!-- Footer -->
-    <footer>
-        <div class="footer-content">
-            <div class="footer-about">
-                <div class="footer-logo">
-                    <span class="footer-logo-text">Solura</span>
-                </div>
-                <p>Innovative workforce management solutions designed to streamline your operations and maximize efficiency.</p>
-            </div>
-            
-            <div class="footer-links-section">
-                <h4 class="footer-heading">Quick Links</h4>
-                <ul class="footer-links">
-                    <li class="footer-link"><a href="/rota">Rotas</a></li>
-                    <li class="footer-link"><a href="/employees">Employees</a></li>
-                    <li class="footer-link"><a href="/reports">Reports</a></li>
-                </ul>
-            </div>
-            
-            <div class="footer-links-section">
-                <h4 class="footer-heading">Company</h4>
-                <ul class="footer-links">
-                    <li class="footer-link"><a href="/about">About Us</a></li>
-                    <li class="footer-link"><a href="/careers">Careers</a></li>
-                    <li class="footer-link"><a href="/blog">Blog</a></li>
-                    <li class="footer-link"><a href="/contact">Contact Us</a></li>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="footer-bottom">
-            <p>&copy; 2024 Solura Ltd. All Rights Reserved. | <a href="/privacy" target="_blank" style="color: #ccc;">Privacy Policy</a> |  <a href="/terms" target="_blank" style="color: #ccc;">Terms of Service</a></p>
-        </div>
+    <!-- App Footer -->
+    <footer class="app-footer">
+        <p>Solura Workforce Management System &copy; 2024</p>
     </footer>
 
 <script>
+// Opens Reports Window
+document.addEventListener('DOMContentLoaded', function() {
+    const reportsLink = document.getElementById('reportsLink');
+    const reportsModal = document.getElementById('reportsModal');
+    const closeReportsModal = document.getElementById('closeReportsModal');
+    
+    // Open modal when Reports is clicked
+    reportsLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        reportsModal.style.display = 'flex';
+    });
+    
+    // Close modal when X button is clicked
+    closeReportsModal.addEventListener('click', function() {
+        reportsModal.style.display = 'none';
+    });
+    
+    // Close modal when clicking outside the content
+    reportsModal.addEventListener('click', function(e) {
+        if (e.target === reportsModal) {
+            reportsModal.style.display = 'none';
+        }
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && reportsModal.style.display === 'flex') {
+            reportsModal.style.display = 'none';
+        }
+    });
+});
+// Set current date
+document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-GB', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
 // Database switcher functionality
 document.addEventListener('DOMContentLoaded', function() {
             // Get user session info (you may need to adjust this based on how you store session info)
@@ -808,7 +754,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error fetching user databases:', error);
             });
         });
-
 // Inactivity timer
 let inactivityTimer;
 const resetInactivityTimer = () => {
@@ -818,14 +763,12 @@ const resetInactivityTimer = () => {
                 window.location.href = '/logout';
             }, 60 * 60 * 1000); // 60 minutes
         };
-
 // Initialize timer and event listeners
 window.onload = function() {
             resetInactivityTimer();
         };
 window.onmousemove = resetInactivityTimer;
 window.onkeypress = resetInactivityTimer;
-
 // Logout functionality
 document.getElementById('logoutBtn').addEventListener('click', async (e) => {
             e.preventDefault();

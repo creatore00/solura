@@ -33,33 +33,30 @@ const generateUniqueId = async (pool) => {
 
 // API endpoint to get rota data for a specific day
 app.get('/api/rota', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const day = req.query.day;
+
     if (!day) {
         return res.status(400).json({ error: 'Day is required' });
     }
 
-    // Query to get rota data for the specified day
     const rotaQuery = `
         SELECT name, lastName, wage, day, designation, startTime, endTime
         FROM rota
         WHERE day = ?
     `;
 
-    // Query to get confirmed rota data
     const confirmedRotaQuery = `
         SELECT name, lastName, designation, day, startTime, endTime
         FROM ConfirmedRota
     `;
 
-    // Fetch both rota and confirmed rota data
     pool.query(rotaQuery, [day], (err, rotaResults) => {
         if (err) {
             return res.status(500).json({ error: err.message });
@@ -70,17 +67,14 @@ app.get('/api/rota', isAuthenticated, (req, res) => {
                 return res.status(500).json({ error: err.message });
             }
 
-            // Convert confirmed rota data to a set for quick lookup
             const confirmedRotaSet = new Set(
                 confirmedRotaResults.map(entry => `${entry.name} ${entry.lastName} ${entry.designation} ${entry.day} ${entry.startTime} ${entry.endTime}`)
             );
 
-            // Filter out rota data that is already confirmed
             const filteredRotaResults = rotaResults.filter(entry => {
                 const key = `${entry.name} ${entry.lastName} ${entry.designation} ${entry.day} ${entry.startTime} ${entry.endTime}`;
                 return !confirmedRotaSet.has(key);
             });
-
             res.json(filteredRotaResults);
         });
     });
@@ -120,6 +114,50 @@ app.get('/api/check-confirmed-rota2', isAuthenticated, (req, res) => {
         // If the date exists in either table, return exists: true
         const exists = existsInConfirmedRota2 || existsInConfirmedRota;
         res.json({ exists });
+    });
+});
+
+// Function to Retrieve Tax - Pension - Holiday % 
+app.get('/api/tax-info', (req, res) => {
+    const dbName = req.session.user.dbName; // Get the database name from the session
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName); // Get the correct connection pool
+
+    pool.execute('SELECT holiday, pension, tax FROM rota_tax WHERE id = ?', [1], (error, results) => {
+        if (error) {
+            console.error('Error fetching tax info:', error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        if (results.length > 0) {
+            res.json(results[0]);
+        } else {
+            res.status(404).json({ error: 'Tax info not found.' });
+        }
+    });
+});
+
+// Function to Retrieve Wage 
+app.get('/api/employee-wages', (req, res) => {
+    const dbName = req.session.user.dbName;
+
+    if (!dbName) {
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+
+    pool.execute('SELECT name, lastName, wage FROM Employees', (error, results) => {
+        if (error) {
+            console.error('Error fetching employee wages:', error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+
+        res.json(results);
     });
 });
 
@@ -228,120 +266,222 @@ app.delete('/delete-employee', isAuthenticated, (req, res) => {
 
 // Function to Confirm Rota
 app.post('/confirm-rota', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
+    if (!dbName) return res.status(401).json({ message: 'User not authenticated' });
 
-    if (!dbName) {
-        return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const rotaData = req.body;
-    const userEmail = req.session.user.email; // Get the logged-in user's email
-    console.log('Received rota data:', rotaData);
+    const userEmail = req.session.user.email;
 
     if (!rotaData || !Array.isArray(rotaData) || rotaData.length === 0) {
         return res.status(400).send('Invalid rota data.');
     }
 
     const day = rotaData[0].day;
+    console.log(`[CONFIRM-ROTA] Starting process for day: ${day}`);
 
-    // Queries
-    const deleteConfirmedRotaQuery = 'DELETE FROM ConfirmedRota WHERE day = ?';
-    const insertConfirmedRotaQuery = `
-        INSERT INTO ConfirmedRota (name, lastName, wage, day, startTime, endTime, designation, who) 
-        VALUES ?`;
-    const deleteRotaQuery = `
-        DELETE FROM rota
-        WHERE name = ? AND lastName = ? AND designation = ? AND day = ?`;
-    const insertRotaQuery = `
-        INSERT INTO rota (id, name, lastName, designation, day, startTime, endTime)
-        VALUES ?`;
+    try {
+        // Fetch employee wages
+        console.log('[EMPLOYEE-WAGES] Fetching wage data...');
+        const [employees] = await pool.promise().query('SELECT name, lastName, wage FROM Employees');
+        console.log(`[EMPLOYEE-WAGES] Fetched ${employees.length} employees`);
+        
+        const wageMap = employees.reduce((map, emp) => {
+            const key = `${emp.name.trim()} ${emp.lastName.trim()}`;
+            console.log(`[WAGE-MAP] ${key}: £${emp.wage}`);
+            map[key] = parseFloat(emp.wage);
+            return map;
+        }, {});
 
-    // Prepare values to insert into ConfirmedRota
-    const confirmedRotaValues = rotaData.flatMap(entry => {
-        const { name, lastName, wage, day, designation, times } = entry;
-        return times.map(time => {
-            const { startTime, endTime } = time;
-            return [name, lastName, wage, day, startTime, endTime, designation, userEmail];
+        // Prepare confirmed rota values
+        console.log('[PREPARE-DATA] Formatting rota data...');
+        const confirmedRotaValues = rotaData.flatMap(entry => {
+            const key = `${entry.name.trim()} ${entry.lastName.trim()}`;
+            const wage = wageMap[key] || 0;
+            console.log(`[EMPLOYEE-ENTRY] ${key} with ${entry.times.length} time slots`);
+            
+            return entry.times.map(time => [
+                entry.name, 
+                entry.lastName, 
+                wage, 
+                day, 
+                time.startTime, 
+                time.endTime, 
+                userEmail
+            ]);
         });
-    });
+        console.log('[PREPARED-DATA] Formatted entries:', confirmedRotaValues.length);
 
-    // Print values to be inserted into the database
-    console.log('Values to be inserted into ConfirmedRota:', confirmedRotaValues);
+        // Start transaction
+        console.log('[TRANSACTION] Starting database transaction...');
+        const connection = await pool.promise().getConnection();
+        await connection.beginTransaction();
 
-    // Delete old entries for the given day from ConfirmedRota
-    pool.query(deleteConfirmedRotaQuery, [day], async (err) => {
-        if (err) {
-            console.error('Error deleting existing confirmed rota data:', err);
-            return res.status(500).send('Internal Server Error');
-        }
+        try {
+            // 1. Delete ALL old entries for this day from both tables
+            console.log('[DELETE] Starting deletion of old records...');
+            
+            // Log current state before deletion
+            const [currentConfirmed] = await connection.query(
+                'SELECT COUNT(*) as count FROM ConfirmedRota WHERE day = ?', 
+                [day]
+            );
+            const [currentRota] = await connection.query(
+                'SELECT COUNT(*) as count FROM rota WHERE day = ?', 
+                [day]
+            );
+            console.log(`[CURRENT-STATE] ConfirmedRota: ${currentConfirmed[0].count}, rota: ${currentRota[0].count}`);
 
-        // Insert new or updated values into ConfirmedRota
-        pool.query(insertConfirmedRotaQuery, [confirmedRotaValues], async (err) => {
-            if (err) {
-                console.error('Error inserting rota data:', err);
-                return res.status(500).send('Internal Server Error');
+            // Perform deletions
+            console.log(`[DELETE] Executing deletions for day: ${day}`);
+// 1. First get the EXACT format from the database for this day
+const [existingDays] = await connection.query(
+    "SELECT day FROM ConfirmedRota WHERE day LIKE CONCAT(?, '%') LIMIT 1",
+    [day.split('/')[0]] // Gets just the day number (e.g. "01" from "01/11/2024 (Friday)")
+  );
+  
+  let exactDayFormat;
+  if (existingDays.length > 0) {
+    exactDayFormat = existingDays[0].day; // Use the exact format from DB
+    console.log(`[DAY-FORMAT] Using exact DB format: ${exactDayFormat}`);
+  } else {
+    exactDayFormat = day; // Fallback to original
+    console.log(`[DAY-FORMAT] No match found, using original: ${exactDayFormat}`);
+  }
+  
+  // 2. Now delete using the exact format
+  const [confirmedDeleteResult] = await connection.query(
+    'DELETE FROM ConfirmedRota WHERE day = ?',
+    [exactDayFormat]
+  );
+  console.log(`[DELETE-CONFIRMED] Deleted ${confirmedDeleteResult.affectedRows} records`);
+  
+  // 3. Verify deletion
+  const [remaining] = await connection.query(
+    'SELECT COUNT(*) as count FROM ConfirmedRota WHERE day = ?',
+    [exactDayFormat]
+  );
+  console.log(`[POST-DELETE] Remaining records: ${remaining[0].count}`);
+            const [rotaDeleteResult] = await connection.query(
+                'DELETE FROM rota WHERE day = ?', 
+                [day]
+            );
+            console.log(`[DELETE-RESULTS] ConfirmedRota: ${confirmedDeleteResult.affectedRows}, rota: ${rotaDeleteResult.affectedRows} records deleted`);
+
+            // 2. Insert new confirmed rota entries
+            if (confirmedRotaValues.length > 0) {
+                console.log('[INSERT] Adding new confirmed rota entries:', confirmedRotaValues.length);
+                const [insertResult] = await connection.query(
+                    `INSERT INTO ConfirmedRota 
+                    (name, lastName, wage, day, startTime, endTime, who) 
+                    VALUES ?`,
+                    [confirmedRotaValues]
+                );
+                console.log(`[INSERT-RESULT] ${insertResult.affectedRows} records inserted`);
             }
 
-            // Generate unique IDs and handle each entry
-            const updateTasks = rotaData.flatMap(entry => {
-                const { name, lastName, day, designation, times } = entry;
-
-                // For each time frame, generate a unique ID
-                const timeFrameTasks = times.map(async (time) => {
-                    const { startTime, endTime } = time;
-
-                    try {
-                        // Generate unique ID for each time frame
-                        const uniqueId = await generateUniqueId(pool);
-
-                        // Delete old entries from `rota`
-                        await new Promise((resolve, reject) => {
-                            pool.query(deleteRotaQuery, [name, lastName, designation, day], (err) => {
-                                if (err) {
-                                    reject(err);
-                                } else {
-                                    resolve();
-                                }
-                            });
-                        });
-
-                        // Prepare value for insertion with the unique ID
-                        const value = [uniqueId, name, lastName, designation, day, startTime, endTime];
-
-                        // Insert new entry into `rota` with the unique ID
-                        await new Promise((resolve, reject) => {
-                            pool.query(insertRotaQuery, [[value]], (err) => {
-                                if (err) {
-                                    reject(err);
-                                } else {
-                                    resolve();
-                                }
-                            });
-                        });
-
-                    } catch (err) {
-                        console.error('Error processing time frame:', err);
-                        throw err;
+            // 3. Insert new rota entries with unique IDs
+            console.log('[ROTA-INSERTS] Starting individual rota inserts...');
+            let rotaInsertCount = 0;
+            
+            for (const entry of rotaData) {
+                if (!entry.times || !Array.isArray(entry.times)) {
+                    console.log(`[SKIP-ENTRY] No times array for ${entry.name} ${entry.lastName}`);
+                    continue;
+                }
+                
+                for (const time of entry.times) {
+                    if (!time.startTime || !time.endTime) {
+                        console.log(`[SKIP-TIME] Missing times for ${entry.name} ${entry.lastName}`);
+                        continue;
                     }
-                });
-
-                return timeFrameTasks;
-            }).flat();
-
-            try {
-                // Wait for all tasks to complete
-                await Promise.all(updateTasks);
-                res.status(200).send('Rota Confirmed and Updated Successfully.');
-            } catch (err) {
-                console.error('Error updating rota data:', err);
-                res.status(500).send('Internal Server Error');
+                    
+                    const uniqueId = await generateUniqueId(pool);
+                    console.log(`[INSERT-ROTA] ${uniqueId}: ${entry.name} ${entry.lastName} | ${day} | ${time.startTime}-${time.endTime}`);
+                    
+                    await connection.query(
+                        'INSERT INTO rota (id, name, lastName, day, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?)',
+                        [uniqueId, entry.name, entry.lastName, day, time.startTime, time.endTime]
+                    );
+                    rotaInsertCount++;
+                }
             }
-        });
-    });
+            console.log(`[ROTA-INSERTS] Completed ${rotaInsertCount} inserts`);
+
+            // Calculate cost difference
+            console.log('[COST-CALCULATION] Starting...');
+            const [[taxInfo]] = await connection.query('SELECT holiday, pension, tax FROM rota_tax WHERE id = "1"');
+            console.log('[TAX-INFO]', taxInfo);
+            
+            const taxMultiplier = 1 + (taxInfo.holiday + taxInfo.pension + taxInfo.tax) / 100;
+            console.log(`[TAX-MULTIPLIER] ${taxMultiplier}`);
+
+            const calculateCost = (entries) => {
+                return entries.reduce((total, entry) => {
+                    const start = entry.startTime || entry[4];
+                    const end = entry.endTime || entry[5];
+                    const wage = entry.wage || entry[2];
+                    
+                    if (!start || !end || isNaN(wage)) {
+                        console.log(`[INVALID-ENTRY] Skipping cost calculation for`, entry);
+                        return total;
+                    }
+                    
+                    const hours = calculateHours(start, end);
+                    const cost = hours * wage * taxMultiplier;
+                    console.log(`[COST-BREAKDOWN] ${entry.name} ${entry.lastName}: ${hours}h × £${wage} × ${taxMultiplier} = £${cost.toFixed(2)}`);
+                    return total + cost;
+                }, 0);
+            };
+
+            const oldCost = calculateCost(await connection.query('SELECT * FROM ConfirmedRota WHERE day = ?', [day]));
+            const newCost = calculateCost(confirmedRotaValues);
+            console.log(`[COST-SUMMARY] Old: £${oldCost.toFixed(2)}, New: £${newCost.toFixed(2)}, Difference: £${(newCost - oldCost).toFixed(2)}`);
+
+            // Update Weekly_Cost_After
+            console.log('[WEEKLY-COST] Updating...');
+            const [[dataRow]] = await connection.query('SELECT Weekly_Cost_After FROM Data WHERE WeekStart = ?', [day]);
+            if (dataRow) {
+                const currentValue = parseFloat(dataRow.Weekly_Cost_After) || 0;
+                const newValue = currentValue + (newCost - oldCost);
+                console.log(`[WEEKLY-UPDATE] From £${currentValue.toFixed(2)} to £${newValue.toFixed(2)}`);
+                
+                await connection.query(
+                    'UPDATE Data SET Weekly_Cost_After = ? WHERE WeekStart = ?',
+                    [newValue.toFixed(2), day]
+                );
+            }
+
+            await connection.commit();
+            console.log('[TRANSACTION] Successfully committed');
+            res.status(200).send('Rota Confirmed and Updated Successfully.');
+        } catch (err) {
+            await connection.rollback();
+            console.error('[TRANSACTION-ERROR] Rollback initiated:', err);
+            res.status(500).send('Internal Server Error');
+        } finally {
+            connection.release();
+            console.log('[CONNECTION] Released');
+        }
+    } catch (err) {
+        console.error('[TOP-LEVEL-ERROR]', err);
+        res.status(500).send('Internal Server Error');
+    }
 });
 
+// Helper function to calculate hours between two times
+function calculateHours(startTime, endTime) {
+    if (!startTime || !endTime) return 0;
+    
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const start = new Date(0, 0, 0, sh, sm);
+    const end = new Date(0, 0, 0, eh, em);
+    let diff = (end - start) / (1000 * 60 * 60); // Convert to hours
+    if (diff < 0) diff += 24;
+    
+    return diff;
+}
 // Function to Update Values in Rota table and ConfirmedRota table
 app.post('/updateRotaData', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
