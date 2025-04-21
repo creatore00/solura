@@ -400,6 +400,7 @@
                         <th>Day</th>
                         <th>Name</th>
                         <th>Last Name</th>
+                        <th>Designation</th>
                         <th>Working Hours</th>
                         <th>Action</th>
                         <th>Status</th>
@@ -531,13 +532,14 @@
 
                     // Group rotaData by name, designation, and day
                     const groupedData = allRotaData.reduce((acc, entry) => {
-                        const key = `${entry.day} ${entry.name} ${entry.lastName}`;
+                        const key = `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`;
                         if (!acc[key]) {
                             acc[key] = {
                                 day: entry.day,
                                 name: entry.name,
                                 lastName: entry.lastName,
                                 wage: entry.wage,
+                                designation: entry.designation,
                                 times: []
                             };
                         }
@@ -564,6 +566,11 @@
                         const lastNameCell = document.createElement('td');
                         lastNameCell.textContent = entry.lastName;
                         row.appendChild(lastNameCell);
+
+                        // Designation cell
+                        const designationCell = document.createElement('td');
+                        designationCell.textContent = entry.designation;
+                        row.appendChild(designationCell);
 
                         // Times cell
                         const timesCell = document.createElement('td');
@@ -604,8 +611,8 @@
                         // Status cell
                         const statusCell = document.createElement('td');
                         const isConfirmed = confirmedRotaData.some(confirmedEntry =>
-                            `${confirmedEntry.day} ${confirmedEntry.name} ${confirmedEntry.lastName}` === 
-                            `${entry.day} ${entry.name} ${entry.lastName}`
+                            `${confirmedEntry.day} ${confirmedEntry.name} ${confirmedEntry.lastName} ${confirmedEntry.designation}` === 
+                            `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`
                         );
                         
                         statusCell.innerHTML = isConfirmed 
@@ -621,7 +628,6 @@
             } finally {
                 showLoading(false);
                 checkAndUpdateRotaButton();
-                calculateEmployeeHoursWithTax();
             }
         }
 
@@ -761,7 +767,6 @@
                     },
                     body: JSON.stringify(filteredData)
                 });
-                console.log(filteredData);
 
                 if (response.ok) {
                     showMessage('Rota confirmed successfully!', 'success');
@@ -776,112 +781,6 @@
                 showLoading(false, 'confirmButton');
             }
         }
-
-        // Improved cost calculation function
-        function calculateTotalPayrollCost(rotas, wageMap, taxInfo) {
-    if (!rotas || !Array.isArray(rotas)) return 0;
-
-    const taxMultiplier = 1 + (parseFloat(taxInfo.tax) + parseFloat(taxInfo.pension) + parseFloat(taxInfo.holiday)) / 100;
-    const employeeMinutes = {};
-
-    rotas.forEach(entry => {
-        const key = `${entry.name.trim()} ${entry.lastName.trim()}`;
-        const wage = entry.wage || wageMap[key];
-        
-        if (!wage) return;
-
-        (entry.times || []).forEach(time => {
-            if (!time.startTime || !time.endTime) return;
-
-            const [sh, sm] = time.startTime.split(':').map(Number);
-            const [eh, em] = time.endTime.split(':').map(Number);
-            const start = new Date(0, 0, 0, sh, sm);
-            const end = new Date(0, 0, 0, eh, em);
-            let diff = (end - start) / 60000;
-            if (diff < 0) diff += 1440;
-            
-            employeeMinutes[key] = (employeeMinutes[key] || 0) + diff;
-        });
-    });
-
-    let totalCost = 0;
-    for (const [employee, minutes] of Object.entries(employeeMinutes)) {
-        const wage = wageMap[employee];
-        if (!isNaN(wage)) {
-            const hours = minutes / 60;
-            totalCost += hours * wage * taxMultiplier;
-        }
-    }
-
-    return totalCost;
-}
-        
-        // Function to Calculate Day Total Cost
-        async function calculateEmployeeHoursWithTax() {
-    try {
-        const [taxRes, wagesRes] = await Promise.all([
-            fetch('/confirmrota/api/tax-info'),
-            fetch('/confirmrota/api/employee-wages')
-        ]);
-
-        const { holiday, pension, tax } = await taxRes.json();
-        const employeeWages = await wagesRes.json();
-
-        const wageMap = {};
-        employeeWages.forEach(emp => {
-            const key = `${emp.name.trim()} ${emp.lastName.trim()}`;
-            wageMap[key] = parseFloat(emp.wage);
-        });
-
-        const table = document.getElementById('rotaTable');
-        if (!table) return;
-
-        const rows = table.querySelectorAll('tbody tr');
-        const employeeHours = {};
-
-        rows.forEach(row => {
-            const name = row.cells[1]?.textContent.trim();
-            const lastName = row.cells[2]?.textContent.trim();
-            const employeeKey = `${name} ${lastName}`;
-
-            const timeInputs = row.querySelectorAll('input[type="time"]');
-            let totalMinutes = 0;
-
-            for (let i = 0; i < timeInputs.length; i += 2) {
-                const startTime = timeInputs[i]?.value;
-                const endTime = timeInputs[i + 1]?.value;
-
-                if (startTime && endTime) {
-                    const [sh, sm] = startTime.split(':').map(Number);
-                    const [eh, em] = endTime.split(':').map(Number);
-                    const start = new Date(0, 0, 0, sh, sm);
-                    const end = new Date(0, 0, 0, eh, em);
-                    let diff = (end - start) / 60000;
-                    if (diff < 0) diff += 1440;
-                    totalMinutes += diff;
-                }
-            }
-
-            const hoursWorked = totalMinutes / 60;
-            employeeHours[employeeKey] = (employeeHours[employeeKey] || 0) + hoursWorked;
-        });
-
-        const taxMultiplier = 1 + (parseFloat(tax) + parseFloat(pension) + parseFloat(holiday)) / 100;
-        let totalPayrollCost = 0;
-
-        Object.entries(employeeHours).forEach(([employee, hours]) => {
-            const wage = wageMap[employee];
-            if (!isNaN(wage)) {
-                const cost = hours * wage * taxMultiplier;
-                totalPayrollCost += cost;
-            }
-        });
-
-        console.log(`💰 Total Payroll Cost (with holiday, pension, and tax): £${totalPayrollCost.toFixed(2)}`);
-    } catch (err) {
-        console.error("Failed to calculate payroll cost:", err);
-    }
-}
 
         // Function to get the Confirmed Rota by date
         async function getConfirmedRota(dateString) {
@@ -1364,7 +1263,6 @@
     
     return `${day}/${month}/${year} (${dayOfWeek})`;
 }
-        
         // Function to Update Calendar Status
         async function updateCalendarStatuses(month, year) {
     try {
