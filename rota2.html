@@ -198,7 +198,7 @@
         }
 
         .time-input {
-            width: 80px;
+            width: 100px;
             padding: 8px;
             border: 1px solid var(--medium-gray);
             border-radius: 4px;
@@ -508,11 +508,8 @@
                 <button class="btn btn-secondary" onclick="saveRotaData()">
                     <i class="fas fa-save"></i> Save Rota
                 </button>
-                <button class="btn btn-danger" onclick="confirmClearAll()">
+                <button class="btn btn-danger" onclick="clearAllRotaData()">
                     <i class="fas fa-trash"></i> Clear All
-                </button>
-                <button class="btn btn-secondary" onclick="window.print()">
-                    <i class="fas fa-print"></i> Print
                 </button>
             </div>
         </div>
@@ -592,25 +589,6 @@
                     </tr>                     
                 </tfoot>
             </table>
-        </div>
-    </div>
-
-    <div id="timeFramePanel" class="time-frame-panel">
-        <div class="panel-header">
-            <div class="panel-title">Time Frame Management</div>
-            <button class="close-btn" onclick="hideTimeFramePanel()">&times;</button>
-        </div>
-        <div class="time-input-group">
-            <label for="startTime">Start Time:</label>
-            <input type="time" id="startTime" class="time-input">
-        </div>
-        <div class="time-input-group">
-            <label for="endTime">End Time:</label>
-            <input type="time" id="endTime" class="time-input">
-        </div>
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
-            <button class="btn btn-primary" onclick="addTime()" style="flex: 1;">Add Time</button>
-            <button class="btn btn-danger" onclick="deleteTime()" style="flex: 1;">Delete Time</button>
         </div>
     </div>
 
@@ -897,6 +875,40 @@
             hideLoading();
         }
     }
+
+    // Function to Erase Data for the selected week
+    function clearAllRotaData() {
+    // Clear UI time inputs
+    document.querySelectorAll("#employeeRows input[type='time']").forEach(input => {
+        input.value = '';
+    });
+
+    // Get the week start date (user-selected or current)
+    let weekStartDate = document.getElementById('weekStartDate')?.value;
+    let date = weekStartDate ? new Date(weekStartDate) : new Date();
+
+    // Get Monday of the selected week
+    const monday = getMonday(date);
+    const weekDates = getWeekDates(monday); // You already have this function
+
+    // Format dates as strings (same format used in DB e.g. 'dd/mm/yyyy (Day)')
+    const formattedDays = weekDates.map(d => `${formatDate(d)} (${getDayOfWeek(d)})`);
+
+    // Send request to backend to delete these days
+    fetch('/rota2/clearWeek', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daysToDelete: formattedDays })
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Cleared from database:', data);
+        alert('Rota cleared successfully for this week!');
+    })
+    .catch(error => {
+        console.error('Error clearing rota:', error);
+    });
+}
 
     // Function to display current week
     function displayCurrentWeek() {
@@ -1360,7 +1372,6 @@
             })
             .catch(error => {
                 console.error('Error fetching rota data:', error);
-                showPopup('Error fetching rota data', 'error');
             })
             .finally(() => {
                 hideLoading();
@@ -2008,39 +2019,38 @@
 
     // Function to clear all data in the rota table
     function clearAllRotaData() {
-        // Find all time input fields and clear their values
-        document.querySelectorAll("#employeeRows input[type='time']").forEach(input => {
-            input.value = ''; // Reset the time input
-        });
+    // Clear UI time inputs
+    document.querySelectorAll("#employeeRows input[type='time']").forEach(input => {
+        input.value = '';
+    });
 
-        // Reset all totals
-        document.querySelectorAll('.total-hours').forEach(cell => {
-            cell.textContent = '0.00';
-        });
-        
-        document.querySelectorAll('.total-spent').forEach(cell => {
-            cell.textContent = '£0.00';
-        });
-        
-        // Reset weekly totals
-        document.getElementById('weeklyHoursTotal').textContent = '0.00';
-        document.getElementById('weeklyCostTotal').textContent = '£0.00';
-        
-        // Reset all daily totals
-        for (let i = 0; i < 7; i++) {
-            const dayCell = document.querySelector(`#${['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'][i]}Total`);
-            if (dayCell) {
-                dayCell.textContent = '0.00h / £0.00';
-            }
-        }
-        
-        // Recalculate all percentages and totals
-        calculateHolidayPercentage();
-        calculateTaxPercentage();
-        calculatePensionPercentage();
-        calculateTotalCostWeek();
-    }
+    // Get the week start date (user-selected or current)
+    let weekStartDate = document.getElementById('weekStartDate')?.value;
+    let date = weekStartDate ? new Date(weekStartDate) : new Date();
 
+    // Get Monday of the selected week
+    const monday = getMonday(date);
+    const weekDates = getWeekDates(monday); // You already have this function
+
+    // Format dates as strings (same format used in DB e.g. 'dd/mm/yyyy (Day)')
+    const formattedDays = weekDates.map(d => `${formatDate(d)} (${getDayOfWeek(d)})`);
+
+    // Send request to backend to delete these days
+    fetch('/rota/clearWeek', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daysToDelete: formattedDays })
+    })
+    .then(response => response.text())
+    .then(data => {
+        console.log('Cleared from database:', data);
+        alert('Rota cleared successfully for this week!');
+    })
+    .catch(error => {
+        console.error('Error clearing rota:', error);
+    });
+}
+    
     // Function to add time frame to selected cell
     function addTime() {
         if (!selectedCell) {

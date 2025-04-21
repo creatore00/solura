@@ -252,6 +252,31 @@ app.get('/getHolidayData', isAuthenticated, (req, res) => {
     });
 });
 
+// Function to Erase Data for the selected week
+app.post('/clearWeek', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const { daysToDelete } = req.body;
+
+    if (!Array.isArray(daysToDelete) || daysToDelete.length === 0) {
+        return res.status(400).json({ success: false, message: 'No days provided for deletion' });
+    }
+
+    const deleteQuery = `DELETE FROM rota WHERE day IN (?)`;
+
+    pool.query(deleteQuery, [daysToDelete], (err, result) => {
+        if (err) {
+            console.error('Error deleting week data:', err);
+            return res.status(500).send('Error deleting rota data.');
+        }
+        res.status(200).send(`Deleted rota entries for: ${daysToDelete.join(', ')}`);
+    });
+});
+
 // Route to insert total spent value into the database
 app.post('/api/insert-total-spent', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
