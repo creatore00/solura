@@ -41,7 +41,7 @@ app.get('/rota', isAuthenticated, (req, res) => {
             cr.endTime
         FROM 
             ConfirmedRota cr
-        JOIN 
+        LEFT JOIN 
             Employees e
         ON 
             cr.name = e.name AND cr.lastName = e.lastName

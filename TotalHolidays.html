@@ -499,7 +499,7 @@
 
     setupEditableCellsWithDayCalculation('holidaysTableBody');
     setupSaveButtons('.save-holiday-btn', saveHoliday);
-    setupDeleteButtons();
+    setupDeleteButtons('.delete-holiday-btn', confirmDelete);
 
     document.querySelectorAll('.status-select').forEach(select => {
         select.addEventListener('change', function () {
@@ -809,15 +809,18 @@
             }
             
             // Function for Delete Buttons
-            function setupDeleteButtons() {
-                document.addEventListener('click', function(e) {
-                    const btn = e.target.closest('.delete-holiday-btn');
-                    if (!btn) return;
-                    
-                    deleteId = btn.getAttribute('data-id');
-                    confirmDeleteModal.show();
-                });
-            }
+            function setupDeleteButtons(selector, deleteFunction) {
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest(selector);
+        if (!btn) return;
+        
+        deleteId = btn.getAttribute('data-id');
+        confirmDeleteModal.show();
+    });
+    
+    // Connect the modal's delete button
+    confirmDeleteBtn.addEventListener('click', deleteFunction);
+}
             
             // Function to Save Employee Tab
             async function saveEmployee(id) {
@@ -886,29 +889,52 @@
     if (!deleteId) return;
     
     try {
-        const response = await fetch(`/TotalHolidays/api/holidays/requests/${deleteId}/delete`, {
-            method: 'POST'  // Changed to POST to match backend
+        const response = await fetch(`/TotalHolidays/api/holidays/requests/${deleteId}`, {
+            method: 'POST'
         });
         
         if (!response.ok) throw new Error('Failed to delete holiday');
         
-        const result = await response.json();
+        // Refresh the table after successful deletion
+        loadAndRenderHolidays();
         confirmDeleteModal.hide();
-        
-        if (result.daysRestored > 0) {
-            alert(`Holiday request deleted successfully! ${result.daysRestored} days restored to employee's balance.`);
-        } else {
-            alert('Holiday request deleted successfully! (No days restored - was unpaid leave)');
-        }
-        
-        loadAndRenderHolidays(); // Refresh the list
-        loadEmployees(); // Refresh employee balances
     } catch (error) {
         console.error('Error deleting holiday:', error);
-        alert('Error deleting holiday request: ' + error.message);
+    } finally {
+        deleteId = null;
     }
 }
 
+            // Function to confirm successful deletion
+            function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    const toast = document.createElement('div');
+    toast.className = `toast show align-items-center text-white bg-${type}`;
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+            // Function to confirm successful deletion
+            function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.style.position = 'fixed';
+    container.style.top = '20px';
+    container.style.right = '20px';
+    container.style.zIndex = '1100';
+    document.body.appendChild(container);
+    return container;
+}
+            
             // Function to Format Date to dd/mm/yyyy
             function formatDate(dateString) {
     if (!dateString) return '';

@@ -489,15 +489,8 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
                     isDateAfterOrEqual(parseDate(entry.day), effectiveStartDate)
                 );
 
-                // Get all holidays for this employee within the holiday year period
-                const employeeHolidays = holidayData.filter(entry => 
-                    entry.name === data.name && 
-                    entry.lastName === data.lastName &&
-                    isDateAfterOrEqual(parseDate(entry.day), effectiveStartDate)
-                );
-
                 // Calculate total hours worked in the holiday year period
-                const totalHoursWorked = employeeShifts.reduce((sum, entry) => {
+                let totalHoursWorked = employeeShifts.reduce((sum, entry) => {
                     try {
                         const hours = calculateShiftHours(entry.startTime, entry.endTime);
                         return sum + hours;
@@ -507,42 +500,39 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
                     }
                 }, 0);
 
-                // Calculate total holiday days taken
-                const totalHolidayDays = employeeHolidays.length;
+                // Calculate total weeks in the period (pro rata)
+                const totalDaysInPeriod = Math.floor((currentDateEnd - effectiveStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                const totalWeeksInPeriod = totalDaysInPeriod / 7;
 
-                // Calculate working days (shifts + holidays)
-                const workingDays = [...new Set([
-                    ...employeeShifts.map(s => s.day),
-                    ...employeeHolidays.map(h => h.day)
-                ])].length;
+                // Initial calculation
+                let averageWeeklyHours = totalWeeksInPeriod > 0 ? (totalHoursWorked / totalWeeksInPeriod) : 0;
+                let averageDailyHours = averageWeeklyHours / 5;
+                let holidayHours = averageDailyHours * data.holidayDays;
 
-                // Calculate weeks in period including holidays
-                const weeksInPeriod = workingDays / 5;
-
-                // Calculate average daily hours including holidays
-                let averageDailyHours;
-                if (weeksInPeriod > 0) {
-                    // Calculate "potential" hours by adding estimated holiday hours
-                    const estimatedHolidayHours = (totalHoursWorked / (workingDays - totalHolidayDays)) * totalHolidayDays;
-                    averageDailyHours = (totalHoursWorked + estimatedHolidayHours) / workingDays;
-                } else {
-                    // Fallback to contract hours if no data
-                    const contractHours = employeeShifts[0]?.contractHours || 0;
-                    averageDailyHours = contractHours / 5;
+                // Iterative calculation (2 iterations) to account for holiday hours in average
+                for (let i = 0; i < 2; i++) {
+                    // Add holiday hours to total hours
+                    const adjustedHours = totalHoursWorked + holidayHours;
+                    
+                    // Recalculate averages with adjusted hours
+                    averageWeeklyHours = totalWeeksInPeriod > 0 ? (adjustedHours / totalWeeksInPeriod) : 0;
+                    averageDailyHours = averageWeeklyHours / 5;
+                    holidayHours = averageDailyHours * data.holidayDays;
                 }
 
                 // Store final calculation
-                data.holidays = averageDailyHours * data.holidayDays;
+                data.holidays = holidayHours;
                 
                 // Debug logging
                 console.log([
                     `Employee: ${data.name} ${data.lastName}`,
                     `Period: ${effectiveStartDate.toDateString()} to ${currentDateEnd.toDateString()}`,
-                    `Working days: ${workingDays} (${weeksInPeriod.toFixed(2)} weeks)`,
-                    `Holiday days taken: ${totalHolidayDays}`,
+                    `Total days in period: ${totalDaysInPeriod}`,
+                    `Total weeks in period: ${totalWeeksInPeriod.toFixed(2)}`,
                     `Total hours worked: ${totalHoursWorked.toFixed(2)}`,
-                    `Daily average (incl. holidays): ${averageDailyHours.toFixed(2)}`,
-                    `Holiday hours: ${data.holidays.toFixed(2)} (${data.holidayDays} days)`
+                    `Final average weekly hours: ${averageWeeklyHours.toFixed(2)}`,
+                    `Final daily average: ${averageDailyHours.toFixed(2)}`,
+                    `Final holiday hours: ${data.holidays.toFixed(2)} (${data.holidayDays} days)`
                 ].join('\n  '));
             }
         }

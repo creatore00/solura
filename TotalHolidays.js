@@ -103,7 +103,7 @@ app.post('/api/holidays-update/requests/:id', isAuthenticated, isAdmin, (req, re
 });
 
 // Delete holiday request (changed from DELETE to POST)
-app.post('/api/holidays/requests/:id/delete', isAuthenticated, isAdmin, (req, res) => {
+app.post('/api/holidays/requests/:id', isAuthenticated, isAdmin, (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ message: 'User not authenticated' });

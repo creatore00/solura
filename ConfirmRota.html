@@ -468,46 +468,78 @@
             return `${day}/${month}/${year} (${dayOfWeek})`;
         }
 
-        // Check if Rota has been confirmed by Supervisor
+        // Frontend checkConfirmedRota2 function with enhanced logging
         async function checkConfirmedRota2(date) {
-            showLoading(true);
-            try {
-                const response = await fetch(`/confirmrota/api/check-confirmed-rota2?day=${encodeURIComponent(date)}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                const data = await response.json();
-                return data.exists;
-            } catch (error) {
-                showMessage(`Error checking confirmed rota: ${error.message}`, 'error');
-                return false;
-            } finally {
-                showLoading(false);
-            }
+    console.log(`[checkConfirmedRota2] Checking confirmation for date: ${date}`);
+    showLoading(true);
+    try {
+        const url = `/confirmrota/api/check-confirmed-rota2?day=${encodeURIComponent(date)}`;
+        console.log(`[checkConfirmedRota2] Fetching from: ${url}`);
+        
+        const response = await fetch(url);
+        if (!response.ok) {
+            console.error(`[checkConfirmedRota2] HTTP error! Status: ${response.status}`);
+            throw new Error(`HTTP error! Status: ${response.status}`);
         }
+        
+        const data = await response.json();
+        console.log(`[checkConfirmedRota2] Response data:`, data);
+        
+        return data; // Return the full response data
+    } catch (error) {
+        console.error(`[checkConfirmedRota2] Error:`, error);
+        showMessage(`Error checking confirmed rota: ${error.message}`, 'error');
+        return { exists: false, confirmers: [] };
+    } finally {
+        showLoading(false);
+    }
+}
 
-        // Function to Populate Table by Rota Data
-        async function populateTable(date) {
-            showLoading(true);
-            try {
-                const formattedDate = formatDateForDisplay(date);
-                
-                // Check if the date exists in ConfirmedRota2
-                const existsInConfirmedRota2 = await checkConfirmedRota2(formattedDate);
+// Updated populateTable function with proper data handling
+async function populateTable(date) {
+    console.log(`[populateTable] Starting for date: ${date}`);
+    showLoading(true);
+    try {
+        const formattedDate = formatDateForDisplay(date);
+        console.log(`[populateTable] Formatted date: ${formattedDate}`);
+        
+        // Get confirmation data
+        const confirmationData = await checkConfirmedRota2(formattedDate);
+        console.log(`[populateTable] Confirmation data:`, confirmationData);
+        
+        // Display status message
+        const statusMessage = document.getElementById('statusMessage');
+        if (confirmationData.exists) {
+            if (confirmationData.confirmers && confirmationData.confirmers.length > 0) {
+                let namesText;
+                if (confirmationData.confirmers.length === 1) {
+                    namesText = confirmationData.confirmers[0];
+                } else if (confirmationData.confirmers.length === 2) {
+                    namesText = confirmationData.confirmers.join(' and ');
+                } else {
+                    namesText = confirmationData.confirmers.slice(0, -1).join(', ') + 
+                               ' and ' + confirmationData.confirmers[confirmationData.confirmers.length - 1];
+                }
+                statusMessage.textContent = `This rota has already been confirmed by ${namesText}.`;
+            } else {
+                statusMessage.textContent = 'This rota has already been confirmed.';
+            }
+            statusMessage.className = 'message message-success';
+        } else {
+            statusMessage.textContent = 'This rota is pending confirmation.';
+            statusMessage.className = 'message message-error';
+        }
+        statusMessage.style.display = 'block';
+        console.log(`[populateTable] Status message set to: ${statusMessage.textContent}`);
 
-                // Display status message
-                const statusMessage = document.getElementById('statusMessage');
-                statusMessage.textContent = existsInConfirmedRota2 
-                    ? 'This rota has already been confirmed by a supervisor.' 
-                    : 'This rota is pending confirmation.';
-                statusMessage.className = `message ${existsInConfirmedRota2 ? 'message-success' : 'message-error'}`;
-                statusMessage.style.display = 'block';
-
-                const [rotaData, confirmedRotaData] = await Promise.all([
-                    getRotaByDate(formattedDate), 
-                    getConfirmedRota(formattedDate)
-                ]);
-
+        // Rest of your table population logic...
+        const [rotaData, confirmedRotaData] = await Promise.all([
+            getRotaByDate(formattedDate), 
+            getConfirmedRota(formattedDate)
+        ]);
+        
+        console.log(`[populateTable] Rota data:`, rotaData);
+        console.log(`[populateTable] Confirmed rota data:`, confirmedRotaData);
                 const tableBody = document.querySelector('#rotaTable tbody');
                 tableBody.innerHTML = '';
 
@@ -1263,6 +1295,7 @@
     
     return `${day}/${month}/${year} (${dayOfWeek})`;
 }
+        
         // Function to Update Calendar Status
         async function updateCalendarStatuses(month, year) {
     try {

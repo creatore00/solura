@@ -87,39 +87,67 @@ app.get('/api/rota', isAuthenticated, (req, res) => {
 });
 
 // Check if Rota has been confirmed by Supervisor
+// Backend API endpoint with enhanced logging
 app.get('/api/check-confirmed-rota2', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
+    console.log(`[check-confirmed-rota2] Request received for db: ${dbName}, day: ${req.query.day}`);
 
     if (!dbName) {
+        console.error('[check-confirmed-rota2] No dbName in session - unauthorized');
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const day = req.query.day;
     if (!day) {
+        console.error('[check-confirmed-rota2] Day parameter missing');
         return res.status(400).json({ error: 'Day is required' });
     }
 
-    // Query to check if the date exists in either ConfirmedRota2 or ConfirmedRota
     const sql = `
         SELECT 
-            (SELECT COUNT(*) FROM ConfirmedRota2 WHERE day = ?) AS countConfirmedRota2,
-            (SELECT COUNT(*) FROM ConfirmedRota WHERE day = ?) AS countConfirmedRota
+            cr.who AS confirmedBy,
+            e.name,
+            e.lastName
+        FROM 
+            ConfirmedRota cr
+        JOIN 
+            Employees e ON cr.who = e.email
+        WHERE 
+            cr.day = ?
+        
+        UNION
+        
+        SELECT 
+            cr2.who AS confirmedBy,
+            e.name,
+            e.lastName
+        FROM 
+            ConfirmedRota2 cr2
+        JOIN 
+            Employees e ON cr2.who = e.email
+        WHERE 
+            cr2.day = ?
     `;
 
+    console.log(`[check-confirmed-rota2] Executing query for day: ${day}`);
     pool.query(sql, [day, day], (err, results) => {
         if (err) {
-            console.error('Error checking ConfirmedRota2 and ConfirmedRota:', err);
+            console.error('[check-confirmed-rota2] Database error:', err);
             return res.status(500).json({ error: 'Internal Server Error' });
         }
 
-        const existsInConfirmedRota2 = results[0].countConfirmedRota2 > 0;
-        const existsInConfirmedRota = results[0].countConfirmedRota > 0;
-
-        // If the date exists in either table, return exists: true
-        const exists = existsInConfirmedRota2 || existsInConfirmedRota;
-        res.json({ exists });
+        console.log(`[check-confirmed-rota2] Raw results:`, results);
+        
+        const confirmers = results.map(row => `${row.name} ${row.lastName}`);
+        const uniqueConfirmers = [...new Set(confirmers)];
+        
+        console.log(`[check-confirmed-rota2] Found ${uniqueConfirmers.length} confirmers:`, uniqueConfirmers);
+        
+        res.json({ 
+            exists: results.length > 0,
+            confirmers: uniqueConfirmers 
+        });
     });
 });
 
@@ -140,7 +168,7 @@ app.get('/api/confirmed-rota', isAuthenticated, (req, res) => {
     }
 
     // Query the ConfirmedRota table using the provided day
-    const sql = 'SELECT * FROM ConfirmedRota WHERE day = ?';
+    const sql = `SELECT * FROM ConfirmedRota WHERE day = ?`;
     pool.query(sql, [day], (err, results) => {
         if (err) {
             console.error('Error fetching confirmed rota:', err);
