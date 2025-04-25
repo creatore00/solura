@@ -132,11 +132,25 @@ app.get('/rota-since-date', isAuthenticated, (req, res) => {
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const startDate = req.query.startDate;
-    const endDate = req.query.endDate;
+    let startDate = req.query.startDate; // Expected format: YYYY-MM-DD
+    let endDate = req.query.endDate;     // Expected format: YYYY-MM-DD
+
+    // Validate and adjust end date to last day of month if needed
+    try {
+        const endDateObj = new Date(endDate);
+        const lastDayOfMonth = new Date(endDateObj.getFullYear(), endDateObj.getMonth() + 1, 0);
+        
+        if (endDateObj.getDate() !== lastDayOfMonth.getDate()) {
+            console.log(`Adjusting end date from ${endDate} to last day of month: ${lastDayOfMonth.toISOString().split('T')[0]}`);
+            endDate = lastDayOfMonth.toISOString().split('T')[0];
+        }
+    } catch (e) {
+        console.warn('Invalid end date format:', endDate);
+        return res.status(400).json({ message: 'Invalid end date format' });
+    }
 
     console.log(`[rota-since-date] Requested by DB: ${dbName}`);
-    console.log(`[rota-since-date] Date range: ${startDate} to ${endDate}`);
+    console.log(`[rota-since-date] Final date range: ${startDate} to ${endDate}`);
 
     if (!startDate || !endDate) {
         console.warn('Missing startDate or endDate in request');
@@ -148,7 +162,14 @@ app.get('/rota-since-date', isAuthenticated, (req, res) => {
         SELECT 
             cr.name,
             cr.lastName,
-            cr.day,
+            cr.day AS originalDay,
+            DATE_FORMAT(
+                STR_TO_DATE(
+                    REGEXP_REPLACE(cr.day, '\\\\s*\\\\([^)]*\\\\)', ''),
+                    '%d/%m/%Y'
+                ),
+                '%Y-%m-%d'
+            ) AS formattedDay,
             cr.startTime,
             cr.endTime,
             e.contractHours
@@ -157,9 +178,15 @@ app.get('/rota-since-date', isAuthenticated, (req, res) => {
         JOIN 
             Employees e ON cr.name = e.name AND cr.lastName = e.lastName
         WHERE 
-            STR_TO_DATE(cr.day, '%d/%m/%Y') BETWEEN ? AND ?
+            STR_TO_DATE(
+                REGEXP_REPLACE(cr.day, '\\\\s*\\\\([^)]*\\\\)', ''),
+                '%d/%m/%Y'
+            ) BETWEEN STR_TO_DATE(?, '%Y-%m-%d') AND STR_TO_DATE(?, '%Y-%m-%d')
         ORDER BY
-            cr.name, cr.lastName, cr.day
+            cr.name, cr.lastName, STR_TO_DATE(
+                REGEXP_REPLACE(cr.day, '\\\\s*\\\\([^)]*\\\\)', ''),
+                '%d/%m/%Y'
+            )
     `;
 
     console.log('[rota-since-date] Executing SQL query with parameters:', [startDate, endDate]);
@@ -169,9 +196,98 @@ app.get('/rota-since-date', isAuthenticated, (req, res) => {
             console.error('[rota-since-date] Error fetching rota data:', err);
             return res.status(500).json({ success: false, message: 'Server error' });
         }
-        res.json(results);
+
+        // Log some details about the results
+        console.log(`[rota-since-date] Retrieved ${results.length} records`);
+        if (results.length > 0) {
+            console.log('[rota-since-date] Date range in results:',
+                results[0].formattedDay, 'to', results[results.length-1].formattedDay);
+        }
+
+        res.json(results.map(row => ({
+            name: row.name,
+            lastName: row.lastName,
+            day: row.formattedDay, // Using the already formatted YYYY-MM-DD date
+            startTime: row.startTime,
+            endTime: row.endTime,
+            contractHours: row.contractHours
+        })));
     });
 });
+
+// Modified holiday endpoint to accept date range with added logs
+app.get('/holidays-since-date', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    const { startDate, endDate } = req.query;
+
+    if (!dbName || !startDate || !endDate) {
+        return res.status(400).json({ message: 'Missing parameters' });
+    }
+
+    const pool = getPool(dbName);
+    const query = `
+        SELECT 
+            id,
+            name,
+            lastName,
+            startDate,
+            endDate,
+            days AS holidayDays,
+            accepted
+        FROM 
+            Holiday
+        WHERE 
+            accepted = true
+            AND (
+                (STR_TO_DATE(REGEXP_REPLACE(startDate, '\\\\s*\\\\([^)]*\\\\)', ''), '%d/%m/%Y') BETWEEN ? AND ?)
+                OR
+                (STR_TO_DATE(REGEXP_REPLACE(endDate, '\\\\s*\\\\([^)]*\\\\)', ''), '%d/%m/%Y') BETWEEN ? AND ?)
+                OR
+                (STR_TO_DATE(REGEXP_REPLACE(startDate, '\\\\s*\\\\([^)]*\\\\)', ''), '%d/%m/%Y') <= ?
+                    AND STR_TO_DATE(REGEXP_REPLACE(endDate, '\\\\s*\\\\([^)]*\\\\)', ''), '%d/%m/%Y') >= ?)
+            )
+        ORDER BY
+            name, lastName, STR_TO_DATE(REGEXP_REPLACE(startDate, '\\\\s*\\\\([^)]*\\\\)', ''), '%d/%m/%Y')
+    `;
+
+    console.log('Executing holiday query with params:', [startDate, endDate, startDate, endDate, startDate, endDate]);
+
+    pool.query(query, [startDate, endDate, startDate, endDate, startDate, endDate], (err, results) => {
+        if (err) {
+            console.error('Error fetching holiday data:', err);
+            return res.status(500).json({ success: false, message: 'Server error' });
+        }
+
+        // Format the results to include clean dates
+        const formattedResults = results.map(row => {
+            const cleanStartDate = row.startDate.replace(/\s*\([^)]*\)$/, '');
+            const cleanEndDate = row.endDate.replace(/\s*\([^)]*\)$/, '');
+            
+            return {
+                id: row.id,
+                name: row.name,
+                lastName: row.lastName,
+                startDate: cleanStartDate,
+                endDate: cleanEndDate,
+                holidayDays: row.holidayDays,
+                accepted: row.accepted,
+                formattedStartDate: formatDateToISO(cleanStartDate),
+                formattedEndDate: formatDateToISO(cleanEndDate)
+            };
+        });
+
+        console.log(`Found ${formattedResults.length} holiday records`);
+        res.json(formattedResults);
+    });
+});
+
+// Helper function to format date (if still needed)
+function formatDateToISO(dateString) {
+    // First remove the weekday part if present
+    const cleanDate = dateString.replace(/\s*\([^)]*\)$/, '');
+    const [day, month, year] = cleanDate.split('/');
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
 
 // Route to retrieve holiday year settings
 app.get('/holiday-year-settings', isAuthenticated, (req, res) => {

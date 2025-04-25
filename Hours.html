@@ -450,26 +450,20 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
         const holidayStartDate = new Date(holidayYearStart);
         const holidayEndDate = new Date(holidayYearEnd);
         
-        // Determine the effective calculation period
-        const calculationStartDate = new Date(Math.max(
-            holidayStartDate,
-            new Date(currentDate.getFullYear(), 0, 1)
-        ));
-        const calculationEndDate = new Date(Math.min(
-            holidayEndDate,
-            currentDateEnd
-        ));
-
         // Format dates for API call
         const formatDateForAPI = (date) => date.toISOString().split('T')[0];
-        const startDateStr = formatDateForAPI(calculationStartDate);
-        const endDateStr = formatDateForAPI(calculationEndDate);
+        const startDateStr = formatDateForAPI(holidayStartDate);
+        const endDateStr = formatDateForAPI(currentDateEnd);
 
         // 2. Fetch all rota data for the period
         const rotaData = await fetch(`/hours/rota-since-date?startDate=${startDateStr}&endDate=${endDateStr}`)
             .then(res => res.json());
 
-        // 3. Process each employee with holiday days
+        // 3. Also fetch holiday data for the same period
+        const holidayData = await fetch(`/hours/holidays-since-date?startDate=${startDateStr}&endDate=${endDateStr}`)
+            .then(res => res.json());
+
+        // 4. Process each employee with holiday days
         for (const [name, data] of Object.entries(employeeData)) {
             if (data.holidayDays > 0) {
                 // Get employee details
@@ -485,21 +479,25 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
                 const parsedEmployeeStartDate = parseDate(employeeStartDate);
                 const effectiveStartDate = new Date(Math.max(
                     parsedEmployeeStartDate,
-                    calculationStartDate
+                    holidayStartDate
                 ));
 
-                // Get all shifts for this employee
+                // Get all shifts for this employee within the holiday year period
                 const employeeShifts = rotaData.filter(entry => 
                     entry.name === data.name && 
                     entry.lastName === data.lastName &&
                     isDateAfterOrEqual(parseDate(entry.day), effectiveStartDate)
                 );
 
-                // Get contract hours (from first matching record)
-                const contractHours = employeeShifts[0]?.contractHours || 0;
-                
-                // Calculate total hours worked
-                const totalHours = employeeShifts.reduce((sum, entry) => {
+                // Get all holidays for this employee within the holiday year period
+                const employeeHolidays = holidayData.filter(entry => 
+                    entry.name === data.name && 
+                    entry.lastName === data.lastName &&
+                    isDateAfterOrEqual(parseDate(entry.day), effectiveStartDate)
+                );
+
+                // Calculate total hours worked in the holiday year period
+                const totalHoursWorked = employeeShifts.reduce((sum, entry) => {
                     try {
                         const hours = calculateShiftHours(entry.startTime, entry.endTime);
                         return sum + hours;
@@ -509,19 +507,27 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
                     }
                 }, 0);
 
-                // Calculate working days
-                const workingDays = [...new Set(employeeShifts.map(s => s.day))].length;
-                
-                // Determine calculation method
+                // Calculate total holiday days taken
+                const totalHolidayDays = employeeHolidays.length;
+
+                // Calculate working days (shifts + holidays)
+                const workingDays = [...new Set([
+                    ...employeeShifts.map(s => s.day),
+                    ...employeeHolidays.map(h => h.day)
+                ])].length;
+
+                // Calculate weeks in period including holidays
+                const weeksInPeriod = workingDays / 5;
+
+                // Calculate average daily hours including holidays
                 let averageDailyHours;
-                if (workingDays >= 5) {
-                    // Calculate based on actual hours worked
-                    const daysInPeriod = Math.floor((calculationEndDate - effectiveStartDate) / (1000 * 60 * 60 * 24));
-                    const weeksInPeriod = daysInPeriod / 7;
-                    const avgWeeklyHours = weeksInPeriod > 0 ? totalHours / weeksInPeriod : 0;
-                    averageDailyHours = avgWeeklyHours / 5;
+                if (weeksInPeriod > 0) {
+                    // Calculate "potential" hours by adding estimated holiday hours
+                    const estimatedHolidayHours = (totalHoursWorked / (workingDays - totalHolidayDays)) * totalHolidayDays;
+                    averageDailyHours = (totalHoursWorked + estimatedHolidayHours) / workingDays;
                 } else {
-                    // Fallback to contract hours
+                    // Fallback to contract hours if no data
+                    const contractHours = employeeShifts[0]?.contractHours || 0;
                     averageDailyHours = contractHours / 5;
                 }
 
@@ -531,11 +537,11 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
                 // Debug logging
                 console.log([
                     `Employee: ${data.name} ${data.lastName}`,
-                    `Period: ${effectiveStartDate.toDateString()} to ${calculationEndDate.toDateString()}`,
-                    `Shifts: ${employeeShifts.length} (${workingDays} days)`,
-                    `Total hours: ${totalHours.toFixed(2)}`,
-                    `Contract hours: ${contractHours}`,
-                    `Daily average: ${averageDailyHours.toFixed(2)}`,
+                    `Period: ${effectiveStartDate.toDateString()} to ${currentDateEnd.toDateString()}`,
+                    `Working days: ${workingDays} (${weeksInPeriod.toFixed(2)} weeks)`,
+                    `Holiday days taken: ${totalHolidayDays}`,
+                    `Total hours worked: ${totalHoursWorked.toFixed(2)}`,
+                    `Daily average (incl. holidays): ${averageDailyHours.toFixed(2)}`,
                     `Holiday hours: ${data.holidays.toFixed(2)} (${data.holidayDays} days)`
                 ].join('\n  '));
             }
