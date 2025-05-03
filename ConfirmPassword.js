@@ -15,12 +15,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Route to handle password update
-app.post('/submit', isAuthenticated, async (req, res) => {
-    const { password } = req.body; // Get password from request body
-    const email = req.session.email; // Get email from session
+app.post('/submit', async (req, res) => {
+    const { password, email } = req.body;
 
     if (!email) {
-        return res.status(401).json({ error: 'Unauthorized: No session found' });
+        return res.status(400).json({ error: 'Email is required' });
     }
 
     if (!password) {
@@ -36,19 +35,15 @@ app.post('/submit', isAuthenticated, async (req, res) => {
         mainPool.query(updatePasswordSql, [hashedPassword, email], (err, results) => {
             if (err) {
                 console.error('Error updating password in the main database:', err);
-                return res.status(500).json({ error: 'Error updating password in the main database' });
+                return res.status(500).json({ error: 'Error updating password' });
             }
-            console.log('Password updated successfully for email:', email);
+            
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
 
-            // Clear session after password update
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error('Error destroying session:', err);
-                    return res.status(500).json({ error: 'Internal server error' });
-                }
-                res.clearCookie('connect.sid'); // Clear the session cookie
-                return res.json({ success: true, message: 'Password updated successfully!' });
-            });
+            // No need to clear session if you're not using it
+            return res.json({ success: true, message: 'Password updated successfully!' });
         });
     } catch (err) {
         console.error('Error hashing password:', err);
