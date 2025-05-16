@@ -20,7 +20,7 @@ const transporter = nodemailer.createTransport({
     port: 465, // SSL Port
     secure: true, // `true` for SSL (port 465)
     auth: {
-        user: 'founder@solura.uk',
+        user: 'no-reply@solura.uk',
         pass: 'Salvemini01@'
     }
 });
@@ -102,7 +102,7 @@ async function sendEmailNotification(dbName, requesterEmail, requesterName, star
         if (!emails.length) return;
 
         const mailOptions = {
-            from: 'Solura WorkForce',
+            from: 'Solura WorkForce <no-reply@solura.uk>',
             to: emails.join(', '),
             subject: 'New Holiday Request Submitted',
             text: `A new holiday request has been submitted by ${requesterName} (${requesterEmail}).\n\n` +

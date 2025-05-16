@@ -221,13 +221,13 @@ app.post('/submit', (req, res) => {
             port: 465, // SSL Port
             secure: true, // `true` for SSL (port 465)
             auth: {
-                user: 'founder@solura.uk',
+                user: 'no-reply@solura.uk',
                 pass: 'Salvemini01@'
             }
         });
 
         const mailOptions = {
-            from: 'Solura WorkForce <founder@solura.uk>',
+            from: 'Solura WorkForce <no-reply@solura.uk>',
             to: email,
             subject: 'Password Reset Link',
             text: `Click the link to reset your password: ${resetLink} This is your token for security measures ${token}`

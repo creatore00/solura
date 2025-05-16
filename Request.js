@@ -18,17 +18,19 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Function to send email
 function sendEmail(recipients, message) {
     // Create a transporter
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: 'oxfordbbuona@gmail.com',
-            pass: 'vkav xtuc ufwz sphn'
-        }
-    });
+        const transporter = nodemailer.createTransport({
+            host: 'smtp0001.neo.space', // Your SMTP Host
+            port: 465, // SSL Port
+            secure: true, // `true` for SSL (port 465)
+            auth: {
+                user: 'no-reply@solura.uk',
+                pass: 'Salvemini01@'
+            }
+        });
 
     // Setup email data
     const mailOptions = {
-        from: 'oxfordbbuona@gmail.com',
+        from: 'Solura WorkForce <no-reply@solura.uk>',
         to: recipients.join(','), // Convert array of emails to comma-separated string
         subject: 'Updates on your Holiday Request',
         text: message // Include the message retrieved from the request body

@@ -61,13 +61,13 @@ app.post('/api/password-recovery', (req, res) => {
                                     port: 465, // SSL Port
                                     secure: true, // `true` for SSL (port 465)
                                     auth: {
-                                        user: 'founder@solura.uk',
+                                        user: 'no-reply@solura.uk',
                                         pass: 'Salvemini01@'
                                     }
                                 });
                     // Send email
                     transporter.sendMail({
-                        from: 'Solura Support <founder@solura.uk>', // FIXED
+                        from: 'Solura Support <no-reply@solura.uk>', // FIXED
                         to: email,
                         subject: 'Password Reset Request',
                         html: `

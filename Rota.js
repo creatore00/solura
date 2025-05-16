@@ -248,14 +248,14 @@ const sendEmail = (pdfBuffer, emailAddresses) => {
         port: 465,
         secure: true,
         auth: {
-            user: 'founder@solura.uk',
+            user: 'no-reply@solura.uk',
             pass: 'Salvemini01@'
         }
     });
 
     const sendPromises = emailAddresses.map(email => {
         const mailOptions = {
-            from: 'Solura WorkForce <founder@solura.uk>',
+            from: 'Solura WorkForce <no-reply@solura.uk>',
             to: email,
             subject: 'Your Weekly Work Schedule',
             text: `Hello,\n\nAttached is your rota for the upcoming week.\n\nBest regards,\nManagement Team`,
