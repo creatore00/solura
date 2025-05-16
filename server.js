@@ -279,6 +279,110 @@ app.get('/User.html', isAuthenticated, isUser, (req, res) => {
 app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
     res.sendFile(path.join(__dirname, 'Supervisor.html'));
 });
+app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    try {
+        // Get yesterday's date (exclude today)
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const daysToCheck = yesterday.getDate(); // e.g., 15 if today is 16th
+
+        let missingDaysCount = 0;
+
+        // Check each day from 1st to yesterday
+        for (let day = 1; day <= daysToCheck; day++) {
+            const date = new Date(currentYear, currentMonth - 1, day);
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+            const formattedDay = `${String(day).padStart(2, '0')}/${String(currentMonth).padStart(2, '0')}/${currentYear} (${dayName})`;
+
+            const dayExists = await new Promise((resolve, reject) => {
+                pool.query(
+                    `SELECT 1 FROM ConfirmedRota WHERE day = ? LIMIT 1`,
+                    [formattedDay],
+                    (error, results) => {
+                        if (error) return reject(error);
+                        resolve(results.length > 0);
+                    }
+                );
+            });
+
+            if (!dayExists) {
+                missingDaysCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            count: missingDaysCount,
+            checkedDays: daysToCheck
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    try {
+        // Get yesterday's date (exclude today)
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const daysToCheck = yesterday.getDate(); // e.g., 15 if today is 16th
+
+        let missingDaysCount = 0;
+
+        // Check each day from 1st to yesterday
+        for (let day = 1; day <= daysToCheck; day++) {
+            const date = new Date(currentYear, currentMonth - 1, day);
+            // Format as yyyy-mm-dd
+            const formattedDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+            const dayExists = await new Promise((resolve, reject) => {
+                pool.query(
+                    `SELECT 1 FROM tip WHERE day = ? LIMIT 1`,
+                    [formattedDay],
+                    (error, results) => {
+                        if (error) return reject(error);
+                        resolve(results.length > 0);
+                    }
+                );
+            });
+
+            if (!dayExists) {
+                missingDaysCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            count: missingDaysCount,
+            checkedDays: daysToCheck
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
 // Helper function to get current Monday's date in YYYY-MM-DD format
 function getCurrentMonday() {
     const today = new Date();

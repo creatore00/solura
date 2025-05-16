@@ -535,17 +535,29 @@
                 
                 <div class="dashboard-widget">
                     <div class="widget-header">
-                        <h3 class="widget-title">Pending Approvals</h3>
+                        <h3 class="widget-title">Pending Rota Approvals</h3>
                         <i class="fas fa-clock" style="color: #ff9800;"></i>
                     </div>
-                    <div class="widget-value">8</div>
+                    <div class="widget-value" id="approve"></div>
                     <div class="widget-footer">
-                        <span>Requests waiting</span>
-                        <a href="#" style="color: var(--secondary-color);">Review</a>
+                        <span>Rota Confirmations waiting</span>
+                        <a href="/confirmrota" style="color: var(--secondary-color);">Review</a>
+                    </div>
+                </div>
+
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Pending Tips Approvals</h3>
+                        <i class="fas fa-clock" style="color: #29bce0;"></i>
+                    </div>
+                    <div class="widget-value" id="tip"></div>
+                    <div class="widget-footer">
+                        <span>Tips Confirmations waiting</span>
+                        <a href="/tip" style="color: var(--secondary-color);">Review</a>
                     </div>
                 </div>
                 
-                <div class="dashboard-widget">
+                <!--<div class="dashboard-widget">
                     <div class="widget-header">
                         <h3 class="widget-title">Holiday Requests</h3>
                         <i class="fas fa-umbrella-beach" style="color: #4caf50;"></i>
@@ -555,14 +567,14 @@
                         <span>This week</span>
                         <a href="#" style="color: var(--secondary-color);">Manage</a>
                     </div>
-                </div>
+                </div>-->
                 
                 <div class="dashboard-widget">
                     <div class="widget-header">
                         <h3 class="widget-title">Labor Cost</h3>
                         <i class="fas fa-pound-sign" style="color: #f44336;"></i>
                     </div>
-                    <div class="widget-value" id="labor">£12,450</div>
+                    <div class="widget-value" id="labor"></div>
                     <div class="widget-footer">
                         <span>This Week</span>
                         <a href="/labor" style="color: var(--secondary-color);">Details</a>
@@ -875,6 +887,60 @@ function populateShiftTable(employees) {
         tableBody.appendChild(row);
     });
 }
+// Function to update pending approvals count
+function updatePendingApprovals(count) {
+    const widget = document.getElementById('approve');
+    if (widget) {
+        widget.textContent = count;
+    }
+}
+// Function to fetch pending approvals
+async function fetchPendingApprovals() {
+    try {
+        const response = await fetch('/api/pending-approvals');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        
+        if (data.success) {
+            updatePendingApprovals(data.count);
+        } else {
+            console.error('Error fetching pending approvals:', data.error);
+            updatePendingApprovals('--');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        updatePendingApprovals('--');
+    }
+}
+// Function to update pending approvals count
+function updateTipApprovals(count) {
+    const widget = document.getElementById('tip');
+    if (widget) {
+        widget.textContent = count;
+    }
+}
+// Function to fetch pending approvals
+async function fetchTipApprovals() {
+    try {
+        const response = await fetch('/api/tip-approvals');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        
+        if (data.success) {
+            updateTipApprovals(data.count);
+        } else {
+            console.error('Error fetching Tip approvals:', data.error);
+            updateTipApprovals('--');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        updateTipApprovals('--');
+    }
+}
 // Function to fetch Shift Data
 async function fetchEmployeesOnShift() {
     try {
@@ -899,14 +965,16 @@ async function fetchEmployeesOnShift() {
     }
 }
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', fetchEmployeesOnShift);
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     fetchEmployeesOnShift();
     // Optional: Refresh every second
     setInterval(fetchEmployeesOnShift, 10000);
     // Update immediately when page loads
     updateLiveDateTime();
+    // Function to Call Approvals
+    fetchPendingApprovals();
+    // Function To Call Tip
+    fetchTipApprovals();
 });
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
