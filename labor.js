@@ -19,31 +19,29 @@ app.post('/api/generate-rota-pdf', isAuthenticated, async (req, res) => {
     let browser;
 
     try {
-        const launchOptions = {
-            headless: 'new',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
-        };
-
-        // Configuration for different environments
-        if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
-            launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-        } else if (process.env.NODE_ENV === 'production') {
-            launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || 
-                                         '/app/.chrome-for-testing/chrome-linux64/chrome';
-        }
-
-        browser = await puppeteer.launch(launchOptions);
-        const page = await browser.newPage();
-
-        await page.setContent(htmlContent, {
-            waitUntil: 'networkidle0',
-            timeout: 30000
-        });
+            const launchOptions = {
+                headless: 'new',
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu'
+                ]
+            };
+    
+            // Windows development
+            if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
+                launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+            }
+            // Heroku production - let Puppeteer handle it automatically
+            else if (process.env.NODE_ENV === 'production') {
+                // Use Puppeteer's bundled Chrome
+                launchOptions.executablePath = '/app/.chrome-for-testing/chrome-linux64/chrome';
+            }
+    
+            const browser = await puppeteer.launch(launchOptions);
+            const page = await browser.newPage();
+            await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
 
         // Replace waitForTimeout with traditional promise-based timeout
         await new Promise(resolve => setTimeout(resolve, 1000));
