@@ -15,7 +15,34 @@
             --white: #ffffff;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        
+        .boh-cell {
+    background-color: #ffebee;
+    color: #c62828;
+    font-weight: bold;
+}
+
+.foh-cell {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.status-indicator {
+    padding: 4px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    font-size: 0.9em;
+}
+
+.status-indicator.working {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
+
+.status-indicator.inactive {
+    background-color: #f5f5f5;
+    color: #616161;
+}
         * {
             box-sizing: border-box;
             margin: 0;
@@ -500,7 +527,7 @@
                         <h3 class="widget-title">Employees On Shift</h3>
                         <i class="fas fa-users" style="color: var(--secondary-color);"></i>
                     </div>
-                    <div class="widget-value">24</div>
+                    <div class="widget-value" id="employees">24</div>
                     <div class="widget-footer">
                         <span>Currently working</span>
                         <a href="#" style="color: var(--secondary-color);">View All</a>
@@ -536,10 +563,10 @@
                         <h3 class="widget-title">Labor Cost</h3>
                         <i class="fas fa-pound-sign" style="color: #f44336;"></i>
                     </div>
-                    <div class="widget-value">£12,450</div>
+                    <div class="widget-value" id="labor">£12,450</div>
                     <div class="widget-footer">
-                        <span>This period</span>
-                        <a href="#" style="color: var(--secondary-color);">Details</a>
+                        <span>This Week</span>
+                        <a href="/labor" style="color: var(--secondary-color);">Details</a>
                     </div>
                 </div>
             </div>
@@ -590,47 +617,20 @@
                 </a>
             </div>
                         <!-- Recent Activity -->
-                        <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Recent Activity</h2>
+                        <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
                         <table class="data-table">
                             <thead>
-                                <tr>
-                                    <th>Time</th>
-                                    <th>Employee</th>
+                                <tr>                                   
+                                    <th>Employee</th>                                    
+                                    <th>Designation</th>
+                                    <th>Shift</th>
                                     <th>Activity</th>
-                                    <th>Details</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td>10:45 AM</td>
-                                    <td>John Smith</td>
-                                    <td>Shift started</td>
-                                    <td>Front of House</td>
-                                </tr>
-                                <tr>
-                                    <td>09:30 AM</td>
-                                    <td>Sarah Johnson</td>
-                                    <td>Holiday requested</td>
-                                    <td>15-20 July</td>
-                                </tr>
-                                <tr>
-                                    <td>Yesterday</td>
-                                    <td>Michael Brown</td>
-                                    <td>Payslip generated</td>
-                                    <td>June 2024</td>
-                                </tr>
-                                <tr>
-                                    <td>Yesterday</td>
-                                    <td>Emma Wilson</td>
-                                    <td>Tips recorded</td>
-                                    <td>£120.50</td>
-                                </tr>
+                                <!-- Will be populated by JavaScript -->
                             </tbody>
                         </table>
-                    </main>
-                </div>
-        </main>
-    </div>
     
     <!-- App Footer -->
     <footer class="app-footer">
@@ -670,12 +670,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 // Set current date
-document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-GB', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+function updateLiveDateTime() {
+    const now = new Date();
+    document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(',', '');
+}
+// Then update every second (1000ms)
+setInterval(updateLiveDateTime, 1000);
 // Database switcher functionality
 document.addEventListener('DOMContentLoaded', function() {
             // Get user session info (you may need to adjust this based on how you store session info)
@@ -754,6 +763,163 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error fetching user databases:', error);
             });
         });
+// Function for Labor
+function updateLaborCostWidget(cost) {
+    // Format the cost with thousands separator
+    const formattedCost = new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0
+    }).format(cost).replace('GBP', '').trim();
+    
+    // Update the widget value
+    const widgetValue = document.getElementById('labor');
+    if (widgetValue) {
+        widgetValue.textContent = formattedCost;
+    }
+}
+// Function for Labor
+function fetchLaborCost(callback) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/labor-cost', true);
+    
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    callback(null, data.cost);
+                } else {
+                    callback(data.message || 'No data available');
+                }
+            } catch (e) {
+                callback('Error parsing response');
+            }
+        } else {
+            callback('Request failed with status: ' + xhr.status);
+        }
+    };
+    
+    xhr.onerror = function() {
+        callback('Network error');
+    };
+    
+    xhr.send();
+}
+// Function to update employees on shift widget
+function updateEmployeesOnShift(count) {
+    const widgetValue = document.getElementById('employees');
+    if (widgetValue) {
+        widgetValue.textContent = count;
+    }
+}
+// Helper to format time
+function formatTime(timeString) {
+    if (!timeString) return '';
+    return timeString.split(', ')
+        .map(time => {
+            const [hours, minutes] = time.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour % 12 || 12;
+            return `${displayHour}:${minutes} ${ampm}`;
+        })
+        .join(' & ');
+}
+// Helper to format time
+function formatTimeRange(start, end) {
+    const format = (time) => {
+        const [h, m] = time.split(':');
+        const hour = h % 12 || 12;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        return `${hour}:${m} ${ampm}`;
+    };
+    return `${format(start)} - ${format(end)}`;
+}
+// Function to Populate Shift Table
+function populateShiftTable(employees) {
+    const tableBody = document.querySelector('.data-table tbody');
+    if (!tableBody) return;
+    tableBody.innerHTML = '';
+
+    employees.forEach(employee => {
+        const row = document.createElement('tr');
+        
+        // Employee column
+        const nameCell = document.createElement('td');
+        nameCell.textContent = employee.employeeName;
+        
+        // Department column
+        const deptCell = document.createElement('td');
+        deptCell.textContent = employee.designation;
+        deptCell.className = employee.designation === 'BOH' ? 'boh-cell' : 'foh-cell';
+        
+        // Time Frames column
+        const timeCell = document.createElement('td');
+        timeCell.innerHTML = employee.timeFrames.map(frame => 
+            `<div>${formatTimeRange(frame.start, frame.end)}</div>`
+        ).join('');
+        
+        // Status column
+        const statusCell = document.createElement('td');
+        statusCell.innerHTML = `
+            <div class="status-indicator ${employee.status === 'Working now' ? 'working' : 'inactive'}">
+                ${employee.status}
+            </div>
+            <small>${employee.nextEvent}</small>
+        `;
+        
+        row.appendChild(nameCell);
+        row.appendChild(deptCell);
+        row.appendChild(timeCell);
+        row.appendChild(statusCell);
+        tableBody.appendChild(row);
+    });
+}
+// Function to fetch Shift Data
+async function fetchEmployeesOnShift() {
+    try {
+        const response = await fetch('/api/employees-on-shift');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateEmployeesOnShift(data.count);
+            populateShiftTable(data.employees);
+        } else {
+            console.error('Error:', data.error || 'Unknown error');
+            updateEmployeesOnShift('--');
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        updateEmployeesOnShift('--');
+    }
+}
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', fetchEmployeesOnShift);
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetchEmployeesOnShift();
+    // Optional: Refresh every second
+    setInterval(fetchEmployeesOnShift, 10000);
+    // Update immediately when page loads
+    updateLiveDateTime();
+});
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetchLaborCost(function(error, cost) {
+        if (error) {
+            console.error('Error fetching labor cost:', error);
+            // Optionally show error message or keep default value
+            return;
+        }
+        updateLaborCostWidget(cost);
+    });
+});
 // Inactivity timer
 let inactivityTimer;
 const resetInactivityTimer = () => {

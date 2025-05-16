@@ -286,14 +286,34 @@ app.post('/api/updateWeeklyCost', (req, res) => {
     const pool = getPool(dbName);
     const { weekly_cost_before, week_start } = req.body;
 
-    // Validate inputs
+    // Enhanced validation
     if (typeof weekly_cost_before !== 'number' || isNaN(weekly_cost_before)) {
         return res.status(400).json({ error: 'Invalid weekly cost value' });
     }
 
-    if (!isValidDate(week_start)) { // Implement this date validation function
-        return res.status(400).json({ error: 'Invalid week start date' });
+    // Parse the formatted date
+    function parseFormattedDate(dateStr) {
+        try {
+            const [datePart] = dateStr.split(' (');
+            const [day, month, year] = datePart.split('/');
+            return new Date(`${year}-${month}-${day}`);
+        } catch (e) {
+            return null;
+        }
     }
+
+    const weekStartDate = parseFormattedDate(week_start);
+    if (!weekStartDate || isNaN(weekStartDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid week start date format. Expected dd/mm/yyyy (Monday)' });
+    }
+
+    // Format for database (YYYY-MM-DD)
+    const dbFormattedDate = weekStartDate.toISOString().split('T')[0];
+
+    console.log('Attempting to insert:', {
+        cost: weekly_cost_before,
+        date: dbFormattedDate
+    });
 
     const query = `
         INSERT INTO Data (Weekly_Cost_Before, Weekly_Cost_After, WeekStart)
@@ -303,17 +323,24 @@ app.post('/api/updateWeeklyCost', (req, res) => {
             WeekStart = VALUES(WeekStart)
     `;
 
-    const params = [weekly_cost_before, weekly_cost_before, week_start];
-
-    pool.query(query, params, (err, result) => {
+    pool.query(query, [weekly_cost_before, weekly_cost_before, dbFormattedDate], (err, result) => {
         if (err) {
-            console.error('Database update error:', err);
-            return res.status(500).json({ error: 'Internal server error' });
+            console.error('Database error details:', {
+                code: err.code,
+                sqlMessage: err.sqlMessage,
+                sql: err.sql
+            });
+            return res.status(500).json({ 
+                error: 'Internal server error',
+                details: err.message
+            });
         }
 
+        console.log('Insert result:', result);
         res.json({ 
             success: true,
-            affectedRows: result.affectedRows
+            affectedRows: result.affectedRows,
+            insertId: result.insertId
         });
     });
 });

@@ -85,7 +85,7 @@ app.get('/api/employees', isAuthenticated, isAdmin, async (req, res) => {
 
     try {
         // Step 1: Fetch all emails, names, and last names from the Employees table (current database)
-        const employeesQuery = 'SELECT Email, name, lastName FROM Employees';
+        const employeesQuery = `SELECT Email, name, lastName FROM Employees`;
         const [employeesResults] = await pool.promise().query(employeesQuery);
 
         // Step 2: Fetch all emails from the users table (main database)
@@ -98,6 +98,7 @@ app.get('/api/employees', isAuthenticated, isAdmin, async (req, res) => {
 
         // Step 4: Send the list of unused emails with names and last names as JSON
         res.json(unusedEmails);
+        console.log(unusedEmails);
     } catch (err) {
         console.error('Error fetching emails:', err);
         res.status(500).json({ error: 'Internal Server Error' });

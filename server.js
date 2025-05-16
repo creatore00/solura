@@ -15,6 +15,7 @@ const hours = require('./Hours.js');
 const pastpayslips = require('./PastPayslips.js');
 const request = require('./Request.js');
 const tip = require('./Tip.js');
+const labor = require('./labor.js');
 const TotalHolidays = require('./TotalHolidays.js');
 const UserCrota = require('./UserCRota.js');
 const UserHolidays = require('./UserHolidays.js');
@@ -45,6 +46,7 @@ app.use('/updateinfo', updateinfo);
 app.use('/ForgotPassword', ForgotPassword);
 app.use('/userholidays', userholidays);
 app.use('/hours', hours);
+app.use('/labor', labor);
 app.use('/pastpayslips', pastpayslips);
 app.use('/request', request);
 app.use('/tip', tip);
@@ -276,6 +278,169 @@ app.get('/User.html', isAuthenticated, isUser, (req, res) => {
 });
 app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
     res.sendFile(path.join(__dirname, 'Supervisor.html'));
+});
+// Helper function to get current Monday's date in YYYY-MM-DD format
+function getCurrentMonday() {
+    const today = new Date();
+    const day = today.getDay(); // 0 is Sunday, 1 is Monday, etc.
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
+    const monday = new Date(today.setDate(diff));
+    return monday.toISOString().split('T')[0];
+}
+// Endpoint to get employees on shift today
+app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) return res.status(401).json({ success: false, message: 'User not authenticated' });
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+    const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()} (${dayName})`;
+    
+    pool.query(
+        `SELECT name, lastName, startTime, endTime, designation 
+         FROM rota 
+         WHERE day = ?
+         ORDER BY designation DESC, lastName, name, startTime`,
+        [formattedDate],
+        (error, results) => {
+            if (error) {
+                console.error('Database error:', error);
+                return res.status(500).json({ success: false, error: 'Database error' });
+            }
+
+            const employeeMap = new Map();
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes(); // Total minutes
+            
+            results.forEach(row => {
+                const key = `${row.name} ${row.lastName}`;
+                if (!employeeMap.has(key)) {
+                    employeeMap.set(key, {
+                        name: row.name,
+                        lastName: row.lastName,
+                        designation: row.designation,
+                        timeFrames: []
+                    });
+                }
+                
+                // Convert times to minutes since midnight for easier calculation
+                const [startH, startM] = row.startTime.split(':').map(Number);
+                const [endH, endM] = row.endTime.split(':').map(Number);
+                const startMinutes = startH * 60 + startM;
+                const endMinutes = endH * 60 + endM;
+                
+                employeeMap.get(key).timeFrames.push({
+                    start: row.startTime,
+                    end: row.endTime,
+                    startMinutes,
+                    endMinutes
+                });
+            });
+
+            const employees = Array.from(employeeMap.values()).map(emp => {
+                // Sort time frames chronologically
+                emp.timeFrames.sort((a, b) => a.startMinutes - b.startMinutes);
+                
+                let currentStatus = 'Not started';
+                let nextEvent = '';
+                let activeFrame = null;
+                
+                // Find current or next active time frame
+                for (const frame of emp.timeFrames) {
+                    if (currentTime < frame.startMinutes) {
+                        // Shift hasn't started yet
+                        const minsLeft = frame.startMinutes - currentTime;
+                        const hoursLeft = Math.floor(minsLeft / 60);
+                        const remainingMins = minsLeft % 60;
+                        nextEvent = `Starts in ${hoursLeft}h ${remainingMins}m`;
+                        break;
+                    } else if (currentTime <= frame.endMinutes) {
+                        // Currently working
+                        currentStatus = 'Working now';
+                        const minsLeft = frame.endMinutes - currentTime;
+                        const hoursLeft = Math.floor(minsLeft / 60);
+                        const remainingMins = minsLeft % 60;
+                        nextEvent = `Ends in ${hoursLeft}h ${remainingMins}m`;
+                        activeFrame = frame;
+                        break;
+                    }
+                }
+                
+                // If no active or upcoming shift found, show last ended shift
+                if (!nextEvent && emp.timeFrames.length > 0) {
+                    const lastFrame = emp.timeFrames[emp.timeFrames.length - 1];
+                    const minsAgo = currentTime - lastFrame.endMinutes;
+                    if (minsAgo > 0) {
+                        const hoursAgo = Math.floor(minsAgo / 60);
+                        const remainingMins = minsAgo % 60;
+                        nextEvent = `Ended ${hoursAgo}h ${remainingMins}m ago`;
+                        currentStatus = 'Shift ended';
+                    }
+                }
+
+                return {
+                    employeeName: `${emp.name} ${emp.lastName}`,
+                    designation: emp.designation,
+                    timeFrames: emp.timeFrames.map(f => ({ start: f.start, end: f.end })),
+                    status: currentStatus,
+                    nextEvent,
+                    // Add these for client-side countdown updates
+                    currentFrame: activeFrame ? {
+                        endMinutes: activeFrame.endMinutes,
+                        currentTime: currentTime
+                    } : null
+                };
+            });
+
+            res.json({
+                success: true,
+                count: employeeMap.size,
+                employees,
+                // Include server time for client-side sync
+                serverTime: currentTime 
+            });
+        }
+    );
+});
+// Function to get labor cost
+app.get('/api/labor-cost', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const mondayDate = getCurrentMonday();
+    
+    pool.query(
+        `SELECT Weekly_Cost_Before FROM Data WHERE WeekStart = ?`, // Parameterized query
+        [mondayDate],
+        (error, results) => {
+            if (error) {
+                console.error('Database error:', error);
+                return res.status(500).json({
+                    success: false,
+                    error: 'Database error'
+                });
+            }
+            
+            // For mysql2, results is an array directly (not results.rows)
+            if (results.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No data found for current week',
+                    week_start_date: mondayDate
+                });
+            }
+            
+            res.json({
+                success: true,
+                cost: results[0].Weekly_Cost_Before,
+                week_start_date: mondayDate
+            });
+        }
+    );
 });
 // Route to handle logout
 app.get('/logout', (req, res) => {

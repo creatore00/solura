@@ -569,13 +569,13 @@ input[type="date"]:read-only {
                     <i class="fas fa-copy"></i> Copy From Previous Week
                 </button>
                 <input type="date" id="weekStartDate" class="date" onchange="updateWeek(); fetchAndPopulateRotaTable()">
-                <button class="btn btn-success" onclick="saveRotaData(); updateWeeklyCostInDatabase()">
+                <button class="btn btn-success" onclick="saveRotaData()">
                     <i class="fas fa-save"></i> Save
                 </button>
                 <button class="btn btn-warning" onclick="clearAllRotaData();">
                     <i class="fas fa-trash-alt"></i> Clear All
                 </button>
-                <button class="btn btn-primary" onclick="submitRotaData()">
+                <button class="btn btn-primary" onclick="submitRotaData(); updateWeeklyCostInDatabase()">
                     <i class="fas fa-paper-plane"></i> Publish
                 </button>
             </div>
@@ -2188,7 +2188,7 @@ function calculateTotalCostWeek() {
         console.error('Error calculating total cost for the week:', error);
     }
 }
-// Function to insert Week Cost
+// Function to insert Week Cost with correct Monday date
 async function updateWeeklyCostInDatabase() {
     try {
         // Get the total cost value
@@ -2202,21 +2202,41 @@ async function updateWeeklyCostInDatabase() {
             throw new Error('Invalid total cost value');
         }
 
-        // Get the week start date (assuming it's available in your form)
-        const weekStartInput = document.querySelector('#weekStartDate'); // Adjust selector as needed
+        // Get the week start date from the rota data submission
+        const weekStartInput = document.querySelector('#weekStartDate');
         if (!weekStartInput) {
             throw new Error('Week start date input not found');
         }
         
-        const weekStartDate = weekStartInput.value;
-        if (!weekStartDate) {
-            throw new Error('Week start date not specified');
+        // Parse the date and find the Monday of that week
+        const inputDate = new Date(weekStartInput.value);
+        if (isNaN(inputDate.getTime())) {
+            throw new Error('Invalid date format for week start');
         }
+
+        // Function to get Monday of the week for any given date
+        const getMonday = (date) => {
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
+            return new Date(date.setDate(diff));
+        };
+
+        const mondayDate = getMonday(inputDate);
+        
+        // Format as dd/mm/yyyy (Monday)
+        const formatDayWithName = (date) => {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year} (Monday)`;
+        };
+
+        const formattedMonday = formatDayWithName(mondayDate);
 
         // Prepare the data to send to the server
         const updateData = {
             weekly_cost_before: totalCost,
-            week_start: weekStartDate
+            week_start: formattedMonday  // This will be the Monday of the submitted week
         };
 
         // Send the data to your backend endpoint
@@ -2228,7 +2248,6 @@ async function updateWeeklyCostInDatabase() {
             credentials: 'include',
             body: JSON.stringify(updateData)
         });
-
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.message || 'Failed to update weekly cost');
@@ -2239,7 +2258,7 @@ async function updateWeeklyCostInDatabase() {
     } catch (error) {
         console.error('Error updating weekly cost:', error);
         alert(`Error: ${error.message}`);
-        throw error; // Re-throw if you want to handle it further up the chain
+        throw error;
     }
 }
 // Function to calculate total daily hours and total daily spent
