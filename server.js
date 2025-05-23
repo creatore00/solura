@@ -3,10 +3,13 @@ const { query } = require('./dbPromise');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const cron = require('node-cron');
+const moment = require('moment'); // Using moment for date handling
+const { scheduleTestUpdates } = require('./holidayAccrualService.js');
 const newRota = require('./Rota.js');
 const newRota2 = require('./rota2.js');
 const confirmpassword = require('./ConfirmPassword.js'); 
 const token = require('./Token.js');
+const Backend = require('./Backend.js');
 const generate = require('./Generate.js');
 const updateinfo = require('./UpdateInfo.js');
 const ForgotPassword = require('./ForgotPassword.js');
@@ -41,6 +44,7 @@ app.use('/rota', newRota);
 app.use('/rota2', newRota2);
 app.use('/confirmpassword', confirmpassword);
 app.use('/token', token);
+app.use('/Backend', Backend);
 app.use('/generate', generate);
 app.use('/updateinfo', updateinfo);
 app.use('/ForgotPassword', ForgotPassword);
@@ -567,4 +571,7 @@ app.get('/', (req, res) => {
 });
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
+    // Start holiday accrual updates for these databases
+    const databaseNames = ['bbuonaoxford', '100%pastaoxford']; // Your database names
+    scheduleTestUpdates(databaseNames);
 });

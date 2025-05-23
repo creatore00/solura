@@ -275,8 +275,7 @@ const sendEmail = (pdfBuffer, emailAddresses) => {
 
     return Promise.all(sendPromises);
 };
-
-// In your server-side code
+// Function to insert weekly cost
 app.post('/api/updateWeeklyCost', (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
@@ -284,11 +283,16 @@ app.post('/api/updateWeeklyCost', (req, res) => {
     }
 
     const pool = getPool(dbName);
-    const { weekly_cost_before, week_start } = req.body;
+    const { weekly_cost_before, week_start, hours } = req.body; // Added hours parameter
 
     // Enhanced validation
     if (typeof weekly_cost_before !== 'number' || isNaN(weekly_cost_before)) {
         return res.status(400).json({ error: 'Invalid weekly cost value' });
+    }
+
+    // Validate hours (should be a positive number)
+    if (typeof hours !== 'number' || isNaN(hours) || hours < 0) {
+        return res.status(400).json({ error: 'Invalid hours value' });
     }
 
     // Parse the formatted date
@@ -312,18 +316,20 @@ app.post('/api/updateWeeklyCost', (req, res) => {
 
     console.log('Attempting to insert:', {
         cost: weekly_cost_before,
+        hours: hours, // Added hours to log
         date: dbFormattedDate
     });
 
     const query = `
-        INSERT INTO Data (Weekly_Cost_Before, Weekly_Cost_After, WeekStart)
-        VALUES (?, ?, ?)
+        INSERT INTO Data (Weekly_Cost_Before, Weekly_Cost_After, WeekStart, Hours)
+        VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
             Weekly_Cost_Before = VALUES(Weekly_Cost_Before),
-            WeekStart = VALUES(WeekStart)
+            WeekStart = VALUES(WeekStart),
+            Hours = VALUES(Hours)
     `;
 
-    pool.query(query, [weekly_cost_before, weekly_cost_before, dbFormattedDate], (err, result) => {
+    pool.query(query, [weekly_cost_before, weekly_cost_before, dbFormattedDate, hours], (err, result) => {
         if (err) {
             console.error('Database error details:', {
                 code: err.code,

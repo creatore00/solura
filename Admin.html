@@ -466,10 +466,10 @@
             <!-- Report Item 2 -->
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
                 <div>
-                    <div style="font-weight: 600; margin-bottom: 4px;">Weekly Summary</div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Weekly Labor Cost Report</div>
                     <div style="font-size: 0.85rem; color: #666;">Weekly performance metrics</div>
                 </div>
-                <a href="/weekly-summary" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                <a href="/labor" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
             </div>
             
             <!-- Report Item 3 -->
@@ -488,6 +488,15 @@
                     <div style="font-size: 0.85rem; color: #666;">Payroll statistics and trends</div>
                 </div>
                 <a href="/payroll-analysis" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+
+            <!-- Report Item 5 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Employee Hours</div>
+                    <div style="font-size: 0.85rem; color: #666;">Detailed hours tracking</div>
+                </div>
+                <a href="/employee-hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
             </div>
         </div>
     </div>
@@ -649,6 +658,20 @@
     </footer>
 
 <script>
+// Opens Backend page  
+document.addEventListener('DOMContentLoaded', function() {
+    // Add keyboard event listener
+    document.addEventListener('keydown', function(event) {
+        // Check if Ctrl (or Cmd on Mac) and B are pressed together
+        if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+            // Prevent the default browser behavior (like opening bookmarks)
+            event.preventDefault();
+            
+            // Open the Backend page
+            window.location.href = '/Backend'; // or whatever your backend URL is
+        }
+    });
+});
 // Opens Reports Window
 document.addEventListener('DOMContentLoaded', function() {
     const reportsLink = document.getElementById('reportsLink');

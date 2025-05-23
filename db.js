@@ -30,7 +30,6 @@ const dbConfigs = {
     password: 'Qazokm123890'
   },
 };
-
 Object.keys(dbConfigs).forEach(db => {
 });
 

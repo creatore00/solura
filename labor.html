@@ -345,15 +345,16 @@ tr:hover {
 <body>
     <div class="container">
         <h1>Weekly Labor Cost</h1>
+        <div class="controls">
+            <div class="form-group">
+                <label for="date-selector">Select a day in the week:</label>
+                <input type="date" id="date-selector">
+            </div>
+        </div>
         <div id="chartContainer">
             <canvas id="costComparisonChart"></canvas>
         </div>
-        <div class="controls">
-            <div class="form-group">
-                <label for="week-selector">Select Week:</label>
-                <input type="week" id="week-selector" onchange="loadRotaData()">
-            </div>
-        </div>
+        <div id="salesComparisonContainer" class="summary"></div>
         
         <div id="loading" class="loading" style="display: none;">Loading data...</div>
         <div id="error" class="error" style="display: none;"></div>
@@ -370,110 +371,197 @@ tr:hover {
         </div>
     </div>
 
-    <script>
+<script>
+// Global variables
+let currentWeekData = null;
+let currentStartDate = null;
+let currentEndDate = null;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set default week to current week
-            const today = new Date();
-            const year = today.getFullYear();
-            const weekNum = getWeekNumber(today);
-            const weekString = `${year}-W${weekNum.toString().padStart(2, '0')}`;
-            document.getElementById('week-selector').value = weekString;
-            
-            // Load data for current week
-            loadRotaData();
-        });
-        
-        function getWeekNumber(date) {
-            const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-            const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-            return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+document.addEventListener('DOMContentLoaded', function() {
+    const dateSelector = document.getElementById('date-selector');
+    dateSelector.addEventListener('change', handleDateChange); // Changed back to 'change' event
+    document.getElementById('download-pdf-btn').addEventListener('click', downloadRotaPDF);
+
+    initializeDateSelector();
+});
+
+    function handleDateChange(event) {
+    const dateString = event.target.value;
+    if (!dateString) return;
+
+    const selectedDate = new Date(dateString + 'T00:00:00');
+    if (isNaN(selectedDate.getTime())) {
+        console.error('Invalid date selected');
+        return;
+    }
+
+    const mondayDate = getMondayOfWeek(selectedDate);
+    loadRotaData(mondayDate);
+}
+    
+    function initializeDateSelector() {
+    const today = new Date();
+    const dateInput = document.getElementById('date-selector');
+    
+    // Format as YYYY-MM-DD for the date input
+    const formattedDate = today.toISOString().split('T')[0];
+    dateInput.value = formattedDate;
+    
+    // Load data for the current week (pass Monday)
+    const mondayDate = getMondayOfWeek(today);
+    loadRotaData(mondayDate);
+}
+    
+
+async function loadRotaData(mondayDate) {
+    try {
+        showLoading();
+        clearError();
+
+        if (!(mondayDate instanceof Date) || isNaN(mondayDate)) {
+            throw new Error("Invalid date selected");
         }
-        
-        function loadRotaData() {
-    const weekInput = document.getElementById('week-selector').value;
-    const [year, week] = weekInput.split('-W');
-    
-    // Get Date objects for the week
-    const startDateObj = getDateOfWeek(parseInt(week), parseInt(year));
-    const endDateObj = new Date(startDateObj);
-    endDateObj.setDate(startDateObj.getDate() + 6);
-    
-    // Format dates as dd/mm/yyyy (DayName) for the API
-    const formatForAPI = (date) => {
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-        return `${day}/${month}/${year} (${dayName})`;
-    };
 
-    const startDateFormatted = formatForAPI(startDateObj);
-    const endDateFormatted = formatForAPI(endDateObj);
-    
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('error').style.display = 'none';
-    document.getElementById('rota-table-container').innerHTML = '';
-    document.getElementById('summary-container').innerHTML = '';
-    document.getElementById('chartContainer').innerHTML = '<canvas id="costComparisonChart"></canvas>';
-    
-    fetch('/labor/api/rota-data', {  // Changed from '/labor/api/rota-data' to match your backend route
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            startDate: startDateFormatted,
-            endDate: endDateFormatted
-        })
-    })
-    .then(response => {
+        // Normalize dates
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const selectedMonday = new Date(mondayDate);
+        selectedMonday.setHours(0, 0, 0, 0);
+
+        const currentWeekMonday = getMondayOfWeek(today);
+        const isCurrentWeek = selectedMonday.getTime() === currentWeekMonday.getTime();
+
+        // Check if selected date is in the future
+        if (selectedMonday > today) {
+            clearRotaDisplay();
+            
+            // Calculate Sunday of the selected week
+            const sundayDate = new Date(selectedMonday);
+            sundayDate.setDate(selectedMonday.getDate() + 6);
+            
+            // Show appropriate message
+            if (isCurrentWeek) {
+                // If it's current week but Monday hasn't arrived yet
+                const now = new Date();
+                const mondayMidnightUK = new Date(Date.UTC(
+                    selectedMonday.getFullYear(),
+                    selectedMonday.getMonth(),
+                    selectedMonday.getDate(),
+                    0, 0, 0, 0
+                ));
+                
+                const timeRemainingMs = mondayMidnightUK.getTime() - now.getTime();
+                
+                if (timeRemainingMs > 0) {
+                    showError("No data available yet. The schedule will be available on Monday at midnight (UK time).");
+                } else {
+                    showError("No data available at the moment. Please try again later.");
+                }
+            } else {
+                // Future week
+                showError("This is a future week. Data will be available when the schedule is published.");
+            }
+            
+            displayEmptyState(selectedMonday, sundayDate, false);
+            return;
+        }
+
+        // For past/current dates that have arrived
+        const sundayDate = new Date(selectedMonday);
+        sundayDate.setDate(selectedMonday.getDate() + 6);
+
+        currentStartDate = new Date(selectedMonday);
+        currentEndDate = new Date(sundayDate);
+
+        // Format YYYY-MM-DD (local)
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        // Fetch data
+        const response = await fetch('/labor/api/rota-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                startDate: formatDate(selectedMonday),
+                endDate: formatDate(sundayDate)
+            })
+        });
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return response.json();
-    })
-    .then(data => {
-        document.getElementById('loading').style.display = 'none';
+
+        const data = await response.json();
+
         if (data.error) {
             throw new Error(data.error);
         }
-        if (!data.rota || data.rota.length === 0) {
-            throw new Error('No rota data found for the selected week');
+
+        if (data.isEmpty || !data.rota || data.rota.length === 0) {
+            clearRotaDisplay();
+            displayEmptyState(selectedMonday, sundayDate, true);
+            return;
         }
-        
-        // Pass both the rota data and tax info to displayRotaData
-        displayRotaData({
-            rota: data.rota,
-            taxInfo: data.taxInfo  // This includes holiday, tax, and pension percentages
-        }, startDateObj, endDateObj);
-        
-        return displayWeeklyCostComparison(); // Call this after displaying rota data
-    })
-    .catch(error => {
-        document.getElementById('loading').style.display = 'none';
-        const errorElement = document.getElementById('error');
-        errorElement.textContent = 'Error loading data: ' + error.message;
-        errorElement.style.display = 'block';
+
+        // Render data
+        currentWeekData = data;
+        displayRotaData(data, selectedMonday, sundayDate);
+
+    } catch (error) {
+        showError('Error loading data: ' + error.message);
         console.error('Error:', error);
-    });
+    } finally {
+        hideLoading();
+    }
 }
 
-        function getDateOfWeek(week, year) {
-            const date = new Date(year, 0, 1);
-            const dayOffset = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            
-            // If the first day of the year is not Monday, adjust to the next Monday
-            if (dayOffset > 0) {
-                date.setDate(date.getDate() + (8 - dayOffset));
-                week--;
-            }
-            
-            date.setDate(date.getDate() + (week - 1) * 7);
-            return date;
-        }
-        
-        function formatDate(date) {
+    function clearRotaDisplay() {
+    const containers = [
+        'rota-table-container',
+        'summary-container',
+        'salesComparisonContainer',
+        'chartContainer'
+    ];
+    
+    containers.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) container.innerHTML = '';
+    });
+
+    // Clear any existing chart
+    if (window.costChart) {
+        window.costChart.destroy();
+        window.costChart = null;
+    }
+}
+
+    function displayEmptyState(startDate, endDate, isPastDate = false) {
+    const rotaContainer = document.getElementById('rota-table-container');
+    const summaryContainer = document.getElementById('summary-container');
+    const sales = document.getElementById('salesComparisonContainer');
+    const chart = document.getElementById('chartContainer');
+    
+    if (!rotaContainer || !summaryContainer || !sales || !chart) return;
+    summaryContainer.innerHTML = `
+        <h2>Weekly Summary</h2>
+        <div class="summary-item">
+            <span>Week:</span>
+            <span>${formatDayWithName(startDate)} to ${formatDayWithName(endDate)}</span>
+        </div>
+        <div class="no-data">
+            ${isPastDate 
+                ? 'No data available for this period' 
+                : 'Data will be available when the schedule is published'}
+        </div>
+    `;
+}
+
+    function formatDate(date) {
             if (!(date instanceof Date)) return '';
             const day = date.getDate().toString().padStart(2, '0');
             const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -481,15 +569,16 @@ tr:hover {
             return `${day}/${month}/${year}`;
         }
 
-        const formatDayWithName = (date) => {
-        const day = String(date.getDate()).padStart(2, '0');
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const year = date.getFullYear();
-        const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-        return `${day}/${month}/${year} (${dayName})`;
-    };
-
-        function displayRotaData(data, startDate, endDate) {
+    function formatDayWithName(date) {
+    if (!(date instanceof Date)) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    return `${day}/${month}/${year} (${dayName})`;
+}
+        
+    function displayRotaData(data, mondayDate, sundayDate) {
     // Clear previous content
     document.getElementById('rota-table-container').innerHTML = '';
     document.getElementById('summary-container').innerHTML = '';
@@ -537,8 +626,8 @@ tr:hover {
     
     // Add days from startDate to endDate in correct format
     const days = [];
-    const currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
+    const currentDate = new Date(mondayDate);
+    while (currentDate <= sundayDate) {
         const dayString = formatDayWithName(currentDate);
         days.push(dayString);
         
@@ -654,6 +743,8 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
     let weeklyPension = 0;
     let weeklyTotal = 0;
     const dailyCosts = {};
+    let weeklyTotalHours = 0;
+
     
     days.forEach(day => {
         let dayBaseCost = 0;
@@ -661,10 +752,13 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
         let dayTax = 0;
         let dayPension = 0;
         let dayTotalCost = 0;
+        let dayTotalHours = 0;
+
         
         Object.values(employees).forEach(employee => {
             if (employee.shifts[day]) {
                 const baseCost = employee.shifts[day].totalCost;
+                const hours = employee.shifts[day].totalHours;
                 const holiday = baseCost * (holidayPercentage / 100);
                 const tax = baseCost * (taxPercentage / 100);
                 const pension = baseCost * (pensionPercentage / 100);
@@ -675,6 +769,7 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
                 dayTax += tax;
                 dayPension += pension;
                 dayTotalCost += totalShiftCost;
+                dayTotalHours += hours;
             }
         });
         
@@ -683,6 +778,8 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
         weeklyTax += dayTax;
         weeklyPension += dayPension;
         weeklyTotal += dayTotalCost;
+        weeklyTotalHours += dayTotalHours;
+
         
         // Store for chart (using date in YYYY-MM-DD format)
         const datePart = day.split(' (')[0];
@@ -696,7 +793,7 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
         <h2>Weekly Summary</h2>
         <div class="summary-item">
             <span>Week:</span>
-            <span>${formatDayWithName(startDate)} to ${formatDayWithName(endDate)}</span>
+            <span>${formatDayWithName(mondayDate)} to ${formatDayWithName(sundayDate)}</span>
         </div>
         <div class="summary-item">
             <span>Base Wages:</span>
@@ -719,12 +816,18 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
             <span>£${weeklyTotal.toFixed(2)}</span>
         </div>
     `;
-    
+    summaryContainer.innerHTML += `
+    <div class="summary-item">
+        <span>Total Weekly Hours:</span>
+        <span id="weeklyHoursTotal">${weeklyTotalHours.toFixed(2)} hrs</span>
+    </div>
+`;
     // Display cost comparison chart
-    displayWeeklyCostComparison(startDate, weeklyTotal, dailyCosts);
+    displayWeeklyCostComparison(mondayDate, weeklyTotal, dailyCosts);
+    displaySalesComparison(mondayDate)
 }
 
-        function calculateHours(startTime, endTime) {
+    function calculateHours(startTime, endTime) {
             const start = parseTime(startTime);
             const end = parseTime(endTime);
             
@@ -737,29 +840,32 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
             return diffMs / (1000 * 60 * 60); // Convert to hours
         }
         
-        function parseTime(timeString) {
+    function parseTime(timeString) {
             const [hours, minutes] = timeString.split(':').map(Number);
             const date = new Date();
             date.setHours(hours, minutes, 0, 0);
             return date;
         }
         
-        function calculateShiftCost(startTime, endTime, hourlyWage) {
+    function calculateShiftCost(startTime, endTime, hourlyWage) {
             const hours = calculateHours(startTime, endTime);
             return hours * hourlyWage;
         }
     
-        async function downloadRotaPDF() {
+    async function downloadRotaPDF() {
     const loadingIndicator = document.getElementById('loading');
     const errorElement = document.getElementById('error');
-    const weekSelector = document.getElementById('week-selector');
-    const [year, week] = weekSelector.value.split('-W');
+    const dateSelector = document.getElementById('date-selector');
+    const selectedDate = new Date(dateSelector.value);
     
-    // Calculate week range for filename
-    const startDate = getDateOfWeek(parseInt(week), parseInt(year));
-    const endDate = new Date(startDate);
-    endDate.setDate(startDate.getDate() + 6);
-    const weekRange = `${formatDayWithName(startDate)} - ${formatDayWithName(endDate)}`;
+    // Calculate Monday and Sunday of the selected week
+    const mondayDate = getMondayOfWeek(selectedDate);
+    const sundayDate = new Date(mondayDate);
+    sundayDate.setDate(mondayDate.getDate() + 6);
+    
+    // Format date range for filename and display
+    const dateRange = `${formatDayWithName(mondayDate)} - ${formatDayWithName(sundayDate)}`;
+    const filenameDateRange = `${formatDateForFilename(mondayDate)}_to_${formatDateForFilename(sundayDate)}`;
 
     try {
         // Show loading state
@@ -770,6 +876,7 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
         const tableHTML = document.getElementById('rota-table-container').innerHTML;
         const summaryHTML = document.getElementById('summary-container').innerHTML;
         const budgetSummaryHTML = document.getElementById('chartContainer').innerHTML;
+        const salesComparisonHTML = document.getElementById('salesComparisonContainer').innerHTML;
 
         // Create a clean version of the HTML for PDF generation
         const cleanHTML = `
@@ -777,7 +884,7 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Rota Report - ${weekRange}</title>
+    <title>Rota Report - ${dateRange}</title>
     <style>
         body { 
             font-family: Arial, sans-serif; 
@@ -889,17 +996,22 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
     </style>
 </head>
 <body>
-    <h1>Rota Report - ${weekRange}</h1>
-    
+    <h1>Rota Report - ${dateRange}</h1>
+
     <div class="summary-section">
         <h2>Rota Details</h2>
         ${tableHTML}
     </div>
-    
+
     <div class="summary-section">
         ${summaryHTML}
     </div>
-    
+
+    <div class="summary-section">
+        <h2>Sales Comparison</h2>
+        ${salesComparisonHTML}
+    </div>
+
     <div class="budget-summary">
         <h2>Budget Comparison</h2>
         ${budgetSummaryHTML}
@@ -915,7 +1027,7 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
             },
             body: JSON.stringify({
                 htmlContent: cleanHTML,
-                weekRange: weekRange
+                dateRange: dateRange
             })
         });
 
@@ -928,7 +1040,7 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Rota_Report_${weekRange.replace(/\//g, '-')}.pdf`;
+        a.download = `Rota_Report_${filenameDateRange}.pdf`;
         document.body.appendChild(a);
         a.click();
         
@@ -946,45 +1058,52 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
         loadingIndicator.style.display = 'none';
     }
 }
-        
-        function getCurrentMonday() {
-    const today = new Date();
-    const day = today.getDay(); // 0=Sunday, 1=Monday, etc.
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
-    return new Date(today.setDate(diff));
+
+    // Helper function to get Monday of the week for a given date
+    function getMondayOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
+    return new Date(d.setDate(diff));
 }
 
-        function displayWeeklyCostComparison(startDate, actualWeeklyTotal, dailyCosts) {
+    // Helper function to format date for filename (YYYY-MM-DD)
+    function formatDateForFilename(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+    
+    function getCurrentMonday(date = new Date()) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0=Sunday, 1=Monday, etc.
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
+    return new Date(d.setDate(diff));
+}
+
+    async function displayWeeklyCostComparison(mondayDate, actualWeeklyTotal, dailyCosts) {
     try {
-        // Get Monday of the week (startDate should already be Monday)
-        const mondayDate = getCurrentMonday();
-        const weekStartDate = mondayDate.toISOString().split('T')[0];
-
-        // Fetch forecasted cost for the week from backend
-        fetch(`/labor/api/getWeeklyCostData?weekStart=${weekStartDate}`)
-            .then(res => res.json())
-            .then(data => {
-                const forecastedCost = data.weekly_cost_before || 0;
-                
-                // Create the comparison chart with both forecast and actual data
-                createCostComparisonChart(mondayDate, forecastedCost, dailyCosts, actualWeeklyTotal);
-            })
-            .catch(err => {
-                console.error('Fetch error:', err);
-                throw err;
-            });
-
+        // Fetch forecasted cost and hours for the week from backend
+        const response = await fetch(`/labor/api/getWeeklyCostData?startDate=${mondayDate}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch cost data');
+        }
+        
+        const data = await response.json();
+        const forecastedCost = data.weekly_cost_before || 0;
+        const forecastedHours = data.hours || 0;
+        
+        // Create the comparison chart
+        createCostComparisonChart(mondayDate, forecastedCost, dailyCosts, actualWeeklyTotal, forecastedHours);
     } catch (error) {
         console.error('Error displaying cost comparison:', error);
-        const errorElement = document.getElementById('error');
-        if (errorElement) {
-            errorElement.textContent = `Error displaying cost comparison: ${error.message}`;
-            errorElement.style.display = 'block';
-        }
+        showError(`Error displaying cost comparison: ${error.message}`);
     }
 }
 
-        function createCostComparisonChart(startDate, forecastedCost, dailyCosts, actualWeeklyTotal) {
+    function createCostComparisonChart(mondayDate, forecastedCost, dailyCosts, actualWeeklyTotal, forecastedHours) {
     // Format money values consistently
     const formatMoney = (value) => {
         return new Intl.NumberFormat('en-GB', {
@@ -995,11 +1114,23 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
         }).format(value);
     };
 
+    // Format hours
+    const formatHours = (hours) => {
+        return hours.toFixed(2) + ' hrs';
+    };
+
     // Calculate cumulative actual cost and budget difference
     const cumulativeActualCost = actualWeeklyTotal || Object.values(dailyCosts).reduce((sum, cost) => sum + cost, 0);
     const budgetDifference = forecastedCost - cumulativeActualCost;
     const isUnderBudget = budgetDifference >= 0;
-    const variancePercentage = (Math.abs(budgetDifference) / forecastedCost * 100).toFixed(1);
+    const variancePercentage = forecastedCost > 0 ? (Math.abs(budgetDifference) / forecastedCost * 100).toFixed(1) : 0;
+
+    // Get actual hours from the page
+    const weeklyHoursTotalCell = document.querySelector('#weeklyHoursTotal');
+    const actualHours = weeklyHoursTotalCell ? parseFloat(weeklyHoursTotalCell.textContent.trim()) || 0 : 0;
+    const hoursDifference = forecastedHours - actualHours;
+    const isUnderHours = hoursDifference >= 0;
+    const variancePercentageHours = forecastedHours > 0 ? (Math.abs(hoursDifference) / forecastedHours * 100).toFixed(1) : 0;
 
     // Create or update the summary container
     const chartContainer = document.getElementById('chartContainer');
@@ -1008,18 +1139,36 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
             <h3>Weekly Cost Summary</h3>
             <div class="summary-grid">
                 <div class="summary-item forecast">
-                    <div class="summary-label">Forecasted</div>
+                    <div class="summary-label">Cost at Rota Creation</div>
                     <div class="summary-value">${formatMoney(forecastedCost)}</div>
                 </div>
                 <div class="summary-item actual ${isUnderBudget ? 'under-budget' : 'over-budget'}">
-                    <div class="summary-label">Actual</div>
+                    <div class="summary-label">Actual Cost at the End of The Week</div>
                     <div class="summary-value">${formatMoney(cumulativeActualCost)}</div>
                 </div>
                 <div class="summary-item variance ${isUnderBudget ? 'under-budget' : 'over-budget'}">
-                    <div class="summary-label">Variance</div>
+                    <div class="summary-label">Cost Variance</div>
                     <div class="summary-value">
                         ${isUnderBudget ? '▲' : '▼'} ${formatMoney(Math.abs(budgetDifference))}
                         <span class="percentage">(${variancePercentage}%)</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="summary-grid hours-summary">
+                <div class="summary-item forecast">
+                    <div class="summary-label">Hours at Rota Creation</div>
+                    <div class="summary-value">${formatHours(forecastedHours)}</div>
+                </div>
+                <div class="summary-item actual ${isUnderHours ? 'under-budget' : 'over-budget'}">
+                    <div class="summary-label">Actual Hours at the End of The Week</div>
+                    <div class="summary-value">${formatHours(actualHours)}</div>
+                </div>
+                <div class="summary-item variance ${isUnderHours ? 'under-budget' : 'over-budget'}">
+                    <div class="summary-label">Hours Variance</div>
+                    <div class="summary-value">
+                        ${isUnderHours ? '▲' : '▼'} ${formatHours(Math.abs(hoursDifference))}
+                        <span class="percentage">(${variancePercentageHours}%)</span>
                     </div>
                 </div>
             </div>
@@ -1027,6 +1176,134 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
     `;
 }
 
+    async function displaySalesComparison(mondayDate) {
+    try {
+
+        // Fetch forecasted sales and actual sales for the week from backend
+        const response = await fetch(`/labor/api/getWeeklySalesComparison?startDate=${mondayDate}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch sales data');
+        }
+
+        const data = await response.json();
+        createSalesComparisonChart(mondayDate, data.forecastedSales, data.actualSales);
+    } catch (error) {
+        console.error('Error displaying sales comparison:', error);
+        showError(`Error displaying sales comparison: ${error.message}`);
+    }
+}
+
+    function createSalesComparisonChart(mondayDate, forecastedSales, actualSales) {
+    const formatMoney = (value) => new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value);
+
+    // Create week range string: Monday to Sunday
+    const weekStart = new Date(mondayDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const formatDate = (d) => d.toLocaleDateString('en-GB');
+    const weekRangeLabel = `${formatDate(weekStart)} – ${formatDate(weekEnd)}`;
+
+    // Total sales values
+    const totalForecasted = forecastedSales.reduce(
+        (sum, day) => sum + (parseFloat(day.sales) || 0), 0
+    );
+    const totalActual = actualSales.reduce(
+        (sum, day) => sum + ((parseFloat(day.zreport) || 0) + (parseFloat(day.onaccount) || 0)), 0
+    );
+
+    const variance = totalForecasted - totalActual;
+    const isUnderForecast = variance >= 0;
+    const variancePercentage = totalForecasted > 0
+        ? (Math.abs(variance) / totalForecasted * 100).toFixed(1)
+        : '0.0';
+
+    // Daily breakdown
+    const dailyRows = forecastedSales.map((forecastDay) => {
+        const actualDay = actualSales.find(a => a.day === forecastDay.day) || { zreport: 0, onaccount: 0 };
+        const actualTotal = (parseFloat(actualDay.zreport) || 0) + (parseFloat(actualDay.onaccount) || 0);
+        const forecastedAmount = parseFloat(forecastDay.sales) || 0;
+        const dayVariance = forecastedAmount - actualTotal;
+        const isDayUnder = dayVariance >= 0;
+
+        const variancePercentageDaily = forecastedAmount > 0
+            ? (Math.abs(dayVariance) / forecastedAmount * 100).toFixed(1)
+            : '0.0';
+
+        return `
+            <tr>
+                <td>${forecastDay.day}</td>
+                <td>${formatMoney(forecastedAmount)}</td>
+                <td>${formatMoney(actualTotal)}</td>
+                <td class="${isDayUnder ? 'under-forecast' : 'over-forecast'}">
+                    ${isDayUnder ? '▼' : '▲'} ${formatMoney(Math.abs(dayVariance))}
+                    <span class="percentage">(${variancePercentageDaily}%)</span>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    // Output HTML
+    const container = document.getElementById('salesComparisonContainer');
+    container.innerHTML = `
+        <div class="sales-comparison">
+            <h3>Weekly Sales Comparison (${weekRangeLabel})</h3>
+
+            <div class="summary-grid">
+                <div class="summary-item forecast">
+                    <div class="summary-label">Total Forecasted Sales</div>
+                    <div class="summary-value">${formatMoney(totalForecasted)}</div>
+                </div>
+                <div class="summary-item actual ${isUnderForecast ? 'under-forecast' : 'over-forecast'}">
+                    <div class="summary-label">Total Actual Sales</div>
+                    <div class="summary-value">${formatMoney(totalActual)}</div>
+                </div>
+                <div class="summary-item variance ${isUnderForecast ? 'under-forecast' : 'over-forecast'}">
+                    <div class="summary-label">Total Variance</div>
+                    <div class="summary-value">
+                        ${isUnderForecast ? '▼' : '▲'} ${formatMoney(Math.abs(variance))}
+                        <span class="percentage">(${variancePercentage}%)</span>
+                    </div>
+                </div>
+            </div>
+
+            <table class="daily-comparison">
+                <thead>
+                    <tr>
+                        <th>Day</th>
+                        <th>Forecasted</th>
+                        <th>Actual (Z Report + On Account)</th>
+                        <th>Variance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${dailyRows}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+    // Helper functions
+    function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+    function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+    function showError(message) {
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+    function clearError() {
+            document.getElementById('error').style.display = 'none';
+        }
 </script>
 </body>
 </html>

@@ -3,1051 +3,1010 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Holiday Management System</title>
+    <title>Employee Holiday Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
         :root {
-            --primary-color: #001f3f;
-            --secondary-color: #0074D9;
-            --light-gray: #f8f9fa;
-            --dark-gray: #343a40;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
         }
-        .status-approved { color: var(--success-color); font-weight: 600; }
-        .status-unpaid { color: var(--warning-color); font-weight: 600; }
-        .status-pending { color: var(--warning-color); font-weight: 600; }
+        
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
+            background-color: #f8f9fa;
+            color: #333;
         }
         
-        .card {
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            border: none;
-        }
-        
-        .card-header {
-            background-color: var(--primary-color);
+        .dashboard-header {
+            background-color: var(--primary);
             color: white;
-            border-radius: 10px 10px 0 0 !important;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .employee-card {
+            border: none;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        
+        .employee-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        
+        .employee-card-header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-bottom: none;
+            position: relative;
+        }
+        
+        .employee-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .employee-status {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.25rem 0.75rem;
+            border-radius: 1rem;
+        }
+        
+        .status-active {
+            background-color: var(--success);
+            color: white;
+        }
+        
+        .status-inactive {
+            background-color: var(--danger);
+            color: white;
+        }
+        
+        .holiday-summary {
+            background-color: white;
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .summary-item {
+            margin-bottom: 1rem;
+        }
+        
+        .summary-label {
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+        
+        .summary-value {
+            font-size: 1.1rem;
             font-weight: 600;
         }
         
-        .table-responsive {
-            border-radius: 0 0 10px 10px;
-            overflow-x: auto;
+        .progress {
+            height: 0.75rem;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
         }
         
-        .table {
+        .progress-bar {
+            background-color: var(--secondary);
+        }
+        
+        .holiday-table {
             width: 100%;
-            margin-bottom: 1rem;
-            color: #212529;
+            border-collapse: separate;
+            border-spacing: 0;
         }
         
-        .table th, .table td {
-            padding: 0.75rem;
-            vertical-align: top;
+        .holiday-table th {
+            background-color: var(--light);
+            color: var(--dark);
+            font-weight: 600;
+            padding: 0.75rem 1rem;
             border-top: 1px solid #dee2e6;
         }
         
-        .table thead th {
-            vertical-align: bottom;
-            border-bottom: 2px solid #dee2e6;
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-                /* Add this to your existing styles */
-                .holiday-year-card {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        .current-year-indicator {
-            font-weight: bold;
-            color: #0074D9;
-        }
-        .year-range-display {
-            font-size: 1.1rem;
-            margin-bottom: 1rem;
-        }
-        .table-striped tbody tr:nth-of-type(odd) {
-            background-color: rgba(0, 0, 0, 0.02);
+        .holiday-table td {
+            padding: 0.75rem 1rem;
+            border-top: 1px solid #dee2e6;
+            vertical-align: middle;
         }
         
-        .table-hover tbody tr:hover {
-            background-color: rgba(0, 0, 0, 0.04);
+        .holiday-table tr:first-child th,
+        .holiday-table tr:first-child td {
+            border-top: none;
         }
         
-        .btn-sm {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
+        .holiday-table tr:hover td {
+            background-color: rgba(52, 152, 219, 0.05);
         }
         
-        .editable {
-            background-color: rgba(0, 116, 217, 0.05);
-            cursor: pointer;
-        }
-        
-        .editable:focus {
-            background-color: white;
-            border-color: var(--secondary-color);
-            box-shadow: 0 0 0 0.25rem rgba(0, 116, 217, 0.25);
-        }
-        
-        .status-pending {
-            color: var(--warning-color);
+        .status-badge {
+            padding: 0.35rem 0.75rem;
+            border-radius: 1rem;
+            font-size: 0.8rem;
             font-weight: 600;
         }
         
-        .status-approved {
-            color: var(--success-color);
-            font-weight: 600;
+        .badge-approved {
+            background-color: rgba(39, 174, 96, 0.1);
+            color: var(--success);
         }
         
-        .status-rejected {
-            color: var(--danger-color);
-            font-weight: 600;
+        .badge-pending {
+            background-color: rgba(243, 156, 18, 0.1);
+            color: var(--warning);
+        }
+        
+        .badge-rejected {
+            background-color: rgba(231, 76, 60, 0.1);
+            color: var(--danger);
+        }
+        
+        .action-btn {
+            padding: 0.35rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: 0.5rem;
+            margin-right: 0.5rem;
         }
         
         .tab-content {
-            padding: 20px 0;
+            padding: 1.5rem 0;
+        }
+        
+        .nav-tabs {
+            border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            color: #7f8c8d;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            margin-right: 0.25rem;
+            border-radius: 0.5rem 0.5rem 0 0;
         }
         
         .nav-tabs .nav-link.active {
+            color: var(--primary);
+            background-color: white;
+            border-bottom: 3px solid var(--secondary);
             font-weight: 600;
-            color: var(--primary-color);
-            border-bottom: 3px solid var(--secondary-color);
         }
         
-        .badge-count {
-            font-size: 0.75rem;
-            margin-left: 5px;
+        .nav-tabs .nav-link:hover:not(.active) {
+            color: var(--primary);
+            border-bottom: 3px solid rgba(52, 152, 219, 0.3);
         }
         
         .loading-spinner {
             display: inline-block;
-            width: 1rem;
-            height: 1rem;
-            border: 2px solid rgba(0, 0, 0, 0.1);
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 3px solid rgba(52, 152, 219, 0.2);
             border-radius: 50%;
-            border-top-color: #000;
+            border-top-color: var(--secondary);
             animation: spin 1s ease-in-out infinite;
         }
         
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #7f8c8d;
+        }
+        
+        .empty-state i {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #bdc3c7;
+        }
+        
+        .empty-state h4 {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        
+        .empty-state p {
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
-    <div class="container-fluid py-4">
-        <h2 class="mb-4"><i class="bi bi-calendar-range"></i> Holiday Management System</h2>
+    <div class="container py-4">
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="bi bi-calendar-heart"></i> Employee Holiday Tracker</h1>
+                    <p class="mb-0">Manage and track employee holiday entitlements and requests</p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <div class="d-inline-block p-2 rounded">
+                        <span id="currentDate" class="fw-bold"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
         
-        <ul class="nav nav-tabs" id="holidayTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="employees-tab" data-bs-toggle="tab" data-bs-target="#employees" type="button" role="tab">
-                    Employee Entitlements
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="requests-tab" data-bs-toggle="tab" data-bs-target="#requests" type="button" role="tab">
-                    Holiday Requests
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">
-                    <i class="bi bi-gear"></i> Holiday Year Settings
-                </button>
-            </li>
+        <ul class="nav nav-tabs" id="employeeTabs" role="tablist">
+            <!-- Tabs will be generated dynamically -->
         </ul>
         
-        <div class="tab-content" id="holidayTabContent">
-            <!-- Employee Entitlements Tab -->
-            <div class="tab-pane fade show active" id="employees" role="tabpanel">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-people-fill"></i> Employee Holiday Entitlements</span>
-                    </div>
-                    <div class="table-responsive">
-                        <table id="employeesTable" class="table table-striped table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Last Name</th>
-                                    <th>Start Date</th>
-                                    <th>Start Holiday</th>
-                                    <th>Total Holiday Left</th>
-                                    <th>Accrued</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="employeesTableBody">
-                                <!-- Data will be loaded via JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Holiday Requests Tab -->
-            <div class="tab-pane fade" id="requests" role="tabpanel">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="bi bi-calendar-check"></i> Holiday Requests
-                    </div>
-                    <div class="card-body">
-                        <div class="table-responsive">
-                            <table id="holidaysTable" class="table table-striped table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Last Name</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Days</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="holidaysTableBody">
-                                    <!-- Data will be loaded via JavaScript -->
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <div class="showing-entries">
-                                Showing <span id="startEntry">1</span> to <span id="endEntry">20</span> of <span id="totalEntries">0</span> entries
-                            </div>
-                            <nav aria-label="Page navigation">
-                                <ul class="pagination" id="holidayPagination">
-                                    <li class="page-item disabled" id="prevPage">
-                                        <a class="page-link" href="#" aria-label="Previous">
-                                            <span aria-hidden="true">&laquo;</span>
-                                        </a>
-                                    </li>
-                                    <!-- Page numbers will be inserted here -->
-                                    <li class="page-item" id="nextPage">
-                                        <a class="page-link" href="#" aria-label="Next">
-                                            <span aria-hidden="true">&raquo;</span>
-                                        </a>
-                                    </li>
-                                </ul>
-                            </nav>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Holiday Year Settings Tab -->
-            <div class="tab-pane fade" id="settings" role="tabpanel">
-                <div class="card holiday-year-card">
-                    <div class="card-header">
-                        <i class="bi bi-calendar-event"></i> Holiday Year Configuration
-                    </div>
-                    <div class="card-body">
-                        <div id="currentSettings" class="year-range-display text-center mb-4">
-                            <p>Current holiday year: <span id="currentYearRange" class="current-year-indicator">Loading...</span></p>
-                        </div>
-                        
-                        <form id="holidayYearForm">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="yearStart" class="form-label">Holiday Year Start Date</label>
-                                    <input type="date" class="form-control" id="yearStartInput" required>
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="yearEnd" class="form-label">Holiday Year End Date</label>
-                                    <input type="date" class="form-control" id="yearEndInput" required>
-                                </div>
-                            </div>
-                            
-                            <div class="d-grid gap-2">
-                                <button type="submit" class="btn btn-primary" id="saveSettingsBtn">
-                                    <span id="saveBtnText">Save Settings</span>
-                                    <span id="saveSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+        <div class="tab-content" id="employeeContent">
+            <!-- Content will be generated dynamically -->
         </div>
     </div>
     
     <!-- Delete Confirmation Modal -->
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">Confirm Deletion</h5>
+                    <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Confirm Deletion</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    Are you sure you want to delete this record? This action cannot be undone.
+                    <p>Are you sure you want to delete this holiday request? This action cannot be undone.</p>
+                    <p class="fw-bold">This will permanently remove the request from the system.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete Request</button>
                 </div>
             </div>
         </div>
     </div>
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Bootstrap components
-            const tabElms = document.querySelectorAll('[data-bs-toggle="tab"]');
-            const tabs = Array.from(tabElms).map(tabEl => new bootstrap.Tab(tabEl));
-            const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
-            
             // State
-            let deleteId = null;
             let employeesData = [];
             let holidaysData = [];
+            let deleteId = null;
             
             // DOM Elements
-            const employeesTableBody = document.getElementById('employeesTableBody');
-            const holidaysTableBody = document.getElementById('holidaysTableBody');
-            const updateAccrualsBtn = document.getElementById('updateAccrualsBtn');
+            const employeeTabs = document.getElementById('employeeTabs');
+            const employeeContent = document.getElementById('employeeContent');
+            const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
             const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-            // Global variables for pagination
-            let currentPage = 1;
-            const rowsPerPage = 20;
+            const currentDateEl = document.getElementById('currentDate');
+            
+            // Set current date
+            const today = new Date();
+            currentDateEl.textContent = today.toLocaleDateString('en-GB', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            
             // Initialize
             loadEmployees();
-            loadAndRenderHolidays();
-            // Load current settings
-            loadHolidayYearSettings();
             
             // Event Listeners
-            updateAccrualsBtn.addEventListener('click', updateAccruals);
             confirmDeleteBtn.addEventListener('click', confirmDelete);
             
-            // Form submission
-            holidayYearForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                saveHolidayYearSettings();
-            });
-            
-            // End date validation
-            yearStartInput.addEventListener('change', function() {
-                if (yearStartInput.value && yearEndInput.value && yearStartInput.value > yearEndInput.value) {
-                    yearEndInput.value = '';
-                }
-                yearEndInput.min = yearStartInput.value;
-            });
-            
-            // Load current holiday year settings
-            function loadHolidayYearSettings() {
-                fetch('/TotalHolidays/api/holidays/year-settings')
-                    .then(response => {
-                        if (!response.ok) throw new Error('Failed to load settings');
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data && data.HolidayYearStart && data.HolidayYearEnd) {
-                            const startDate = new Date(data.HolidayYearStart);
-                            const endDate = new Date(data.HolidayYearEnd);
-                            
-                            // Format dates for display
-                            const options = { year: 'numeric', month: 'long', day: 'numeric' };
-                            const displayText = `${startDate.toLocaleDateString(undefined, options)} to ${endDate.toLocaleDateString(undefined, options)}`;
-                            currentYearRange.textContent = displayText;
-                            console.log(document.getElementById('currentYearRange')); // Should return the span
-                            
-                            // Set form values
-                            yearStartInput.value = data.HolidayYearStart.split('T')[0];
-                            yearEndInput.value = data.HolidayYearEnd.split('T')[0];
-                        } else {
-                            currentYearRange.textContent = 'No holiday year configured';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading settings:', error);
-                        currentYearRange.textContent = 'Error loading settings';
-                    });
-            }
-            
-            // Save holiday year settings
-            function saveHolidayYearSettings() {
-                const startDate = yearStartInput.value;
-                const endDate = yearEndInput.value;
-                
-                if (!startDate || !endDate) {
-                    alert('Please select both start and end dates');
-                    return;
-                }
-                
-                if (startDate >= endDate) {
-                    alert('End date must be after start date');
-                    return;
-                }
-                
-                // Show loading state
-                saveBtnText.textContent = 'Saving...';
-                saveSpinner.classList.remove('d-none');
-                saveSettingsBtn.disabled = true;
-                
-                fetch('/TotalHolidays/api/holidays/year-settings', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        HolidayYearStart: startDate,
-                        HolidayYearEnd: endDate
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) throw new Error('Failed to save settings');
-                    return response.json();
-                })
-                .then(data => {
-                    alert('Holiday year settings saved successfully!');
-                    loadHolidayYearSettings(); // Refresh the display
-                })
-                .catch(error => {
-                    console.error('Error saving settings:', error);
-                    alert('Error saving settings: ' + error.message);
-                })
-                .finally(() => {
-                    // Reset button state
-                    saveBtnText.textContent = 'Save Settings';
-                    saveSpinner.classList.add('d-none');
-                    saveSettingsBtn.disabled = false;
-                });
-            }
-
             // Function to Load Employees
             async function loadEmployees() {
                 try {
-                    showLoading(employeesTableBody);
+                    // Show loading state
+                    employeeTabs.innerHTML = '<li class="nav-item"><span class="nav-link"><span class="loading-spinner"></span> Loading employees...</span></li>';
+                    employeeContent.innerHTML = '<div class="text-center py-5"><span class="loading-spinner"></span> Loading employee data...</div>';
+                    
                     const response = await fetch('/TotalHolidays/api/holidays/employees');
                     if (!response.ok) throw new Error('Failed to load employees');
                     
                     employeesData = await response.json();
-                    renderEmployeesTable();
+                    await loadHolidays();
+                    renderEmployeeTabs();
                 } catch (error) {
                     console.error('Error loading employees:', error);
-                    employeesTableBody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error loading data: ${error.message}</td></tr>`;
+                    employeeContent.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-octagon"></i> Error loading employee data: ${error.message}
+                        </div>
+                    `;
                 }
             }
             
             // Function to Load Holidays
-            async function loadAndRenderHolidays() {
-    try {
-        showLoading(holidaysTableBody);
-        const response = await fetch('/TotalHolidays/api/holidays/requests');
-        if (!response.ok) throw new Error('Failed to load holidays');
-        
-        holidaysData = await response.json();
-        renderHolidaysTable();
-    } catch (error) {
-        console.error('Error loading holidays:', error);
-        holidaysTableBody.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center text-danger">
-                    Error loading data: ${error.message}
-                </td>
-            </tr>`;
-    }
-}
-
-            // Function to update pagination info display
-            function updatePaginationInfo(start, end, total) {
-    document.getElementById('startEntry').textContent = start;
-    document.getElementById('endEntry').textContent = end;
-    document.getElementById('totalEntries').textContent = total;
-}
-
-            // Function to setup pagination controls
-            function setupPagination(totalItems, currentPage) {
-    const totalPages = Math.ceil(totalItems / rowsPerPage);
-    const pagination = document.getElementById('holidayPagination');
-    
-    // Clear existing page numbers (keep prev/next buttons)
-    while (pagination.children.length > 2) {
-        pagination.removeChild(pagination.children[1]);
-    }
-
-    // Add page numbers
-    for (let i = 1; i <= totalPages; i++) {
-        const li = document.createElement('li');
-        li.className = `page-item ${i === currentPage ? 'active' : ''}`;
-        li.innerHTML = `<a class="page-link" href="#">${i}</a>`;
-        li.addEventListener('click', (e) => {
-            e.preventDefault();
-            renderHolidaysTable(i);
-        });
-        pagination.insertBefore(li, document.getElementById('nextPage'));
-    }
-
-    // Setup prev/next buttons
-    document.getElementById('prevPage').className = currentPage === 1 ? 'page-item disabled' : 'page-item';
-    document.getElementById('nextPage').className = currentPage === totalPages ? 'page-item disabled' : 'page-item';
-
-    document.getElementById('prevPage').addEventListener('click', (e) => {
-        e.preventDefault();
-        if (currentPage > 1) renderHolidaysTable(currentPage - 1);
-    });
-
-    document.getElementById('nextPage').addEventListener('click', (e) => {
-        e.preventDefault();
-        if (currentPage < totalPages) renderHolidaysTable(currentPage + 1);
-    });
-}
-
-            // Modified render function with pagination
-            function renderHolidaysTable(page = 1) {
-    currentPage = page;
-    holidaysTableBody.innerHTML = '';
-
-    if (holidaysData.length === 0) {
-        holidaysTableBody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center">
-                    No holiday requests found
-                </td>
-            </tr>`;
-        updatePaginationInfo(0, 0, 0);
-        return;
-    }
-
-    // Calculate pagination
-    const totalPages = Math.ceil(holidaysData.length / rowsPerPage);
-    const startIndex = (page - 1) * rowsPerPage;
-    const endIndex = Math.min(startIndex + rowsPerPage, holidaysData.length);
-    const paginatedData = holidaysData.slice(startIndex, endIndex);
-
-    // Update showing entries info
-    updatePaginationInfo(startIndex + 1, endIndex, holidaysData.length);
-
-    // Render rows
-    paginatedData.forEach(holiday => {
-        const formattedStartDate = formatDate(holiday.startDate);
-        const formattedEndDate = formatDate(holiday.endDate);
-
-        if (!holiday.days || isNaN(holiday.days)) {
-            updateHolidayDays(holiday, holiday.id);
-        }
-
-        const accepted = {
-            value: holiday.accepted === 'true' ? 'Paid Leave' : 
-                   holiday.accepted === 'unpaid' ? 'Unpaid Leave' : '',
-            class: holiday.accepted === 'true' ? 'status-approved' : 
-                   holiday.accepted === 'unpaid' ? 'status-unpaid' : ''
-        };
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${holiday.name}</td>
-            <td>${holiday.lastName}</td>
-            <td class="editable" data-field="startDate" data-id="${holiday.id}">
-                ${formattedStartDate}
-            </td>
-            <td class="editable" data-field="endDate" data-id="${holiday.id}">
-                ${formattedEndDate}
-            </td>
-            <td class="days-count" data-id="${holiday.id}">${holiday.days}</td>
-            <td class="${accepted.class}">
-                <select class="form-select form-select-sm status-select" data-id="${holiday.id}">
-                    <option value="true" ${holiday.accepted === 'true' ? 'selected' : ''}>
-                        Paid Leave
-                    </option>
-                    <option value="unpaid" ${holiday.accepted === 'unpaid' ? 'selected' : ''}>
-                        Unpaid Leave
-                    </option>
-                </select>
-            </td>
-            <td>
-                <button class="btn btn-sm btn-outline-primary save-holiday-btn" data-id="${holiday.id}">
-                    <i class="bi bi-save"></i> Save
-                </button>
-                <button class="btn btn-sm btn-outline-danger delete-holiday-btn" data-id="${holiday.id}">
-                    <i class="bi bi-trash"></i> Delete
-                </button>
-            </td>
-        `;
-        holidaysTableBody.appendChild(row);
-    });
-
-            // Setup pagination controls
-            setupPagination(holidaysData.length, page);
-
-            // Setup event handlers
-            setupEditableCellsWithDayCalculation('holidaysTableBody');
-            setupSaveButtons('.save-holiday-btn', saveHoliday);
-            setupDeleteButtons('.delete-holiday-btn', confirmDelete);
-
-            document.querySelectorAll('.status-select').forEach(select => {
-        select.addEventListener('change', function() {
-            const holiday = holidaysData.find(h => h.id == this.dataset.id);
-            if (holiday) holiday.accepted = this.value;
-        });
-    });
-            }
-
-            // Initialize the table when the page loads
-            document.addEventListener('DOMContentLoaded', function() {
-    renderHolidaysTable(1);
-});
-
-            // Function to Edit Cells in Holidays with Date Picker and Day Calculation
-            function setupEditableCellsWithDayCalculation(tableBodyId) {
-    const tableBody = document.getElementById(tableBodyId);
-
-    tableBody.addEventListener('click', function (e) {
-        const cell = e.target.closest('.editable[data-field="startDate"], .editable[data-field="endDate"]');
-        if (!cell) return;
-
-        e.stopPropagation();
-
-        const currentValue = cell.textContent.trim();
-        const field = cell.dataset.field;
-        const id = cell.dataset.id;
-        const holiday = holidaysData.find(h => h.id == id);
-        if (!holiday) return;
-
-        const input = document.createElement('input');
-        input.type = 'date';
-        input.className = 'form-control form-control-sm';
-
-        // Convert dd/mm/yyyy to yyyy-mm-dd for input
-        if (currentValue && currentValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-            const [day, month, year] = currentValue.split('/');
-            input.value = `${year}-${month}-${day}`;
-        }
-
-        cell.innerHTML = '';
-        cell.appendChild(input);
-        input.focus();
-
-        function saveDate() {
-            const isoDate = input.value;
-            if (!isoDate) return;
-
-            const formattedDate = formatDateFromInput(isoDate); // yyyy-mm-dd → dd/mm/yyyy
-
-            // Validate selected date
-            const [year, month, day] = isoDate.split('-');
-            const selectedDate = new Date(`${year}-${month}-${day}`);
-            if (isNaN(selectedDate.getTime())) {
-                alert('Invalid date selected');
-                return;
-            }
-
-            // Temporarily update the field for validation purposes
-            holiday[field] = formattedDate;
-            cell.textContent = formattedDate;
-
-            // Recalculate days if both dates are valid
-            if (holiday.startDate && holiday.endDate) {
-                updateHolidayDays(holiday, id);
-            }
-        }
-
-        input.addEventListener('blur', saveDate);
-        input.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') saveDate();
-        });
-    });
-
-    // Handle other editable fields
-    tableBody.addEventListener('focusout', function (e) {
-        const target = e.target;
-        if (target.classList.contains('editable')) {
-            const id = target.dataset.id;
-            const field = target.dataset.field;
-            const holiday = holidaysData.find(h => h.id == id);
-
-            if (holiday && field !== 'startDate' && field !== 'endDate') {
-                holiday[field] = target.textContent;
-            }
-        }
-    });
-
-    // Set contenteditable for non-date cells
-    tableBody.querySelectorAll('.editable').forEach(cell => {
-        if (!cell.dataset.field.match(/startDate|endDate/)) {
-            cell.setAttribute('contenteditable', 'true');
-        }
-    });
-}
-
-            // Update the holiday days calculation to handle dd/mm/yyyy format
-            function updateHolidayDays(holiday, id) {
-    try {
-        const parseDate = (dateStr) => {
-            if (!dateStr) return null;
-            if (dateStr.includes('T')) return new Date(dateStr);
-            if (dateStr.includes('/')) {
-                const [day, month, year] = dateStr.split('/');
-                return new Date(`${year}-${month}-${day}`);
-            }
-            return null;
-        };
-
-        let startDate = parseDate(holiday.startDate);
-        let endDate = parseDate(holiday.endDate);
-
-        // Handle case where only one date is changed
-        if (!startDate && holiday.startDate) {
-            startDate = parseDate(holiday.startDate);
-        }
-        if (!endDate && holiday.endDate) {
-            endDate = parseDate(holiday.endDate);
-        }
-
-        // Only proceed if both dates are valid
-        const validStart = startDate && !isNaN(startDate.getTime());
-        const validEnd = endDate && !isNaN(endDate.getTime());
-
-        if (!validStart || !validEnd) {
-            // Display 0 if one date is missing
-            holiday.days = 0;
-            const daysElement = document.querySelector(`.days-count[data-id="${id}"]`);
-            if (daysElement) daysElement.textContent = '-';
-            return;
-        }
-
-        if (startDate > endDate) {
-            holiday.days = 0;
-            const daysElement = document.querySelector(`.days-count[data-id="${id}"]`);
-            if (daysElement) daysElement.textContent = '-';
-            console.warn(`Start date is after end date for ID ${id}.`);
-            return;
-        }
-
-        const timeDiff = endDate - startDate;
-        const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24)) + 1;
-
-        holiday.days = daysDiff > 0 ? daysDiff : 1;
-        const daysElement = document.querySelector(`.days-count[data-id="${id}"]`);
-        if (daysElement) {
-            daysElement.textContent = holiday.days;
-        }
-    } catch (error) {
-        console.error(`Error calculating days for ID ${id}:`, error);
-    }
-}
-
-            // Function to edit Cells in Employees
-            function setupEditableCells(tableBodyId) {
-    const tableBody = document.getElementById(tableBodyId);
-    
-    tableBody.addEventListener('click', function(e) {
-        const cell = e.target.closest('.editable');
-        if (!cell) return;
-        
-        // Skip if clicking on a select dropdown
-        if (e.target.tagName === 'SELECT') return;
-        
-        const currentValue = cell.textContent.trim();
-        const field = cell.getAttribute('data-field');
-        const isDateField = field === 'startDate' || field === 'endDate' || field === 'dateStart';
-        
-        let input;
-        if (isDateField) {
-            // Parse current date correctly (handles dd/mm/yyyy format)
-            const [day, month, year] = currentValue.split('/');
-            const jsDate = new Date(`${year}-${month}-${day}`);
-            
-            input = document.createElement('input');
-            input.type = 'date';
-            input.className = 'form-control form-control-sm';
-            
-            // Format for date input (YYYY-MM-DD)
-            if (!isNaN(jsDate.getTime())) {
-                const yyyy = jsDate.getFullYear();
-                const mm = String(jsDate.getMonth() + 1).padStart(2, '0');
-                const dd = String(jsDate.getDate()).padStart(2, '0');
-                input.value = `${yyyy}-${mm}-${dd}`;
-            }
-        } else {
-            input = document.createElement('input');
-            input.type = 'text';
-            input.className = 'form-control form-control-sm';
-            input.value = currentValue;
-        }
-        
-        cell.innerHTML = '';
-        cell.appendChild(input);
-        input.focus();
-        
-        function saveEdit() {
-            let newValue = input.value;
-            
-            if (isDateField) {
-                // Convert date input (YYYY-MM-DD) to ISO string
-                const dateObj = new Date(newValue);
-                if (!isNaN(dateObj.getTime())) {
-                    newValue = dateObj.toISOString();
-                } else {
-                    // Handle invalid dates
-                    newValue = cell.getAttribute('data-original-value') || '';
-                }
-            }
-            
-            // Format display value based on field type
-            const displayValue = isDateField ? formatDate(newValue) : newValue;
-            cell.textContent = displayValue;
-            
-            // Update our data array
-            const id = cell.getAttribute('data-id');
-            const dataArray = tableBodyId === 'employeesTableBody' ? employeesData : holidaysData;
-            const item = dataArray.find(item => item.id == id);
-            
-            if (item) {
-                item[field] = newValue;
-                
-                // Recalculate days if holiday dates changed
-                if (tableBodyId === 'holidaysTableBody' && (field === 'startDate' || field === 'endDate')) {
-                    const startDate = new Date(item.startDate);
-                    const endDate = new Date(item.endDate);
+            async function loadHolidays() {
+                try {
+                    const response = await fetch('/TotalHolidays/api/holidays/requests');
+                    if (!response.ok) throw new Error('Failed to load holidays');
                     
-                    if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-                        const timeDiff = endDate - startDate;
-                        item.days = Math.floor(timeDiff / (1000 * 60 * 60 * 24)) + 1;
-                        
-                        // Update days display
-                        const row = cell.closest('tr');
-                        if (row) {
-                            const daysCell = row.querySelector('td:nth-child(5)');
-                            if (daysCell) {
-                                daysCell.textContent = item.days;
-                            }
-                        }
-                    }
+                    holidaysData = await response.json();
+                } catch (error) {
+                    console.error('Error loading holidays:', error);
+                    // Don't show error here - we'll handle it in the individual employee tabs
                 }
             }
-        }
-        
-        // Store original value in case we need to revert
-        cell.setAttribute('data-original-value', currentValue);
-        
-        input.addEventListener('blur', saveEdit);
-        input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                saveEdit();
-            }
-        });
-    });
-}
-
-            // Function to Convert Date for Employees
-            function convertToUKDateFormat(dateString) {
-    if (!dateString) return '';
-
-    // Replace dashes with slashes to standardize input (in case it's yyyy-mm-dd)
-    const sanitized = dateString.replace(/-/g, '/');
-
-    const [year, month, day] = sanitized.split('/');
-
-    // Basic validation
-    if (!year || !month || !day) return '';
-
-    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}`;
-}
-
-            // Function to Render Employee Table
-            function renderEmployeesTable() {
-                employeesTableBody.innerHTML = '';
+            
+            // Function to Render Employee Tabs
+            function renderEmployeeTabs() {
+                employeeTabs.innerHTML = '';
+                employeeContent.innerHTML = '';
+                
                 if (employeesData.length === 0) {
-                    employeesTableBody.innerHTML = `<tr><td colspan="8" class="text-center">No employee data found</td></tr>`;
+                    employeeContent.innerHTML = `
+                        <div class="empty-state">
+                            <i class="bi bi-people"></i>
+                            <h4>No Employees Found</h4>
+                            <p>There are no employees to display in the system.</p>
+                        </div>
+                    `;
                     return;
                 }
                 
-                employeesData.forEach(employee => {
+                // Create tabs for each employee
+                employeesData.forEach((employee, index) => {
+                    // Create tab
+                    const tab = document.createElement('li');
+                    tab.className = 'nav-item';
+                    tab.innerHTML = `
+                        <a class="nav-link ${index === 0 ? 'active' : ''}" 
+                           id="tab-${employee.id}" 
+                           data-bs-toggle="tab" 
+                           href="#content-${employee.id}" 
+                           role="tab">
+                            ${employee.name} ${employee.lastName.charAt(0)}.
+                        </a>
+                    `;
+                    employeeTabs.appendChild(tab);
+                    
+                    // Create content
+                    const content = document.createElement('div');
+                    content.id = `content-${employee.id}`;
+                    content.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
+                    content.innerHTML = `
+                        <div class="employee-card">
+                            <div class="employee-card-header">
+                                <h3 class="employee-name">${employee.name} ${employee.lastName}</h3>
+                                <span class="employee-status status-active">Active</span>
+                            </div>
+                            
+                            <div class="holiday-summary">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="summary-item">
+                                            <div class="summary-label">Start Date</div>
+                                            <div class="summary-value">${formatDate(employee.dateStart)}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="summary-item">
+                                            <div class="summary-label">Annual Entitlement</div>
+                                            <div class="summary-value">${employee.startHoliday || 0} days</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="summary-item">
+                                            <div class="summary-label">Accrued Holiday</div>
+                                            <div class="summary-value">${employee.Accrued || 0} days</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row mt-3">
+                                    <div class="col-md-12">
+                                        <div class="summary-item">
+                                            <div class="d-flex justify-content-between">
+                                                <div class="summary-label">Holiday Usage</div>
+                                                <div class="summary-value">
+                                                    <span id="holidaysTaken-${employee.id}">0</span> days taken / 
+                                                    <span id="holidaysRemaining-${employee.id}">${employee.TotalHoliday || 0}</span> days remaining
+                                                </div>
+                                            </div>
+                                            <div class="progress">
+                                                <div id="holidayProgress-${employee.id}" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card-body">
+                                <h5 class="mb-4"><i class="bi bi-calendar-check"></i> Holiday Requests</h5>
+                                
+                                <div class="table-responsive">
+                                    <table class="holiday-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Period</th>
+                                                <th>Days</th>
+                                                <th>Status</th>
+                                                <th>Type</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="holidaysTable-${employee.id}">
+                                            <!-- Holidays will be loaded here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div id="noHolidays-${employee.id}" class="empty-state" style="display: none;">
+                                    <i class="bi bi-calendar-x"></i>
+                                    <h4>No Holiday Requests</h4>
+                                    <p>This employee hasn't made any holiday requests yet.</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    employeeContent.appendChild(content);
+                    
+                    // Render employee's holidays
+                    renderEmployeeHolidays(employee);
+                });
+            }
+            
+            // Function to Render Holidays for a Specific Employee
+            function renderEmployeeHolidays(employee) {
+                const tableBody = document.getElementById(`holidaysTable-${employee.id}`);
+                const noHolidaysEl = document.getElementById(`noHolidays-${employee.id}`);
+                const holidaysTakenEl = document.getElementById(`holidaysTaken-${employee.id}`);
+                const holidaysRemainingEl = document.getElementById(`holidaysRemaining-${employee.id}`);
+                const holidayProgressEl = document.getElementById(`holidayProgress-${employee.id}`);
+                
+                if (!tableBody || !noHolidaysEl) return;
+                
+                // Filter holidays by matching name and lastName (since backend doesn't have employeeId)
+                const employeeHolidays = holidaysData.filter(holiday => 
+                    holiday.name === employee.name && holiday.lastName === employee.lastName
+                );
+                
+                // Calculate total days taken (approved holidays only)
+                const approvedHolidays = employeeHolidays.filter(h => h.accepted === 'true');
+                const totalDaysTaken = approvedHolidays.reduce((sum, holiday) => sum + (parseInt(holiday.days) || 0), 0);
+                
+                // Use startHoliday as total entitlement and TotalHoliday as remaining
+                const totalEntitlement = parseInt(employee.startHoliday) || 0;
+                const remainingHolidays = parseInt(employee.TotalHoliday) || 0;
+                
+                // Update summary
+                holidaysTakenEl.textContent = totalDaysTaken;
+                holidaysRemainingEl.textContent = remainingHolidays;
+                
+                // Update progress bar
+                const percentageUsed = totalEntitlement > 0 ? Math.min(100, (totalDaysTaken / totalEntitlement) * 100) : 0;
+                holidayProgressEl.style.width = `${percentageUsed}%`;
+                
+                if (employeeHolidays.length === 0) {
+                    tableBody.innerHTML = '';
+                    noHolidaysEl.style.display = 'block';
+                    return;
+                }
+                
+                noHolidaysEl.style.display = 'none';
+                tableBody.innerHTML = '';
+                
+                employeeHolidays.forEach(holiday => {
+                    const formattedStartDate = formatDate(holiday.startDate);
+                    const formattedEndDate = formatDate(holiday.endDate);
+                    
+                    // Determine status badge
+                    let statusBadgeClass, statusText;
+                    if (holiday.accepted === 'true') {
+                        statusBadgeClass = 'badge-approved';
+                        statusText = 'Approved';
+                    } else if (holiday.accepted === 'unpaid') {
+                        statusBadgeClass = 'badge-pending';
+                        statusText = 'Unpaid';
+                    } else {
+                        statusBadgeClass = 'badge-pending';
+                        statusText = 'Pending';
+                    }
+                    
+                    // Determine type
+                    const typeBadgeClass = holiday.accepted === 'unpaid' ? 'badge-pending' : 'badge-approved';
+                    const typeText = holiday.accepted === 'unpaid' ? 'Unpaid Leave' : 'Paid Leave';
+                    
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td>${employee.name}</td>
-                        <td>${employee.lastName}</td>
-                        <td>${convertToUKDateFormat(employee.dateStart)}</td>
-                        <td class="editable" data-field="startHoliday" data-id="${employee.id}">${employee.startHoliday}</td>
-                        <td class="editable" data-field="TotalHoliday" data-id="${employee.id}">${employee.TotalHoliday}</td>
-                        <td class="editable" data-field="Accrued" data-id="${employee.id}">${employee.Accrued}</td>
                         <td>
-                            <button class="btn btn-sm btn-outline-primary save-btn" data-id="${employee.id}">
-                                <i class="bi bi-save"></i> Save
+                            <div class="fw-bold">${formattedStartDate} to ${formattedEndDate}</div>
+                        </td>
+                        <td class="fw-bold">${holiday.days || '-'} days</td>
+                        <td><span class="status-badge ${statusBadgeClass}">${statusText}</span></td>
+                        <td><span class="status-badge ${typeBadgeClass}">${typeText}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary action-btn edit-holiday-btn" data-id="${holiday.id}">
+                                <i class="bi bi-pencil"></i> Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger action-btn delete-holiday-btn" data-id="${holiday.id}">
+                                <i class="bi bi-trash"></i> Delete
                             </button>
                         </td>
                     `;
-                    employeesTableBody.appendChild(row);
-                    console.log(convertToUKDateFormat(employee.dateStart))
+                    tableBody.appendChild(row);
                 });
                 
-                setupEditableCells('employeesTableBody');
-                setupSaveButtons('.save-btn', saveEmployee);
-            }
-
-            // Function for Save Buttons
-            function setupSaveButtons(selector, saveFunction) {
-                document.addEventListener('click', function(e) {
-                    const btn = e.target.closest(selector);
-                    if (!btn) return;
-                    
-                    const id = btn.getAttribute('data-id');
-                    saveFunction(id);
-                });
-            }
-            
-            // Function for Delete Buttons
-            function setupDeleteButtons(selector, deleteFunction) {
-    document.addEventListener('click', function(e) {
-        const btn = e.target.closest(selector);
-        if (!btn) return;
-        
-        deleteId = btn.getAttribute('data-id');
-        confirmDeleteModal.show();
-    });
-    
-    // Connect the modal's delete button
-    confirmDeleteBtn.addEventListener('click', deleteFunction);
-}
-            
-            // Function to Save Employee Tab
-            async function saveEmployee(id) {
-                const employee = employeesData.find(emp => emp.id == id);
-                if (!employee) return;
-                
-                try {
-                    const response = await fetch(`/TotalHolidays/api/holidays/employees/${id}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            dateStart: employee.dateStart,
-                            startHoliday: parseFloat(employee.startHoliday) || 0,
-                            TotalHoliday: parseFloat(employee.TotalHoliday) || 0,
-                            Accrued: parseFloat(employee.Accrued) || 0
-                        })
+                // Setup event handlers
+                document.querySelectorAll('.edit-holiday-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const holidayId = this.getAttribute('data-id');
+                        editHoliday(holidayId);
                     });
-                    
-                    if (!response.ok) throw new Error('Failed to save employee');
-                    loadEmployees(); // Refresh data
-                } catch (error) {
-                    console.error('Error saving employee:', error);
-                    alert('Error updating employee data: ' + error.message);
-                }
+                });
+                
+                document.querySelectorAll('.delete-holiday-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        deleteId = this.getAttribute('data-id');
+                        confirmDeleteModal.show();
+                    });
+                });
             }
-            
-            // Function to Save Holiday Tab
-            async function saveHoliday(id) {
-    const holiday = holidaysData.find(h => h.id == id);
-    if (!holiday) return;
-    
-    try {
-        // Get the current selected status from the dropdown
-        const statusSelect = document.querySelector(`.status-select[data-id="${id}"]`);
-        if (statusSelect) {
-            holiday.accepted = statusSelect.value; // Update the holiday object with current selection
-        }
-
-        const response = await fetch(`/TotalHolidays/api/holidays-update/requests/${id}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                startDate: holiday.startDate,
-                endDate: holiday.endDate,
-                days: holiday.days,
-                accepted: holiday.accepted // Now includes the updated value
-            })
-        });
-        
-        if (!response.ok) throw new Error('Failed to save holiday');
-        
-        alert('Holiday request updated successfully!');
-        loadAndRenderHolidays(); // Refresh data
-    } catch (error) {
-        console.error('Error saving holiday:', error);
-        alert('Error updating holiday request: ' + error.message);
-    }
-}
-
-            // Function to Confirm Deletion
+                
+            // Function to Confirm Delete
             async function confirmDelete() {
     if (!deleteId) return;
     
     try {
+        // Find the holiday being deleted
+        const holiday = holidaysData.find(h => h.id == deleteId);
+        if (!holiday) {
+            throw new Error('Holiday not found');
+        }
+
+        // Find the associated employee
+        const employee = employeesData.find(e => 
+            e.name === holiday.name && e.lastName === holiday.lastName
+        );
+        if (!employee) {
+            throw new Error('Employee not found');
+        }
+
+        // Calculate days to return (only if holiday was paid)
+        let daysToReturn = 0;
+        if (holiday.accepted === 'true') {
+            daysToReturn = parseInt(holiday.days) || 0;
+        }
+
+        // First delete the holiday request
         const response = await fetch(`/TotalHolidays/api/holidays/requests/${deleteId}`, {
             method: 'POST'
         });
         
         if (!response.ok) throw new Error('Failed to delete holiday');
+
+        // Update employee's holiday balance if needed
+        if (daysToReturn > 0) {
+            const updatedTotalHoliday = Math.max(0, parseInt(employee.TotalHoliday || 0) + daysToReturn);
+            
+            // Update employee in backend
+            const employeeResponse = await fetch(`/TotalHolidays/api/holidays/employees/${employee.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    dateStart: employee.dateStart,
+                    startHoliday: employee.startHoliday,
+                    TotalHoliday: updatedTotalHoliday,
+                    Accrued: employee.Accrued
+                })
+            });
+
+            if (!employeeResponse.ok) {
+                throw new Error('Failed to update employee holiday balance');
+            }
+
+            // Update local employee data
+            employee.TotalHoliday = updatedTotalHoliday;
+        }
+
+        // Refresh the data
+        await loadHolidays();
         
-        // Refresh the table after successful deletion
-        loadAndRenderHolidays();
+        // Re-render the employee tab
+        renderEmployeeHolidays(employee);
+        
         confirmDeleteModal.hide();
+        showToast('Holiday request deleted successfully', 'success');
     } catch (error) {
         console.error('Error deleting holiday:', error);
+        showToast('Error deleting holiday request: ' + error.message, 'danger');
     } finally {
         deleteId = null;
     }
 }
-
-            // Function to confirm successful deletion
-            function showToast(message, type = 'success') {
-    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
-    const toast = document.createElement('div');
-    toast.className = `toast show align-items-center text-white bg-${type}`;
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">${message}</div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-        </div>
-    `;
-    toastContainer.appendChild(toast);
-    
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-
-            // Function to confirm successful deletion
-            function createToastContainer() {
-    const container = document.createElement('div');
-    container.id = 'toastContainer';
-    container.style.position = 'fixed';
-    container.style.top = '20px';
-    container.style.right = '20px';
-    container.style.zIndex = '1100';
-    document.body.appendChild(container);
-    return container;
-}
             
-            // Function to Format Date to dd/mm/yyyy
+            // Updated formatDate function to handle "dd/mm/yyyy (Day)" format
             function formatDate(dateString) {
-    if (!dateString) return '';
+    // Handle null, undefined, or empty strings
+    if (!dateString || dateString === 'null' || dateString === 'undefined') {
+        return 'N/A';
+    }
 
-    // Extract the first 10 characters which represent dd/mm/yyyy
-    return dateString.slice(0, 10);
-}
+    // Convert to string and trim whitespace
+    const dateStr = String(dateString).trim();
+    
+    // Check if date is already in "dd/mm/yyyy (Day)" format and extract just the date part
+    const dayFormatMatch = dateStr.match(/^(\d{2}\/\d{2}\/\d{4}) \(.+\)$/);
+    if (dayFormatMatch) {
+        return dayFormatMatch[1]; // Return just the "dd/mm/yyyy" part
+    }
+    
+    // Return if already in correct "dd/mm/yyyy" format
+    if (dateStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        return dateStr;
+    }
 
-            // Function to Format Date to dd/mm/yyyy
-            function formatDateFromInput(dateString) {
-    if (!dateString) return '';
-    const [year, month, day] = dateString.split('-');
+    // Try to parse the date using multiple methods
+    let parsedDate = null;
+    
+    // 1. Try ISO format (yyyy-mm-dd or yyyy-mm-ddThh:mm:ss)
+    if (!parsedDate && dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+        const parts = dateStr.split('-');
+        // Ensure we don't have time components
+        const datePart = parts[2].split('T')[0];
+        parsedDate = new Date(parts[0], parts[1] - 1, datePart);
+        if (isNaN(parsedDate.getTime())) parsedDate = null;
+    }
+    
+    // 2. Try mm/dd/yyyy format
+    if (!parsedDate && dateStr.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
+        const parts = dateStr.split('/');
+        parsedDate = new Date(parts[2], parts[0] - 1, parts[1]);
+        if (isNaN(parsedDate.getTime())) parsedDate = null;
+    }
+    
+    // 3. Try dd-mm-yyyy format
+    if (!parsedDate && dateStr.match(/^\d{1,2}-\d{1,2}-\d{4}$/)) {
+        const parts = dateStr.split('-');
+        parsedDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        if (isNaN(parsedDate.getTime())) parsedDate = null;
+    }
+    
+    // 4. Try dd.mm.yyyy format
+    if (!parsedDate && dateStr.match(/^\d{1,2}\.\d{1,2}\.\d{4}$/)) {
+        const parts = dateStr.split('.');
+        parsedDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        if (isNaN(parsedDate.getTime())) parsedDate = null;
+    }
+    
+    // 5. Try timestamp
+    if (!parsedDate && dateStr.match(/^\d+$/)) {
+        parsedDate = new Date(parseInt(dateStr, 10));
+        if (isNaN(parsedDate.getTime())) parsedDate = null;
+    }
+    
+    // 6. Try locale-specific parsing (last resort)
+    if (!parsedDate) {
+        parsedDate = new Date(dateStr);
+        if (isNaN(parsedDate.getTime())) parsedDate = null;
+    }
+    
+    // Final fallback for invalid dates
+    if (!parsedDate) {
+        console.warn('Could not parse date:', dateString);
+        return 'Invalid date';
+    }
+    
+    // Format as dd/mm/yyyy with leading zeros
+    const day = String(parsedDate.getDate()).padStart(2, '0');
+    const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const year = parsedDate.getFullYear();
+    
     return `${day}/${month}/${year}`;
 }
+
+            // Updated calculateDuration function to handle "dd/mm/yyyy (Day)" format
+            function calculateDuration(startDate, endDate) {
+    if (!startDate || !endDate) return '';
+    
+    // Helper function to parse dates in "dd/mm/yyyy (Day)" format
+    const parseDate = (dateStr) => {
+        if (!dateStr) return null;
+        
+        const str = String(dateStr).trim();
+        
+        // Handle "dd/mm/yyyy (Day)" format
+        const dayFormatMatch = str.match(/^(\d{2})\/(\d{2})\/(\d{4}) \(.+\)$/);
+        if (dayFormatMatch) {
+            return new Date(dayFormatMatch[3], dayFormatMatch[2] - 1, dayFormatMatch[1]);
+        }
+        
+        // Handle regular "dd/mm/yyyy" format
+        if (str.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+            const parts = str.split('/');
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+        
+        // Fallback to other formats if needed
+        return new Date(dateStr);
+    };
+    
+    const start = parseDate(startDate);
+    const end = parseDate(endDate);
+    
+    if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) {
+        console.warn('Invalid dates:', startDate, endDate);
+        return '';
+    }
+    
+    // Calculate difference in days (inclusive of both dates)
+    const timeDiff = end.getTime() - start.getTime();
+    const dayDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Handle same-day case
+    if (dayDiff === 0) return '1 day';
+    
+    return dayDiff === 1 ? '1 day' : `${dayDiff} days`;
+}
             
-            // Function to Show Loading
-            function showLoading(element) {
-                if (!element) return;
-                element.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="text-center">
-                            <span class="loading-spinner"></span> Loading...
-                        </td>
-                    </tr>
-                `;
+            // Function to Edit Holiday
+            async function editHoliday(id) {
+    try {
+        // Find the holiday in our existing data
+        const holiday = holidaysData.find(h => h.id == id);
+        if (!holiday) {
+            throw new Error('Holiday not found');
+        }
+
+        // Find the associated employee
+        const employee = employeesData.find(e => 
+            e.name === holiday.name && e.lastName === holiday.lastName
+        );
+        if (!employee) {
+            throw new Error('Employee not found');
+        }
+
+        // Store original values for comparison
+        const originalDays = parseInt(holiday.days) || 0;
+        const originalStatus = holiday.accepted;
+
+        // Create modal HTML
+        const modalHtml = `
+            <div class="modal fade" id="editHolidayModal" tabindex="-1" aria-labelledby="editHolidayModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="editHolidayModalLabel">Edit Holiday Request</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editHolidayForm">
+                                <div class="mb-3">
+                                    <label for="editStartDate" class="form-label">Start Date</label>
+                                    <input type="date" class="form-control" id="editStartDate" value="${holiday.startDate.split('T')[0]}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editEndDate" class="form-label">End Date</label>
+                                    <input type="date" class="form-control" id="editEndDate" value="${holiday.endDate.split('T')[0]}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editDays" class="form-label">Days</label>
+                                    <input type="number" class="form-control" id="editDays" value="${holiday.days}" readonly>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="editStatus" class="form-label">Status</label>
+                                    <select class="form-select" id="editStatus" required>
+                                        <option value="true" ${holiday.accepted === 'true' ? 'selected' : ''}>Paid</option>
+                                        <option value="unpaid" ${holiday.accepted === 'unpaid' ? 'selected' : ''}>Unpaid Leave</option>
+                                    </select>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="saveHolidayChanges">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Add modal to DOM
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHtml;
+        document.body.appendChild(modalContainer);
+
+        // Show modal
+        // Show modal without backdrop
+const editModal = new bootstrap.Modal(document.getElementById('editHolidayModal'), {
+    backdrop: false,  // This prevents the black overlay
+    keyboard: true    // Still allows closing with ESC key
+});
+editModal.show();
+        // Calculate days when dates change
+        const calculateDays = () => {
+            const startDate = new Date(document.getElementById('editStartDate').value);
+            const endDate = new Date(document.getElementById('editEndDate').value);
+            
+            if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
+                const diffTime = Math.abs(endDate - startDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+                document.getElementById('editDays').value = diffDays;
             }
+        };
+
+        // Add event listeners for date changes
+        document.getElementById('editStartDate').addEventListener('change', calculateDays);
+        document.getElementById('editEndDate').addEventListener('change', calculateDays);
+
+        // Handle save button click
+        document.getElementById('saveHolidayChanges').addEventListener('click', async () => {
+    try {
+        const startDate = document.getElementById('editStartDate').value;
+        const endDate = document.getElementById('editEndDate').value;
+        const days = parseInt(document.getElementById('editDays').value) || 0;
+        const accepted = document.getElementById('editStatus').value;
+
+        // Validate inputs
+        if (!startDate || !endDate || isNaN(days)) {
+            throw new Error('Please fill in all fields');
+        }
+
+        // Calculate holiday balance changes
+        let totalHolidayChange = 0;
+        const daysDifference = days - originalDays;
+
+        if (accepted === 'true' && originalStatus !== 'true') {
+            // Changing to paid from unpaid - subtract days from balance
+            totalHolidayChange = -days;
+        } else if (accepted !== 'true' && originalStatus === 'true') {
+            // Changing from paid to unpaid - add days back to balance
+            totalHolidayChange = originalDays;
+        } else if (accepted === 'true') {
+            // Adjust for day count changes in paid holidays
+            // If days increased, subtract difference from balance
+            // If days decreased, add difference back to balance
+            totalHolidayChange = -daysDifference;
+        }
+
+        // Prepare updated employee data
+        const updatedEmployeeData = {
+            TotalHoliday: Math.max(0, parseInt(employee.TotalHoliday || 0) + totalHolidayChange)
+        };
+
+        // Call backend API to update holiday
+        const holidayResponse = await fetch(`/TotalHolidays/api/holidays-update/requests/${id}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                startDate,
+                endDate,
+                days,
+                accepted
+            })
         });
-    </script>
+
+        if (!holidayResponse.ok) {
+            throw new Error('Failed to update holiday request');
+        }
+
+        // Update employee's holiday balance if needed
+        if (totalHolidayChange !== 0) {
+            const employeeResponse = await fetch(`/TotalHolidays/api/holidays/employees/${employee.id}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    dateStart: employee.dateStart,
+                    startHoliday: employee.startHoliday,
+                    TotalHoliday: updatedEmployeeData.TotalHoliday,
+                    Accrued: employee.Accrued
+                })
+            });
+
+            if (!employeeResponse.ok) {
+                throw new Error('Failed to update employee holiday balance');
+            }
+
+            // Update local employee data
+            employee.TotalHoliday = updatedEmployeeData.TotalHoliday;
+        }
+
+        // Update local holiday data
+        const updatedHoliday = {
+            ...holiday,
+            startDate,
+            endDate,
+            days,
+            accepted
+        };
+
+        const index = holidaysData.findIndex(h => h.id == id);
+        if (index !== -1) {
+            holidaysData[index] = updatedHoliday;
+        }
+
+        // Re-render the employee tab
+        renderEmployeeHolidays(employee);
+
+        // Show success message
+        showToast('Holiday request updated successfully', 'success');
+        
+        // Close modal
+        editModal.hide();
+        setTimeout(() => {
+            document.body.removeChild(modalContainer);
+        }, 500);
+
+    } catch (error) {
+        console.error('Error updating holiday:', error);
+        showToast(`Error: ${error.message}`, 'danger');
+    }
+});
+        
+        // Proper modal cleanup
+        const cleanupModal = () => {
+            document.body.removeChild(modalContainer);
+            document.getElementById('editHolidayModal').removeEventListener('hidden.bs.modal', cleanupModal);
+        };
+
+    } catch (error) {
+        console.error('Error in editHoliday:', error);
+        showToast(`Error: ${error.message}`, 'danger');
+    }
+}
+            
+            // Helper function to show toast notifications
+            function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toastContainer') || document.createElement('div');
+    toastContainer.id = 'toastContainer';
+    toastContainer.style.position = 'fixed';
+    toastContainer.style.top = '20px';
+    toastContainer.style.right = '20px';
+    toastContainer.style.zIndex = '1100';
+    
+    const toastId = `toast-${Date.now()}`;
+    const toastHtml = `
+        <div id="${toastId}" class="toast align-items-center text-white bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+    document.body.appendChild(toastContainer);
+    
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+    
+    // Remove toast after it hides
+    toastEl.addEventListener('hidden.bs.toast', () => {
+        toastEl.remove();
+        if (toastContainer.children.length === 0) {
+            document.body.removeChild(toastContainer);
+        }
+    });
+}
+    
+});
+</script>
 </body>
 </html>
