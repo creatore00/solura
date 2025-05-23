@@ -91,7 +91,7 @@ app.post('/submitHolidayRequest', isAuthenticated, (req, res) => {
 // Improved email function
 async function getAllEmails(dbName) {
     const pool = getPool(dbName);
-    const query = 'SELECT email FROM users WHERE Access = "admin"'; // Only active users
+    const query = 'SELECT email FROM Employees WHERE position = "manager"'; // Only active users
     const [results] = await pool.promise().query(query);
     return results.map(row => row.email);
 }

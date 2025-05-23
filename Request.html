@@ -256,84 +256,102 @@
         document.addEventListener('DOMContentLoaded', () => {
             const tableBody = document.getElementById('holidayTableBody');
             const emptyState = document.getElementById('emptyState');
+                
+            fetchHolidayRequests();
     
-            function formatDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-            }
+            function formatDate(date) {
+    if (isNaN(date.getTime())) return 'Invalid date';
     
-            function formatSimpleDate(dateString) {
-                const date = new Date(dateString);
-                return date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                });
-            }
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+            function formatSimpleDate(date) {
+    if (isNaN(date.getTime())) return 'Invalid date';
     
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+            
             function addRow(request) {
-                const row = document.createElement('tr');
-    
-                const formattedStartDate = formatSimpleDate(request.startDate);
-                const formattedEndDate = formatSimpleDate(request.endDate);
-                const formattedRequestDate = formatDate(request.requestDate);
-    
-                const statusBadge = request.accepted
-                    ? '<span class="status-badge status-accepted"><i class="fas fa-check-circle"></i> Approved</span>'
-                    : '<span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending</span>';
-    
-                const actionButtons = request.accepted
-                    ? ''
-                    : `
-                        <div class="actions-cell">
-                            <button class="btn btn-accept" onclick="acceptRequest(${request.id})">
-                                <i class="fas fa-check"></i> Approve
-                            </button>
-                            <button class="btn btn-decline" onclick="showDeclineForm(${request.id})">
-                                <i class="fas fa-times"></i> Decline
-                            </button>
-                            <div id="declineForm-${request.id}" style="display: none; width: 100%;">
-                                <textarea 
-                                    class="message-input" 
-                                    id="message-${request.id}" 
-                                    placeholder="Please provide a reason for declining this request..."
-                                    maxlength="500"></textarea>
-                                <button class="btn btn-decline" 
-                                        onclick="declineRequest(${request.id}, '${request.name}', '${request.lastName}')"
-                                        style="margin-top: 5px;">
-                                    <i class="fas fa-paper-plane"></i> Submit
-                                </button>
-                            </div>
-                        </div>
-                    `;
-    
-                row.innerHTML = `
-                    <td>
-                        <strong>${request.name} ${request.lastName}</strong>
-                    </td>
-                    <td>${request.email}</td>
-                    <td>
-                        ${formattedStartDate}
-                        <div class="date-format">${new Date(request.startDate).toISOString().split('T')[0]}</div>
-                    </td>
-                    <td>
-                        ${formattedEndDate}
-                        <div class="date-format">${new Date(request.endDate).toISOString().split('T')[0]}</div>
-                    </td>
-                    <td>${formattedRequestDate}</td>
-                    <td>${statusBadge}</td>
-                    <td>${actionButtons}</td>
-                `;
-    
-                tableBody.appendChild(row);
-            }
-    
+    const row = document.createElement('tr');
+
+    // Parse dates from database format (dd/mm/yyyy)
+    function parseDatabaseDate(dateString) {
+        if (!dateString) return new Date(NaN);
+        
+        // Try to parse the format "dd/mm/yyyy (DayName)"
+        const datePart = dateString.split(' ')[0]; // Get "dd/mm/yyyy" part
+        const [day, month, year] = datePart.split('/');
+        return new Date(`${month}/${day}/${year}`);
+    }
+
+    const startDate = parseDatabaseDate(request.startDate);
+    const endDate = parseDatabaseDate(request.endDate);
+    const requestDate = new Date(request.requestDate || Date.now());
+
+    const formattedStartDate = isNaN(startDate) ? 'Invalid date' : formatSimpleDate(startDate);
+    const formattedEndDate = isNaN(endDate) ? 'Invalid date' : formatSimpleDate(endDate);
+    const formattedRequestDate = isNaN(requestDate) ? 'Invalid date' : formatDate(requestDate);
+
+    const statusBadge = request.accepted
+        ? '<span class="status-badge status-accepted"><i class="fas fa-check-circle"></i> Approved</span>'
+        : '<span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending</span>';
+
+    const actionButtons = request.accepted
+        ? ''
+        : `
+            <div class="actions-cell">
+                <button class="btn btn-accept" onclick="acceptRequest(${request.id})">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn btn-decline" onclick="showDeclineForm(${request.id})">
+                    <i class="fas fa-times"></i> Decline
+                </button>
+                <div id="declineForm-${request.id}" style="display: none; width: 100%;">
+                    <textarea 
+                        class="message-input" 
+                        id="message-${request.id}" 
+                        placeholder="Please provide a reason for declining this request..."
+                        maxlength="500"></textarea>
+                    <button class="btn btn-decline" 
+                            onclick="declineRequest(${request.id}, '${request.name}', '${request.lastName}')"
+                            style="margin-top: 5px;">
+                        <i class="fas fa-paper-plane"></i> Submit
+                    </button>
+                </div>
+            </div>
+        `;
+
+    row.innerHTML = `
+        <td>
+            <strong>${request.name} ${request.lastName}</strong>
+        </td>
+        <td>${request.email}</td>
+        <td>
+            ${formattedStartDate}
+            <div class="date-format">${isNaN(startDate) ? 'Invalid date' : startDate.toISOString().split('T')[0]}</div>
+        </td>
+        <td>
+            ${formattedEndDate}
+            <div class="date-format">${isNaN(endDate) ? 'Invalid date' : endDate.toISOString().split('T')[0]}</div>
+        </td>
+        <td>${formattedRequestDate}</td>
+        <td>${statusBadge}</td>
+        <td>${actionButtons}</td>
+    `;
+
+    tableBody.appendChild(row);
+}
+
             function fetchHolidayRequests() {
                 fetch('/request/holidays')
                     .then(response => {
@@ -363,8 +381,7 @@
                         `;
                     });
             }
-    
-            fetchHolidayRequests();
+
         });
     
         function showDeclineForm(requestId) {

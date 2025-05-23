@@ -100,7 +100,7 @@ app.post('/updateRequest/:id', isAuthenticated, (req, res) => {
 
         // Query to update the 'accepted' column
         const updateHolidaySql = 'UPDATE Holiday SET accepted = ? WHERE id = ?';
-        const updateValues = ['Accepted', requestId];
+        const updateValues = ['true', requestId];
 
         pool.query(updateHolidaySql, updateValues, (updateError) => {
             if (updateError) {
