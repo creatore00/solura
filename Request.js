@@ -46,7 +46,7 @@ function sendEmail(recipients, message) {
     });
 }
 
-// Route to get all holiday requests
+// Route to get all holiday requests with employee emails
 app.get('/holidays', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
@@ -56,13 +56,23 @@ app.get('/holidays', isAuthenticated, (req, res) => {
 
     const pool = getPool(dbName); // Get the correct connection pool
 
-    // Query the database to get holiday requests
-    pool.query('SELECT * FROM Holiday', (err, results) => {
+    // Query the database to get holiday requests with employee emails
+    pool.query(`
+        SELECT 
+            h.*, 
+            e.email 
+        FROM 
+            Holiday h
+        JOIN 
+            Employees e ON h.name = e.name AND h.lastName = e.lastName
+        ORDER BY 
+            h.requestDate DESC
+    `, (err, results) => {
         if (err) {
             console.error('Error fetching holiday requests:', err);
             res.status(500).send('Error fetching holiday requests');
         } else {
-            res.json(results); // Send holiday requests as JSON response
+            res.json(results); // Send holiday requests with emails as JSON response
         }
     });
 });
@@ -100,7 +110,7 @@ app.post('/updateRequest/:id', isAuthenticated, (req, res) => {
 
         // Query to update the 'accepted' column
         const updateHolidaySql = 'UPDATE Holiday SET accepted = ? WHERE id = ?';
-        const updateValues = ['true', requestId];
+        const updateValues = ['true', requestId]; // Changed from 'Accepted' to 'true'
 
         pool.query(updateHolidaySql, updateValues, (updateError) => {
             if (updateError) {
@@ -138,45 +148,49 @@ app.post('/updateRequest/:id', isAuthenticated, (req, res) => {
     });
 });
 
-// Route to delete a holiday request
+// In your deleteRequest route
 app.post('/deleteRequest/:id', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
+    const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const requestId = req.params.id;
-    const message = req.body.message;
-    const name = req.body.name;
-    const lastName = req.body.lastName;
+    const { message, name, lastName, declineReason } = req.body;
 
-    // Delete the row from the database for the specified request ID
-    const sql = 'DELETE FROM Holiday WHERE id = ?';
-    // Execute the SQL query
-    pool.query(sql, [requestId], (error, results) => {
-        if (error) {
-            console.error('Error deleting request:', error);
-            res.sendStatus(500); // Send internal server error response
-        } else {
-            console.log('Request deleted successfully');
-            res.sendStatus(200); // Send success response
-
-            // Get email addresses from the database based on employee name and last name
-            pool.query('SELECT email FROM Employees WHERE name = ? AND lastName = ?', [name, lastName], (emailErr, emailResults) => {
-                if (emailErr) {
-                    console.error('Error fetching emails from the database:', emailErr);
-                    return res.status(500).send('Error sending emails');
-                }
-
-                const recipients = emailResults.map(row => row.email);
-
-                // Send email to recipients
-                sendEmail(recipients, message);
-            });
+    // First update the request with decline reason before deleting
+    const updateSql = 'UPDATE Holiday SET accepted = "declined", declineReason = ? WHERE id = ?';
+    pool.query(updateSql, [declineReason, requestId], (updateError) => {
+        if (updateError) {
+            console.error('Error updating request with decline reason:', updateError);
+            return res.sendStatus(500);
         }
+
+        // Then delete the request
+        const deleteSql = 'DELETE FROM Holiday WHERE id = ?';
+        pool.query(deleteSql, [requestId], (deleteError) => {
+            if (deleteError) {
+                console.error('Error deleting request:', deleteError);
+                return res.sendStatus(500);
+            }
+
+            console.log('Request declined and deleted successfully');
+            res.sendStatus(200);
+
+            // Send email notification
+            pool.query('SELECT email FROM Employees WHERE name = ? AND lastName = ?', 
+                [name, lastName], (emailErr, emailResults) => {
+                    if (emailErr) {
+                        console.error('Error fetching emails:', emailErr);
+                        return;
+                    }
+                    
+                    const recipients = emailResults.map(row => row.email);
+                    const emailMessage = `Your holiday request has been declined.\n\nReason: ${message}`;
+                    sendEmail(recipients, emailMessage);
+                });
+        });
     });
 });
 

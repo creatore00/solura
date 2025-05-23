@@ -34,7 +34,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1500px;
             margin: 0 auto;
             padding: 20px;
         }
@@ -220,11 +220,96 @@
         tbody tr:nth-child(3) { animation-delay: 0.3s; }
         tbody tr:nth-child(4) { animation-delay: 0.4s; }
         tbody tr:nth-child(5) { animation-delay: 0.5s; }
+        .view-past-btn {
+            background-color: var(--dark-color);
+            color: white;
+            margin-bottom: 20px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 1000px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .employee-group {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+        
+        .employee-group h3 {
+            margin-bottom: 15px;
+            color: var(--dark-color);
+        }
+        
+        .past-request {
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: var(--light-color);
+            border-radius: 4px;
+        }
+        
+        .past-request .status-badge {
+            margin-left: 10px;
+        }
+        
+        .past-request .dates {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+        }
+        
+        .past-request .reason {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h2><i class="fas fa-calendar-alt"></i> Holiday Request Management</h2>
+        
+        <button class="btn view-past-btn" onclick="showPastRequests()">
+            <i class="fas fa-history"></i> View Past Requests
+        </button>
         
         <div class="card">
             <table id="holidayTable">
@@ -240,7 +325,7 @@
                     </tr>
                 </thead>
                 <tbody id="holidayTableBody">
-                    <!-- Holiday requests will be dynamically added here -->
+                    <!-- Pending holiday requests will be dynamically added here -->
                 </tbody>
             </table>
             
@@ -251,151 +336,279 @@
             </div>
         </div>
     </div>
+    
+    <!-- Modal for past requests -->
+    <div id="pastRequestsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2><i class="fas fa-history"></i> Past Holiday Requests</h2>
+            <div id="pastRequestsContent">
+                <!-- Past requests will be loaded here -->
+            </div>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const tableBody = document.getElementById('holidayTableBody');
-            const emptyState = document.getElementById('emptyState');
-                
-            fetchHolidayRequests();
-    
-            function formatDate(date) {
-    if (isNaN(date.getTime())) return 'Invalid date';
-    
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-            function formatSimpleDate(date) {
-    if (isNaN(date.getTime())) return 'Invalid date';
-    
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-            
-            function addRow(request) {
-    const row = document.createElement('tr');
-
-    // Parse dates from database format (dd/mm/yyyy)
-    function parseDatabaseDate(dateString) {
-        if (!dateString) return new Date(NaN);
-        
-        // Try to parse the format "dd/mm/yyyy (DayName)"
-        const datePart = dateString.split(' ')[0]; // Get "dd/mm/yyyy" part
-        const [day, month, year] = datePart.split('/');
-        return new Date(`${month}/${day}/${year}`);
-    }
-
-    const startDate = parseDatabaseDate(request.startDate);
-    const endDate = parseDatabaseDate(request.endDate);
-    const requestDate = new Date(request.requestDate || Date.now());
-
-    const formattedStartDate = isNaN(startDate) ? 'Invalid date' : formatSimpleDate(startDate);
-    const formattedEndDate = isNaN(endDate) ? 'Invalid date' : formatSimpleDate(endDate);
-    const formattedRequestDate = isNaN(requestDate) ? 'Invalid date' : formatDate(requestDate);
-
-    const statusBadge = request.accepted
-        ? '<span class="status-badge status-accepted"><i class="fas fa-check-circle"></i> Approved</span>'
-        : '<span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending</span>';
-
-    const actionButtons = request.accepted
-        ? ''
-        : `
-            <div class="actions-cell">
-                <button class="btn btn-accept" onclick="acceptRequest(${request.id})">
-                    <i class="fas fa-check"></i> Approve
-                </button>
-                <button class="btn btn-decline" onclick="showDeclineForm(${request.id})">
-                    <i class="fas fa-times"></i> Decline
-                </button>
-                <div id="declineForm-${request.id}" style="display: none; width: 100%;">
-                    <textarea 
-                        class="message-input" 
-                        id="message-${request.id}" 
-                        placeholder="Please provide a reason for declining this request..."
-                        maxlength="500"></textarea>
-                    <button class="btn btn-decline" 
-                            onclick="declineRequest(${request.id}, '${request.name}', '${request.lastName}')"
-                            style="margin-top: 5px;">
-                        <i class="fas fa-paper-plane"></i> Submit
-                    </button>
-                </div>
-            </div>
-        `;
-
-    row.innerHTML = `
-        <td>
-            <strong>${request.name} ${request.lastName}</strong>
-        </td>
-        <td>${request.email}</td>
-        <td>
-            ${formattedStartDate}
-            <div class="date-format">${isNaN(startDate) ? 'Invalid date' : startDate.toISOString().split('T')[0]}</div>
-        </td>
-        <td>
-            ${formattedEndDate}
-            <div class="date-format">${isNaN(endDate) ? 'Invalid date' : endDate.toISOString().split('T')[0]}</div>
-        </td>
-        <td>${formattedRequestDate}</td>
-        <td>${statusBadge}</td>
-        <td>${actionButtons}</td>
-    `;
-
-    tableBody.appendChild(row);
-}
-
-            function fetchHolidayRequests() {
-                fetch('/request/holidays')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        tableBody.innerHTML = '';
-    
-                        if (data.length === 0) {
-                            emptyState.style.display = 'block';
-                        } else {
-                            emptyState.style.display = 'none';
-                            data.forEach(request => addRow(request));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching holiday requests:', error);
-                        tableBody.innerHTML = `
-                            <tr>
-                                <td colspan="7" style="text-align: center; color: var(--danger-color);">
-                                    <i class="fas fa-exclamation-triangle"></i> Unable to load holiday requests.
-                                </td>
-                            </tr>
-                        `;
-                    });
-            }
-
+            fetchPendingHolidayRequests();
         });
-    
+        
+        function formatDate(date) {
+            if (!date || isNaN(new Date(date).getTime())) return 'Invalid date';
+            
+            const d = new Date(date);
+            return d.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatSimpleDate(date) {
+            if (!date || isNaN(new Date(date).getTime())) return 'Invalid date';
+            
+            const d = new Date(date);
+            return d.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+        
+        function parseDatabaseDate(dateString) {
+            if (!dateString) return null;
+            
+            // Try to parse different date formats
+            if (dateString.includes('/')) {
+                // Format: "dd/mm/yyyy (DayName)"
+                const datePart = dateString.split(' ')[0]; // Get "dd/mm/yyyy" part
+                const [day, month, year] = datePart.split('/');
+                return new Date(`${year}-${month}-${day}`);
+            } else if (dateString.includes('-')) {
+                // Format: "yyyy-mm-dd"
+                return new Date(dateString);
+            } else {
+                // Try to parse as ISO string
+                return new Date(dateString);
+            }
+        }
+        
+        function addPendingRow(request) {
+            const row = document.createElement('tr');
+
+            const startDate = parseDatabaseDate(request.startDate);
+            const endDate = parseDatabaseDate(request.endDate);
+            const requestDate = new Date(request.requestDate || Date.now());
+
+            const formattedStartDate = startDate ? formatSimpleDate(startDate) : 'Invalid date';
+            const formattedEndDate = endDate ? formatSimpleDate(endDate) : 'Invalid date';
+            const formattedRequestDate = formatDate(requestDate);
+
+            const statusBadge = request.accepted === 'true' || request.accepted === true
+                ? '<span class="status-badge status-accepted"><i class="fas fa-check-circle"></i> Approved</span>'
+                : '<span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending</span>';
+
+            const actionButtons = request.accepted === 'true' || request.accepted === true
+                ? ''
+                : `
+                    <div class="actions-cell">
+                        <button class="btn btn-accept" onclick="acceptRequest(${request.id})">
+                            <i class="fas fa-check"></i> Approve
+                        </button>
+                        <button class="btn btn-decline" onclick="showDeclineForm(${request.id})">
+                            <i class="fas fa-times"></i> Decline
+                        </button>
+                        <div id="declineForm-${request.id}" style="display: none; width: 100%;">
+                            <textarea 
+                                class="message-input" 
+                                id="message-${request.id}" 
+                                placeholder="Please provide a reason for declining this request..."
+                                maxlength="500" required></textarea>
+                            <button class="btn btn-decline" 
+                                    onclick="declineRequest(${request.id}, '${request.name}', '${request.lastName}')"
+                                    style="margin-top: 5px;">
+                                <i class="fas fa-paper-plane"></i> Submit Decline
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+            row.innerHTML = `
+                <td>
+                    <strong>${request.name} ${request.lastName}</strong>
+                </td>
+                <td>${request.email}</td>
+                <td>
+                    ${formattedStartDate}
+                    <div class="date-format">${startDate ? startDate.toISOString().split('T')[0] : 'Invalid date'}</div>
+                </td>
+                <td>
+                    ${formattedEndDate}
+                    <div class="date-format">${endDate ? endDate.toISOString().split('T')[0] : 'Invalid date'}</div>
+                </td>
+                <td>${formattedRequestDate}</td>
+                <td>${statusBadge}</td>
+                <td>${actionButtons}</td>
+            `;
+
+            document.getElementById('holidayTableBody').appendChild(row);
+        }
+        
+        function fetchPendingHolidayRequests() {
+            fetch('/request/holidays')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const tableBody = document.getElementById('holidayTableBody');
+                    const emptyState = document.getElementById('emptyState');
+                    
+                    tableBody.innerHTML = '';
+                    
+                    // Filter to only show pending requests
+                    const pendingRequests = data.filter(request => 
+                        !(request.accepted === 'true' || request.accepted === true)
+                    );
+
+                    if (pendingRequests.length === 0) {
+                        emptyState.style.display = 'block';
+                    } else {
+                        emptyState.style.display = 'none';
+                        pendingRequests.forEach(request => addPendingRow(request));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching holiday requests:', error);
+                    document.getElementById('holidayTableBody').innerHTML = `
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--danger-color);">
+                                <i class="fas fa-exclamation-triangle"></i> Unable to load holiday requests.
+                            </td>
+                        </tr>
+                    `;
+                });
+        }
+        
+        function showPastRequests() {
+            fetch('/request/holidays')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const modalContent = document.getElementById('pastRequestsContent');
+                    modalContent.innerHTML = '';
+                    
+                    // Filter to only show processed requests (approved or declined)
+                    const processedRequests = data.filter(request => 
+                        request.accepted === 'true' || request.accepted === true || 
+                        (typeof request.accepted === 'string' && request.accepted.toLowerCase() === 'declined')
+                    );
+                    
+                    if (processedRequests.length === 0) {
+                        modalContent.innerHTML = '<p>No past holiday requests found.</p>';
+                    } else {
+                        // Group by employee
+                        const grouped = processedRequests.reduce((acc, request) => {
+                            const key = `${request.name} ${request.lastName}`;
+                            if (!acc[key]) {
+                                acc[key] = [];
+                            }
+                            acc[key].push(request);
+                            return acc;
+                        }, {});
+                        
+                        // Sort groups alphabetically
+                        const sortedGroups = Object.keys(grouped).sort();
+                        
+                        // Create HTML for each group
+                        sortedGroups.forEach(employeeName => {
+                            const groupDiv = document.createElement('div');
+                            groupDiv.className = 'employee-group';
+                            
+                            const employee = grouped[employeeName][0];
+                            groupDiv.innerHTML = `
+                                <h3>${employeeName} <small>(${employee.email})</small></h3>
+                            `;
+                            
+                            // Sort requests by date (newest first)
+                            const sortedRequests = grouped[employeeName].sort((a, b) => {
+                                const dateA = parseDatabaseDate(a.startDate) || new Date(0);
+                                const dateB = parseDatabaseDate(b.startDate) || new Date(0);
+                                return dateB - dateA;
+                            });
+                            
+                            sortedRequests.forEach(request => {
+                                const startDate = parseDatabaseDate(request.startDate);
+                                const endDate = parseDatabaseDate(request.endDate);
+                                const requestDate = new Date(request.requestDate || Date.now());
+                                
+                                const requestDiv = document.createElement('div');
+                                requestDiv.className = 'past-request';
+                                
+                                const status = request.accepted === 'true' || request.accepted === true
+                                    ? '<span class="status-badge status-accepted"><i class="fas fa-check-circle"></i> Approved</span>'
+                                    : '<span class="status-badge status-danger"><i class="fas fa-times-circle"></i> Declined</span>';
+                                
+                                requestDiv.innerHTML = `
+                                    <div class="status">${status}</div>
+                                    <div class="dates">
+                                        <strong>Dates:</strong> ${startDate ? formatSimpleDate(startDate) : 'Invalid date'} 
+                                        to ${endDate ? formatSimpleDate(endDate) : 'Invalid date'}
+                                        <br>
+                                        <strong>Requested on:</strong> ${formatDate(requestDate)}
+                                    </div>
+                                    ${request.declineReason ? `
+                                    <div class="reason">
+                                        <strong>Decline Reason:</strong> ${request.declineReason}
+                                    </div>
+                                    ` : ''}
+                                `;
+                                
+                                groupDiv.appendChild(requestDiv);
+                            });
+                            
+                            modalContent.appendChild(groupDiv);
+                        });
+                    }
+                    
+                    // Show the modal
+                    document.getElementById('pastRequestsModal').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Error fetching past holiday requests:', error);
+                    document.getElementById('pastRequestsContent').innerHTML = `
+                        <div style="color: var(--danger-color); text-align: center;">
+                            <i class="fas fa-exclamation-triangle"></i> Unable to load past holiday requests.
+                        </div>
+                    `;
+                    document.getElementById('pastRequestsModal').style.display = 'block';
+                });
+        }
+        
+        function closeModal() {
+            document.getElementById('pastRequestsModal').style.display = 'none';
+        }
+        
         function showDeclineForm(requestId) {
             const form = document.getElementById(`declineForm-${requestId}`);
             form.style.display = form.style.display === 'none' ? 'block' : 'none';
         }
-    
+        
         function acceptRequest(requestId) {
             if (!confirm('Are you sure you want to approve this holiday request?')) return;
-    
+            
             fetch(`/request/updateRequest/${requestId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ accept: 'Accepted' })
+                body: JSON.stringify({ accept: 'true' })
             })
             .then(response => {
                 if (response.ok) {
@@ -410,21 +623,26 @@
                 showToast('An error occurred while approving the request.', 'error');
             });
         }
-    
+        
         function declineRequest(requestId, name, lastName) {
             const message = document.getElementById(`message-${requestId}`).value;
-    
+            
             if (!message) {
                 showToast('Please provide a reason before declining the request.', 'warning');
                 return;
             }
-    
+            
             if (!confirm(`Are you sure you want to decline the request from ${name} ${lastName}?`)) return;
-    
+            
             fetch(`/request/deleteRequest/${requestId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message, name, lastName })
+                body: JSON.stringify({ 
+                    message, 
+                    name, 
+                    lastName,
+                    declineReason: message // Include the reason in the request
+                })
             })
             .then(response => {
                 if (response.ok) {
@@ -439,7 +657,7 @@
                 showToast('An error occurred while declining the request.', 'error');
             });
         }
-    
+        
         function showToast(message, type) {
             const toast = document.createElement('div');
             toast.style.position = 'fixed';
@@ -456,10 +674,10 @@
             toast.style.alignItems = 'center';
             toast.style.gap = '10px';
             toast.style.animation = 'fadeIn 0.3s ease forwards';
-    
+            
             let icon = '';
             let bgColor = '';
-    
+            
             switch (type) {
                 case 'success':
                     bgColor = '#2ecc71';
@@ -477,17 +695,24 @@
                     bgColor = '#3498db';
                     icon = '<i class="fas fa-info-circle"></i>';
             }
-    
+            
             toast.style.backgroundColor = bgColor;
             toast.innerHTML = `${icon} ${message}`;
             document.body.appendChild(toast);
-    
+            
             setTimeout(() => {
                 toast.style.animation = 'fadeOut 0.3s ease forwards';
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
+        
+        // Close modal when clicking outside of it
+        window.onclick = function(event) {
+            const modal = document.getElementById('pastRequestsModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
     </script>
-    
 </body>
 </html>
