@@ -86,11 +86,18 @@ app.post('/api/generate-labor-report', async (req, res) => {
 
     const dbFormattedDate = weekStartDate.toISOString().split('T')[0];
 
+    // Extract target hours from strings like "45.50 (Target: 48.00)"
+    const extractTargetHours = (hoursStr) => {
+        const match = hoursStr.match(/Target: (\d+\.\d+)/);
+        return match ? parseFloat(match[1]) : null;
+    };
+
     const insertQuery = `
         INSERT INTO labor_reports 
         (week_start, forecast, last_year, vs_budget, actual_hours, actual_spent, 
-         target_hours, vs_target, foh_hours, boh_hours, foh_percent, boh_percent, manager_comment)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         target_hours, vs_target, foh_hours, boh_hours, foh_percent, boh_percent,
+         target_foh_hours, target_boh_hours, labor_cost_percentage, schedule_summary, manager_comment)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     const insertParams = [
@@ -106,6 +113,10 @@ app.post('/api/generate-labor-report', async (req, res) => {
         reportData.bohHours,
         reportData.fohPercent,
         reportData.bohPercent,
+        extractTargetHours(reportData.fohHours),
+        extractTargetHours(reportData.bohHours),
+        parseFloat(reportData.laborCostPercentage) || null,
+        reportData.scheduleSummary || null,
         reportData.comment || null
     ];
 
@@ -134,6 +145,97 @@ app.post('/api/generate-labor-report', async (req, res) => {
     }
 });
 
+const generateReportPDF = async (data) => {
+    // Function to extract target hours from strings like "45.50 (Target: 48.00)"
+    const extractTargetHours = (hoursStr) => {
+        const match = hoursStr.match(/Target: (\d+\.\d+)/);
+        return match ? match[1] : 'N/A';
+    };
+
+    const html = `
+    <html>
+    <head>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .report-header { text-align: center; margin-bottom: 30px; }
+        .report-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .report-date { color: #555; margin-bottom: 20px; }
+        .section { margin-bottom: 30px; }
+        .section-title { background-color: #f2f2f2; padding: 8px; font-weight: bold; border-left: 4px solid #3498db; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .metrics-table { width: 80%; margin: 0 auto; }
+        .positive { color: #27ae60; }
+        .negative { color: #e74c3c; }
+        .comment-box { border: 1px solid #ddd; padding: 15px; margin-top: 20px; background-color: #f9f9f9; }
+        .schedule-table { width: 100%; font-size: 10px; }
+        .schedule-table th { background-color: #e9ecef; }
+    </style>
+    </head>
+    <body>
+        <div class="report-header">
+            <div class="report-title">Weekly Labor Cost Report</div>
+            <div class="report-date">Week Starting: ${data.weekStart}</div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Key Metrics</div>
+            <table class="metrics-table">
+                <tr><th>Metric</th><th>Value</th></tr>
+                <tr><td>Sales Forecast</td><td>${data.forecast}</td></tr>
+                <tr><td>Last Year</td><td>${data.lastYear}</td></tr>
+                <tr><td>Budget Variance</td><td class="${parseFloat(data.vsBudget) >= 0 ? 'positive' : 'negative'}">${data.vsBudget}</td></tr>
+                <tr><td>Actual Hours</td><td>${data.actualHours}</td></tr>
+                <tr><td>Target Hours</td><td>${data.targetHours}</td></tr>
+                <tr><td>Target Variance</td><td class="${parseFloat(data.vsTarget) <= 0 ? 'positive' : 'negative'}">${data.vsTarget}</td></tr>
+                <tr><td>Total Labor Cost</td><td>${data.actualSpent}</td></tr>
+                <tr><td>Labor Cost % of Forecast</td><td>${data.laborCostPercentage || 'N/A'}%</td></tr>
+            </table>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Labor Distribution</div>
+            <table class="metrics-table">
+                <tr><th>Department</th><th>Actual Hours</th><th>Target Hours</th><th>Percentage</th></tr>
+                <tr>
+                    <td>Front of House (FOH)</td>
+                    <td>${data.fohHours.split(' ')[0]}</td>
+                    <td>${extractTargetHours(data.fohHours)}</td>
+                    <td>${data.fohPercent}</td>
+                </tr>
+                <tr>
+                    <td>Back of House (BOH)</td>
+                    <td>${data.bohHours.split(' ')[0]}</td>
+                    <td>${extractTargetHours(data.bohHours)}</td>
+                    <td>${data.bohPercent}</td>
+                </tr>
+            </table>
+        </div>
+        
+        ${data.scheduleSummary ? `
+        <div class="section">
+            <div class="section-title">Schedule Summary</div>
+            ${data.scheduleSummary}
+        </div>` : ''}
+        
+        ${data.comment ? `
+        <div class="section">
+            <div class="section-title">Manager Comments</div>
+            <div class="comment-box">${data.comment}</div>
+        </div>` : ''}
+    </body>
+    </html>
+    `;
+
+    const browser = await puppeteer.launch({ headless: 'new' });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4' });
+    await browser.close();
+    return pdfBuffer;
+};
+
 const sendEmailReport = async (pdfBuffer, weekStart, req, pool) => {
     const userEmail = req.session.user?.email;
     const dbName = req.session.user?.dbName;
@@ -156,7 +258,7 @@ const sendEmailReport = async (pdfBuffer, weekStart, req, pool) => {
 
     // Get recipient list (e.g. all managers, or just the owner)
     const [recipientResult] = await pool.promise().query(
-        'SELECT email FROM Employees WHERE position = "AM"'
+        'SELECT email FROM Employees WHERE email IN ("yassir.nini27@gmail.com", "chiara.montironi01@gmail.com")'
     );
 
     const emailAddresses = recipientResult.map(row => row.email);
@@ -194,69 +296,6 @@ const sendEmailReport = async (pdfBuffer, weekStart, req, pool) => {
     });
 
     return Promise.all(sendPromises);
-};
-
-const generateReportPDF = async (data) => {
-    const html = `
-    <html>
-    <head>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .report-header { text-align: center; margin-bottom: 30px; }
-        .report-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-        .report-date { color: #555; margin-bottom: 20px; }
-        .section { margin-bottom: 30px; }
-        .section-title { background-color: #f2f2f2; padding: 8px; font-weight: bold; border-left: 4px solid #3498db; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .metrics-table { width: 80%; margin: 0 auto; }
-        .positive { color: #27ae60; }
-        .negative { color: #e74c3c; }
-        .comment-box { border: 1px solid #ddd; padding: 15px; margin-top: 20px; background-color: #f9f9f9; }
-    </style>
-    </head>
-    <body>
-        <div class="report-header">
-            <div class="report-title">Weekly Labor Cost Report</div>
-            <div class="report-date">Week Starting: ${data.weekStart}</div>
-        </div>
-        <div class="section">
-            <div class="section-title">Key Metrics</div>
-            <table class="metrics-table">
-                <tr><th>Metric</th><th>Value</th></tr>
-                <tr><td>Sales Forecast</td><td>${data.forecast}</td></tr>
-                <tr><td>Last Year</td><td>${data.lastYear}</td></tr>
-                <tr><td>Budget Variance</td><td class="${parseFloat(data.vsBudget) >= 0 ? 'positive' : 'negative'}">${data.vsBudget}</td></tr>
-                <tr><td>Actual Hours</td><td>${data.actualHours}</td></tr>
-                <tr><td>Target Hours</td><td>${data.targetHours}</td></tr>
-                <tr><td>Target Variance</td><td class="${parseFloat(data.vsTarget) <= 0 ? 'positive' : 'negative'}">${data.vsTarget}</td></tr>
-                <tr><td>Total Labor Cost</td><td>${data.actualSpent}</td></tr>
-            </table>
-        </div>
-        <div class="section">
-            <div class="section-title">Labor Distribution</div>
-            <table class="metrics-table">
-                <tr><th>Department</th><th>Hours</th><th>Percentage</th></tr>
-                <tr><td>Front of House (FOH)</td><td>${data.fohHours}</td><td>${data.fohPercent}</td></tr>
-                <tr><td>Back of House (BOH)</td><td>${data.bohHours}</td><td>${data.bohPercent}</td></tr>
-            </table>
-        </div>
-        ${data.comment ? `
-        <div class="section">
-            <div class="section-title">Manager Comments</div>
-            <div class="comment-box">${data.comment}</div>
-        </div>` : ''}
-    </body>
-    </html>
-    `;
-
-    const browser = await puppeteer.launch({ headless: 'new' });
-    const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
-    const pdfBuffer = await page.pdf({ format: 'A4' });
-    await browser.close();
-    return pdfBuffer;
 };
 
 // Update submitData to include PDF generation and email sending

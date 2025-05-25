@@ -487,6 +487,77 @@ input[type="date"]:read-only {
             margin-bottom: 20px;
             border-bottom: 1px solid #ddd;
         }
+/* Mini Schedule Table Styles */
+.compact-schedule {
+  width: 100%;
+  margin: 20px 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.compact-schedule th {
+  background-color: #2b4c7e; /* Darker blue */
+  color: #ffffff;
+  padding: 14px 10px;
+  text-align: center;
+  font-weight: bold;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.compact-schedule td {
+  padding: 12px 10px;
+  text-align: center;
+  border-bottom: 1px solid #d1d5db;
+  font-size: 0.95rem;
+  font-weight: 600; /* Bolder */
+  color: #2a2f45; /* Dark slate gray */
+}
+
+.compact-schedule tr:nth-child(even) {
+  background-color: #f1f5f9; /* Softer light gray-blue */
+}
+
+.compact-schedule tr:hover {
+  background-color: #e0e7ef; /* More visible hover */
+}
+
+.compact-schedule td:first-child {
+  font-weight: bold;
+  color: #1f2937; /* Deep gray for names */
+  text-align: left;
+  padding-left: 16px;
+  border-left: 4px solid transparent;
+}
+
+.compact-schedule tr:hover td:first-child {
+  border-left: 4px solid #2b4c7e;
+}
+
+/* Time slot styling */
+.compact-schedule td:not(:first-child) {
+  color: #3d405b;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: 700;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .compact-schedule th,
+  .compact-schedule td {
+    padding: 10px 6px;
+    font-size: 0.75rem;
+  }
+
+  .compact-schedule td:first-child {
+    padding-left: 10px;
+  }
+}
 
         .tab {
             padding: 10px 20px;
@@ -705,7 +776,6 @@ input[type="date"]:read-only {
     gap: 20px;
     margin-top: 10px;
 }
-
 .radio-label {
     display: flex;
     align-items: center;
@@ -1132,7 +1202,10 @@ input[type="date"]:read-only {
             </div>
         </div>
     </div>
-
+    <div id="salesComparisonContainer" class="schedule-summary">
+        <h3>Weekly Schedule Summary</h3>
+        <!-- The compact table will be inserted here by JavaScript -->
+    </div>
     <div class="report-section">
         <h3><i class="fas fa-comment-alt"></i> Manager Analysis</h3>
         <textarea id="managerComment" class="analysis-comment" placeholder="Enter your analysis of this week's labor performance..."></textarea>
@@ -1142,11 +1215,7 @@ input[type="date"]:read-only {
         <button id="submitLaborReport" class="btn-primary">
             <i class="fas fa-paper-plane"></i> Submit Report
         </button>
-        <button id="printReport" class="btn-secondary">
-            <i class="fas fa-print"></i> Print Report
-        </button>
     </div>
-
     <div id="popupMessage" class="popup" style="display: none;"></div>
         </div>
         
@@ -1199,12 +1268,14 @@ function setupTabs() {
                 });
             });
         }
-
-document.addEventListener('DOMContentLoaded', () => {
-                // Set report date
+        
+        
+        document.addEventListener('DOMContentLoaded', () => {
+    // Set report date
     document.getElementById('reportDate').textContent = new Date().toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric'
     });
+    
     // Fetch labor values from API
     fetch('/rota/api/get-labor-values')
         .then(response => response.json())
@@ -1215,6 +1286,118 @@ document.addEventListener('DOMContentLoaded', () => {
             const vsBudgetCell = document.getElementById('vsBudget');
             const targetHoursCell = document.getElementById('targetHours');
             const vsTargetCell = document.getElementById('vsTarget');
+            const actualSpentCell = document.querySelector('#actualSpentLabor');
+            
+            // Create percentage element once
+            const laborCostPercentageCell = document.createElement('span');
+            laborCostPercentageCell.className = 'percentage-text';
+            actualSpentCell.parentNode.appendChild(laborCostPercentageCell);
+
+            // Function to create compact schedule table
+            const createCompactSchedule = () => {
+                const rows = document.querySelectorAll("#employeeRows tr");
+                const weekStartDate = document.getElementById('weekStartDate')?.value;
+                let date = weekStartDate ? new Date(weekStartDate) : new Date();
+                
+                if (isNaN(date)) {
+                    console.error("Invalid week start date.");
+                    return;
+                }
+
+                const monday = getMonday(date);
+                const weekDates = getWeekDates(monday);
+                
+                const compactTable = document.createElement('table');
+                compactTable.className = 'compact-schedule';
+                
+                // Create header row
+                const headerRow = document.createElement('tr');
+                headerRow.innerHTML = `
+                    <th>Name</th>
+                    <th>Mon</th>
+                    <th>Tue</th>
+                    <th>Wed</th>
+                    <th>Thu</th>
+                    <th>Fri</th>
+                    <th>Sat</th>
+                    <th>Sun</th>
+                `;
+                compactTable.appendChild(headerRow);
+                
+                // Add employee rows
+                rows.forEach(row => {
+                    const name = row.children[0]?.textContent.trim();
+                    const lastName = row.children[1]?.textContent.trim();
+                    const compactRow = document.createElement('tr');
+                    compactRow.innerHTML = `<td>${name} ${lastName}</td>`;
+                    
+                    // Add time slots for each day
+for (let i = 4; i < row.children.length - 2; i++) {
+    const cell = row.children[i];
+    const inputs = cell.querySelectorAll("input[type='time']");
+    let timeSlots = '';
+    
+    if (inputs.length >= 2) {
+        const formatTime = (timeString) => {
+            if (!timeString) return '';
+            // Extract just the hours and minutes (first 5 characters)
+            return timeString.substring(0, 5);
+        };
+
+        const start1 = formatTime(inputs[0]?.value);
+        const end1 = formatTime(inputs[1]?.value);
+        const start2 = formatTime(inputs[2]?.value);
+        const end2 = formatTime(inputs[3]?.value);
+        
+        if (start1 && end1) timeSlots += `${start1}-${end1}`;
+        if (start2 && end2) timeSlots += timeSlots ? `<br>${start2}-${end2}` : `${start2}-${end2}`;
+    }
+    
+    compactRow.innerHTML += `<td>${timeSlots || '-'}</td>`;
+}
+                    
+                    compactTable.appendChild(compactRow);
+                });
+                
+                // Add to DOM
+                const container = document.getElementById('salesComparisonContainer');
+                if (container) {
+                    const existingTable = container.querySelector('.compact-schedule');
+                    if (existingTable) {
+                        container.replaceChild(compactTable, existingTable);
+                    } else {
+                        container.appendChild(compactTable);
+                    }
+                }
+            };
+
+            // Helper functions from saveRotaData()
+            function getMonday(date) {
+                const day = date.getDay();
+                const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+                return new Date(date.setDate(diff));
+            }
+
+            function getWeekDates(monday) {
+                const dates = [];
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(monday);
+                    date.setDate(monday.getDate() + i);
+                    dates.push(date);
+                }
+                return dates;
+            }
+
+            function getDayOfWeek(date) {
+                return date.toLocaleDateString('en-GB', { weekday: 'long' });
+            }
+
+            function formatDate(date) {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
 
             // Function to calculate all values
             const calculateAll = () => {
@@ -1223,9 +1406,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const actualHours = document.querySelector('#weeklyHoursTotal');
                 const actualCost = document.querySelector('#totalcostweek');
-
                 const actualHoursCell = document.querySelector('#actualHours');
-                const actualSpentCell = document.querySelector('#actualSpentLabor');
 
                 const actualHoursValue = parseFloat(actualHours.textContent.replace(/[^\d.-]/g, '')) || 0;
                 const actualSpentValue = parseFloat(actualCost.textContent.replace(/[^\d.-]/g, '')) || 0;
@@ -1233,16 +1414,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 actualSpentCell.textContent = actualSpentValue.toFixed(2) + ' £';
                 actualHoursCell.textContent = actualHoursValue.toFixed(2);
 
-                // 1. VS BUDGET
+                // Update labor cost percentage
+                const laborCostPercentage = forecast > 0 ? (actualSpentValue / forecast * 100) : 0;
+                laborCostPercentageCell.textContent = ` (${laborCostPercentage.toFixed(1)}% of forecast)`;
+
+                // 2. VS BUDGET
                 const vsBudget = forecast - lastYear;
                 vsBudgetCell.textContent = vsBudget.toFixed(2);
                 vsBudgetCell.className = vsBudget >= 0 ? 'positive' : 'negative';
 
-                // 2. TARGET HOURS
+                // 3. TARGET HOURS
                 const targetHours = parseFloat(data.baseHours) + (parseFloat(data.times) * forecast);
                 targetHoursCell.textContent = targetHours.toFixed(2);
 
-                // 3. VS TARGET
+                // 4. VS TARGET
                 const vsTarget = actualHoursValue - targetHours;
                 vsTargetCell.textContent = vsTarget.toFixed(2);
                 vsTargetCell.className = vsTarget <= 0 ? 'positive' : 'negative';
@@ -1257,7 +1442,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 document.getElementById('laborweekStartDate').textContent = mondayDate || 'Unknown';
 
-                // 4. FOH/BOH Hours
+                // 5. FOH/BOH Hours Calculations
                 const rows = document.querySelectorAll('#employeeRows tr');
                 let fohHours = 0;
                 let bohHours = 0;
@@ -1274,36 +1459,73 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
-                document.getElementById('fohHours').textContent = fohHours.toFixed(2);
-                document.getElementById('bohHours').textContent = bohHours.toFixed(2);
+                // Calculate target hours for FOH/BOH based on percentages
+                const fohTargetHours = targetHours * (parseFloat(data.fohPercent) / 100);
+                const bohTargetHours = targetHours * (parseFloat(data.bohPercent) / 100);
+
+                // Update display with both actual and target hours
+                document.getElementById('fohHours').innerHTML = `
+                    ${fohHours.toFixed(2)} (Target: ${fohTargetHours.toFixed(2)})
+                `;
+                document.getElementById('bohHours').innerHTML = `
+                    ${bohHours.toFixed(2)} (Target: ${bohTargetHours.toFixed(2)})
+                `;
+
                 const total = fohHours + bohHours;
                 const fohActualPercent = total ? ((fohHours / total) * 100).toFixed(1) : '0';
                 const bohActualPercent = total ? ((bohHours / total) * 100).toFixed(1) : '0';
 
-                document.getElementById('fohPercentDisplay').textContent = `${fohActualPercent}% target: ${data.fohPercent}`;
-                document.getElementById('bohPercentDisplay').textContent = `${bohActualPercent}% target: ${data.bohPercent}`;
+                document.getElementById('fohPercentDisplay').textContent = `${fohActualPercent}% (Target: ${data.fohPercent}%)`;
+                document.getElementById('bohPercentDisplay').textContent = `${bohActualPercent}% (Target: ${data.bohPercent}%)`;
 
                 document.getElementById('totalHoursLabor').textContent = total.toFixed(2);
+
+                // Add variance calculations for FOH/BOH
+                const fohVariance = fohHours - fohTargetHours;
+                const bohVariance = bohHours - bohTargetHours;
+                
+                document.getElementById('fohHours').className = fohVariance <= 0 ? 'positive' : 'negative';
+                document.getElementById('bohHours').className = bohVariance <= 0 ? 'positive' : 'negative';
+                
+                // Update compact schedule
+                createCompactSchedule();
             };
 
             // Recalculate on input
             forecastInput.addEventListener('input', calculateAll);
             lastYearInput.addEventListener('input', calculateAll);
-            if (forecastInput.value || lastYearInput.value) {
+            if (forecastInput.value) {
                 calculateAll();
             }
 
             // Handle Submit Report
             const submitBtn = document.getElementById('submitLaborReport');
-    if (submitBtn) {
-        submitBtn.addEventListener('click', generateAndSendReport);
-    }
-});
+            if (submitBtn) {
+                submitBtn.addEventListener('click', generateAndSendReport);
+            }
+            
+            // Initial compact schedule creation
+            createCompactSchedule();
+        });
 });
 
-// Add this function to your existing code
 async function generateAndSendReport() {
+    const submitBtn = document.getElementById('submitLaborReport');
+    let originalBtnText = ''; // Define it here at function scope
+    
     try {
+        if (!submitBtn) {
+            throw new Error('Submit button not found');
+        }
+        
+        originalBtnText = submitBtn.innerHTML; // Now accessible in finally
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitted!';
+        submitBtn.disabled = true;
+
+        // Get HTML of compact schedule table
+        const scheduleTable = document.querySelector('.compact-schedule');
+        const scheduleHtml = scheduleTable ? scheduleTable.outerHTML : 'No schedule data available';
+        
         const reportData = {
             weekStart: document.getElementById('laborweekStartDate').textContent,
             forecast: document.getElementById('forecast').value,
@@ -1317,13 +1539,10 @@ async function generateAndSendReport() {
             bohHours: document.getElementById('bohHours').textContent,
             fohPercent: document.getElementById('fohPercentDisplay').textContent,
             bohPercent: document.getElementById('bohPercentDisplay').textContent,
+            laborCostPercentage: document.querySelector('.percentage-text')?.textContent.match(/\d+\.?\d*/)?.[0] || '0',
+            scheduleSummary: scheduleHtml,
             comment: document.getElementById('managerComment').value
         };
-
-        const submitBtn = document.getElementById('submitLaborReport');
-        const originalBtnText = submitBtn.innerHTML;
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitted!';
-        submitBtn.disabled = true;
 
         const response = await fetch('/rota/api/generate-labor-report', {
             method: 'POST',
@@ -1344,8 +1563,7 @@ async function generateAndSendReport() {
         console.error('Error:', error);
         showPopup('Failed to send report: ' + error.message, 'error');
     } finally {
-        const submitBtn = document.getElementById('submitLaborReport');
-        if (submitBtn) {
+        if (submitBtn && originalBtnText) {
             submitBtn.innerHTML = originalBtnText;
             submitBtn.disabled = false;
         }
@@ -2142,8 +2360,8 @@ function populateEmployeeRows(employees) {
             return 1; // FOH comes after BOH
         } else {
             // Sort within the same designation by position first
-            const positionOrder = { manager: 1, supervisor: 2, tm: 3 };
-            const positionComparison = (positionOrder[a.position] || 4) - (positionOrder[b.position] || 4);
+            const positionOrder = { AM: 1, manager: 2, supervisor: 3, tm: 4 };
+            const positionComparison = (positionOrder[a.position] || 5) - (positionOrder[b.position] || 5);
 
             if (positionComparison !== 0) {
                 return positionComparison; // Sort by position first
@@ -2193,7 +2411,11 @@ function applyRowColors() {
         const cells = row.querySelectorAll('td');
 
         cells.forEach((cell, index) => {
-            if (position === 'manager' && designation === 'FOH') {
+            if (position === 'AM' && designation === 'FOH') {
+                if (index >= 0 && index <= 3) {
+                    cell.style.backgroundColor = '#D3D3D3'; // 
+                }
+            } else if (position === 'manager' && designation === 'FOH') {
                 if (index >= 0 && index <= 3) {
                     cell.style.backgroundColor = '#ffc0cb'; // Light Rose for Managers
                 }

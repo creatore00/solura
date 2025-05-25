@@ -38,6 +38,15 @@ function isAuthenticated(req, res, next) {
     res.redirect('/');
 }
 
+// Middleware to check if the user is a Area Manager
+function isAM(req, res, next) {
+    if (req.session.user && req.session.user.role === 'AM') {
+        return next();
+    } else {
+        return res.status(403).json({ error: 'Access denied' });
+    }
+}
+
 // Middleware to check if the user is an admin or assistant manager
 function isAdmin(req, res, next) {
     const role = req.session.user?.role;
@@ -68,4 +77,4 @@ function isUser(req, res, next) {
 }
 
 // Export the session middleware and role-based middleware
-module.exports = { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor, isUser };
+module.exports = { sessionMiddleware, isAuthenticated, isAM, isAdmin, isSupervisor, isUser };

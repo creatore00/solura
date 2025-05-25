@@ -412,8 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadRotaData(mondayDate);
 }
     
-
-async function loadRotaData(mondayDate) {
+    async function loadRotaData(mondayDate) {
     try {
         showLoading();
         clearError();
@@ -1178,22 +1177,21 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
 
     async function displaySalesComparison(mondayDate) {
     try {
-
-        // Fetch forecasted sales and actual sales for the week from backend
+        // Fetch data using the corrected Monday date
         const response = await fetch(`/labor/api/getWeeklySalesComparison?startDate=${mondayDate}`);
         if (!response.ok) {
             throw new Error('Failed to fetch sales data');
         }
 
         const data = await response.json();
-        createSalesComparisonChart(mondayDate, data.forecastedSales, data.actualSales);
+        createSalesComparisonChart(mondayDate, data.forecast, data.actual);
     } catch (error) {
         console.error('Error displaying sales comparison:', error);
         showError(`Error displaying sales comparison: ${error.message}`);
     }
 }
 
-    function createSalesComparisonChart(mondayDate, forecastedSales, actualSales) {
+    function createSalesComparisonChart(mondayDate, forecast, actual) {
     const formatMoney = (value) => new Intl.NumberFormat('en-GB', {
         style: 'currency',
         currency: 'GBP',
@@ -1209,44 +1207,14 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
     const formatDate = (d) => d.toLocaleDateString('en-GB');
     const weekRangeLabel = `${formatDate(weekStart)} – ${formatDate(weekEnd)}`;
 
-    // Total sales values
-    const totalForecasted = forecastedSales.reduce(
-        (sum, day) => sum + (parseFloat(day.sales) || 0), 0
-    );
-    const totalActual = actualSales.reduce(
-        (sum, day) => sum + ((parseFloat(day.zreport) || 0) + (parseFloat(day.onaccount) || 0)), 0
-    );
-
+    // Calculate totals and variance
+    const totalForecasted = parseFloat(forecast) || 0;
+    const totalActual = (parseFloat(actual.zreport) || 0) + (parseFloat(actual.onaccount) || 0);
     const variance = totalForecasted - totalActual;
     const isUnderForecast = variance >= 0;
     const variancePercentage = totalForecasted > 0
         ? (Math.abs(variance) / totalForecasted * 100).toFixed(1)
         : '0.0';
-
-    // Daily breakdown
-    const dailyRows = forecastedSales.map((forecastDay) => {
-        const actualDay = actualSales.find(a => a.day === forecastDay.day) || { zreport: 0, onaccount: 0 };
-        const actualTotal = (parseFloat(actualDay.zreport) || 0) + (parseFloat(actualDay.onaccount) || 0);
-        const forecastedAmount = parseFloat(forecastDay.sales) || 0;
-        const dayVariance = forecastedAmount - actualTotal;
-        const isDayUnder = dayVariance >= 0;
-
-        const variancePercentageDaily = forecastedAmount > 0
-            ? (Math.abs(dayVariance) / forecastedAmount * 100).toFixed(1)
-            : '0.0';
-
-        return `
-            <tr>
-                <td>${forecastDay.day}</td>
-                <td>${formatMoney(forecastedAmount)}</td>
-                <td>${formatMoney(actualTotal)}</td>
-                <td class="${isDayUnder ? 'under-forecast' : 'over-forecast'}">
-                    ${isDayUnder ? '▼' : '▲'} ${formatMoney(Math.abs(dayVariance))}
-                    <span class="percentage">(${variancePercentageDaily}%)</span>
-                </td>
-            </tr>
-        `;
-    }).join('');
 
     // Output HTML
     const container = document.getElementById('salesComparisonContainer');
@@ -1271,20 +1239,6 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
                     </div>
                 </div>
             </div>
-
-            <table class="daily-comparison">
-                <thead>
-                    <tr>
-                        <th>Day</th>
-                        <th>Forecasted</th>
-                        <th>Actual (Z Report + On Account)</th>
-                        <th>Variance</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${dailyRows}
-                </tbody>
-            </table>
         </div>
     `;
 }

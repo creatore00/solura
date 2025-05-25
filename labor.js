@@ -6,7 +6,7 @@ const server = require('./server.js');
 const path = require('path');
 const bodyParser = require('body-parser');
 const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
-const { sessionMiddleware, isAuthenticated, isAdmin } = require('./sessionConfig'); // Adjust the path as needed
+const { sessionMiddleware, isAuthenticated, isAM } = require('./sessionConfig'); // Adjust the path as needed
 const app = express();
 // Middleware
 app.use(sessionMiddleware);
@@ -256,89 +256,65 @@ app.get('/api/getWeeklyCostData', (req, res) => {
     });
 });
 
-
 app.get('/api/getWeeklySalesComparison', (req, res) => {
-    const { startDate } = req.query;
+    let { startDate } = req.query;
+    console.log('Received startDate:', startDate); // Debug what's actually received
     const dbName = req.session.user.dbName;
     
     if (!dbName) {
         return res.status(401).json({ error: 'User not authenticated' });
     }
-
-    const pool = getPool(dbName);
-
-    const monday = new Date(startDate);
-    const weekDays = []; // dd/mm/yyyy (Monday)
-    const dateOnlyArray = []; // dd/mm/yyyy only
-
-    for (let i = 0; i < 7; i++) {
-        const day = new Date(monday);
-        day.setDate(monday.getDate() + i);
-
-        const dateOnly = `${String(day.getDate()).padStart(2, '0')}/${String(day.getMonth() + 1).padStart(2, '0')}/${day.getFullYear()}`;
-        const weekdayName = day.toLocaleDateString('en-GB', { weekday: 'long' });
-        const formatted = `${dateOnly} (${weekdayName})`;
-
-        weekDays.push(formatted);         // for forecast table: dd/mm/yyyy (Monday)
-        dateOnlyArray.push(dateOnly);     // for cash_reports parsing
+    // Ensure startDate is in yyyy-mm-dd format
+    const parsedDate = new Date(startDate);
+    if (isNaN(parsedDate)) {
+        return res.status(400).json({ error: 'Invalid startDate format' });
     }
-
-    // Query for forecasted sales
+    const pool = getPool(dbName);
+    // Format to yyyy-mm-dd
+    const yyyy = parsedDate.getFullYear();
+    const mm = String(parsedDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsedDate.getDate()).padStart(2, '0');
+    startDate = `${yyyy}-${mm}-${dd}`;
+    // Query for forecasted sales from labor_reports
     const forecastQuery = `
-        SELECT day, sales
-        FROM Forecast 
-        WHERE day IN (?)
-        ORDER BY STR_TO_DATE(SUBSTRING_INDEX(day, ' (', 1), '%d/%m/%Y')
+        SELECT forecast 
+        FROM labor_reports 
+        WHERE week_start = ?
     `;
 
-    // Query for actual sales
+    // Query for actual sales from cash_reports for the week
     const actualQuery = `
         SELECT 
-            DATE_FORMAT(STR_TO_DATE(day, '%W %d/%m/%Y'), '%d/%m/%Y') as formatted_day,
             SUM(zreport) as zreport,
             SUM(onaccount) as onaccount
         FROM cash_reports
-        WHERE DATE_FORMAT(STR_TO_DATE(day, '%W %d/%m/%Y'), '%d/%m/%Y') IN (?)
-        GROUP BY formatted_day
-        ORDER BY STR_TO_DATE(formatted_day, '%d/%m/%Y')
+        WHERE STR_TO_DATE(SUBSTRING_INDEX(day, ' ', -1), '%d/%m/%Y') 
+        BETWEEN ? AND DATE_ADD(?, INTERVAL 6 DAY)
     `;
 
-    pool.query(forecastQuery, [weekDays], (forecastErr, forecastResults) => {
+    pool.query(forecastQuery, [startDate], (forecastErr, forecastResults) => {
         if (forecastErr) {
             console.error('Forecast query error:', forecastErr);
             return res.status(500).json({ error: 'Database error' });
         }
 
-        pool.query(actualQuery, [dateOnlyArray], (actualErr, actualResults) => {
+        pool.query(actualQuery, [startDate, startDate], (actualErr, actualResults) => {
             if (actualErr) {
                 console.error('Actual sales query error:', actualErr);
                 return res.status(500).json({ error: 'Database error' });
             }
 
-            const forecastedSales = weekDays.map(day => {
-                const forecast = forecastResults.find(f => f.day === day);
-                return {
-                    day: day,
-                    sales: forecast ? forecast.sales : 0
-                };
-            });
-
-            const actualSales = weekDays.map(day => {
-                const dateOnly = day.split(' ')[0]; // extract dd/mm/yyyy
-                const actual = actualResults.find(a => a.formatted_day === dateOnly);
-                return {
-                    day: day,
-                    zreport: actual ? actual.zreport : 0,
-                    onaccount: actual ? actual.onaccount : 0
-                };
-            });
+            const forecast = forecastResults[0] ? parseFloat(forecastResults[0].forecast) || 0 : 0;
+            console.log(forecast);
+            const actual = {
+                zreport: actualResults[0] ? parseFloat(actualResults[0].zreport) || 0 : 0,
+                onaccount: actualResults[0] ? parseFloat(actualResults[0].onaccount) || 0 : 0
+            };
 
             res.json({
-                forecastedSales,
-                actualSales
+                forecast,
+                actual
             });
-
-            console.log(forecastedSales, actualSales);
         });
     });
 });
@@ -379,7 +355,7 @@ function parseTime(timeString) {
 }
 
 // Route to serve HTML files
-app.get('/', isAuthenticated, isAdmin, (req, res) => {
+app.get('/', isAuthenticated, isAM, (req, res) => {
     res.sendFile(path.join(__dirname, 'labor.html'));
 });
 module.exports = app; // Export the entire Express application

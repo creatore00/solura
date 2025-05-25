@@ -6,7 +6,7 @@ const server = require('./server.js');
 const path = require('path');
 const bodyParser = require('body-parser');
 const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
-const { sessionMiddleware, isAuthenticated, isAdmin } = require('./sessionConfig'); // Adjust the path as needed
+const { sessionMiddleware, isAuthenticated, isAM } = require('./sessionConfig'); // Adjust the path as needed
 const app = express();
 // Middleware
 app.use(sessionMiddleware);
@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 const puppeteer = require('puppeteer');
 
 // Labor settings routes
-app.get('/api/labor-settings', isAuthenticated, isAdmin, (req, res) => {
+app.get('/api/labor-settings', isAuthenticated, isAM, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
     if (!dbName) {
@@ -38,7 +38,7 @@ app.get('/api/labor-settings', isAuthenticated, isAdmin, (req, res) => {
     });
 });
 
-app.post('/api/update-labor-settings', isAuthenticated, isAdmin, (req, res) => {
+app.post('/api/update-labor-settings', isAuthenticated, isAM, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
     if (!dbName) {
@@ -63,7 +63,7 @@ app.post('/api/update-labor-settings', isAuthenticated, isAdmin, (req, res) => {
 });
 
 // Percentage settings routes
-app.get('/api/percentage-settings', isAuthenticated, isAdmin, (req, res) => {
+app.get('/api/percentage-settings', isAuthenticated, isAM, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
     if (!dbName) {
@@ -86,7 +86,7 @@ app.get('/api/percentage-settings', isAuthenticated, isAdmin, (req, res) => {
     });
 });
 
-app.post('/api/update-percentage-settings', isAuthenticated, isAdmin, (req, res) => {
+app.post('/api/update-percentage-settings', isAuthenticated, isAM, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
     if (!dbName) {
@@ -110,7 +110,7 @@ app.post('/api/update-percentage-settings', isAuthenticated, isAdmin, (req, res)
 });
 
 // Holiday settings routes
-app.get('/api/holiday-settings', isAuthenticated, isAdmin, (req, res) => {
+app.get('/api/holiday-settings', isAuthenticated, isAM, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
     if (!dbName) {
@@ -133,7 +133,7 @@ app.get('/api/holiday-settings', isAuthenticated, isAdmin, (req, res) => {
     });
 });
 
-app.post('/api/update-holiday-settings', isAuthenticated, isAdmin, (req, res) => {
+app.post('/api/update-holiday-settings', isAuthenticated, isAM, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
 
     if (!dbName) {
@@ -156,7 +156,7 @@ app.post('/api/update-holiday-settings', isAuthenticated, isAdmin, (req, res) =>
 });
 
 // Route to serve HTML files
-app.get('/', isAuthenticated, isAdmin, (req, res) => {
+app.get('/', isAuthenticated, isAM, (req, res) => {
     res.sendFile(path.join(__dirname, 'Backend.html'));
 });
 module.exports = app; // Export the entire Express application
