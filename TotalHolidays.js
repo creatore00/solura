@@ -67,7 +67,7 @@ app.get('/api/holidays/requests', isAuthenticated, isAdmin, (req, res) => {
     const pool = getPool(dbName);
     
     pool.query(`
-        SELECT id, name, lastName, startDate, endDate, days, accepted
+        SELECT id, name, lastName, startDate, endDate, days, accepted, who
         FROM Holiday
     `, (error, results) => {
         if (error) {

@@ -210,7 +210,31 @@
             padding: 1.5rem;
             box-shadow: var(--shadow);
         }
-        
+        .nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 10px;
+    height: 10px;
+    background-color: #ff0000;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
         .widget-header {
             display: flex;
             justify-content: space-between;
@@ -419,6 +443,7 @@
                 <a href="/request" class="nav-link">
                     <i class="fas fa-check-circle"></i>
                     <span>Approve/Reject Holidays</span>
+                    <span class="notification-badge" id="holidayNotification" style="display: none;"></span>
                 </a>
                 <a href="/userholidays" class="nav-link">
                     <i class="fas fa-umbrella-beach"></i>
@@ -658,6 +683,32 @@
     </footer>
 
 <script>
+// Function to check for pending requests
+function checkPendingRequests() {
+    fetch('/request/holidays')
+        .then(response => response.json())
+        .then(data => {
+            const pendingRequests = data.filter(request => 
+                !(request.accepted === 'true' || request.accepted === true)
+            );
+            
+            const notificationBadge = document.getElementById('holidayNotification');
+            if (pendingRequests.length > 0) {
+                notificationBadge.style.display = 'block';
+                // Optional: Update the count if you want a number instead of just a dot
+                // notificationBadge.textContent = pendingRequests.length;
+            } else {
+                notificationBadge.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking pending requests:', error);
+        });
+}
+// Check initially when page loads
+document.addEventListener('DOMContentLoaded', checkPendingRequests);
+// Optional: Check periodically (every 5 minutes)
+setInterval(checkPendingRequests, 300000);
 // Opens Backend page  
 document.addEventListener('DOMContentLoaded', function() {
     // Add keyboard event listener

@@ -689,6 +689,10 @@
                                 <label class="form-label">Position</label>
                                 <div class="radio-group">
                                     <div class="radio-option">
+                                        <input type="radio" id="AM" name="position" value="AM">
+                                        <label for="AM">Area Manager</label>
+                                    </div>
+                                    <div class="radio-option">
                                         <input type="radio" id="manager" name="position" value="manager" checked>
                                         <label for="manager">Manager</label>
                                     </div>
@@ -874,6 +878,10 @@
                             <div class="form-group">
                                 <label class="form-label">Position</label>
                                 <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="editAM" name="position" value="AM">
+                                        <label for="editAM">Area Manager</label>
+                                    </div>
                                     <div class="radio-option">
                                         <input type="radio" id="editManager" name="position" value="manager">
                                         <label for="editManager">Manager</label>
@@ -1087,8 +1095,8 @@ holidayYearStartInput.value = `${today.getFullYear()}-01-01`;
                         if (a.designation === 'BOH' && b.designation !== 'BOH') return -1;
                         if (a.designation !== 'BOH' && b.designation === 'BOH') return 1;
                         if (a.designation === b.designation) {
-                            const positionOrder = { manager: 1, supervisor: 2, tm: 3 };
-                            const positionComparison = (positionOrder[a.position] || 4) - (positionOrder[b.position] || 4);
+                            const positionOrder = { AM: 1, manager: 2, supervisor: 3, tm: 4 };
+                            const positionComparison = (positionOrder[a.position] || 5) - (positionOrder[b.position] || 5);
                             if (positionComparison !== 0) return positionComparison;
                             return b.wage - a.wage;
                         }

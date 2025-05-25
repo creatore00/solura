@@ -19,6 +19,278 @@ app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));  
 
+
+
+// Labor Cost Report Endpoint
+app.get('/api/get-labor-values', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+
+    // Get percentages
+    pool.query('SELECT FOH, BOH FROM percentages LIMIT 1', (percentagesError, percentages) => {
+        if (percentagesError) {
+            console.error(percentagesError);
+            return res.status(500).json({ error: 'Error fetching percentage data' });
+        }
+
+        // Get labor values
+        pool.query('SELECT base_hours, times FROM labor LIMIT 1', (laborError, labor) => {
+            if (laborError) {
+                console.error(laborError);
+                return res.status(500).json({ error: 'Error fetching labor data' });
+            }
+
+            res.json({
+                fohPercent: percentages[0]?.FOH || 0,
+                bohPercent: percentages[0]?.BOH || 0,
+                baseHours: labor[0]?.base_hours || 0,
+                times: labor[0]?.times || 0
+            });
+        });
+    });
+});
+
+app.post('/api/generate-labor-report', async (req, res) => {
+    const dbName = req.session.user?.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const reportData = req.body;
+
+    // Validate required fields
+    if (!reportData.weekStart || !reportData.forecast || !reportData.lastYear) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Parse date
+    const parseFormattedDate = (dateStr) => {
+        try {
+            const [datePart] = dateStr.split(' (');
+            const [day, month, year] = datePart.split('/');
+            return new Date(`${year}-${month}-${day}`);
+        } catch {
+            return null;
+        }
+    };
+
+    const weekStartDate = parseFormattedDate(reportData.weekStart);
+    if (!weekStartDate || isNaN(weekStartDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid week start date format. Expected dd/mm/yyyy (Monday)' });
+    }
+
+    const dbFormattedDate = weekStartDate.toISOString().split('T')[0];
+
+    const insertQuery = `
+        INSERT INTO labor_reports 
+        (week_start, forecast, last_year, vs_budget, actual_hours, actual_spent, 
+         target_hours, vs_target, foh_hours, boh_hours, foh_percent, boh_percent, manager_comment)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+
+    const insertParams = [
+        dbFormattedDate,
+        reportData.forecast,
+        reportData.lastYear,
+        reportData.vsBudget,
+        reportData.actualHours,
+        reportData.actualSpent,
+        reportData.targetHours,
+        reportData.vsTarget,
+        reportData.fohHours,
+        reportData.bohHours,
+        reportData.fohPercent,
+        reportData.bohPercent,
+        reportData.comment || null
+    ];
+
+    try {
+        const [insertResult] = await pool.promise().query(insertQuery, insertParams);
+        console.log('Report inserted successfully.');
+
+        const pdfBuffer = await generateReportPDF(reportData);
+        console.log('PDF generated successfully.');
+
+        await sendEmailReport(pdfBuffer, reportData.weekStart, req, pool);
+        console.log('Emails sent successfully.');
+
+        res.json({
+            success: true,
+            affectedRows: insertResult.affectedRows,
+            insertId: insertResult.insertId
+        });
+
+    } catch (error) {
+        console.error('Error generating labor report:', error);
+        res.status(500).json({
+            error: 'Failed to process labor report',
+            details: error.message
+        });
+    }
+});
+
+const sendEmailReport = async (pdfBuffer, weekStart, req, pool) => {
+    const userEmail = req.session.user?.email;
+    const dbName = req.session.user?.dbName;
+
+    if (!userEmail || !dbName) {
+        throw new Error('User email or database name missing from session.');
+    }
+
+    // Get sender's name from Employees table
+    const [userResult] = await pool.promise().query(
+        'SELECT name, lastName FROM Employees WHERE email = ? LIMIT 1',
+        [userEmail]
+    );
+
+    if (userResult.length === 0) {
+        throw new Error(`No employee found with email ${userEmail}`);
+    }
+
+    const senderName = `${userResult[0].name} ${userResult[0].lastName}`;
+
+    // Get recipient list (e.g. all managers, or just the owner)
+    const [recipientResult] = await pool.promise().query(
+        'SELECT email FROM Employees WHERE position = "AM"'
+    );
+
+    const emailAddresses = recipientResult.map(row => row.email);
+
+    // Configure transporter
+    const transporter = nodemailer.createTransport({
+        host: 'smtp0001.neo.space',
+        port: 465,
+        secure: true,
+        auth: {
+            user: 'no-reply@solura.uk',
+            pass: 'Salvemini01@'
+        }
+    });
+
+    // Send to all recipients
+    const sendPromises = emailAddresses.map(email => {
+        const mailOptions = {
+            from: `Solura WorkForce - <no-reply@solura.uk>`,
+            to: email,
+            subject: `Weekly Labor Report - ${weekStart}`,
+            text: `Hello,\n\nPlease find attached the weekly labor report for the week starting ${weekStart}.\n\nSent by: ${senderName}\nBranch: ${dbName}\n\nBest regards,\nSolura WorkForce`,
+            attachments: [{
+                filename: `labor_report_${weekStart.replace(/\//g, '-')}.pdf`,
+                content: pdfBuffer
+            }]
+        };
+
+        return transporter.sendMail(mailOptions)
+            .then(() => console.log(`Email sent to ${email}`))
+            .catch(err => {
+                console.error(`Failed to send to ${email}:`, err);
+                throw err;
+            });
+    });
+
+    return Promise.all(sendPromises);
+};
+
+const generateReportPDF = async (data) => {
+    const html = `
+    <html>
+    <head>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .report-header { text-align: center; margin-bottom: 30px; }
+        .report-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .report-date { color: #555; margin-bottom: 20px; }
+        .section { margin-bottom: 30px; }
+        .section-title { background-color: #f2f2f2; padding: 8px; font-weight: bold; border-left: 4px solid #3498db; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .metrics-table { width: 80%; margin: 0 auto; }
+        .positive { color: #27ae60; }
+        .negative { color: #e74c3c; }
+        .comment-box { border: 1px solid #ddd; padding: 15px; margin-top: 20px; background-color: #f9f9f9; }
+    </style>
+    </head>
+    <body>
+        <div class="report-header">
+            <div class="report-title">Weekly Labor Cost Report</div>
+            <div class="report-date">Week Starting: ${data.weekStart}</div>
+        </div>
+        <div class="section">
+            <div class="section-title">Key Metrics</div>
+            <table class="metrics-table">
+                <tr><th>Metric</th><th>Value</th></tr>
+                <tr><td>Sales Forecast</td><td>${data.forecast}</td></tr>
+                <tr><td>Last Year</td><td>${data.lastYear}</td></tr>
+                <tr><td>Budget Variance</td><td class="${parseFloat(data.vsBudget) >= 0 ? 'positive' : 'negative'}">${data.vsBudget}</td></tr>
+                <tr><td>Actual Hours</td><td>${data.actualHours}</td></tr>
+                <tr><td>Target Hours</td><td>${data.targetHours}</td></tr>
+                <tr><td>Target Variance</td><td class="${parseFloat(data.vsTarget) <= 0 ? 'positive' : 'negative'}">${data.vsTarget}</td></tr>
+                <tr><td>Total Labor Cost</td><td>${data.actualSpent}</td></tr>
+            </table>
+        </div>
+        <div class="section">
+            <div class="section-title">Labor Distribution</div>
+            <table class="metrics-table">
+                <tr><th>Department</th><th>Hours</th><th>Percentage</th></tr>
+                <tr><td>Front of House (FOH)</td><td>${data.fohHours}</td><td>${data.fohPercent}</td></tr>
+                <tr><td>Back of House (BOH)</td><td>${data.bohHours}</td><td>${data.bohPercent}</td></tr>
+            </table>
+        </div>
+        ${data.comment ? `
+        <div class="section">
+            <div class="section-title">Manager Comments</div>
+            <div class="comment-box">${data.comment}</div>
+        </div>` : ''}
+    </body>
+    </html>
+    `;
+
+    const browser = await puppeteer.launch({ headless: 'new' });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    const pdfBuffer = await page.pdf({ format: 'A4' });
+    await browser.close();
+    return pdfBuffer;
+};
+
+// Update submitData to include PDF generation and email sending
+app.post('/submitData', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const tableData = req.body;
+
+    try {
+        // 1. First process all database operations
+        await processDatabaseOperations(pool, tableData);
+
+        // 2. Generate PDF
+        const pdfBuffer = await generatePDF(tableData);
+        console.log('PDF generated successfully');
+
+        // 3. Get recipient emails and send
+        const [results] = await pool.promise().query('SELECT email FROM Employees');
+        const emailAddresses = results.map(result => result.email);
+        
+        await sendEmail(pdfBuffer, emailAddresses);
+        console.log('Emails sent successfully');
+
+        res.status(200).send('Rota saved and emails sent successfully!');
+    } catch (error) {
+        console.error('Error in /submitData:', error);
+        res.status(500).send('Error processing request: ' + error.message);
+    }
+});
+
 // Function to generate PDF to be sent as Email
 const generatePDF = async (tableData) => {
     // Define the mapping of specific RGB colors to designations
@@ -169,38 +441,6 @@ const generatePDF = async (tableData) => {
         throw error;
     }
 };
-
-// Update submitData to include PDF generation and email sending
-app.post('/submitData', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
-    const tableData = req.body;
-
-    try {
-        // 1. First process all database operations
-        await processDatabaseOperations(pool, tableData);
-
-        // 2. Generate PDF
-        const pdfBuffer = await generatePDF(tableData);
-        console.log('PDF generated successfully');
-
-        // 3. Get recipient emails and send
-        const [results] = await pool.promise().query('SELECT email FROM Employees');
-        const emailAddresses = results.map(result => result.email);
-        
-        await sendEmail(pdfBuffer, emailAddresses);
-        console.log('Emails sent successfully');
-
-        res.status(200).send('Rota saved and emails sent successfully!');
-    } catch (error) {
-        console.error('Error in /submitData:', error);
-        res.status(500).send('Error processing request: ' + error.message);
-    }
-});
 
 // Helper function to process database operations
 async function processDatabaseOperations(pool, tableData) {
@@ -1313,21 +1553,20 @@ app.get('/holidays', isAuthenticated, (req, res) => {
 
 // Submit new holiday or unpaid leave
 app.post('/submit-holiday', (req, res) => {
-    const dbName = req.session.user.dbName;
+    const dbName = req.session.user?.dbName;
+    const userEmail = req.session.user?.email;
 
-    if (!dbName) {
+    if (!dbName || !userEmail) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
     const pool = getPool(dbName);
     const { name, lastName, startDate, endDate, requestType } = req.body;
 
-    // Convert to Date objects
     const start = new Date(startDate);
     const end = new Date(endDate);
     const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-    // Format dates as dd/mm/yyyy (Day)
     const formatDate = (date) => {
         const day = date.getDate().toString().padStart(2, '0');
         const month = (date.getMonth() + 1).toString().padStart(2, '0');
@@ -1339,124 +1578,85 @@ app.post('/submit-holiday', (req, res) => {
     const formattedStartDate = formatDate(start);
     const formattedEndDate = formatDate(end);
     const currentDate = formatDate(new Date());
-
-    // Determine the value for the accepted column
     const acceptedValue = requestType === 'holiday' ? 'true' : 'unpaid';
 
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error getting database connection:', err);
-            return res.status(500).json({ 
-                success: false, 
-                message: 'Database connection error' 
-            });
+    // 1. First fetch name and lastName of the logged-in user from Employees
+    const fetchUserSql = `SELECT name, lastName FROM Employees WHERE email = ? LIMIT 1`;
+    pool.query(fetchUserSql, [userEmail], (userErr, userResults) => {
+        if (userErr) {
+            console.error('Error fetching user info:', userErr);
+            return res.status(500).json({ success: false, message: 'Error fetching user info' });
         }
 
-        // Start transaction
-        connection.beginTransaction((beginErr) => {
-            if (beginErr) {
-                connection.release();
-                console.error('Error starting transaction:', beginErr);
-                return res.status(500).json({ message: 'Transaction error' });
+        if (userResults.length === 0) {
+            return res.status(404).json({ success: false, message: 'User not found in Employees table' });
+        }
+
+        const whoName = userResults[0].name;
+        const whoLastName = userResults[0].lastName;
+        const who = `${whoName} ${whoLastName}`;
+
+        // 2. Insert holiday request
+        const insertHolidaySql = `
+            INSERT INTO Holiday (name, lastName, startDate, endDate, requestDate, days, accepted, who)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const insertValues = [
+            name, lastName, formattedStartDate, formattedEndDate,
+            currentDate, days, acceptedValue, who
+        ];
+
+        pool.query(insertHolidaySql, insertValues, (insertErr, insertResult) => {
+            if (insertErr) {
+                console.error('Error inserting holiday:', insertErr);
+                return res.status(500).json({
+                    success: false,
+                    message: insertErr.message || 'Failed to insert holiday request'
+                });
             }
 
-            // 1. Insert the holiday request
-            connection.query(
-                `INSERT INTO Holiday 
-                 (name, lastName, startDate, endDate, requestDate, days, accepted) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                [name, lastName, formattedStartDate, formattedEndDate, currentDate, days, acceptedValue],
-                (insertErr, insertResult) => {
-                    if (insertErr) {
-                        return connection.rollback(() => {
-                            connection.release();
-                            console.error('Error inserting holiday:', insertErr);
-                            res.status(500).json({ 
-                                success: false,
-                                message: insertErr.message || 'Error inserting holiday request'
-                            });
-                        });
-                    }
+            // 3. Update holiday balance only if it's a paid holiday
+            if (requestType !== 'holiday') {
+                return res.json({
+                    success: true,
+                    id: insertResult.insertId,
+                    name,
+                    lastName,
+                    startDate: formattedStartDate,
+                    endDate: formattedEndDate,
+                    requestDate: currentDate,
+                    days,
+                    accepted: acceptedValue,
+                    daysDeducted: 0
+                });
+            }
 
-                    // 2. Only update TotalHoliday if it's a paid leave
-                    if (requestType === 'holiday') {
-                        connection.query(
-                            `UPDATE Employees 
-                             SET TotalHoliday = TotalHoliday - ? 
-                             WHERE name = ? AND lastName = ?`,
-                            [days, name, lastName],
-                            (updateErr, updateResult) => {
-                                if (updateErr) {
-                                    return connection.rollback(() => {
-                                        connection.release();
-                                        console.error('Error updating TotalHoliday:', updateErr);
-                                        res.status(500).json({ 
-                                            success: false,
-                                            message: updateErr.message || 'Error updating holiday balance'
-                                        });
-                                    });
-                                }
+            const updateHolidaySql = `
+                UPDATE Employees SET TotalHoliday = TotalHoliday - ?
+                WHERE name = ? AND lastName = ?`;
+            const updateValues = [days, name, lastName];
 
-                                // Commit transaction
-                                connection.commit((commitErr) => {
-                                    if (commitErr) {
-                                        return connection.rollback(() => {
-                                            connection.release();
-                                            console.error('Error committing transaction:', commitErr);
-                                            res.status(500).json({ 
-                                                success: false,
-                                                message: commitErr.message || 'Error committing transaction'
-                                            });
-                                        });
-                                    }
-
-                                    connection.release();
-                                    res.json({ 
-                                        success: true,
-                                        id: insertResult.insertId,
-                                        name,
-                                        lastName,
-                                        startDate: formattedStartDate,
-                                        endDate: formattedEndDate,
-                                        requestDate: currentDate,
-                                        days,
-                                        accepted: acceptedValue,
-                                        daysDeducted: requestType === 'holiday' ? days : 0
-                                    });
-                                });
-                            }
-                        );
-                    } else {
-                        // For unpaid leave, just commit without updating TotalHoliday
-                        connection.commit((commitErr) => {
-                            if (commitErr) {
-                                return connection.rollback(() => {
-                                    connection.release();
-                                    console.error('Error committing transaction:', commitErr);
-                                    res.status(500).json({ 
-                                        success: false,
-                                        message: commitErr.message || 'Error committing transaction'
-                                    });
-                                });
-                            }
-
-                            connection.release();
-                            res.json({ 
-                                success: true,
-                                id: insertResult.insertId,
-                                name,
-                                lastName,
-                                startDate: formattedStartDate,
-                                endDate: formattedEndDate,
-                                requestDate: currentDate,
-                                days,
-                                accepted: acceptedValue,
-                                daysDeducted: 0
-                            });
-                        });
-                    }
+            pool.query(updateHolidaySql, updateValues, (updateErr) => {
+                if (updateErr) {
+                    console.error('Error updating TotalHoliday:', updateErr);
+                    return res.status(500).json({
+                        success: false,
+                        message: updateErr.message || 'Failed to update holiday balance'
+                    });
                 }
-            );
+
+                res.json({
+                    success: true,
+                    id: insertResult.insertId,
+                    name,
+                    lastName,
+                    startDate: formattedStartDate,
+                    endDate: formattedEndDate,
+                    requestDate: currentDate,
+                    days,
+                    accepted: acceptedValue,
+                    daysDeducted: days
+                });
+            });
         });
     });
 });
@@ -1536,7 +1736,7 @@ app.get('/holidays-by-week', (req, res) => {
 
 // Route to serve the Rota.html file
 app.get('/', isAuthenticated, (req, res) => {
-    if (req.session.user.role === 'admin') {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'Rota.html'));
     } else {
         res.status(403).json({ error: 'Access denied' });

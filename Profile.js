@@ -34,7 +34,7 @@ app.get('/api/profile', isAuthenticated, (req, res) => {
 });
 // Route to serve the Profile.html file
 app.get('/', isAuthenticated, (req, res) => {
-    if (req.session.user.role === 'admin') {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'Profile.html'));
     } else if (req.session.user.role === 'supervisor') {
         res.sendFile(path.join(__dirname, 'Profile.html'));

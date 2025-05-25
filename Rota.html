@@ -21,7 +21,239 @@
             --ion-safe-area-top: 20px;
             --ion-safe-area-bottom: 20px;
         }
+/* Professional Report Styles */
+#labor-cost-calculator {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #333;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #fff;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+}
 
+.report-header {
+    border-bottom: 2px solid #e1e5eb;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+
+.report-header h2 {
+    color: #2c3e50;
+    margin: 0;
+    font-size: 24px;
+}
+
+.report-header .highlight {
+    color: #3498db;
+    font-weight: 600;
+}
+
+.report-meta {
+    display: flex;
+    gap: 20px;
+    font-size: 14px;
+    color: #7f8c8d;
+    margin-top: 5px;
+}
+
+.report-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f9fafc;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.report-section h3 {
+    color: #2c3e50;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 6px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    border-top: 3px solid #3498db;
+}
+
+.metric-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.metric-header i {
+    color: #bdc3c7;
+}
+
+.metric-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: border 0.3s;
+}
+
+.metric-input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.metric-value {
+    font-size: 20px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.variance {
+    padding: 5px 10px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.positive {
+    background-color: rgba(46, 204, 113, 0.2);
+    color: #27ae60;
+}
+
+.negative {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: #c0392b;
+}
+
+.chart-container {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+}
+
+.pie-chart-container {
+    flex: 1;
+    max-width: 300px;
+}
+
+.metrics-sidebar {
+    flex: 2;
+}
+
+.distribution-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.metric-label {
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.percent-badge {
+    background: #ecf0f1;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.distribution-metric.total {
+    border-left: 3px solid #3498db;
+}
+
+.distribution-metric.cost {
+    border-left: 3px solid #9b59b6;
+}
+
+.analysis-comment {
+    width: 100%;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    min-height: 100px;
+    font-family: inherit;
+    resize: vertical;
+    transition: border 0.3s;
+}
+
+.analysis-comment:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.report-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+}
+
+.btn-primary {
+    background: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+}
+
+.btn-secondary {
+    background: #ecf0f1;
+    color: #7f8c8d;
+}
+
+.btn-secondary:hover {
+    background: #bdc3c7;
+    color: #2c3e50;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .metrics-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .chart-container {
+        flex-direction: column;
+    }
+    
+    .pie-chart-container {
+        max-width: 100%;
+    }
+}
         * {
             box-sizing: border-box;
             margin: 0;
@@ -555,11 +787,13 @@ input[type="date"]:read-only {
                 <li class="nav-item"><a href="#" class="nav-link active" data-tab="rota-tab">Rota</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="forecast-tab">Forecast</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="holiday-tab">Holidays</a></li>
+                <li class="nav-item"><a href="#" class="nav-link" data-tab="labor-cost-calculator">Labor Cost Report</a></li>
             </ul>
         </div>
     </nav>
 
     <div class="container">
+
         <!-- Rota Tab -->
         <div id="rota-tab" class="tab-content active">
             <h1 class="header">Workforce Management</h1>
@@ -804,10 +1038,119 @@ input[type="date"]:read-only {
                     </tr>
                 </tbody>
             </table>
+        
+        </div>
+        
+        <!-- LaborCost Tab -->
+        <div id="labor-cost-calculator" class="tab-content">
+    <div class="report-header">
+        <h2><i class="fas fa-chart-line"></i> Weekly Labor Cost Analysis</h2>
+        <div class="report-meta">
+            <p><strong>Week Starting:</strong> <span id="laborweekStartDate" class="highlight">Loading...</span></p>
+            <p><strong>Report Generated:</strong> <span id="reportDate"></span></p>
         </div>
     </div>
 
+    <div class="report-section">
+        <h3><i class="fas fa-calculator"></i> Labor Efficiency Metrics</h3>
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span>Sales Forecast</span>
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <input type="number" id="forecast" class="metric-input" step="0.01" placeholder="Enter forecast">
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span>Previous Year</span>
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <input type="number" id="lastYear" class="metric-input" step="0.01" placeholder="Enter last year">
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span>Budget Variance</span>
+                    <i class="fas fa-balance-scale"></i>
+                </div>
+                <div id="vsBudget" class="metric-value variance">0.00</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span>Actual Hours</span>
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div id="actualHours" class="metric-value">0.00</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span>Target Hours</span>
+                    <i class="fas fa-bullseye"></i>
+                </div>
+                <div id="targetHours" class="metric-value">0.00</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span>Target Variance</span>
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div id="vsTarget" class="metric-value variance">0.00</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h3><i class="fas fa-chart-pie"></i> Labor Distribution</h3>
+        <div class="chart-container">
+            <div class="pie-chart-container">
+                <canvas id="hoursDistributionChart"></canvas>
+            </div>
+            <div class="metrics-sidebar">
+                <div class="distribution-metric">
+                    <span class="metric-label">FOH Hours:</span>
+                    <span id="fohHours" class="metric-value">0.00</span>
+                    <span id="fohPercentDisplay" class="percent-badge">0%</span>
+                </div>
+                <div class="distribution-metric">
+                    <span class="metric-label">BOH Hours:</span>
+                    <span id="bohHours" class="metric-value">0.00</span>
+                    <span id="bohPercentDisplay" class="percent-badge">0%</span>
+                </div>
+                <div class="distribution-metric total">
+                    <span class="metric-label">Total Hours:</span>
+                    <span id="totalHoursLabor" class="metric-value">0.00</span>
+                </div>
+                <div class="distribution-metric cost">
+                    <span class="metric-label">Total Labor Cost:</span>
+                    <span id="actualSpentLabor" class="metric-value">£0.00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="report-section">
+        <h3><i class="fas fa-comment-alt"></i> Manager Analysis</h3>
+        <textarea id="managerComment" class="analysis-comment" placeholder="Enter your analysis of this week's labor performance..."></textarea>
+    </div>
+
+    <div class="report-actions">
+        <button id="submitLaborReport" class="btn-primary">
+            <i class="fas fa-paper-plane"></i> Submit Report
+        </button>
+        <button id="printReport" class="btn-secondary">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+    </div>
+
     <div id="popupMessage" class="popup" style="display: none;"></div>
+        </div>
+        
+    </div>
     <footer>
         <div class="footer-content">
             <p>&copy; Solura Ltd 2024, All rights reserved</p>
@@ -856,7 +1199,159 @@ function setupTabs() {
                 });
             });
         }
-// Modified Forecast functions with auto-loading current week
+
+document.addEventListener('DOMContentLoaded', () => {
+                // Set report date
+    document.getElementById('reportDate').textContent = new Date().toLocaleDateString('en-GB', {
+        day: 'numeric', month: 'short', year: 'numeric'
+    });
+    // Fetch labor values from API
+    fetch('/rota/api/get-labor-values')
+        .then(response => response.json())
+        .then(data => {
+            // Initialize calculator with these values
+            const forecastInput = document.getElementById('forecast');
+            const lastYearInput = document.getElementById('lastYear');
+            const vsBudgetCell = document.getElementById('vsBudget');
+            const targetHoursCell = document.getElementById('targetHours');
+            const vsTargetCell = document.getElementById('vsTarget');
+
+            // Function to calculate all values
+            const calculateAll = () => {
+                const forecast = parseFloat(forecastInput.value) || 0;
+                const lastYear = parseFloat(lastYearInput.value) || 0;
+
+                const actualHours = document.querySelector('#weeklyHoursTotal');
+                const actualCost = document.querySelector('#totalcostweek');
+
+                const actualHoursCell = document.querySelector('#actualHours');
+                const actualSpentCell = document.querySelector('#actualSpentLabor');
+
+                const actualHoursValue = parseFloat(actualHours.textContent.replace(/[^\d.-]/g, '')) || 0;
+                const actualSpentValue = parseFloat(actualCost.textContent.replace(/[^\d.-]/g, '')) || 0;
+
+                actualSpentCell.textContent = actualSpentValue.toFixed(2) + ' £';
+                actualHoursCell.textContent = actualHoursValue.toFixed(2);
+
+                // 1. VS BUDGET
+                const vsBudget = forecast - lastYear;
+                vsBudgetCell.textContent = vsBudget.toFixed(2);
+                vsBudgetCell.className = vsBudget >= 0 ? 'positive' : 'negative';
+
+                // 2. TARGET HOURS
+                const targetHours = parseFloat(data.baseHours) + (parseFloat(data.times) * forecast);
+                targetHoursCell.textContent = targetHours.toFixed(2);
+
+                // 3. VS TARGET
+                const vsTarget = actualHoursValue - targetHours;
+                vsTargetCell.textContent = vsTarget.toFixed(2);
+                vsTargetCell.className = vsTarget <= 0 ? 'positive' : 'negative';
+
+                // Get the Monday date
+                let mondayDate = '';
+                const headers = document.querySelectorAll('th[data-day]');
+                headers.forEach(header => {
+                    if (header.dataset.day?.toLowerCase() === 'monday') {
+                        mondayDate = header.textContent.trim();
+                    }
+                });
+                document.getElementById('laborweekStartDate').textContent = mondayDate || 'Unknown';
+
+                // 4. FOH/BOH Hours
+                const rows = document.querySelectorAll('#employeeRows tr');
+                let fohHours = 0;
+                let bohHours = 0;
+
+                rows.forEach(row => {
+                    const designation = row.getAttribute('data-designation')?.toUpperCase();
+                    const hoursCell = row.querySelector('.total-hours');
+                    const hours = parseFloat(hoursCell?.textContent) || 0;
+
+                    if (designation === 'FOH') {
+                        fohHours += hours;
+                    } else if (designation === 'BOH') {
+                        bohHours += hours;
+                    }
+                });
+
+                document.getElementById('fohHours').textContent = fohHours.toFixed(2);
+                document.getElementById('bohHours').textContent = bohHours.toFixed(2);
+                const total = fohHours + bohHours;
+                const fohActualPercent = total ? ((fohHours / total) * 100).toFixed(1) : '0';
+                const bohActualPercent = total ? ((bohHours / total) * 100).toFixed(1) : '0';
+
+                document.getElementById('fohPercentDisplay').textContent = `${fohActualPercent}% target: ${data.fohPercent}`;
+                document.getElementById('bohPercentDisplay').textContent = `${bohActualPercent}% target: ${data.bohPercent}`;
+
+                document.getElementById('totalHoursLabor').textContent = total.toFixed(2);
+            };
+
+            // Recalculate on input
+            forecastInput.addEventListener('input', calculateAll);
+            lastYearInput.addEventListener('input', calculateAll);
+            if (forecastInput.value || lastYearInput.value) {
+                calculateAll();
+            }
+
+            // Handle Submit Report
+            const submitBtn = document.getElementById('submitLaborReport');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', generateAndSendReport);
+    }
+});
+});
+
+// Add this function to your existing code
+async function generateAndSendReport() {
+    try {
+        const reportData = {
+            weekStart: document.getElementById('laborweekStartDate').textContent,
+            forecast: document.getElementById('forecast').value,
+            lastYear: document.getElementById('lastYear').value,
+            vsBudget: document.getElementById('vsBudget').textContent,
+            actualHours: document.getElementById('actualHours').textContent,
+            actualSpent: document.getElementById('actualSpentLabor').textContent,
+            targetHours: document.getElementById('targetHours').textContent,
+            vsTarget: document.getElementById('vsTarget').textContent,
+            fohHours: document.getElementById('fohHours').textContent,
+            bohHours: document.getElementById('bohHours').textContent,
+            fohPercent: document.getElementById('fohPercentDisplay').textContent,
+            bohPercent: document.getElementById('bohPercentDisplay').textContent,
+            comment: document.getElementById('managerComment').value
+        };
+
+        const submitBtn = document.getElementById('submitLaborReport');
+        const originalBtnText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitted!';
+        submitBtn.disabled = true;
+
+        const response = await fetch('/rota/api/generate-labor-report', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(reportData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            showPopup('Report generated and emailed successfully!', 'success');
+        } else {
+            throw new Error(result.message || 'Something went wrong');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showPopup('Failed to send report: ' + error.message, 'error');
+    } finally {
+        const submitBtn = document.getElementById('submitLaborReport');
+        if (submitBtn) {
+            submitBtn.innerHTML = originalBtnText;
+            submitBtn.disabled = false;
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Set initial week to current week when page loads
     initializeForecastWeek();

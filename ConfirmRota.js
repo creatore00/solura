@@ -537,9 +537,7 @@ app.get('/logout', (req, res) => {
 
 // Route to serve the ConfirmRota.html file
 app.get('/', isAuthenticated, (req, res) => {
-    if (req.session.user.role === 'admin') {
-        res.sendFile(path.join(__dirname, 'ConfirmRota.html'));
-    } else if (req.session.user.role === 'supervisor') {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'ConfirmRota.html'));
     } else {
         res.status(403).json({ error: 'Access denied' });

@@ -192,7 +192,7 @@ app.post('/submit', (req, res) => {
                 // Step 6: Redirect based on role
                 const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
 
-                if (userDetails.access === 'admin') {
+                if (userDetails.access === 'admin' || userDetails.access === 'AM') {
                     return res.json({ success: true, redirectUrl: `/Admin.html${queryString}` });
                 } else if (userDetails.access === 'user') {
                     return res.json({ success: true, redirectUrl: `/User.html${queryString}` });

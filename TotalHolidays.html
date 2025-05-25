@@ -512,7 +512,7 @@
                     let statusBadgeClass, statusText;
                     if (holiday.accepted === 'true') {
                         statusBadgeClass = 'badge-approved';
-                        statusText = 'Approved';
+                        statusText = `Approved by ${holiday.who}`;
                     } else if (holiday.accepted === 'unpaid') {
                         statusBadgeClass = 'badge-pending';
                         statusText = 'Unpaid';

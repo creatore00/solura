@@ -246,6 +246,12 @@
                 <div class="radio-group">
                     <label>Access Level:</label>
                     <div>
+                        <label for="accountManager">
+                            <input type="radio" id="accountManager" name="userType" value="AM" required>
+                            Account Manager
+                        </label>
+                    </div>
+                    <div>
                         <label for="manager">
                             <input type="radio" id="manager" name="userType" value="admin" required>
                             Manager
@@ -285,20 +291,21 @@
                 data.forEach(row => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${row.Email}</td>
-                        <td>${row.Name} ${row.LastName}</td>
-                        <td>${row.Access}</td>
-                        <td>
-                            <select class="access-level-select" data-email="${row.Email}">
-                                <option value="admin" ${row.Access === 'admin' ? 'selected' : ''}>Admin</option>
-                                <option value="supervisor" ${row.Access === 'supervisor' ? 'selected' : ''}>Supervisor</option>
-                                <option value="user" ${row.Access === 'user' ? 'selected' : ''}>User</option>
-                            </select>
-                        </td>
-                        <td>
-                            <button class="btn-update" onclick="updateAccessLevel('${row.Email}')">Update</button>
-                        </td>
-                    `;
+    <td>${row.Email}</td>
+    <td>${row.Name} ${row.LastName}</td>
+    <td>${row.Access}</td>
+    <td>
+        <select class="access-level-select" data-email="${row.Email}">
+            <option value="admin" ${row.Access === 'admin' ? 'selected' : ''}>Admin</option>
+            <option value="am" ${row.Access === 'AM' ? 'selected' : ''}>Account Manager</option>
+            <option value="supervisor" ${row.Access === 'supervisor' ? 'selected' : ''}>Supervisor</option>
+            <option value="user" ${row.Access === 'user' ? 'selected' : ''}>Team Member</option>
+        </select>
+    </td>
+    <td>
+        <button class="btn-update" onclick="updateAccessLevel('${row.Email}')">Update</button>
+    </td>
+`;
                     emailsTable.appendChild(tr);
                 });
             })
@@ -348,14 +355,17 @@ fetch('generate/api/employees')
         // Function to Submit Email Form
         function submitForm() {
             const email = document.getElementById('userEmail').value;
+            const accountManagerRadio = document.getElementById('accountManager');
             const managerRadio = document.getElementById('manager');
             const supervisorRadio = document.getElementById('supervisor');
             const teamMemberRadio = document.getElementById('teamMember');
 
             // Check if any radio button is selected
-            if (managerRadio.checked || supervisorRadio.checked || teamMemberRadio.checked) {
+            if (managerRadio.checked || accountManagerRadio.checked || supervisorRadio.checked || teamMemberRadio.checked) {
                 // Determine the selected user type
-                const userType = managerRadio.checked ? 'admin' : (supervisorRadio.checked ? 'supervisor' : 'user');
+                const userType = managerRadio.checked ? 'admin' : 
+                 accountManagerRadio.checked ? 'AM' : 
+                 supervisorRadio.checked ? 'supervisor' : 'user';
 
                 // Create a JSON object with email and user type
                 const data = { email, userType };

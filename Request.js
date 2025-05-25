@@ -78,74 +78,79 @@ app.get('/holidays', isAuthenticated, (req, res) => {
 });
 
 // Route to update a holiday request
-app.post('/updateRequest/:id', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+app.post('/updateRequest/:id', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    const userEmail = req.session.user.email;
 
-    if (!dbName) {
+    if (!dbName || !userEmail) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName).promise();
     const requestId = req.params.id;
 
-    // Query to get the holiday request details
-    const getHolidaySql = 'SELECT startDate, endDate, name, lastName FROM Holiday WHERE id = ?';
-    pool.query(getHolidaySql, [requestId], (error, results) => {
-        if (error) {
-            console.error('Error fetching holiday details:', error);
-            return res.sendStatus(500); // Send internal server error response
-        }
+    try {
+        // Get holiday details
+        const [holidayResults] = await pool.query(
+            'SELECT startDate, endDate, name, lastName FROM Holiday WHERE id = ?',
+            [requestId]
+        );
 
-        if (results.length === 0) {
+        if (holidayResults.length === 0) {
             return res.status(404).send('Holiday request not found');
         }
 
-        const holiday = results[0];
+        const holiday = holidayResults[0];
         const startDate = new Date(holiday.startDate);
         const endDate = new Date(holiday.endDate);
-        const daysAccepted = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1; // Calculate total days
-        const name = holiday.name;
-        const lastName = holiday.lastName;
+        const daysAccepted = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1;
 
-        // Query to update the 'accepted' column
-        const updateHolidaySql = 'UPDATE Holiday SET accepted = ? WHERE id = ?';
-        const updateValues = ['true', requestId]; // Changed from 'Accepted' to 'true'
+        const employeeName = holiday.name;
+        const employeeLastName = holiday.lastName;
 
-        pool.query(updateHolidaySql, updateValues, (updateError) => {
-            if (updateError) {
-                console.error('Error accepting request:', updateError);
-                return res.sendStatus(500); // Send internal server error response
-            }
+        // Get approver name from session email
+        const [approverResults] = await pool.query(
+            'SELECT name, lastName FROM Employees WHERE email = ?',
+            [userEmail]
+        );
 
-            // Query to update the 'TotalHoliday' column in the Employees table
-            const getEmployeeSql = 'SELECT TotalHoliday FROM Employees WHERE name = ? AND lastName = ?';
-            pool.query(getEmployeeSql, [name, lastName], (employeeError, employeeResults) => {
-                if (employeeError) {
-                    console.error('Error fetching employee details:', employeeError);
-                    return res.sendStatus(500); // Send internal server error response
-                }
+        if (approverResults.length === 0) {
+            return res.status(404).send('Approver not found');
+        }
 
-                if (employeeResults.length === 0) {
-                    return res.status(404).send('Employee not found');
-                }
+        const who = `${approverResults[0].name} ${approverResults[0].lastName}`;
 
-                const totalHolidayLeft = employeeResults[0].TotalHoliday;
-                const updatedTotalHoliday = totalHolidayLeft - daysAccepted;
+        // Update holiday to accepted
+        await pool.query(
+            'UPDATE Holiday SET accepted = ?, who = ? WHERE id = ?',
+            ['true', who, requestId]
+        );
 
-                const updateEmployeeSql = 'UPDATE Employees SET TotalHoliday = ? WHERE name = ? AND lastName = ?';
-                pool.query(updateEmployeeSql, [updatedTotalHoliday, name, lastName], (updateEmployeeError) => {
-                    if (updateEmployeeError) {
-                        console.error('Error updating employee total holidays:', updateEmployeeError);
-                        return res.sendStatus(500); // Send internal server error response
-                    }
+        // Get employee's remaining holiday
+        const [employeeData] = await pool.query(
+            'SELECT TotalHoliday FROM Employees WHERE name = ? AND lastName = ?',
+            [employeeName, employeeLastName]
+        );
 
-                    console.log('Total holidays updated successfully');
-                    res.sendStatus(200); // Send success response
-                });
-            });
-        });
-    });
+        if (employeeData.length === 0) {
+            return res.status(404).send('Employee not found');
+        }
+
+        const totalHolidayLeft = employeeData[0].TotalHoliday;
+        const updatedTotalHoliday = totalHolidayLeft - daysAccepted;
+
+        // Update employee's remaining holiday
+        await pool.query(
+            'UPDATE Employees SET TotalHoliday = ? WHERE name = ? AND lastName = ?',
+            [updatedTotalHoliday, employeeName, employeeLastName]
+        );
+
+        console.log('Holiday request approved and total holidays updated');
+        res.sendStatus(200);
+    } catch (error) {
+        console.error('Error processing holiday request:', error);
+        res.sendStatus(500);
+    }
 });
 
 // In your deleteRequest route

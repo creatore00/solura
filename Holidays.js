@@ -125,7 +125,7 @@ async function sendEmailNotification(dbName, requesterEmail, requesterName, star
 }
 // Route to serve the Holidays.html file
 app.get('/', isAuthenticated, (req, res) => {
-    if (req.session.user.role === 'admin') {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'Holidays.html'));
     } else if (req.session.user.role === 'supervisor') {
         res.sendFile(path.join(__dirname, 'Holidays.html'));

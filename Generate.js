@@ -61,7 +61,7 @@ app.post('/api/update-access-level', isAuthenticated, isAdmin, (req, res) => {
     const { email, access_level } = req.body;
 
     // Validate access level
-    if (!['admin', 'supervisor', 'user'].includes(access_level)) {
+    if (!['admin', 'AM', 'supervisor', 'user'].includes(access_level)) {
         return res.status(400).json({ error: 'Invalid access level' });
     }
 

@@ -38,14 +38,16 @@ function isAuthenticated(req, res, next) {
     res.redirect('/');
 }
 
-// Middleware to check if the user is an admin
+// Middleware to check if the user is an admin or assistant manager
 function isAdmin(req, res, next) {
-    if (req.session.user && req.session.user.role === 'admin') {
+    const role = req.session.user?.role;
+    if (role === 'admin' || role === 'AM') {
         return next();
     } else {
         return res.status(403).json({ error: 'Access denied' });
     }
 }
+
 
 // Middleware to check if the user is a supervisor
 function isSupervisor(req, res, next) {

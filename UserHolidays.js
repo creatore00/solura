@@ -39,7 +39,7 @@ app.get('/holidays', isAuthenticated, (req, res) => {
 
 // Route to serve the correct HTML file based on user role
 app.get('/', isAuthenticated, (req, res) => {
-    if (req.session.user.role === 'admin') {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, '/UserHolidays.html'));
     } else if (req.session.user.role === 'supervisor') {
         res.sendFile(path.join(__dirname, '/UserHolidays.html'));

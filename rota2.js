@@ -538,7 +538,7 @@ function commitAndRespond(connection, res) {
 
 // Route to serve the rota2.html file
 app.get('/', isAuthenticated, (req, res) => {
-    if (req.session.user.role === 'admin') {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'rota2.html'));
     } else if (req.session.user.role === 'supervisor') {
         res.sendFile(path.join(__dirname, 'rota2.html'));

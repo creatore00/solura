@@ -273,7 +273,7 @@ function processCashReport(report) {
 
 // Route to serve the Tip.html file
 app.get('/', isAuthenticated, isAdmin, (req, res) => {
-    if (req.session.user.role === 'admin') {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'Tip.html'));
     } else {
         res.status(403).json({ error: 'Access denied' });

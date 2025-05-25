@@ -50,7 +50,7 @@ app.get('/', isAuthenticated, (req, res) => {
         res.sendFile(path.join(__dirname, 'UserCRota.html'));
     } else if (req.session.user.role === 'user') {
         res.sendFile(path.join(__dirname, 'UserCRota.html'));
-    } else if (req.session.user.role === 'admin') {
+    } else if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'UserCRota.html'));
     } else {
         res.status(403).json({ error: 'Access denied' });
