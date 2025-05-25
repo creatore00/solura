@@ -258,7 +258,7 @@ const sendEmailReport = async (pdfBuffer, weekStart, req, pool) => {
 
     // Get recipient list (e.g. all managers, or just the owner)
     const [recipientResult] = await pool.promise().query(
-        'SELECT email FROM Employees WHERE email IN ("yassir.nini27@gmail.com", "chiara.montironi01@gmail.com")'
+        'SELECT email FROM Employees WHERE position = "AM"',
     );
 
     const emailAddresses = recipientResult.map(row => row.email);
