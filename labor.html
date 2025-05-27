@@ -587,7 +587,7 @@ let currentEndDate = null;
     return `${day}/${month}/${year} (${dayName})`;
 }
 
-function displayRotaData(data, mondayDate, sundayDate) {
+    function displayRotaData(data, mondayDate, sundayDate) {
     document.getElementById('rota-table-container').innerHTML = '';
     document.getElementById('summary-container').innerHTML = '';
 
@@ -834,7 +834,6 @@ function displayRotaData(data, mondayDate, sundayDate) {
     displaySalesComparison(mondayDate);
 }
 
-
     function calculateHours(startTime, endTime) {
             const start = parseTime(startTime);
             const end = parseTime(endTime);
@@ -860,17 +859,17 @@ function displayRotaData(data, mondayDate, sundayDate) {
             return hours * hourlyWage;
         }
     
-    async function downloadRotaPDF() {
+    async function downloadRotaPDF(data, forecastSales) {
     const loadingIndicator = document.getElementById('loading');
     const errorElement = document.getElementById('error');
     const dateSelector = document.getElementById('date-selector');
     const selectedDate = new Date(dateSelector.value);
-    
+
     // Calculate Monday and Sunday of the selected week
     const mondayDate = getMondayOfWeek(selectedDate);
     const sundayDate = new Date(mondayDate);
     sundayDate.setDate(mondayDate.getDate() + 6);
-    
+
     // Format date range for filename and display
     const dateRange = `${formatDayWithName(mondayDate)} - ${formatDayWithName(sundayDate)}`;
     const filenameDateRange = `${formatDateForFilename(mondayDate)}_to_${formatDateForFilename(sundayDate)}`;
@@ -880,10 +879,9 @@ function displayRotaData(data, mondayDate, sundayDate) {
         loadingIndicator.style.display = 'block';
         errorElement.style.display = 'none';
 
-        // Get all the HTML content we want to include
+        // Now gather HTML after content has been generated
         const tableHTML = document.getElementById('rota-table-container').innerHTML;
         const summaryHTML = document.getElementById('summary-container').innerHTML;
-        const budgetSummaryHTML = document.getElementById('chartContainer').innerHTML;
         const salesComparisonHTML = document.getElementById('salesComparisonContainer').innerHTML;
 
         // Create a clean version of the HTML for PDF generation
@@ -894,113 +892,29 @@ function displayRotaData(data, mondayDate, sundayDate) {
     <meta charset="UTF-8">
     <title>Rota Report - ${dateRange}</title>
     <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0;
-            padding: 20px;
-            color: #333;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
-        h1 {
-            text-align: center;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        h2 {
-            margin-top: 30px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: left;
-        }
-        th {
-            background-color: #2c3e50;
-            color: white;
-            font-weight: bold;
-        }
-        tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-        .summary-section {
-            margin-top: 30px;
-            padding: 20px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
-        }
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #ddd;
-        }
-        .summary-item:last-child {
-            border-bottom: none;
-            font-weight: bold;
-        }
-        .budget-summary {
-            margin: 30px 0;
-            padding: 20px;
-            background-color: white;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 15px;
-        }
-        .summary-card {
-            padding: 15px;
-            border-radius: 5px;
-            text-align: center;
-            border: 1px solid #eee;
-        }
-        .summary-label {
-            font-size: 14px;
-            color: #7f8c8d;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        .summary-value {
-            font-size: 18px;
-            font-weight: 600;
-        }
-        .forecast {
-            background-color: rgba(52, 152, 219, 0.1);
-            border-color: rgba(52, 152, 219, 0.3);
-        }
-        .forecast .summary-value {
-            color: #3498db;
-        }
-        .under-budget {
-            background-color: rgba(46, 204, 113, 0.1);
-            border-color: rgba(46, 204, 113, 0.3);
-        }
-        .under-budget .summary-value {
-            color: #2ecc71;
-        }
-        .over-budget {
-            background-color: rgba(231, 76, 60, 0.1);
-            border-color: rgba(231, 76, 60, 0.3);
-        }
-        .over-budget .summary-value {
-            color: #e74c3c;
-        }
-        .percentage {
-            font-size: 12px;
-            opacity: 0.8;
-        }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+        h1, h2, h3 { color: #2c3e50; }
+        h1 { text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        th { background-color: #2c3e50; color: white; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .summary-section { margin-top: 30px; padding: 20px; background-color: #f5f5f5; border-radius: 5px; }
+        .summary-item { display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #ddd; }
+        .summary-item:last-child { border-bottom: none; font-weight: bold; }
+        .budget-summary { margin: 30px 0; padding: 20px; background-color: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
+        .summary-card { padding: 15px; border-radius: 5px; text-align: center; border: 1px solid #eee; }
+        .summary-label { font-size: 14px; color: #7f8c8d; margin-bottom: 5px; font-weight: 500; }
+        .summary-value { font-size: 18px; font-weight: 600; }
+        .forecast { background-color: rgba(52, 152, 219, 0.1); border-color: rgba(52, 152, 219, 0.3); }
+        .forecast .summary-value { color: #3498db; }
+        .under-budget { background-color: rgba(46, 204, 113, 0.1); border-color: rgba(46, 204, 113, 0.3); }
+        .under-budget .summary-value { color: #2ecc71; }
+        .over-budget { background-color: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); }
+        .over-budget .summary-value { color: #e74c3c; }
+        .percentage { font-size: 12px; opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -1019,11 +933,6 @@ function displayRotaData(data, mondayDate, sundayDate) {
         <h2>Sales Comparison</h2>
         ${salesComparisonHTML}
     </div>
-
-    <div class="budget-summary">
-        <h2>Budget Comparison</h2>
-        ${budgetSummaryHTML}
-    </div>
 </body>
 </html>`;
 
@@ -1039,11 +948,8 @@ function displayRotaData(data, mondayDate, sundayDate) {
             })
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to generate PDF');
-        }
+        if (!response.ok) throw new Error('Failed to generate PDF');
 
-        // Create a download link for the PDF
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -1051,8 +957,7 @@ function displayRotaData(data, mondayDate, sundayDate) {
         a.download = `Rota_Report_${filenameDateRange}.pdf`;
         document.body.appendChild(a);
         a.click();
-        
-        // Clean up
+
         setTimeout(() => {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
