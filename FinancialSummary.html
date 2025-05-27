@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Financial Report</title>
+  <link href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #4361ee;
+      --secondary: #3f37c9;
+      --success: #4cc9f0;
+      --danger: #f72585;
+      --warning: #f8961e;
+      --info: #4895ef;
+      --light: #f8f9fa;
+      --dark: #212529;
+      --white: #ffffff;
+      --gray: #6c757d;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f7fa;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background: var(--white);
+      border-radius: 10px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    h1 {
+      color: var(--primary);
+      text-align: center;
+      margin-bottom: 30px;
+      font-weight: 600;
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 10px;
+    }
+    
+    .form-group {
+      display: flex;
+      gap: 15px;
+      align-items: flex-end;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .form-control {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    label {
+      font-weight: 500;
+      margin-bottom: 5px;
+      color: var(--dark);
+    }
+    
+    input[type="date"] {
+      padding: 10px 12px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      font-size: 16px;
+      transition: border-color 0.15s;
+    }
+    
+    input[type="date"]:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.25);
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background-color: var(--secondary);
+    }
+    
+    .btn-secondary {
+      background-color: var(--gray);
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background-color: #5a6268;
+    }
+    
+    #loading {
+      display: none;
+      padding: 15px;
+      background-color: rgba(0, 0, 0, 0.05);
+      border-radius: 4px;
+      text-align: center;
+      margin: 20px 0;
+      font-style: italic;
+    }
+    
+    #error {
+      display: none;
+      padding: 15px;
+      background-color: #f8d7da;
+      color: #721c24;
+      border-radius: 4px;
+      margin: 20px 0;
+    }
+    
+    .card {
+      background: var(--white);
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: var(--primary);
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .summary-item:last-child {
+      border-bottom: none;
+    }
+    
+    .income {
+      color: var(--success);
+      font-weight: 500;
+    }
+    
+    .expense {
+      color: var(--danger);
+      font-weight: 500;
+    }
+    
+    .highlight {
+      background-color: rgba(67, 97, 238, 0.05);
+      padding: 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+    }
+    
+    /* Adjusted chart container sizes */
+    .chart-row {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .chart-container {
+      flex: 1;
+      min-height: 200px;
+      position: relative;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 0.9rem;
+    }
+    
+    th {
+      background-color: var(--primary);
+      color: white;
+      text-align: left;
+      padding: 12px 15px;
+      font-weight: 500;
+    }
+    
+    td {
+      padding: 10px 15px;
+      border-bottom: 1px solid #eee;
+    }
+    
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    
+    @media (max-width: 768px) {
+      .form-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .chart-row {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+        margin-top: 10px;
+      }
+      
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Financial Performance Report</h1>
+    
+    <form id="reportForm">
+      <div class="form-group">
+        <div class="form-control">
+          <label for="startDate">Start Date</label>
+          <input type="date" id="startDate" name="startDate" required />
+        </div>
+        
+        <div class="form-control">
+          <label for="endDate">End Date</label>
+          <input type="date" id="endDate" name="endDate" required />
+        </div>
+        
+        <button type="submit" id="generateBtn" class="btn btn-primary">Generate Report</button>
+        <button type="button" id="downloadPdfBtn" class="btn btn-secondary" style="display:none;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 5px;">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+          </svg>
+          Download PDF
+        </button>
+      </div>
+    </form>
+    
+    <div id="loading">Generating report, please wait...</div>
+    <div id="error"></div>
+    
+    <div id="reportResult" style="display:none;">
+      <div class="card">
+        <div class="card-title">Financial Overview</div>
+        
+        <div class="chart-row">
+          <div class="chart-container">
+            <canvas id="salesChart"></canvas>
+          </div>
+          <div class="chart-container">
+            <canvas id="costChart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Financial Summary</div>
+        
+        <div class="highlight">
+          <div class="summary-item">
+            <span>Total Sales</span>
+            <span class="income">£<span id="totalSales">0.00</span></span>
+          </div>
+          <div class="summary-item">
+            <span>Total Staff Costs</span>
+            <span class="expense">£<span id="totalCost">0.00</span></span>
+          </div>
+          <div class="summary-item" style="font-weight: 600;">
+            <span>Profit Margin</span>
+            <span class="income"><span id="profitMargin">0.00</span>%</span>
+          </div>
+        </div>
+        
+        <h4 style="margin-top: 20px; color: var(--primary);">Income Breakdown</h4>
+        <div class="summary-item">
+          <span>Z Report Total</span>
+          <span class="income">£<span id="zReportTotal">0.00</span></span>
+        </div>
+        <div class="summary-item">
+          <span>On Account Total</span>
+          <span class="income">£<span id="onAccountTotal">0.00</span></span>
+        </div>
+        
+        <h4 style="margin-top: 20px; color: var(--primary);">Cost Analysis</h4>
+        <div class="summary-item">
+          <span>Staff Cost Percentage</span>
+          <span><span id="costPercentage">0.00</span>% of sales</span>
+        </div>
+      </div>
+      
+      <div class="card">
+        <div class="card-title">Staff Cost Breakdown</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Designation</th>
+              <th>Total Cost</th>
+            </tr>
+          </thead>
+          <tbody id="reportBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+  <script>
+    document.getElementById('reportForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      const loading = document.getElementById('loading');
+      const errorDiv = document.getElementById('error');
+      const reportDiv = document.getElementById('reportResult');
+
+      if (!startDate || !endDate) {
+        errorDiv.textContent = "Please select both start and end dates.";
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      if (new Date(startDate) > new Date(endDate)) {
+        errorDiv.textContent = "End date must be after start date.";
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      loading.style.display = 'block';
+      errorDiv.style.display = 'none';
+      reportDiv.style.display = 'none';
+
+      try {
+        const res = await fetch('/financialsummary/generate-report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ startDate, endDate })
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to generate report');
+        }
+
+        const data = await res.json();
+        displayReport(data);
+      } catch (err) {
+        errorDiv.textContent = err.message || 'Error generating report';
+        errorDiv.style.display = 'block';
+        console.error('Error:', err);
+      } finally {
+        loading.style.display = 'none';
+      }
+    });
+
+    let salesChart, costChart;
+
+    function displayReport(data) {
+      const reportDiv = document.getElementById('reportResult');
+      const reportBody = document.getElementById('reportBody');
+      const totalCostSpan = document.getElementById('totalCost');
+      const zReportTotalSpan = document.getElementById('zReportTotal');
+      const onAccountTotalSpan = document.getElementById('onAccountTotal');
+      const totalSalesSpan = document.getElementById('totalSales');
+      const costPercentageSpan = document.getElementById('costPercentage');
+      const profitMarginSpan = document.getElementById('profitMargin');
+      const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+      // Clear previous results
+      reportBody.innerHTML = '';
+      if (salesChart) salesChart.destroy();
+      if (costChart) costChart.destroy();
+
+      // Set summary values
+      const staffCost = parseFloat(data.totalCost);
+      const zReport = parseFloat(data.zReportTotal);
+      const onAccount = parseFloat(data.onAccountTotal);
+      const totalSales = zReport + onAccount;
+      const profit = totalSales - staffCost;
+      const profitMargin = totalSales > 0 ? (profit / totalSales * 100) : 0;
+      
+      totalCostSpan.textContent = staffCost.toFixed(2);
+      zReportTotalSpan.textContent = zReport.toFixed(2);
+      onAccountTotalSpan.textContent = onAccount.toFixed(2);
+      totalSalesSpan.textContent = totalSales.toFixed(2);
+      profitMarginSpan.textContent = profitMargin.toFixed(2);
+      
+      // Calculate financial metrics
+      const costPercentage = totalSales > 0 ? (staffCost / totalSales * 100) : 0;
+      costPercentageSpan.textContent = costPercentage.toFixed(2);
+
+      // Create charts
+      createCharts(data, totalSales, staffCost);
+
+      // Populate staff cost table
+      data.report.forEach(employee => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${employee.name}</td>
+          <td>${employee.designation}</td>
+          <td>£${employee.totalWithExtras.toFixed(2)}</td>
+        `;
+        reportBody.appendChild(tr);
+      });
+
+      // Show the report and download button
+      reportDiv.style.display = 'block';
+      downloadPdfBtn.style.display = 'inline-block';
+      
+      // Store the data for PDF generation
+      downloadPdfBtn.onclick = () => downloadReportPDF(data, document.getElementById('startDate').value, document.getElementById('endDate').value);
+    }
+
+    function createCharts(data, totalSales, totalCost) {
+      const salesCtx = document.getElementById('salesChart').getContext('2d');
+      const costCtx = document.getElementById('costChart').getContext('2d');
+      
+      // Calculate FOH and BOH costs
+      let fohTotal = 0;
+      let bohTotal = 0;
+      
+      data.report.forEach(employee => {
+        if (employee.designation.includes('FOH')) {
+          fohTotal += employee.totalWithExtras;
+        } else if (employee.designation.includes('BOH')) {
+          bohTotal += employee.totalWithExtras;
+        }
+      });
+      
+      // Sales Chart
+      salesChart = new Chart(salesCtx, {
+        type: 'doughnut',
+        data: {
+          labels: ['Z Report', 'On Account'],
+          datasets: [{
+            data: [data.zReportTotal, data.onAccountTotal],
+            backgroundColor: ['#4cc9f0', '#4895ef'],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            title: {
+              display: true,
+              text: 'Sales Breakdown',
+              font: {
+                size: 16
+              }
+            },
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+      
+      // Cost Chart
+      costChart = new Chart(costCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Staff Costs'],
+          datasets: [
+            {
+              label: 'FOH',
+              data: [fohTotal],
+              backgroundColor: '#4361ee'
+            },
+            {
+              label: 'BOH',
+              data: [bohTotal],
+              backgroundColor: '#f8961e'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              stacked: true,
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true
+            }
+          },
+          plugins: {
+            title: {
+              display: true,
+              text: 'Cost Breakdown',
+              font: {
+                size: 16
+              }
+            },
+            legend: {
+              position: 'bottom'
+            }
+          }
+        }
+      });
+    }
+
+    async function downloadReportPDF(data, startDate, endDate) {
+      const loading = document.getElementById('loading');
+      const errorDiv = document.getElementById('error');
+      
+      try {
+        loading.style.display = 'block';
+        errorDiv.style.display = 'none';
+        
+        // Format dates for display
+        const formattedStartDate = new Date(startDate).toLocaleDateString('en-GB');
+        const formattedEndDate = new Date(endDate).toLocaleDateString('en-GB');
+        const dateRange = `${formattedStartDate} to ${formattedEndDate}`;
+        
+        // Create HTML for PDF
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Financial Report - ${dateRange}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+        h1, h2 { color: #4361ee; }
+        h1 { text-align: center; border-bottom: 2px solid #4361ee; padding-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4361ee; color: white; }
+        .income { color: #4cc9f0; font-weight: bold; }
+        .expense { color: #f72585; font-weight: bold; }
+        .highlight { background-color: rgba(67, 97, 238, 0.05); padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .summary-item { display: flex; justify-content: space-between; padding: 8px 0; }
+    </style>
+</head>
+<body>
+    <h1>Financial Report - ${dateRange}</h1>
+    
+    <div class="highlight">
+        <h2>Financial Summary</h2>
+        <div class="summary-item">
+            <span>Total Sales:</span>
+            <span class="income">£${(parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal)).toFixed(2)}</span>
+        </div>
+        <div class="summary-item">
+            <span>Total Staff Costs:</span>
+            <span class="expense">£${data.totalCost.toFixed(2)}</span>
+        </div>
+        <div class="summary-item" style="font-weight: 600;">
+            <span>Profit Margin:</span>
+            <span class="income">${(((parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal)) - parseFloat(data.totalCost)) / (parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal)) * 100 || 0).toFixed(2)}%</span>
+        </div>
+    </div>
+    
+    <h2>Income Breakdown</h2>
+    <div class="summary-item">
+        <span>Z Report Total:</span>
+        <span class="income">£${data.zReportTotal.toFixed(2)}</span>
+    </div>
+    <div class="summary-item">
+        <span>On Account Total:</span>
+        <span class="income">£${data.onAccountTotal.toFixed(2)}</span>
+    </div>
+    
+    <h2>Cost Analysis</h2>
+    <div class="summary-item">
+        <span>Staff Cost Percentage:</span>
+        <span>${((parseFloat(data.totalCost) / (parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal))) * 100 || 0).toFixed(2)}% of sales</span>
+    </div>
+    
+    <h2>Staff Cost Breakdown</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Designation</th>
+                <th>Total Cost</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${data.report.map(employee => `
+                <tr>
+                    <td>${employee.name}</td>
+                    <td>${employee.designation}</td>
+                    <td>£${employee.totalWithExtras.toFixed(2)}</td>
+                </tr>
+            `).join('')}
+        </tbody>
+    </table>
+</body>
+</html>`;
+
+        // Send to server to generate PDF
+        const response = await fetch('/financialsummary/generate-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                htmlContent: htmlContent,
+                dateRange: dateRange
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to generate PDF');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Financial_Report_${startDate}_to_${endDate}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+
+      } catch (error) {
+        console.error('PDF generation error:', error);
+        errorDiv.textContent = 'Error generating PDF: ' + error.message;
+        errorDiv.style.display = 'block';
+      } finally {
+        loading.style.display = 'none';
+      }
+    }
+
+    // Set default dates (today and 7 days ago)
+    window.onload = function() {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - 7);
+      
+      document.getElementById('startDate').valueAsDate = startDate;
+      document.getElementById('endDate').valueAsDate = endDate;
+    };
+  </script>
+</body>
+</html>

@@ -29,6 +29,7 @@ const UserTotalHours = require('./UserTotalHours.js');
 const insertpayslip = require('./InsertPayslip.js');
 const modify = require('./Modify.js');
 const endday = require('./EndDay.js');
+const financialsummary = require('./FinancialSummary.js');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -64,6 +65,7 @@ app.use('/UserTotalHours', UserTotalHours);
 app.use('/insertpayslip', insertpayslip);
 app.use('/modify', modify);
 app.use('/endday', endday);
+app.use('/financialsummary', financialsummary);
 // Middleware to parse JSON data
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
