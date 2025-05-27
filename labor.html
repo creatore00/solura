@@ -262,9 +262,11 @@ tr:hover {
 .summary-item-row {
     display: flex;
     justify-content: space-between;
+    align-items: center;        /* Vertically center the items */
     margin-bottom: 1rem;
     padding-bottom: 1rem;
     border-bottom: 1px solid var(--border-color);
+    gap: 0rem;                  /* Optional spacing between the two divs */
 }
 
 .summary-item-row.total {
@@ -272,6 +274,17 @@ tr:hover {
     font-size: 1.1rem;
     color: var(--primary-color);
     border-bottom: 2px solid var(--secondary-color);
+}
+
+/* Make sure the two divs inside summary-item-row don't expand full width */
+.summary-item-row > div {
+    flex: 1;                   /* Each takes equal space */
+    /* or you can set max-width or width if needed */
+}
+
+/* Optionally, make the second div right-aligned */
+.summary-item-row > div:last-child {
+    text-align: right;
 }
 
 .loading {
@@ -351,9 +364,6 @@ tr:hover {
                 <input type="date" id="date-selector">
             </div>
         </div>
-        <div id="chartContainer">
-            <canvas id="costComparisonChart"></canvas>
-        </div>
         <div id="salesComparisonContainer" class="summary"></div>
         
         <div id="loading" class="loading" style="display: none;">Loading data...</div>
@@ -377,7 +387,7 @@ let currentWeekData = null;
 let currentStartDate = null;
 let currentEndDate = null;
 
-document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
     const dateSelector = document.getElementById('date-selector');
     dateSelector.addEventListener('change', handleDateChange); // Changed back to 'change' event
     document.getElementById('download-pdf-btn').addEventListener('click', downloadRotaPDF);
@@ -576,19 +586,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
     return `${day}/${month}/${year} (${dayName})`;
 }
-        
-    function displayRotaData(data, mondayDate, sundayDate) {
-    // Clear previous content
+
+function displayRotaData(data, mondayDate, sundayDate) {
     document.getElementById('rota-table-container').innerHTML = '';
     document.getElementById('summary-container').innerHTML = '';
 
-    // Get tax percentages from the response
     const holidayPercentage = data.taxInfo?.holiday || 0;
     const taxPercentage = data.taxInfo?.tax || 0;
     const pensionPercentage = data.taxInfo?.pension || 0;
 
-    // Filter valid shifts
-    const validShifts = data.rota.filter(shift => 
+    const validShifts = data.rota.filter(shift =>
         shift.name && shift.lastName && !isNaN(shift.wage)
     );
 
@@ -599,76 +606,68 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    // Group shifts by day and employee
     const shiftsByDayAndEmployee = {};
     validShifts.forEach(shift => {
         const formattedDay = shift.day.includes('(') ? shift.day : formatDayWithName(new Date(shift.day));
         const employeeKey = `${shift.name} ${shift.lastName}`;
-        
+
         if (!shiftsByDayAndEmployee[formattedDay]) {
             shiftsByDayAndEmployee[formattedDay] = {};
         }
         if (!shiftsByDayAndEmployee[formattedDay][employeeKey]) {
             shiftsByDayAndEmployee[formattedDay][employeeKey] = [];
         }
-        
+
         shiftsByDayAndEmployee[formattedDay][employeeKey].push(shift);
     });
 
-    // Create table
     const table = document.createElement('table');
-    
-    // Create header row with days
     const headerRow = document.createElement('tr');
     const emptyHeader = document.createElement('th');
     headerRow.appendChild(emptyHeader);
-    
-    // Add days from startDate to endDate in correct format
+
     const days = [];
     const currentDate = new Date(mondayDate);
     while (currentDate <= sundayDate) {
         const dayString = formatDayWithName(currentDate);
         days.push(dayString);
-        
+
         const dayHeader = document.createElement('th');
         dayHeader.textContent = dayString;
         headerRow.appendChild(dayHeader);
-        
+
         currentDate.setDate(currentDate.getDate() + 1);
     }
     table.appendChild(headerRow);
-    
-    // Create employee objects with all their shifts
+
     const employees = {};
     validShifts.forEach(shift => {
         const employeeKey = `${shift.name} ${shift.lastName}`;
         if (!employees[employeeKey]) {
             employees[employeeKey] = {
-                name: `${shift.name} ${shift.lastName}`,
+                name: employeeKey,
                 wage: shift.wage,
                 shifts: {}
             };
         }
     });
-    
-    // Populate shifts with basic calculations (hours × wage only)
+
     Object.keys(employees).forEach(employeeKey => {
         const employee = employees[employeeKey];
         days.forEach(day => {
             if (shiftsByDayAndEmployee[day]?.[employeeKey]) {
                 const shifts = shiftsByDayAndEmployee[day][employeeKey];
-                
                 let totalHours = 0;
                 let totalCost = 0;
-                
+
                 shifts.forEach(shift => {
                     const hours = calculateHours(shift.startTime, shift.endTime);
                     const baseCost = hours * employee.wage;
-                    
+
                     totalHours += hours;
                     totalCost += baseCost;
                 });
-                
+
                 employee.shifts[day] = {
                     totalHours: totalHours,
                     totalCost: totalCost
@@ -676,17 +675,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
-    // Create table rows for each employee (simplified)
+
     Object.values(employees).forEach(employee => {
         const row = document.createElement('tr');
-        
-        // Employee name cell
         const nameCell = document.createElement('td');
         nameCell.textContent = employee.name;
         row.appendChild(nameCell);
-        
-        // Shifts for each day (showing only total cost)
+
         days.forEach(day => {
             const shiftCell = document.createElement('td');
             if (employee.shifts[day]) {
@@ -696,135 +691,149 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div style="font-weight: bold;">£${shiftInfo.totalCost.toFixed(2)}</div>
                 `;
             } else {
-                shiftCell.textContent = '-'; // Show dash for no shift
+                shiftCell.textContent = '-';
             }
             row.appendChild(shiftCell);
         });
-        
+
         table.appendChild(row);
     });
+
     const totalsRow = document.createElement('tr');
-const totalsLabelCell = document.createElement('td');
-totalsLabelCell.textContent = 'Daily Totals';
-totalsLabelCell.style.fontWeight = 'bold';
-totalsRow.appendChild(totalsLabelCell);
+    const totalsLabelCell = document.createElement('td');
+    totalsLabelCell.textContent = 'Daily Totals';
+    totalsLabelCell.style.fontWeight = 'bold';
+    totalsRow.appendChild(totalsLabelCell);
 
-// Calculate and add daily totals
-days.forEach(day => {
-    let dayTotalHours = 0;
-    let dayTotalCost = 0;
-    
-    Object.values(employees).forEach(employee => {
-        if (employee.shifts[day]) {
-            dayTotalHours += employee.shifts[day].totalHours;
-            dayTotalCost += employee.shifts[day].totalCost;
-        }
+    days.forEach(day => {
+        let dayTotalHours = 0;
+        let dayTotalCost = 0;
+
+        Object.values(employees).forEach(employee => {
+            if (employee.shifts[day]) {
+                dayTotalHours += employee.shifts[day].totalHours;
+                dayTotalCost += employee.shifts[day].totalCost;
+            }
+        });
+
+        const dayTotalCell = document.createElement('td');
+        dayTotalCell.innerHTML = `
+            <div>${dayTotalHours.toFixed(2)} hours</div>
+            <div style="font-weight: bold;">£${dayTotalCost.toFixed(2)}</div>
+        `;
+        totalsRow.appendChild(dayTotalCell);
     });
-    
-    const dayTotalCell = document.createElement('td');
-    dayTotalCell.innerHTML = `
-        <div>${dayTotalHours.toFixed(2)} hours</div>
-        <div style="font-weight: bold;">£${dayTotalCost.toFixed(2)}</div>
-    `;
-    dayTotalCell.style.fontWeight = 'bold';
-    totalsRow.appendChild(dayTotalCell);
-});
 
-table.appendChild(totalsRow);  // Add the totals row to the tab
-
-    // Add the table to the DOM
+    table.appendChild(totalsRow);
     document.getElementById('rota-table-container').appendChild(table);
-    
-    // Calculate weekly totals (including taxes for summary only)
+
     let weeklyBaseCost = 0;
     let weeklyHoliday = 0;
     let weeklyTax = 0;
     let weeklyPension = 0;
     let weeklyTotal = 0;
-    const dailyCosts = {};
     let weeklyTotalHours = 0;
+    let fohTotal = 0;
+    let bohTotal = 0;
 
-    
+    const dailyCosts = {};
+
     days.forEach(day => {
-        let dayBaseCost = 0;
-        let dayHoliday = 0;
-        let dayTax = 0;
-        let dayPension = 0;
         let dayTotalCost = 0;
         let dayTotalHours = 0;
 
-        
         Object.values(employees).forEach(employee => {
-            if (employee.shifts[day]) {
-                const baseCost = employee.shifts[day].totalCost;
-                const hours = employee.shifts[day].totalHours;
-                const holiday = baseCost * (holidayPercentage / 100);
-                const tax = baseCost * (taxPercentage / 100);
-                const pension = baseCost * (pensionPercentage / 100);
-                const totalShiftCost = baseCost + holiday + tax + pension;
-                
-                dayBaseCost += baseCost;
-                dayHoliday += holiday;
-                dayTax += tax;
-                dayPension += pension;
-                dayTotalCost += totalShiftCost;
-                dayTotalHours += hours;
+            if (shiftsByDayAndEmployee[day]?.[employee.name]) {
+                const shifts = shiftsByDayAndEmployee[day][employee.name];
+
+                shifts.forEach(shift => {
+                    const hours = calculateHours(shift.startTime, shift.endTime);
+                    const baseCost = hours * employee.wage;
+                    const holiday = baseCost * (holidayPercentage / 100);
+                    const tax = baseCost * (taxPercentage / 100);
+                    const pension = baseCost * (pensionPercentage / 100);
+                    const totalShiftCost = baseCost + holiday + tax + pension;
+
+                    dayTotalCost += totalShiftCost;
+                    weeklyBaseCost += baseCost;
+                    weeklyHoliday += holiday;
+                    weeklyTax += tax;
+                    weeklyPension += pension;
+                    weeklyTotal += totalShiftCost;
+                    weeklyTotalHours += hours;
+
+                    if (shift.designation === 'FOH') {
+                        fohTotal += totalShiftCost;
+                    } else if (shift.designation === 'BOH') {
+                        bohTotal += totalShiftCost;
+                    }
+                });
             }
         });
-        
-        weeklyBaseCost += dayBaseCost;
-        weeklyHoliday += dayHoliday;
-        weeklyTax += dayTax;
-        weeklyPension += dayPension;
-        weeklyTotal += dayTotalCost;
-        weeklyTotalHours += dayTotalHours;
 
-        
-        // Store for chart (using date in YYYY-MM-DD format)
         const datePart = day.split(' (')[0];
         const [dd, mm, yyyy] = datePart.split('/');
         dailyCosts[`${yyyy}-${mm}-${dd}`] = dayTotalCost;
     });
 
-    // Create summary with all tax breakdowns
-    const summaryContainer = document.getElementById('summary-container');
-    summaryContainer.innerHTML = `
-        <h2>Weekly Summary</h2>
-        <div class="summary-item">
-            <span>Week:</span>
-            <span>${formatDayWithName(mondayDate)} to ${formatDayWithName(sundayDate)}</span>
-        </div>
-        <div class="summary-item">
-            <span>Base Wages:</span>
-            <span>£${weeklyBaseCost.toFixed(2)}</span>
-        </div>
-        <div class="summary-item">
-            <span>Holiday Pay (${holidayPercentage}%):</span>
-            <span>£${weeklyHoliday.toFixed(2)}</span>
-        </div>
-        <div class="summary-item">
-            <span>Tax (${taxPercentage}%):</span>
-            <span>£${weeklyTax.toFixed(2)}</span>
-        </div>
-        <div class="summary-item">
-            <span>Pension (${pensionPercentage}%):</span>
-            <span>£${weeklyPension.toFixed(2)}</span>
-        </div>
-        <div class="summary-item total">
-            <span>Total Labor Cost:</span>
-            <span>£${weeklyTotal.toFixed(2)}</span>
-        </div>
-    `;
-    summaryContainer.innerHTML += `
-    <div class="summary-item">
-        <span>Total Weekly Hours:</span>
-        <span id="weeklyHoursTotal">${weeklyTotalHours.toFixed(2)} hrs</span>
-    </div>
-`;
-    // Display cost comparison chart
-    displayWeeklyCostComparison(mondayDate, weeklyTotal, dailyCosts);
-    displaySalesComparison(mondayDate)
+    fetch(`/labor/api/getWeeklySalesComparison?startDate=${mondayDate}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch sales data');
+            return response.json();
+        })
+        .then(salesData => {
+            const totalActualSales = (parseFloat(salesData.actual.zreport) || 0) + (parseFloat(salesData.actual.onaccount) || 0);
+            const laborPercentage = totalActualSales > 0 ? ((weeklyTotal / totalActualSales) * 100).toFixed(1) : '0.0';
+            const fohPercentage = totalActualSales > 0 ? ((fohTotal / totalActualSales) * 100).toFixed(1) : '0.0';
+            const bohPercentage = totalActualSales > 0 ? ((bohTotal / totalActualSales) * 100).toFixed(1) : '0.0';
+
+            return fetch(`/labor/api/getWeeklyForecast?startDate=${mondayDate}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch forecast data');
+                    return response.json();
+                })
+                .then(forecastData => {
+                    const forecastCost = parseFloat(forecastData.Weekly_Cost_Before || 0);
+                    const forecastHours = parseFloat(forecastData.Hours || 0);
+                    const costVariance = (weeklyTotal - forecastCost).toFixed(2);
+                    const hoursVariance = (weeklyTotalHours - forecastHours).toFixed(2);
+
+                    const formatMoney = (value) => new Intl.NumberFormat('en-GB', {
+                        style: 'currency',
+                        currency: 'GBP',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }).format(value);
+
+                    const summaryContainer = document.getElementById('summary-container');
+                    summaryContainer.innerHTML = `
+                        <h2>Weekly Summary</h2>
+                        <div class="summary-item"><span>Week:</span> ${formatDayWithName(mondayDate)} to ${formatDayWithName(sundayDate)}</div>
+                        <div class="summary-item">
+                            <span>Cost at Creation: ${formatMoney(forecastCost)}</span><br>
+                            <span>Actual: ${formatMoney(weeklyTotal)}</span><br>
+                            <span>Cost Variance: <span style="color: ${costVariance >= 0 ? 'red' : 'green'};">${costVariance >= 0 ? '+' : ''}${formatMoney(costVariance)}</span></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Hours at Creation: ${forecastHours.toFixed(2)} hrs</span><br>
+                            <span>Actual: ${weeklyTotalHours.toFixed(2)} hrs</span><br>
+                            <span>Hours Variance: <span style="color: ${hoursVariance >= 0 ? 'red' : 'green'};">${hoursVariance >= 0 ? '+' : ''}${hoursVariance} hrs</span></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Labor % of Sales: ${laborPercentage}%</span><br>
+                            <span>FOH % of Sales: ${fohPercentage}%</span><br>
+                            <span>BOH % of Sales: ${bohPercentage}%</span>
+                        </div>
+                    `;
+                });
+        })
+        .catch(error => {
+            console.error('Error fetching summary data:', error);
+        });
+
+    displaySalesComparison(mondayDate);
 }
+
 
     function calculateHours(startTime, endTime) {
             const start = parseTime(startTime);
@@ -1080,99 +1089,6 @@ table.appendChild(totalsRow);  // Add the totals row to the tab
     const day = d.getDay(); // 0=Sunday, 1=Monday, etc.
     const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
     return new Date(d.setDate(diff));
-}
-
-    async function displayWeeklyCostComparison(mondayDate, actualWeeklyTotal, dailyCosts) {
-    try {
-        // Fetch forecasted cost and hours for the week from backend
-        const response = await fetch(`/labor/api/getWeeklyCostData?startDate=${mondayDate}`);
-        if (!response.ok) {
-            throw new Error('Failed to fetch cost data');
-        }
-        
-        const data = await response.json();
-        const forecastedCost = data.weekly_cost_before || 0;
-        const forecastedHours = data.hours || 0;
-        
-        // Create the comparison chart
-        createCostComparisonChart(mondayDate, forecastedCost, dailyCosts, actualWeeklyTotal, forecastedHours);
-    } catch (error) {
-        console.error('Error displaying cost comparison:', error);
-        showError(`Error displaying cost comparison: ${error.message}`);
-    }
-}
-
-    function createCostComparisonChart(mondayDate, forecastedCost, dailyCosts, actualWeeklyTotal, forecastedHours) {
-    // Format money values consistently
-    const formatMoney = (value) => {
-        return new Intl.NumberFormat('en-GB', {
-            style: 'currency',
-            currency: 'GBP',
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(value);
-    };
-
-    // Format hours
-    const formatHours = (hours) => {
-        return hours.toFixed(2) + ' hrs';
-    };
-
-    // Calculate cumulative actual cost and budget difference
-    const cumulativeActualCost = actualWeeklyTotal || Object.values(dailyCosts).reduce((sum, cost) => sum + cost, 0);
-    const budgetDifference = forecastedCost - cumulativeActualCost;
-    const isUnderBudget = budgetDifference >= 0;
-    const variancePercentage = forecastedCost > 0 ? (Math.abs(budgetDifference) / forecastedCost * 100).toFixed(1) : 0;
-
-    // Get actual hours from the page
-    const weeklyHoursTotalCell = document.querySelector('#weeklyHoursTotal');
-    const actualHours = weeklyHoursTotalCell ? parseFloat(weeklyHoursTotalCell.textContent.trim()) || 0 : 0;
-    const hoursDifference = forecastedHours - actualHours;
-    const isUnderHours = hoursDifference >= 0;
-    const variancePercentageHours = forecastedHours > 0 ? (Math.abs(hoursDifference) / forecastedHours * 100).toFixed(1) : 0;
-
-    // Create or update the summary container
-    const chartContainer = document.getElementById('chartContainer');
-    chartContainer.innerHTML = `
-        <div class="budget-summary">
-            <h3>Weekly Cost Summary</h3>
-            <div class="summary-grid">
-                <div class="summary-item forecast">
-                    <div class="summary-label">Cost at Rota Creation</div>
-                    <div class="summary-value">${formatMoney(forecastedCost)}</div>
-                </div>
-                <div class="summary-item actual ${isUnderBudget ? 'under-budget' : 'over-budget'}">
-                    <div class="summary-label">Actual Cost at the End of The Week</div>
-                    <div class="summary-value">${formatMoney(cumulativeActualCost)}</div>
-                </div>
-                <div class="summary-item variance ${isUnderBudget ? 'under-budget' : 'over-budget'}">
-                    <div class="summary-label">Cost Variance</div>
-                    <div class="summary-value">
-                        ${isUnderBudget ? '▲' : '▼'} ${formatMoney(Math.abs(budgetDifference))}
-                        <span class="percentage">(${variancePercentage}%)</span>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="summary-grid hours-summary">
-                <div class="summary-item forecast">
-                    <div class="summary-label">Hours at Rota Creation</div>
-                    <div class="summary-value">${formatHours(forecastedHours)}</div>
-                </div>
-                <div class="summary-item actual ${isUnderHours ? 'under-budget' : 'over-budget'}">
-                    <div class="summary-label">Actual Hours at the End of The Week</div>
-                    <div class="summary-value">${formatHours(actualHours)}</div>
-                </div>
-                <div class="summary-item variance ${isUnderHours ? 'under-budget' : 'over-budget'}">
-                    <div class="summary-label">Hours Variance</div>
-                    <div class="summary-value">
-                        ${isUnderHours ? '▲' : '▼'} ${formatHours(Math.abs(hoursDifference))}
-                        <span class="percentage">(${variancePercentageHours}%)</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
 }
 
     async function displaySalesComparison(mondayDate) {

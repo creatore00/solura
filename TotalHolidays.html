@@ -383,82 +383,102 @@
                     content.id = `content-${employee.id}`;
                     content.className = `tab-pane fade ${index === 0 ? 'show active' : ''}`;
                     content.innerHTML = `
-                        <div class="employee-card">
-                            <div class="employee-card-header">
-                                <h3 class="employee-name">${employee.name} ${employee.lastName}</h3>
-                                <span class="employee-status status-active">Active</span>
-                            </div>
-                            
-                            <div class="holiday-summary">
-                                <div class="row">
-                                    <div class="col-md-4">
-                                        <div class="summary-item">
-                                            <div class="summary-label">Start Date</div>
-                                            <div class="summary-value">${formatDate(employee.dateStart)}</div>
-                                        </div>
+                    <div class="employee-card">
+                        <div class="employee-card-header">
+                            <h3 class="employee-name">${employee.name} ${employee.lastName}</h3>
+                            <span class="employee-status status-active">Active</span>
+                        </div>
+                        
+                        <div class="holiday-summary">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="summary-item">
+                                        <div class="summary-label">Start Date</div>
+                                        <div class="summary-value">${formatDate(employee.dateStart)}</div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="summary-item">
-                                            <div class="summary-label">Annual Entitlement</div>
-                                            <div class="summary-value">${employee.startHoliday || 0} days</div>
-                                        </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="summary-item">
+                                        <div class="summary-label">Annual Entitlement</div>
+                                        <div class="summary-value">${employee.startHoliday || 0} days</div>
                                     </div>
-                                    <div class="col-md-4">
-                                        <div class="summary-item">
-                                            <div class="summary-label">Accrued Holiday</div>
-                                            <div class="summary-value">${employee.Accrued || 0} days</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="summary-item">
+                                        <div class="summary-label">Accrued Holiday</div>
+                                        <div class="summary-value">${employee.Accrued || 0} days</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="summary-item">
+                                        <div class="summary-label">Holiday Credit</div>
+                                        <div class="summary-value">
+                                            <span id="holidayCredit-${employee.id}">...</span> days
                                         </div>
                                     </div>
                                 </div>
-                                
                                 <div class="row mt-3">
-                                    <div class="col-md-12">
-                                        <div class="summary-item">
-                                            <div class="d-flex justify-content-between">
-                                                <div class="summary-label">Holiday Usage</div>
-                                                <div class="summary-value">
-                                                    <span id="holidaysTaken-${employee.id}">0</span> days taken / 
-                                                    <span id="holidaysRemaining-${employee.id}">${employee.TotalHoliday || 0}</span> days remaining
-                                                </div>
+                                <div class="col-md-12">
+                                    <div class="summary-item">
+                                        <div class="d-flex justify-content-between">
+                                            <div class="summary-label">Holiday Usage</div>
+                                            <div class="summary-value">
+                                                <span id="holidaysTaken-${employee.id}">0</span> days taken / 
+                                                <span id="holidaysRemaining-${employee.id}">${employee.TotalHoliday || 0}</span> days remaining
                                             </div>
-                                            <div class="progress">
-                                                <div id="holidayProgress-${employee.id}" class="progress-bar" role="progressbar" style="width: 0%"></div>
-                                            </div>
+                                        </div>
+                                        <div class="progress">
+                                            <div id="holidayProgress-${employee.id}" class="progress-bar" role="progressbar" style="width: 0%"></div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div class="card-body">
-                                <h5 class="mb-4"><i class="bi bi-calendar-check"></i> Holiday Requests</h5>
-                                
-                                <div class="table-responsive">
-                                    <table class="holiday-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Period</th>
-                                                <th>Days</th>
-                                                <th>Status</th>
-                                                <th>Type</th>
-                                                <th>Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="holidaysTable-${employee.id}">
-                                            <!-- Holidays will be loaded here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                                
-                                <div id="noHolidays-${employee.id}" class="empty-state" style="display: none;">
-                                    <i class="bi bi-calendar-x"></i>
-                                    <h4>No Holiday Requests</h4>
-                                    <p>This employee hasn't made any holiday requests yet.</p>
-                                </div>
                             </div>
                         </div>
-                    `;
+                        
+                        <div class="card-body">
+                            <h5 class="mb-4"><i class="bi bi-calendar-check"></i> Holiday Requests</h5>
+                            
+                            <div class="table-responsive">
+                                <table class="holiday-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Period</th>
+                                            <th>Days</th>
+                                            <th>Status</th>
+                                            <th>Type</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="holidaysTable-${employee.id}">
+                                        <!-- Holidays will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div id="noHolidays-${employee.id}" class="empty-state" style="display: none;">
+                                <i class="bi bi-calendar-x"></i>
+                                <h4>No Holiday Requests</h4>
+                                <p>This employee hasn't made any holiday requests yet.</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
                     employeeContent.appendChild(content);
-                    
+                    // Delay the calculation until the DOM has updated
+                    setTimeout(() => {
+                        const accrued = employee.Accrued || 0;
+                        const takenElem = document.getElementById(`holidaysTaken-${employee.id}`);
+                        const taken = takenElem ? parseFloat(takenElem.textContent) || 0 : 0;
+                        const credit = accrued - taken;
+
+                        const creditElem = document.getElementById(`holidayCredit-${employee.id}`);
+                        if (creditElem) {
+                            creditElem.textContent = credit.toFixed(2);
+                        }
+                    }, 0);
+
+
                     // Render employee's holidays
                     renderEmployeeHolidays(employee);
                 });

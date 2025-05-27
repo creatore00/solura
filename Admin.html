@@ -689,7 +689,7 @@ function checkPendingRequests() {
         .then(response => response.json())
         .then(data => {
             const pendingRequests = data.filter(request => 
-                !(request.accepted === 'true' || request.accepted === true)
+                !(request.accepted === 'true' || request.accepted === 'unpaid')
             );
             
             const notificationBadge = document.getElementById('holidayNotification');

@@ -472,7 +472,7 @@
                     
                     // Filter to only show pending requests
                     const pendingRequests = data.filter(request => 
-                        !(request.accepted === 'true' || request.accepted === true)
+                        !(request.accepted === 'true' || request.accepted === 'unpaid')
                     );
 
                     if (pendingRequests.length === 0) {

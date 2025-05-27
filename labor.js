@@ -156,9 +156,10 @@ app.post('/api/rota-data', (req, res) => {
                 cr.day,
                 cr.name,
                 cr.lastName,
+                cr.designation,
                 cr.startTime,
                 cr.endTime,
-                IFNULL(e.wage, 0) as wage
+                IFNULL(e.wage, 0) AS wage
             FROM 
                 ConfirmedRota cr
             LEFT JOIN 
@@ -168,6 +169,7 @@ app.post('/api/rota-data', (req, res) => {
             ORDER BY 
                 cr.day, cr.name, cr.lastName
         `;
+
         
         pool.query(rotaQuery, [dateRange], (err, results) => {
             if (err) {
@@ -206,55 +208,6 @@ app.post('/api/rota-data', (req, res) => {
     });
 });
 
-app.get('/api/getWeeklyCostData', (req, res) => {
-    let { startDate } = req.query;
-    const dbName = req.session.user?.dbName;
-
-    console.log('Fetching weekly forecast data for:', startDate);
-
-    if (!dbName) {
-        return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    // Ensure startDate is in yyyy-mm-dd format
-    const parsedDate = new Date(startDate);
-    if (isNaN(parsedDate)) {
-        return res.status(400).json({ error: 'Invalid startDate format' });
-    }
-
-    // Format to yyyy-mm-dd
-    const yyyy = parsedDate.getFullYear();
-    const mm = String(parsedDate.getMonth() + 1).padStart(2, '0');
-    const dd = String(parsedDate.getDate()).padStart(2, '0');
-    startDate = `${yyyy}-${mm}-${dd}`;
-
-    const pool = getPool(dbName);
-
-    const forecastQuery = `
-        SELECT Weekly_Cost_Before, Hours 
-        FROM Data 
-        WHERE WeekStart = ?
-        ORDER BY WeekStart DESC
-        LIMIT 1
-    `;
-
-    pool.query(forecastQuery, [startDate], (forecastErr, forecastResults) => {
-        if (forecastErr) {
-            console.error('Forecast query error:', forecastErr);
-            return res.status(500).json({ error: 'Database error' });
-        }
-
-        console.log('Sending forecast response:', {
-            weekly_cost_before: forecastResults[0]?.Weekly_Cost_Before || 0,
-            hours: forecastResults[0]?.Hours || 0
-        });
-
-        res.json({
-            weekly_cost_before: forecastResults[0]?.Weekly_Cost_Before || 0,
-            hours: forecastResults[0]?.Hours || 0
-        });
-    });
-});
 
 app.get('/api/getWeeklySalesComparison', (req, res) => {
     let { startDate } = req.query;
@@ -316,6 +269,34 @@ app.get('/api/getWeeklySalesComparison', (req, res) => {
                 actual
             });
         });
+    });
+});
+
+app.get('/api/getWeeklyForecast', (req, res) => {
+    const dbName = req.session.user.dbName;
+    const pool = getPool(dbName);
+    const { startDate } = req.query;
+
+    // Convert the JavaScript Date string to yyyy-mm-dd format
+    const formattedDate = new Date(startDate).toISOString().split('T')[0];
+
+    const query = `
+        SELECT Weekly_Cost_Before, Hours 
+        FROM Data 
+        WHERE WeekStart = ? 
+        `;
+
+    pool.query(query, [formattedDate], (err, results) => {
+        if (err) {
+            console.error('Forecast query error:', err);
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+
+        if (!results || results.length === 0) {
+            return res.json({ Weekly_Cost_Before: 0, Hours: 0 });
+        }
+
+        res.json(results[0]);
     });
 });
 
