@@ -221,7 +221,7 @@ app.post('/generate-pdf', isAuthenticated, async (req, res) => {
         }
         // Production - use Puppeteer's bundled Chrome
         else if (process.env.NODE_ENV === 'production') {
-            launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+            launchOptions.executablePath = '/app/.chrome-for-testing/chrome-linux64/chrome';
         }
 
         browser = await puppeteer.launch(launchOptions);
