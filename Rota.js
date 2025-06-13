@@ -230,7 +230,14 @@ const bohTarget = data.bohTarget;
     </body>
     </html>
     `;
-
+        // Dev on Windows
+        if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
+            launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        }
+        // Heroku production
+        else if (process.env.NODE_ENV === 'production') {
+            launchOptions.executablePath = '/app/.chrome-for-testing/chrome-linux64/chrome';
+        }
     const browser = await puppeteer.launch({ headless: 'new' });
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: 'networkidle0' });
