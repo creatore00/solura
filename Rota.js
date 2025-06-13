@@ -64,7 +64,7 @@ app.post('/api/generate-labor-report', async (req, res) => {
     const reportData = req.body;
 
     // Validate required fields
-    if (!reportData.weekStart || !reportData.forecast || !reportData.lastYear) {
+    if (!reportData.weekStart || !reportData.forecast) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -100,7 +100,7 @@ app.post('/api/generate-labor-report', async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    const insertParams = [
+        const insertParams = [
         dbFormattedDate,
         reportData.forecast,
         reportData.lastYear,
@@ -113,12 +113,13 @@ app.post('/api/generate-labor-report', async (req, res) => {
         reportData.bohHours,
         reportData.fohPercent,
         reportData.bohPercent,
-        extractTargetHours(reportData.fohHours),
-        extractTargetHours(reportData.bohHours),
+        reportData.fohTarget,   // <--- no longer extracted from fohHours
+        reportData.bohTarget,   // <--- same here
         parseFloat(reportData.laborCostPercentage) || null,
         reportData.scheduleSummary || null,
         reportData.comment || null
     ];
+
 
     try {
         const [insertResult] = await pool.promise().query(insertQuery, insertParams);
@@ -146,11 +147,12 @@ app.post('/api/generate-labor-report', async (req, res) => {
 });
 
 const generateReportPDF = async (data) => {
-    // Function to extract target hours from strings like "45.50 (Target: 48.00)"
-    const extractTargetHours = (hoursStr) => {
-        const match = hoursStr.match(/Target: (\d+\.\d+)/);
-        return match ? match[1] : 'N/A';
-    };
+
+    const fohActual = data.fohHours;
+const bohActual = data.bohHours;
+const fohTarget = data.fohTarget;
+const bohTarget = data.bohTarget;
+
 
     const html = `
     <html>
@@ -182,12 +184,11 @@ const generateReportPDF = async (data) => {
         <div class="section">
             <div class="section-title">Key Metrics</div>
             <table class="metrics-table">
-                <tr><th>Metric</th><th>Value</th></tr>
+                <tr><th>Metric</th><th>Actual / Target</th></tr>
                 <tr><td>Sales Forecast</td><td>${data.forecast}</td></tr>
                 <tr><td>Last Year</td><td>${data.lastYear}</td></tr>
                 <tr><td>Budget Variance</td><td class="${parseFloat(data.vsBudget) >= 0 ? 'positive' : 'negative'}">${data.vsBudget}</td></tr>
-                <tr><td>Actual Hours</td><td>${data.actualHours}</td></tr>
-                <tr><td>Target Hours</td><td>${data.targetHours}</td></tr>
+                <tr><td>Hours</td><td>${data.actualHours} / ${data.targetHours}</td></tr>
                 <tr><td>Target Variance</td><td class="${parseFloat(data.vsTarget) <= 0 ? 'positive' : 'negative'}">${data.vsTarget}</td></tr>
                 <tr><td>Total Labor Cost</td><td>${data.actualSpent}</td></tr>
                 <tr><td>Labor Cost % of Forecast</td><td>${data.laborCostPercentage || 'N/A'}%</td></tr>
@@ -197,28 +198,30 @@ const generateReportPDF = async (data) => {
         <div class="section">
             <div class="section-title">Labor Distribution</div>
             <table class="metrics-table">
-                <tr><th>Department</th><th>Actual Hours</th><th>Target Hours</th><th>Percentage</th></tr>
+                <tr>
+                    <th>Department</th>
+                    <th>Actual / Target Hours</th>
+                    <th>Percentage of Total</th>
+                </tr>
                 <tr>
                     <td>Front of House (FOH)</td>
-                    <td>${data.fohHours.split(' ')[0]}</td>
-                    <td>${extractTargetHours(data.fohHours)}</td>
+                    <td>${fohActual} / ${fohTarget}</td>
                     <td>${data.fohPercent}</td>
                 </tr>
                 <tr>
                     <td>Back of House (BOH)</td>
-                    <td>${data.bohHours.split(' ')[0]}</td>
-                    <td>${extractTargetHours(data.bohHours)}</td>
+                    <td>${bohActual} / ${bohTarget}</td>
                     <td>${data.bohPercent}</td>
                 </tr>
             </table>
         </div>
-        
+
         ${data.scheduleSummary ? `
         <div class="section">
             <div class="section-title">Schedule Summary</div>
             ${data.scheduleSummary}
         </div>` : ''}
-        
+
         ${data.comment ? `
         <div class="section">
             <div class="section-title">Manager Comments</div>
@@ -258,7 +261,7 @@ const sendEmailReport = async (pdfBuffer, weekStart, req, pool) => {
 
     // Get recipient list (e.g. all managers, or just the owner)
     const [recipientResult] = await pool.promise().query(
-        'SELECT email FROM Employees WHERE position = "AM"',
+        'SELECT email FROM Employees WHERE email = "yassir.nini27@gmail.com"',
     );
 
     const emailAddresses = recipientResult.map(row => row.email);

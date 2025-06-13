@@ -1511,21 +1511,32 @@ for (let i = 4; i < row.children.length - 2; i++) {
 
 async function generateAndSendReport() {
     const submitBtn = document.getElementById('submitLaborReport');
-    let originalBtnText = ''; // Define it here at function scope
-    
+    let originalBtnText = '';
+
     try {
         if (!submitBtn) {
             throw new Error('Submit button not found');
         }
-        
-        originalBtnText = submitBtn.innerHTML; // Now accessible in finally
+
+        originalBtnText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitted!';
         submitBtn.disabled = true;
 
-        // Get HTML of compact schedule table
         const scheduleTable = document.querySelector('.compact-schedule');
         const scheduleHtml = scheduleTable ? scheduleTable.outerHTML : 'No schedule data available';
-        
+
+        const fohHoursText = document.getElementById('fohHours').textContent;
+        const bohHoursText = document.getElementById('bohHours').textContent;
+
+        // Extract numeric parts from "actual (Target: X.XX)" format
+        const extractValues = (text) => {
+            const match = text.match(/([\d.]+)\s*\(Target:\s*([\d.]+)\)/);
+            return match ? { actual: match[1], target: match[2] } : { actual: '0', target: '0' };
+        };
+
+        const fohValues = extractValues(fohHoursText);
+        const bohValues = extractValues(bohHoursText);
+
         const reportData = {
             weekStart: document.getElementById('laborweekStartDate').textContent,
             forecast: document.getElementById('forecast').value,
@@ -1535,8 +1546,10 @@ async function generateAndSendReport() {
             actualSpent: document.getElementById('actualSpentLabor').textContent,
             targetHours: document.getElementById('targetHours').textContent,
             vsTarget: document.getElementById('vsTarget').textContent,
-            fohHours: document.getElementById('fohHours').textContent,
-            bohHours: document.getElementById('bohHours').textContent,
+            fohHours: fohValues.actual,
+            fohTarget: fohValues.target,
+            bohHours: bohValues.actual,
+            bohTarget: bohValues.target,
             fohPercent: document.getElementById('fohPercentDisplay').textContent,
             bohPercent: document.getElementById('bohPercentDisplay').textContent,
             laborCostPercentage: document.querySelector('.percentage-text')?.textContent.match(/\d+\.?\d*/)?.[0] || '0',
