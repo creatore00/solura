@@ -19,8 +19,6 @@ app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));  
 
-
-
 // Labor Cost Report Endpoint
 app.get('/api/get-labor-values', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
@@ -350,7 +348,7 @@ app.post('/submitData', isAuthenticated, async (req, res) => {
         console.log('PDF generated successfully');
 
         // 3. Get recipient emails and send
-        const [results] = await pool.promise().query('SELECT email FROM Employees');
+        const [results] = await pool.promise().query('SELECT email FROM Employees where email = "yassir.nini27@gmail.com"');
         const emailAddresses = results.map(result => result.email);
         
         await sendEmail(pdfBuffer, emailAddresses);
