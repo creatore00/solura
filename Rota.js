@@ -348,7 +348,7 @@ app.post('/submitData', isAuthenticated, async (req, res) => {
         console.log('PDF generated successfully');
 
         // 3. Get recipient emails and send
-        const [results] = await pool.promise().query('SELECT email FROM Employees where email = "yassir.nini27@gmail.com"');
+        const [results] = await pool.promise().query('SELECT email FROM Employees');
         const emailAddresses = results.map(result => result.email);
         
         await sendEmail(pdfBuffer, emailAddresses);
