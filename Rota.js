@@ -350,7 +350,7 @@ app.post('/submitData', isAuthenticated, async (req, res) => {
         // 3. Get recipient emails and send
         const [results] = await pool.promise().query('SELECT email FROM Employees');
         const emailAddresses = results.map(result => result.email);
-        
+            
         await sendEmail(pdfBuffer, emailAddresses);
         console.log('Emails sent successfully');
 
