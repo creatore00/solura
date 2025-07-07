@@ -62,46 +62,81 @@ app.get('/rota', isAuthenticated, (req, res) => {
 // Route to retrieve holiday data with proper overlapping support
 app.get('/holidays', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
-    const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7); // e.g. "2025-04"
+    const selectedMonth = req.query.month || new Date().toISOString().slice(0, 7);
 
     const pool = getPool(dbName);
-
-    // Start of month (e.g. 2025-04-01)
+    
+    // Start of month (e.g. "2025-04-01")
     const monthStart = `${selectedMonth}-01`;
+    
+    // Calculate the actual last day of the month (28, 30, or 31)
+    const year = selectedMonth.split('-')[0];
+    const month = selectedMonth.split('-')[1];
+    const lastDay = new Date(year, month, 0).getDate(); // Day 0 of next month = last day of current month
+    const monthEnd = `${selectedMonth}-${lastDay.toString().padStart(2, '0')}`;
 
-    // End of month (e.g. 2025-04-30)
-    monthEnd = `${selectedMonth}-31`;
-
-    // Query to find any overlapping holidays
     const query = `
         SELECT 
             name,
             lastName,
-            startDate,
-            endDate
+            -- Clamp dates to month boundaries
+            CASE 
+                WHEN STR_TO_DATE(startDate, '%d/%m/%Y') < ? THEN ?
+                ELSE STR_TO_DATE(startDate, '%d/%m/%Y')
+            END AS startDate,
+            CASE 
+                WHEN STR_TO_DATE(endDate, '%d/%m/%Y') > ? THEN ?
+                ELSE STR_TO_DATE(endDate, '%d/%m/%Y')
+            END AS endDate,
+            -- Calculate inclusive days within month
+            DATEDIFF(
+                LEAST(STR_TO_DATE(endDate, '%d/%m/%Y'), ?),
+                GREATEST(STR_TO_DATE(startDate, '%d/%m/%Y'), ?)
+            ) + 1 AS daysInMonth,
+            -- Original dates
+            startDate AS originalStartDate,
+            endDate AS originalEndDate
         FROM 
             Holiday
         WHERE
             accepted = 'true'
-            AND (
-                (STR_TO_DATE(startDate, '%d/%m/%Y') BETWEEN ? AND ?) OR
-                (STR_TO_DATE(endDate, '%d/%m/%Y') BETWEEN ? AND ?) OR
-                (STR_TO_DATE(startDate, '%d/%m/%Y') <= ? AND STR_TO_DATE(endDate, '%d/%m/%Y') >= ?)
-            );
+            AND STR_TO_DATE(startDate, '%d/%m/%Y') <= ?
+            AND STR_TO_DATE(endDate, '%d/%m/%Y') >= ?;
     `;
 
-    pool.query(query, [monthStart, monthEnd, monthStart, monthEnd, monthStart, monthEnd], (err, results) => {
+    pool.query(query, [
+        monthStart, monthStart,  // For startDate clamp
+        monthEnd, monthEnd,      // For endDate clamp
+        monthEnd, monthStart,    // For daysInMonth calculation
+        monthEnd,                // WHERE end
+        monthStart               // WHERE start
+    ], (err, results) => {
         if (err) {
-            console.error('[GET /holidays] Error fetching holiday data:', err);
+            console.error('[GET /holidays] Error:', err);
             return res.status(500).json({ success: false, message: 'Server error' });
         }
+
+        const processedResults = results.map(holiday => {
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                return [
+                    date.getDate().toString().padStart(2, '0'),
+                    (date.getMonth() + 1).toString().padStart(2, '0'),
+                    date.getFullYear()
+                ].join('/');
+            };
+            
+            return {
+                name: holiday.name,
+                lastName: holiday.lastName,
+                startDate: formatDate(holiday.startDate),
+                endDate: formatDate(holiday.endDate),
+                daysInMonth: holiday.daysInMonth,
+                originalStartDate: holiday.originalStartDate.split(' ')[0],
+                originalEndDate: holiday.originalEndDate.split(' ')[0]
+            };
+        });
         
-        // Process the results to ensure proper date format (without day names in parentheses)
-        const processedResults = results.map(holiday => ({
-            ...holiday,
-            startDate: holiday.startDate.split(' ')[0], // Removing any extra text like day names
-            endDate: holiday.endDate.split(' ')[0]
-        }));
         res.json(processedResults);
     });
 });
