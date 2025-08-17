@@ -1542,7 +1542,7 @@ app.get('/employees', isAuthenticated, (req, res) => {
 
     const pool = getPool(dbName); // Get the correct connection pool
 
-    pool.query('SELECT name, lastName, wage, designation, position FROM Employees', (err, results) => {
+    pool.query(`SELECT name, lastName, wage, designation, position FROM Employees WHERE situation IS NULL OR situation = ''`, (err, results) => {
         if (err) {
             console.error('Error fetching employee data:', err);
             return res.status(500).send('Error fetching employee data');

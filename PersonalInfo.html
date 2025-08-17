@@ -557,6 +557,9 @@
             <i class="fas fa-user-shield"></i> Solura Admin
         </a>
         <div class="navbar-links">
+            <a href="/pastemployees" class="navbar-link">
+                <i class="fas fa-users"></i> Past Employees
+            </a>
             <a href="/generate" class="navbar-link">
                 <i class="fas fa-key"></i> Manage Access
             </a>
@@ -945,91 +948,91 @@
 
     <script>
         // Holiday Calculation Functionality
-const dateStartInput = document.getElementById('dateStart');
-const holidayInput = document.getElementById('holiday');
-const holidayYearStartInput = document.createElement('input');
-const contractHolidayInput = document.createElement('input');
-const formGroup = document.querySelector('.form-group:has(#holiday)');
+        const dateStartInput = document.getElementById('dateStart');
+        const holidayInput = document.getElementById('holiday');
+        const holidayYearStartInput = document.createElement('input');
+        const contractHolidayInput = document.createElement('input');
+        const formGroup = document.querySelector('.form-group:has(#holiday)');
 
-// Create and insert the holiday year start input
-holidayYearStartInput.type = 'date';
-holidayYearStartInput.id = 'holidayYearStart';
-holidayYearStartInput.className = 'form-control';
-holidayYearStartInput.required = true;
+        // Create and insert the holiday year start input
+        holidayYearStartInput.type = 'date';
+        holidayYearStartInput.id = 'holidayYearStart';
+        holidayYearStartInput.className = 'form-control';
+        holidayYearStartInput.required = true;
 
-const holidayYearLabel = document.createElement('label');
-holidayYearLabel.className = 'form-label';
-holidayYearLabel.textContent = 'Holiday Year Start Date';
-holidayYearLabel.htmlFor = 'holidayYearStart';
+        const holidayYearLabel = document.createElement('label');
+        holidayYearLabel.className = 'form-label';
+        holidayYearLabel.textContent = 'Holiday Year Start Date';
+        holidayYearLabel.htmlFor = 'holidayYearStart';
 
-const holidayYearGroup = document.createElement('div');
-holidayYearGroup.className = 'form-group';
-holidayYearGroup.appendChild(holidayYearLabel.cloneNode());
-holidayYearGroup.appendChild(holidayYearStartInput);
+        const holidayYearGroup = document.createElement('div');
+        holidayYearGroup.className = 'form-group';
+        holidayYearGroup.appendChild(holidayYearLabel.cloneNode());
+        holidayYearGroup.appendChild(holidayYearStartInput);
 
-// Create and insert the contract holiday days input
-contractHolidayInput.type = 'number';
-contractHolidayInput.id = 'contractHoliday';
-contractHolidayInput.className = 'form-control';
-contractHolidayInput.required = true;
-contractHolidayInput.min = '0';
-contractHolidayInput.step = '0.5';
+        // Create and insert the contract holiday days input
+        contractHolidayInput.type = 'number';
+        contractHolidayInput.id = 'contractHoliday';
+        contractHolidayInput.className = 'form-control';
+        contractHolidayInput.required = true;
+        contractHolidayInput.min = '0';
+        contractHolidayInput.step = '0.5';
 
-const contractHolidayLabel = document.createElement('label');
-contractHolidayLabel.className = 'form-label';
-contractHolidayLabel.textContent = 'Total Holiday Days in Contract';
-contractHolidayLabel.htmlFor = 'contractHoliday';
+        const contractHolidayLabel = document.createElement('label');
+        contractHolidayLabel.className = 'form-label';
+        contractHolidayLabel.textContent = 'Total Holiday Days in Contract';
+        contractHolidayLabel.htmlFor = 'contractHoliday';
 
-const contractHolidayGroup = document.createElement('div');
-contractHolidayGroup.className = 'form-group';
-contractHolidayGroup.appendChild(contractHolidayLabel.cloneNode());
-contractHolidayGroup.appendChild(contractHolidayInput);
+        const contractHolidayGroup = document.createElement('div');
+        contractHolidayGroup.className = 'form-group';
+        contractHolidayGroup.appendChild(contractHolidayLabel.cloneNode());
+        contractHolidayGroup.appendChild(contractHolidayInput);
 
-// Insert the new inputs before the holiday allowance input
-formGroup.parentNode.insertBefore(holidayYearGroup, formGroup);
-formGroup.parentNode.insertBefore(contractHolidayGroup, formGroup);
+        // Insert the new inputs before the holiday allowance input
+        formGroup.parentNode.insertBefore(holidayYearGroup, formGroup);
+        formGroup.parentNode.insertBefore(contractHolidayGroup, formGroup);
 
-// Function to calculate pro-rated holiday
-function calculateHolidayAllowance() {
-    const startDate = new Date(dateStartInput.value);
-    const holidayYearStart = new Date(holidayYearStartInput.value);
-    const contractHoliday = parseFloat(contractHolidayInput.value) || 0;
-    
-    if (!startDate || !holidayYearStart || isNaN(contractHoliday)) {
-        return;
-    }
+        // Function to calculate pro-rated holiday
+        function calculateHolidayAllowance() {
+            const startDate = new Date(dateStartInput.value);
+            const holidayYearStart = new Date(holidayYearStartInput.value);
+            const contractHoliday = parseFloat(contractHolidayInput.value) || 0;
+            
+            if (!startDate || !holidayYearStart || isNaN(contractHoliday)) {
+                return;
+            }
 
-    // Calculate holiday year end (1 year from start)
-    const holidayYearEnd = new Date(holidayYearStart);
-    holidayYearEnd.setFullYear(holidayYearEnd.getFullYear() + 1);
-    
-    // Check if start date is within the current holiday year
-    if (startDate >= holidayYearStart && startDate <= holidayYearEnd) {
-        // Calculate days remaining in holiday year
-        const msPerDay = 1000 * 60 * 60 * 24;
-        const daysInYear = Math.round((holidayYearEnd - holidayYearStart) / msPerDay);
-        const daysRemaining = Math.round((holidayYearEnd - startDate) / msPerDay);
-        
-        // Calculate pro-rated holiday
-        const proRatedHoliday = (contractHoliday * daysRemaining / daysInYear).toFixed(1);
-        holidayInput.value = proRatedHoliday;
-    } else if (startDate < holidayYearStart) {
-        // If started before holiday year, gets full allowance
-        holidayInput.value = contractHoliday;
-    } else {
-        // If started after holiday year, gets zero (will get in next year)
-        holidayInput.value = '0';
-    }
-}
+            // Calculate holiday year end (1 year from start)
+            const holidayYearEnd = new Date(holidayYearStart);
+            holidayYearEnd.setFullYear(holidayYearEnd.getFullYear() + 1);
+            
+            // Check if start date is within the current holiday year
+            if (startDate >= holidayYearStart && startDate <= holidayYearEnd) {
+                // Calculate days remaining in holiday year
+                const msPerDay = 1000 * 60 * 60 * 24;
+                const daysInYear = Math.round((holidayYearEnd - holidayYearStart) / msPerDay);
+                const daysRemaining = Math.round((holidayYearEnd - startDate) / msPerDay);
+                
+                // Calculate pro-rated holiday
+                const proRatedHoliday = (contractHoliday * daysRemaining / daysInYear).toFixed(1);
+                holidayInput.value = proRatedHoliday;
+            } else if (startDate < holidayYearStart) {
+                // If started before holiday year, gets full allowance
+                holidayInput.value = contractHoliday;
+            } else {
+                // If started after holiday year, gets zero (will get in next year)
+                holidayInput.value = '0';
+            }
+        }
 
-// Set up event listeners
-dateStartInput.addEventListener('change', calculateHolidayAllowance);
-holidayYearStartInput.addEventListener('change', calculateHolidayAllowance);
-contractHolidayInput.addEventListener('input', calculateHolidayAllowance);
+        // Set up event listeners
+        dateStartInput.addEventListener('change', calculateHolidayAllowance);
+        holidayYearStartInput.addEventListener('change', calculateHolidayAllowance);
+        contractHolidayInput.addEventListener('input', calculateHolidayAllowance);
 
-// Set default holiday year to current year January 1st
-const today = new Date();
-holidayYearStartInput.value = `${today.getFullYear()}-01-01`;
+        // Set default holiday year to current year January 1st
+        const today = new Date();
+        holidayYearStartInput.value = `${today.getFullYear()}-01-01`;
         // DOM Elements
         const showFormButton = document.getElementById('showFormButton');
         const employeeModal = document.getElementById('employeeModal');
@@ -1374,26 +1377,96 @@ holidayYearStartInput.value = `${today.getFullYear()}-01-01`;
        
         // Delete employee
         function deleteEmployee(employeeId) {
-            if (confirm('Are you sure you want to delete this employee? This action cannot be undone.')) {
+            // Create modal elements
+            const modalOverlay = document.createElement('div');
+            modalOverlay.style.position = 'fixed';
+            modalOverlay.style.top = '0';
+            modalOverlay.style.left = '0';
+            modalOverlay.style.right = '0';
+            modalOverlay.style.bottom = '0';
+            modalOverlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            modalOverlay.style.display = 'flex';
+            modalOverlay.style.justifyContent = 'center';
+            modalOverlay.style.alignItems = 'center';
+            modalOverlay.style.zIndex = '1000';
+
+            const modalContent = document.createElement('div');
+            modalContent.style.backgroundColor = 'white';
+            modalContent.style.padding = '20px';
+            modalContent.style.borderRadius = '8px';
+            modalContent.style.width = '400px';
+            modalContent.style.maxWidth = '90%';
+
+            // Modal HTML content
+            modalContent.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #d9534f;">Confirm Deletion</h3>
+                    <p>Are you sure you want to mark this employee as past?</p>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Last Working Date:</label>
+                        <input type="date" id="leavingDate" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" max="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div id="deleteError" style="color: #d9534f; margin-bottom: 15px; display: none;"></div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button id="cancelDelete" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px;">Cancel</button>
+                    <button id="confirmDelete" style="padding: 8px 16px; background: #d9534f; color: white; border: none; border-radius: 4px;">Confirm</button>
+                </div>
+            `;
+
+            modalOverlay.appendChild(modalContent);
+            document.body.appendChild(modalOverlay);
+
+            // Modal functionality
+            const closeModal = () => {
+                document.body.removeChild(modalOverlay);
+            };
+
+            // Cancel button
+            document.getElementById('cancelDelete').addEventListener('click', closeModal);
+
+            // Confirm button
+            document.getElementById('confirmDelete').addEventListener('click', () => {
+                const dateInput = document.getElementById('leavingDate');
+                const errorDiv = document.getElementById('deleteError');
+                
+                if (!dateInput.value) {
+                    errorDiv.textContent = "Please select a date";
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                const [year, month, day] = dateInput.value.split('-');
+                const formattedDate = `${day}/${month}/${year}`;
+
                 fetch(`/updateinfo/employee/${employeeId}`, {
                     method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ended: formattedDate })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        showAlert('Employee deleted successfully!');
-                        loadEmployees();
+                        closeModal();
+                        location.reload(); // Or update UI as needed
                     } else {
-                        showAlert(data.message || 'Error deleting employee', 'error');
+                        throw new Error(data.message || 'Deletion failed');
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    showAlert('Failed to delete employee. Please try again.', 'error');
+                    errorDiv.textContent = error.message;
+                    errorDiv.style.display = 'block';
                 });
-            }
-        }
+            });
 
+            // Close when clicking outside modal
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+        }
+            
         // Download passport
         function downloadPassport(employeeId) {
             fetch(`/updateinfo/api/download-file/${employeeId}`)

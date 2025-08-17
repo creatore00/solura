@@ -68,7 +68,14 @@ app.get('/employees', isAuthenticated, (req, res) => {
 
     const pool = getPool(dbName); // Get the correct connection pool
 
-    const query = 'SELECT id, name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, dateStart, startHoliday, TotalHoliday, Accrued FROM Employees';
+    const query = `
+        SELECT id, name, lastName, email, phone, address, nin, wage, designation, 
+               position, contractHours, Salary, SalaryPrice, dateStart, startHoliday, 
+               TotalHoliday, Accrued 
+        FROM Employees 
+        WHERE situation IS NULL OR situation = ''
+    `;
+    
     pool.query(query, (err, results) => {
         if (err) {
             console.error('Error fetching data:', err);
@@ -285,9 +292,10 @@ app.delete('/employee/:id', isAuthenticated, async (req, res) => {
 
     const pool = getPool(dbName);
     const { id } = req.params;
+    const { ended } = req.body; // get date from frontend
 
     try {
-        // First get employee email before deletion
+        // First get employee email before updating
         const getEmployeeQuery = 'SELECT email FROM Employees WHERE id = ?';
         const [employeeRows] = await pool.promise().query(getEmployeeQuery, [id]);
 
@@ -297,28 +305,28 @@ app.delete('/employee/:id', isAuthenticated, async (req, res) => {
 
         const employeeEmail = employeeRows[0].email;
 
-        // Delete from company database
-        const deleteQuery = 'DELETE FROM Employees WHERE id = ?';
-        await pool.promise().query(deleteQuery, [id]);
+        // Update employee situation and ended date
+        const updateQuery = 'UPDATE Employees SET situation = ?, ended = ? WHERE id = ?';
+        await pool.promise().query(updateQuery, ['past', ended, id]);
 
         // Delete from main users table if exists
         const deleteUserQuery = 'DELETE FROM users WHERE email = ?';
         const [result] = await mainPool.promise().query(deleteUserQuery, [employeeEmail]);
 
         if (result.affectedRows > 0) {
-            console.log(`Also removed user access for ${employeeEmail}`);
+            console.log(`Removed user access for ${employeeEmail}`);
         }
 
         res.json({ 
             success: true, 
-            message: 'Employee and system access successfully removed'
+            message: 'Employee marked as past, leaving date stored, and system access removed'
         });
 
     } catch (err) {
-        console.error('Error during employee deletion:', err);
+        console.error('Error during employee status update:', err);
         res.status(500).json({ 
             success: false, 
-            message: 'Server error during deletion',
+            message: 'Server error during employee status update',
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
     }
