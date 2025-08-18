@@ -424,7 +424,83 @@
     });
 }
 
-        function showEmployeeModal(employee) {
+        async function showEmployeeModal(employee) {
+            // Function to fetch holiday year settings
+            async function fetchHolidayYearSettings() {
+                try {
+                    const response = await fetch('/pastemployees/settings/holiday-year');
+                    if (!response.ok) throw new Error('Failed to fetch holiday settings');
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error fetching holiday year settings:', error);
+                    return null;
+                }
+            }
+
+            // Function to calculate accrued holiday
+            async function calculateAccruedHoliday(employee) {
+                try {
+                    // First try to get holiday settings from employee object
+                    let holidaySettings = employee.HolidayYearStart ? {
+                        HolidayYearStart: employee.HolidayYearStart,
+                        HolidayYearEnd: employee.HolidayYearEnd
+                    } : null;
+
+                    // If not found in employee object, fetch from API
+                    if (!holidaySettings) {
+                        holidaySettings = await fetchHolidayYearSettings();
+                    }
+
+                    // Parse dates
+                    const contractStart = new Date(employee.dateStart);
+                    let contractEnd;
+                    
+                    // Parse ended date (dd/mm/yyyy) if exists
+                    if (employee.ended) {
+                        const [day, month, year] = employee.ended.split('/');
+                        contractEnd = new Date(`${year}-${month}-${day}`);
+                    } else {
+                        // If no end date, use today
+                        contractEnd = new Date();
+                    }
+                    
+                    const totalYearlyHoliday = employee.startHoliday || 0;
+                    
+                    // If we don't have holiday year settings, calculate simple proportion
+                    if (!holidaySettings || !holidaySettings.HolidayYearStart) {
+                        const daysInYear = 365; // Default to 365 days if no holiday year specified
+                        const daysWorked = (contractEnd - contractStart) / (1000 * 60 * 60 * 24);
+                        const accrued = (daysWorked / daysInYear) * totalYearlyHoliday;
+                        return Math.round(accrued * 10) / 10; // Round to 1 decimal place
+                    }
+                    
+                    // Parse holiday year dates
+                    const holidayYearStart = new Date(holidaySettings.HolidayYearStart);
+                    const holidayYearEnd = new Date(holidaySettings.HolidayYearEnd);
+                    
+                    // Determine the effective start date for calculation
+                    const effectiveStartDate = contractStart < holidayYearStart ? holidayYearStart : contractStart;
+                    
+                    // Calculate total days in holiday year
+                    const totalDaysInHolidayYear = (holidayYearEnd - holidayYearStart) / (1000 * 60 * 60 * 24) + 1;
+                    
+                    // Calculate days worked in holiday year
+                    const endDateForCalculation = contractEnd > holidayYearEnd ? holidayYearEnd : contractEnd;
+                    const daysWorked = (endDateForCalculation - effectiveStartDate) / (1000 * 60 * 60 * 24) + 1;
+                    
+                    // Calculate accrued holiday (pro-rata)
+                    const accruedHoliday = (daysWorked / totalDaysInHolidayYear) * totalYearlyHoliday;
+                    
+                    return Math.round(accruedHoliday * 10) / 10; // Round to 1 decimal place
+                } catch (e) {
+                    console.error("Error calculating accrued holiday:", e);
+                    return 0;
+                }
+            }
+            
+            // Calculate the accrued value
+            const accruedValue = await calculateAccruedHoliday(employee);
+            
             // Create modal container
             const modalContainer = document.createElement('div');
             modalContainer.innerHTML = `
@@ -461,11 +537,13 @@
                                         <h6 class="mt-4 mb-3">Dates</h6>
                                         <div class="mb-2"><strong>Start Date:</strong> ${formatDate(employee.dateStart)}</div>
                                         <div class="mb-2"><strong>End Date:</strong> ${formatToLongDate(employee.ended)}</div>
-                                        <div class="mb-2"><strong>Holiday Start:</strong> ${employee.startHoliday ? formatDate(employee.startHoliday) : 'Not specified'}</div>
                                         
                                         <h6 class="mt-4 mb-3">Leave Details</h6>
-                                        <div class="mb-2"><strong>Total Holiday:</strong> ${employee.TotalHoliday || '0'} days</div>
-                                        <div class="mb-2"><strong>Accrued Holiday:</strong> ${employee.Accrued || '0'} days</div>
+                                        <div class="mb-2"><strong>Holidays at Beginning of Contract:</strong> ${employee.startHoliday || '0'} days</div>
+                                        <div class="mb-2"><strong>Total Holiday Left at End of Contract:</strong> ${employee.TotalHoliday || '0'} days</div>
+                                        <div class="mb-2">
+                                        <strong>Holiday Used During Contract:</strong> ${((Number(employee.startHoliday) || 0) - (Number(employee.TotalHoliday) || 0) ) } days</div>
+                                        <div class="mb-2"><strong>Accrued Holiday From Start to End:</strong> ${accruedValue} days</div>
                                     </div>
                                 </div>
                                 

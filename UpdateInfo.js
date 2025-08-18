@@ -351,7 +351,7 @@ function updateAccruedHolidays(pool, callback) {
         }
 
         // 2. Get all employees
-        pool.query('SELECT id, name, lastName, startHoliday, dateStart, Accrued FROM Employees', (err, employees) => {
+        pool.query(`SELECT id, name, lastName, startHoliday, dateStart, Accrued FROM Employees WHERE situation IS NULL OR situation = ''`, (err, employees) => {
             if (err) return callback(err);
 
             let updatedCount = 0;

@@ -43,6 +43,38 @@ app.get('/employees', isAuthenticated, (req, res) => {
     });
 });
 
+// Endpoint to get holiday year settings
+app.get('/settings/holiday-year', isAuthenticated, (req, res) => {
+    const dbName = req.session.user.dbName;
+
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+
+    const query = `
+        SELECT HolidayYearStart, HolidayYearEnd 
+        FROM HolidayYearSettings 
+        LIMIT 1
+    `;
+    
+    pool.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching holiday year settings:', err);
+            res.status(500).json({ success: false, message: 'Server error' });
+            return;
+        }
+        
+        if (results.length === 0) {
+            res.status(404).json({ success: false, message: 'Holiday year settings not found' });
+            return;
+        }
+        
+        res.json(results[0]);
+    });
+});
+
 // Combined endpoint to download passport or visa file
 app.get('/api/download-document/:id/:type', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
