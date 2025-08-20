@@ -348,7 +348,7 @@ app.post('/submitData', isAuthenticated, async (req, res) => {
         console.log('PDF generated successfully');
 
         // 3. Get recipient emails and send
-        const [results] = await pool.promise().query('SELECT email FROM Employees');
+        const [results] = await pool.promise().query(`SELECT email FROM Employees WHERE situation IS NULL OR situation = ''`);
         const emailAddresses = results.map(result => result.email);
             
         await sendEmail(pdfBuffer, emailAddresses);
@@ -670,6 +670,66 @@ function isValidDate(dateString) {
 function generateUniqueId() {
     return Math.floor(1000000000000000 + Math.random() * 9000000000000000).toString();
 }
+
+// Function to retrieve Taxes
+app.get('/get-tax-holiday-percentages', (req, res) => {
+    const dbName = req.session.user.dbName;
+    const pool = getPool(dbName);
+
+    pool.query(
+        `SELECT tax, holiday, pension FROM rota_tax LIMIT 1`,
+        (err, results) => {
+            if (err) {
+                console.error('Error fetching tax/holiday percentages:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to fetch tax and holiday percentages' 
+                });
+            }
+
+            if (results.length === 0) {
+                // Return default values if no record found
+                return res.json({ 
+                    success: true,
+                    tax: 0,
+                    holiday: 0,
+                    pension: 0
+                });
+            }
+
+            res.json({ 
+                success: true,
+                tax: results[0].tax || 0,
+                holiday: results[0].holiday || 0,
+                pension: results[0].pension || 0
+            });
+        }
+    );
+});
+
+// Add a new endpoint to get employee pension status
+app.get('/get-employees-pension-status', (req, res) => {
+    const dbName = req.session.user.dbName;
+    const pool = getPool(dbName);
+
+    pool.query(
+        `SELECT name, lastName, pension_payer FROM Employees`,
+        (err, results) => {
+            if (err) {
+                console.error('Error fetching employee pension status:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    message: 'Failed to fetch employee pension status' 
+                });
+            }
+
+            res.json({ 
+                success: true,
+                data: results
+            });
+        }
+    );
+});
 
 // Function to retrieve previous week's rota data for entire week
 app.get('/get-previous-week-rota', (req, res) => {
@@ -1206,165 +1266,6 @@ app.post('/clearWeek', isAuthenticated, (req, res) => {
     });
 });
 
-// Route to Insert Holiday% data
-app.post('/save-holiday-percentage', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    const { holiday } = req.body;
-
-    // Validate the input
-    if (holiday === undefined || holiday < 0 || holiday > 100) {
-        return res.status(400).send('Invalid holiday percentage.');
-    }
-
-    // Update the rota_tax table
-    const sql = 'UPDATE rota_tax SET holiday = ? WHERE id = 1'; // 
-    pool.query(sql, [holiday], (err) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).send('Failed to save holiday percentage.');
-        }
-        res.send('Holiday percentage saved.');
-    });
-});
-
-// Route to handle Holiday% data
-app.get('/get-holiday-percentage', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    const sql = 'SELECT holiday FROM rota_tax WHERE id = 1'; // Assuming 'id = 1' identifies the relevant row
-
-    pool.query(sql, (err, results) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).send('Failed to retrieve holiday percentage.');
-        }
-        if (results.length > 0) {
-            res.json({ holiday: results[0].holiday });
-        } else {
-            res.json({ holiday: 0 }); // Default value if no record is found
-        }
-    });
-});
-
-// Route to Insert Tax% data
-app.post('/save-tax-percentage', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    const { tax } = req.body;
-
-    // Validate the input
-    if (tax === undefined || tax < 0 || tax > 100) {
-        return res.status(400).send('Invalid tax percentage.');
-    }
-
-    // Update the rota_tax table
-    const sql = 'UPDATE rota_tax SET tax = ? WHERE id = 1'; // 
-    pool.query(sql, [tax], (err) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).send('Failed to save tax percentage.');
-        }
-        res.send('Tax percentage saved.');
-    });
-});
-
-// Route to handle Tax% data
-app.get('/get-tax-percentage', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    const sql = 'SELECT tax FROM rota_tax WHERE id = 1'; // Assuming 'id = 1' identifies the relevant row
-
-    pool.query(sql, (err, results) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).send('Failed to retrieve tax percentage.');
-        }
-        if (results.length > 0) {
-            res.json({ tax: results[0].tax });
-        } else {
-            res.json({ tax: 0 }); // Default value if no record is found
-        }
-    });
-});
-
-// Route to Insert Pension% data
-app.post('/save-pension-percentage', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    const { pension } = req.body;
-
-    // Validate the input
-    if (pension === undefined || pension < 0 || pension > 100) {
-        return res.status(400).send('Invalid pension percentage.');
-    }
-
-    // Update the rota_tax table
-    const sql = 'UPDATE rota_tax SET pension = ? WHERE id = 1'; // 
-    pool.query(sql, [pension], (err) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).send('Failed to save pension percentage.');
-        }
-        res.send('Pension percentage saved.');
-    });
-});
-
-// Route to handle Pension% data
-app.get('/get-pension-percentage', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    const sql = 'SELECT pension FROM rota_tax WHERE id = 1'; // Assuming 'id = 1' identifies the relevant row
-
-    pool.query(sql, (err, results) => {
-        if (err) {
-            console.error('Database error:', err);
-            return res.status(500).send('Failed to retrieve pension percentage.');
-        }
-        if (results.length > 0) {
-            res.json({ pension: results[0].pension });
-        } else {
-            res.json({ pension: 0 }); // Default value if no record is found
-        }
-    });
-});
-
 // Route to handle fetching rota data
 app.get('/rota', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName; // Get the database name from the session
@@ -1403,132 +1304,6 @@ app.get('/rota', isAuthenticated, (req, res) => {
         });
 
         res.json(groupedData);
-    });
-});
-
-// Function to get forecast data for specific days
-app.get('/forecast/get', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-    const { dates } = req.query;
-
-    try {
-        const dateList = dates.split(',');
-
-        // Modified query to work without the date field
-        pool.query(
-            'SELECT day, customers, sales, labor FROM Forecast WHERE day IN (?) ORDER BY FIELD(day, ?)',
-            [dateList, dateList], // Pass the array twice for both IN and FIELD clauses
-            (err, results) => {
-                if (err) {
-                    console.error('Error fetching forecast data:', err);
-                    return res.status(500).json({ 
-                        success: false, 
-                        message: 'Error fetching forecast data' 
-                    });
-                }
-
-                res.json({ 
-                    success: true,
-                    data: results 
-                });
-            }
-        );
-    } catch (error) {
-        console.error('Error processing forecast request:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: 'Error processing request' 
-        });
-    }
-});
-
-// Function to save forecast data
-app.post('/forecast/save', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
-
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName); // Get the correct connection pool
-    const forecastData = req.body;
-
-    // Start transaction
-    pool.getConnection((err, connection) => {
-        if (err) {
-            console.error('Error getting database connection:', err);
-            return res.status(500).json({ 
-                success: false, 
-                message: 'Database connection error' 
-            });
-        }
-
-        connection.beginTransaction(async (err) => {
-            if (err) {
-                connection.release();
-                console.error('Error starting transaction:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Transaction error' 
-                });
-            }
-
-            try {
-                // Process each day's forecast data
-                for (const dayData of forecastData) {
-                    const { day, date, customers, sales, labor } = dayData;
-                    
-                    // Check if record exists
-                    const [existing] = await connection.promise().query(
-                        'SELECT id FROM Forecast WHERE day = ?', 
-                        [day]
-                    );
-
-                    if (existing.length > 0) {
-                        // Update existing record
-                        await connection.promise().query(
-                            `UPDATE Forecast 
-                             SET customers = ?, sales = ?, labor = ?
-                             WHERE day = ?`,
-                            [customers, sales, labor, day]
-                        );
-                    } else {
-                        // Insert new record
-                        await connection.promise().query(
-                            `INSERT INTO Forecast 
-                             (day, customers, sales, labor)
-                             VALUES (?, ?, ?, ?)`,
-                            [day, customers, sales, labor]
-                        );
-                    }
-                }
-
-                // Commit transaction
-                await connection.promise().commit();
-                connection.release();
-                
-                res.json({ 
-                    success: true, 
-                    message: 'Forecast saved successfully' 
-                });
-            } catch (error) {
-                // Rollback on error
-                await connection.promise().rollback();
-                connection.release();
-                
-                console.error('Error saving forecast:', error);
-                res.status(500).json({ 
-                    success: false, 
-                    message: 'Error saving forecast data' 
-                });
-            }
-        });
     });
 });
 

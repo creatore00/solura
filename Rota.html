@@ -855,7 +855,6 @@ input[type="date"]:read-only {
             <a href="Admin.html" class="navbar-brand">Solura Admin</a>
             <ul class="navbar-nav">
                 <li class="nav-item"><a href="#" class="nav-link active" data-tab="rota-tab">Rota</a></li>
-                <li class="nav-item"><a href="#" class="nav-link" data-tab="forecast-tab">Forecast</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="holiday-tab">Holidays</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="labor-cost-calculator">Labor Cost Report</a></li>
             </ul>
@@ -915,41 +914,9 @@ input[type="date"]:read-only {
                         <td class="day-total" data-day="friday"></td>
                         <td class="day-total" data-day="saturday"></td>
                         <td class="day-total" data-day="sunday"></td>
-                        <td id="weeklyHoursTotal"></td>
+                        <td id="weeklyHoursTotal">£0.00</td>
                         <td id="weeklySpentTotal"></td>
-                    </tr>
-                    <tr>
-                        <td colspan="10"></td>
-                        <td>Holiday Rate</td>
-                        <td>
-                            <input type="number" id="holidayPercentageInput" class="forecast-input" 
-                                   onchange="saveHolidayPercentage(this.value), calculateHolidayPercentage()">%
-                        </td>                
-                        <td id="result-holiday"></td>
-                    </tr>
-                    <tr>
-                        <td colspan="10"></td>
-                        <td>Tax Rate</td>
-                        <td>
-                            <input type="number" id="taxPercentageInput" class="forecast-input" 
-                                   onchange="saveTaxPercentage(this.value), calculateTaxPercentage()">%
-                        </td>                
-                        <td id="result-tax"></td>
-                    </tr>
-                    <tr>
-                        <td colspan="10"></td>
-                        <td>Pension Rate</td>
-                        <td>
-                            <input type="number" id="pensionPercentageInput" class="forecast-input" 
-                                   onchange="savePensionPercentage(this.value), calculatePensionPercentage()">%
-                        </td>                
-                        <td id="result-pension"></td>
-                    </tr>    
-                    <tr>
-                        <td colspan="11"></td>
-                        <td><strong>Total Cost Week</strong></td>              
-                        <td id="totalcostweek"><strong>£0.00</strong></td>
-                    </tr>             
+                    </tr>  
                 </tfoot>
             </table>
         </div>
@@ -1035,82 +1002,6 @@ input[type="date"]:read-only {
     </div>
         </div>
 
-        <!-- Forecast Tab -->
-        <div id="forecast-tab" class="tab-content">
-            <h1 class="header">Weekly Sales Forecast</h1>
-            
-            <div class="controls">
-                <input type="date" id="forecastWeekStart" class="date">
-                <button class="btn btn-success" onclick="updateForecastWeek(); updateLaborInputsFromDayTotals()">Load Week</button>
-                <button class="btn btn-success" onclick="saveForecastData()">
-                    <i class="fas fa-save"></i> Save Forecast
-                </button>
-            </div>
-
-            <table id="forecastTable">
-                <thead>
-                    <tr>
-                        <th>Metric</th>
-                        <th id="forecastMonday">Monday</th>
-                        <th id="forecastTuesday">Tuesday</th>
-                        <th id="forecastWednesday">Wednesday</th>
-                        <th id="forecastThursday">Thursday</th>
-                        <th id="forecastFriday">Friday</th>
-                        <th id="forecastSaturday">Saturday</th>
-                        <th id="forecastSunday">Sunday</th>
-                        <th>Weekly Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>IGNORE FOR NOW</td>
-                        <td><input type="number" class="forecast-input" data-day="monday" data-metric="customers"></td>
-                        <td><input type="number" class="forecast-input" data-day="tuesday" data-metric="customers"></td>
-                        <td><input type="number" class="forecast-input" data-day="wednesday" data-metric="customers"></td>
-                        <td><input type="number" class="forecast-input" data-day="thursday" data-metric="customers"></td>
-                        <td><input type="number" class="forecast-input" data-day="friday" data-metric="customers"></td>
-                        <td><input type="number" class="forecast-input" data-day="saturday" data-metric="customers"></td>
-                        <td><input type="number" class="forecast-input" data-day="sunday" data-metric="customers"></td>
-                        <td id="totalCustomers">0</td>
-                    </tr>
-                    <tr>
-                        <td>Forecast (£)</td>
-                        <td><input type="number" class="forecast-input" data-day="monday" data-metric="sales"></td>
-                        <td><input type="number" class="forecast-input" data-day="tuesday" data-metric="sales"></td>
-                        <td><input type="number" class="forecast-input" data-day="wednesday" data-metric="sales"></td>
-                        <td><input type="number" class="forecast-input" data-day="thursday" data-metric="sales"></td>
-                        <td><input type="number" class="forecast-input" data-day="friday" data-metric="sales"></td>
-                        <td><input type="number" class="forecast-input" data-day="saturday" data-metric="sales"></td>
-                        <td><input type="number" class="forecast-input" data-day="sunday" data-metric="sales"></td>
-                        <td id="totalSales">£0.00</td>
-                    </tr>
-                    <tr>
-                        <td>Labor Cost (£)</td>
-                        <td><input type="number" class="forecast-input" data-day="monday" data-metric="labor"></td>
-                        <td><input type="number" class="forecast-input" data-day="tuesday" data-metric="labor"></td>
-                        <td><input type="number" class="forecast-input" data-day="wednesday" data-metric="labor"></td>
-                        <td><input type="number" class="forecast-input" data-day="thursday" data-metric="labor"></td>
-                        <td><input type="number" class="forecast-input" data-day="friday" data-metric="labor"></td>
-                        <td><input type="number" class="forecast-input" data-day="saturday" data-metric="labor"></td>
-                        <td><input type="number" class="forecast-input" data-day="sunday" data-metric="labor"></td>
-                        <td id="totalLabor">£0.00</td>
-                    </tr>
-                    <tr>
-                        <td>Labor %</td>
-                        <td id="laborPercentMonday">0%</td>
-                        <td id="laborPercentTuesday">0%</td>
-                        <td id="laborPercentWednesday">0%</td>
-                        <td id="laborPercentThursday">0%</td>
-                        <td id="laborPercentFriday">0%</td>
-                        <td id="laborPercentSaturday">0%</td>
-                        <td id="laborPercentSunday">0%</td>
-                        <td id="totalLaborPercent">0%</td>
-                    </tr>
-                </tbody>
-            </table>
-        
-        </div>
-        
         <!-- LaborCost Tab -->
         <div id="labor-cost-calculator" class="tab-content">
     <div class="report-header">
@@ -1235,20 +1126,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // Initialize the rota
             fetchEmployeeData();
             displayCurrentWeek();
-            
-            // Load saved percentages
-            loadHolidayPercentage();
-            loadTaxPercentage();
-            loadPensionPercentage();
-            
-            // Initialize the forecast
-            updateForecastWeek();
-            setupForecastInputs();
+            getTotalPoundsValue();
             
             // Set today's date as default for both rota and forecast
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('weekStartDate').value = today;
-            document.getElementById('forecastWeekStart').value = today;
         });
 // Tab navigation setup
 function setupTabs() {
@@ -1268,7 +1150,7 @@ function setupTabs() {
                 });
             });
         }
-        
+// Initialize the application when the DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     // Set report date
     document.getElementById('reportDate').textContent = new Date().toLocaleDateString('en-GB', {
@@ -1404,7 +1286,7 @@ for (let i = 4; i < row.children.length - 2; i++) {
                 const lastYear = parseFloat(lastYearInput.value) || 0;
 
                 const actualHours = document.querySelector('#weeklyHoursTotal');
-                const actualCost = document.querySelector('#totalcostweek');
+                const actualCost = document.querySelector('#weeklySpentTotal');
                 const actualHoursCell = document.querySelector('#actualHours');
 
                 const actualHoursValue = parseFloat(actualHours.textContent.replace(/[^\d.-]/g, '')) || 0;
@@ -1507,7 +1389,7 @@ for (let i = 4; i < row.children.length - 2; i++) {
             createCompactSchedule();
         });
 });
-
+// Function to Generate and Send Report
 async function generateAndSendReport() {
     const submitBtn = document.getElementById('submitLaborReport');
     let originalBtnText = '';
@@ -1581,23 +1463,6 @@ async function generateAndSendReport() {
         }
     }
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    // Set initial week to current week when page loads
-    initializeForecastWeek();
-});
-// Function to Initialize Forecast Week
-function initializeForecastWeek() {
-    const today = new Date();
-    const monday = getMonday(today);
-    
-    // Format date for input field (YYYY-MM-DD)
-    const formattedDate = formatDateForInput(monday);
-    document.getElementById('forecastWeekStart').value = formattedDate;
-    
-    // Update the week display
-    updateForecastWeek();
-}
 // Helper Function
 function formatDateForInput(date) {
     if (!(date instanceof Date) || isNaN(date)) {
@@ -1610,56 +1475,6 @@ function formatDateForInput(date) {
     const day = String(date.getDate()).padStart(2, '0');
     
     return `${year}-${month}-${day}`;
-}
-// Helper Function
-function updateForecastWeek() {
-    const forecastWeekStart = document.getElementById('forecastWeekStart').value;
-    const date = new Date(forecastWeekStart);
-    
-    if (!isNaN(date)) {
-        const monday = getMonday(date);
-        const weekDates = getWeekDates(monday);
-        
-        // Update forecast table headers
-        updateForecastHeaders(weekDates);
-        
-        // Load forecast data for this week
-        loadForecastData(weekDates);
-    }
-}
-// Helper Function
-function updateForecastHeaders(weekDates) {
-    const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    
-    daysOfWeek.forEach((day, index) => {
-        const header = document.getElementById(`forecast${day}`);
-        if (header) {
-            const formattedDate = formatDate(weekDates[index]);
-            header.textContent = `${formattedDate} (${day})`;
-            header.dataset.date = formattedDate;
-            header.dataset.dayName = day; // Store day name for reference
-        }
-    });
-}
-// Function to update labor inputs from day totals
-function updateLaborInputsFromDayTotals() {
-    // Get all day-total cells
-    const dayTotalCells = document.querySelectorAll('.day-total[data-day]');
-    
-    dayTotalCells.forEach(cell => {
-        const day = cell.dataset.day;
-        // Extract £ value from complex string (handles "35.00h / £418.50" format)
-        const content = cell.textContent.trim();
-        const poundValueMatch = content.match(/£(\d+\.?\d*)/);
-        const value = poundValueMatch ? parseFloat(poundValueMatch[1]) : 0;
-        
-        // Find corresponding labor input
-        const laborInput = document.querySelector(`input[data-day="${day}"][data-metric="labor"]`);
-        if (laborInput) {
-            laborInput.value = value;
-        }
-    });
-    updateForecastTotals();
 }
 // Tab Key Listener
 document.addEventListener('keydown', function(event) {
@@ -1715,149 +1530,6 @@ document.addEventListener('keydown', function(event) {
         }
     }
 });
-// Helper Function
-function setupForecastInputs() {
-            const inputs = document.querySelectorAll('#forecastTable input');
-            inputs.forEach(input => {
-                input.addEventListener('input', updateForecastTotals);
-            });
-        }
-// Helper Function
-function updateForecastTotals() {
-            // Calculate totals for customers
-            const customerInputs = document.querySelectorAll('input[data-metric="customers"]');
-            let totalCustomers = 0;
-            customerInputs.forEach(input => {
-                totalCustomers += parseInt(input.value) || 0;
-            });
-            document.getElementById('totalCustomers').textContent = totalCustomers;
-            
-            // Calculate totals for sales
-            const salesInputs = document.querySelectorAll('input[data-metric="sales"]');
-            let totalSales = 0;
-            salesInputs.forEach(input => {
-                totalSales += parseFloat(input.value) || 0;
-            });
-            document.getElementById('totalSales').textContent = `£${totalSales.toFixed(2)}`;
-            
-            // Calculate totals for labor
-            const laborInputs = document.querySelectorAll('input[data-metric="labor"]');
-            let totalLabor = 0;
-            laborInputs.forEach(input => {
-                totalLabor += parseFloat(input.value) || 0;
-            });
-            document.getElementById('totalLabor').textContent = `£${totalLabor.toFixed(2)}`;
-            
-            // Calculate labor percentages
-            for (let i = 0; i < 7; i++) {
-                const daySales = parseFloat(salesInputs[i].value) || 1; // Avoid division by zero
-                const dayLabor = parseFloat(laborInputs[i].value) || 0;
-                const laborPercent = (dayLabor / daySales) * 100;
-                
-                const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                document.getElementById(`laborPercent${dayNames[i]}`).textContent = `${laborPercent.toFixed(1)}%`;
-            }
-            
-            // Calculate total labor percentage
-            const totalLaborPercent = (totalLabor / (totalSales || 1)) * 100;
-            document.getElementById('totalLaborPercent').textContent = `${totalLaborPercent.toFixed(1)}%`;
-        }
-// Helper Function
-async function loadForecastData(weekDates) {
-    try {
-        const formattedDates = weekDates.map(date => formatDateWithDay(date));
-        const response = await fetch(`/rota/forecast/get?dates=${formattedDates.join(',')}`);
-        
-        if (response.ok) {
-            const result = await response.json();
-            
-            // Check if we got successful response with data
-            if (result.success && result.data) {
-                // Populate the forecast inputs with the retrieved data
-                result.data.forEach(dayData => {
-                    const dayOfWeek = getWeekdayFromDate(dayData.day);
-                    if (dayOfWeek) {
-                        const dayLower = dayOfWeek.toLowerCase();
-                        
-                        // Set values only if they exist in the response
-                        const customersInput = document.querySelector(`input[data-day="${dayLower}"][data-metric="customers"]`);
-                        const salesInput = document.querySelector(`input[data-day="${dayLower}"][data-metric="sales"]`);
-                        const laborInput = document.querySelector(`input[data-day="${dayLower}"][data-metric="labor"]`);
-                        
-                        if (customersInput) customersInput.value = dayData.customers !== undefined ? dayData.customers : '';
-                        if (salesInput) salesInput.value = dayData.sales !== undefined ? dayData.sales : '';
-                        if (laborInput) laborInput.value = dayData.labor !== undefined ? dayData.labor : '';
-                    }
-                });
-                
-                updateForecastTotals();
-            }
-        } else {
-            console.error('Failed to load forecast data:', response.status);
-            // Initialize empty values if no data exists
-            initializeEmptyForecast();
-        }
-    } catch (error) {
-        console.error('Error loading forecast data:', error);
-        initializeEmptyForecast();
-    }
-}
-// Helper function to initialize empty forecast inputs
-function initializeEmptyForecast() {
-    const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    days.forEach(day => {
-        document.querySelector(`input[data-day="${day}"][data-metric="customers"]`).value = '';
-        document.querySelector(`input[data-day="${day}"][data-metric="sales"]`).value = '';
-        document.querySelector(`input[data-day="${day}"][data-metric="labor"]`).value = '';
-    });
-    updateForecastTotals();
-}
-// Function to Save and send Forecast Data
-async function saveForecastData() {
-            const weekStartDate = document.getElementById('forecastWeekStart').value;
-            const date = new Date(weekStartDate);
-            
-            if (isNaN(date)) {
-                showPopup('Invalid date selected', 'error');
-                return;
-            }
-            
-            const monday = getMonday(date);
-            const weekDates = getWeekDates(monday);
-            const forecastData = [];
-            
-            // Collect forecast data from inputs
-            const daysOfWeek = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-            daysOfWeek.forEach((day, index) => {
-                const formattedDate = formatDateWithDay(weekDates[index]);
-                
-                forecastData.push({
-                    day: formattedDate,
-                    customers: parseInt(document.querySelector(`input[data-day="${day}"][data-metric="customers"]`).value) || 0,
-                    sales: parseFloat(document.querySelector(`input[data-day="${day}"][data-metric="sales"]`).value) || 0,
-                    labor: parseFloat(document.querySelector(`input[data-day="${day}"][data-metric="labor"]`).value) || 0
-                });
-            });
-            
-            try {
-                const response = await fetch('/rota/forecast/save', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(forecastData),
-                });
-                
-                if (response.ok) {
-                    showPopup('Forecast saved successfully', 'success');
-                } else {
-                    throw new Error('Failed to save forecast');
-                }
-            } catch (error) {
-                console.error('Error saving forecast:', error);
-                showPopup('Error saving forecast', 'error');
-            }
-        }
 // Helper function to show popup messages
 function showPopup(message, type = 'success') {
             const popup = document.getElementById('popupMessage');
@@ -2053,6 +1725,7 @@ async function handleDrop(event) {
                 if (timeInputs[index]) {
                     timeInputs[index].value = time;
                 }
+                updateTotalHoursForRow(currentDraggedCell.closest('tr'));
             });
             
             // Copy background color
@@ -2072,10 +1745,7 @@ async function handleDrop(event) {
         // Update totals for both rows
         if (currentDraggedCell) {
             updateTotalHoursForRow(currentDraggedCell.closest('tr'));
-        }
-
-
-        
+        }        
         showPopup('Shift copied successfully', 'success');
     } catch (error) {
         console.error('Error handling drop:', error);
@@ -2142,111 +1812,6 @@ function showPopup(message, type = 'success') {
     setTimeout(() => {
         popup.classList.remove('show');
     }, 3000);
-}
-// Save holiday percentage dynamically when the value changes
-async function saveHolidayPercentage(percentage) {
-    if (percentage === "" || percentage < 0 || percentage > 100) {
-        alert('Please enter a valid percentage between 0 and 100.');
-        return;
-    }
-
-    try {
-        const response = await fetch('/rota/save-holiday-percentage', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ holiday: percentage }),
-        });
-
-        if (response.ok) {
-        } else {
-            console.error('Failed to save holiday percentage.');
-        }
-    } catch (error) {
-        console.error('Error saving holiday percentage:', error);
-    }
-}
-// Load saved holiday percentage when the page loads
-async function loadHolidayPercentage() {
-    try {
-        const response = await fetch('/rota/get-holiday-percentage');
-        if (response.ok) {
-            const data = await response.json();
-            const inputField = document.getElementById('holidayPercentageInput');
-            inputField.value = data.holiday || ''; // Set the saved value
-        } else {
-            console.error('Failed to load holiday percentage.');
-        }
-    } catch (error) {
-        console.error('Error loading holiday percentage:', error);
-    }
-}
-// Save Tax percentage dynamically when the value changes
-async function saveTaxPercentage(percentage) {
-    if (percentage === "" || percentage < 0 || percentage > 100) {
-        alert('Please enter a valid percentage between 0 and 100.');
-        return;
-    }
-    try {
-        const response = await fetch('/rota/save-tax-percentage', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ tax: percentage }),
-        });
-    } catch (error) {
-        console.error('Error saving tax percentage:', error);
-    }
-}
-// Load saved tax percentage when the page loads
-async function loadTaxPercentage() {
-    try {
-        const response = await fetch('/rota/get-tax-percentage');
-        if (response.ok) {
-            const data = await response.json();
-            const inputField = document.getElementById('taxPercentageInput');
-            inputField.value = data.tax || ''; // Set the saved value
-        } else {
-            console.error('Failed to load tax percentage.');
-        }
-    } catch (error) {
-        console.error('Error loading tax percentage:', error);
-    }
-}
-// Save Pension percentage dynamically when the value changes
-async function savePensionPercentage(percentage) {
-    if (percentage === "" || percentage < 0 || percentage > 100) {
-        alert('Please enter a valid percentage between 0 and 100.');
-        return;
-    }
-    try {
-        const response = await fetch('/rota/save-pension-percentage', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ pension: percentage }),
-        });
-    } catch (error) {
-        console.error('Error saving pension percentage:', error);
-    }
-}
-// Load saved pension percentage when the page loads
-async function loadPensionPercentage() {
-    try {
-        const response = await fetch('/rota/get-pension-percentage');
-        if (response.ok) {
-            const data = await response.json();
-            const inputField = document.getElementById('pensionPercentageInput');
-            inputField.value = data.pension || ''; // Set the saved value
-        } else {
-            console.error('Failed to load pension percentage.');
-        }
-    } catch (error) {
-        console.error('Error loading pension percentage:', error);
-    }
 }
 // Function to display current week
 function displayCurrentWeek() {
@@ -2588,6 +2153,8 @@ function fetchAndPopulateRotaTable() {
             });
             // Function to Fetch Holiday Data
             updateRotaWithHolidays();
+            // AFTER populating the table, add pension payer data to each row
+            addPensionPayerData();
             // After populating the table, check for empty cells and remove time frames if necessary
             checkAndRemoveEmptyTimeFrames();
             // Apply styles and event listeners
@@ -2716,6 +2283,7 @@ function updateTotalHoursForRow(row) {
     const totalSpentCell = row.querySelector('.total-spent');
     totalSpentCell.textContent = `£ ${totalSpent.toFixed(2)}`; // Round to 2 decimal places
     updateDailySpent();
+    getTotalPoundsValue();
 }
 // Function to update weekly totals
 function updateWeeklyTotals() {
@@ -2821,71 +2389,108 @@ function updateWeeklyTotals() {
     if (weeklySpentTotal) weeklySpentTotal.textContent = `£${weeklyTotalSpent.toFixed(2)}`;
 
     // Update other calculations
-    calculateHolidayPercentage();
-    calculateTaxPercentage();
-    calculatePensionPercentage();
-    calculateTotalCostWeek();
-    // Call this when you need to sync from day totals to labor inputs
-    updateLaborInputsFromDayTotals();
+    getTotalPoundsValue();
 }
 // Helper function to get the total pounds value
-function getTotalPoundsValue() {
-    // Try to get the value from weeklySpentTotal first
-    const weeklyTotalElement = document.getElementById('weeklySpentTotal');
-    if (weeklyTotalElement) {
-        const text = weeklyTotalElement.textContent.trim();
-        return parseFloat(text.replace('£', '')) || 0;
-    }
-    
-    // Fallback to total row if weeklySpentTotal not found
-    const totalRow = document.querySelector('#totalrow');
-    if (totalRow) {
-        // Try to find a cell containing £ (this might need adjustment based on your actual HTML)
-        const poundCells = totalRow.querySelectorAll('td:contains("£")');
-        if (poundCells.length > 0) {
-            const text = poundCells[0].textContent.trim();
-            const poundValue = text.split('£')[1] || text.replace('£', '');
-            return parseFloat(poundValue) || 0;
+async function getTotalPoundsValue() {
+    try {
+        let totalValue = 0;
+        const weeklyTotalElement = document.getElementById('weeklySpentTotal');
+        
+        if (weeklyTotalElement) {
+            const text = weeklyTotalElement.textContent.trim();
+            totalValue = parseFloat(text.replace('£', '')) || 0;
+        } else {
+            const totalRow = document.querySelector('#totalrow');
+            if (totalRow) {
+                const poundCells = totalRow.querySelectorAll('td');
+                for (let cell of poundCells) {
+                    if (cell.textContent.includes('£')) {
+                        const text = cell.textContent.trim();
+                        const poundValue = text.split('£')[1] || text.replace('£', '');
+                        totalValue = parseFloat(poundValue) || 0;
+                        break;
+                    }
+                }
+            }
         }
+
+        // Fetch percentages and calculate final value
+        const response = await fetch('/rota/get-tax-holiday-percentages');
+        const data = await response.json();
+
+        if (data.success) {
+            const taxPercentage = data.tax;
+            const holidayPercentage = data.holiday;
+            const pensionPercentage = data.pension;
+
+            const taxAmount = totalValue * (taxPercentage / 100);
+            const holidayAmount = totalValue * (holidayPercentage / 100);
+            
+            // Calculate pension amount only for employees who are pension payers
+            let pensionAmount = 0;
+            const employeeRows = document.querySelectorAll('#employeeRows tr');
+            
+            employeeRows.forEach(row => {
+                // Check if this employee is a pension payer
+                const isPensionPayer = row.getAttribute('data-pension-payer') === 'Yes';
+                if (isPensionPayer) {
+                    // Get this employee's total spent
+                    const totalSpentCell = row.querySelector('td:nth-child(13)');
+                    if (totalSpentCell) {
+                        const employeeTotal = parseFloat(totalSpentCell.textContent.replace('£', '')) || 0;
+                        pensionAmount += employeeTotal * (pensionPercentage / 100);
+                    }
+                }
+            });
+            
+            const finalValue = totalValue + taxAmount + holidayAmount + pensionAmount;
+
+            // update the cell with breakdown
+            if (weeklyTotalElement) {
+                weeklyTotalElement.innerHTML = `
+                    <div> £${finalValue.toFixed(2)}</div>
+                `;
+            }
+            return finalValue;
+        }
+
+        return totalValue;
+    } catch (error) {
+        console.error('Error calculating total value:', error);
+        return 0;
     }
-    
-    return 0;
 }
-// Calculates the holiday percentage of the total value
-function calculateHolidayPercentage() {
-    const percentageValue = parseFloat(document.getElementById('holidayPercentageInput').value) || 0;
-    const totalValue = getTotalPoundsValue();
-    const result = (percentageValue / 100) * totalValue;
-    const resultElement = document.getElementById('result-holiday');
-    if (resultElement) {
-        resultElement.textContent = `£${result.toFixed(2)}`;
+// Function to add pension payer data to each row
+async function addPensionPayerData() {
+    try {
+        const response = await fetch('/rota/get-employees-pension-status');
+        const employees = await response.json();
+        
+        if (employees.success) {
+            const employeeRows = document.querySelectorAll('#employeeRows tr');
+            
+            employeeRows.forEach(row => {
+                const nameCell = row.children[0]?.textContent.trim();
+                const lastNameCell = row.children[1]?.textContent.trim();
+                
+                // Find matching employee in the fetched data
+                const employee = employees.data.find(emp => 
+                    emp.name === nameCell && emp.lastName === lastNameCell
+                );
+                
+                if (employee) {
+                    // Set data attribute for pension payer status
+                    const pensionStatus = employee.pension_payer || 'No';
+                    row.setAttribute('data-pension-payer', pensionStatus);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error fetching employee pension status:', error);
     }
 }
-// Calculates the tax percentage of the total value
-function calculateTaxPercentage() {
-    const taxValue = parseFloat(document.getElementById('taxPercentageInput').value) || 0;
-    const totalValue = getTotalPoundsValue();
-    const result = (taxValue / 100) * totalValue;
-    const resultElement = document.getElementById('result-tax');
-    if (resultElement) {
-        resultElement.textContent = `£${result.toFixed(2)}`;
-    }
-}
-// Calculates the pension percentage of the total value
-function calculatePensionPercentage() {
-    const pensionValue = parseFloat(document.getElementById('pensionPercentageInput').value) || 0;
-    const totalValue = getTotalPoundsValue();
-    const result = (pensionValue / 100) * totalValue;
-    const resultElement = document.getElementById('result-pension');
-    if (resultElement) {
-        resultElement.textContent = `£${result.toFixed(2)}`;
-    }
-}
-// Make sure to call updateWeeklyTotals() when inputs change
-document.getElementById('holidayPercentageInput')?.addEventListener('input', calculateHolidayPercentage);
-document.getElementById('taxPercentageInput')?.addEventListener('input', calculateTaxPercentage);
-document.getElementById('pensionPercentageInput')?.addEventListener('input', calculatePensionPercentage);
-// Function to Calculate the Total Weekly Cost
+// Function to calculate the total cost of the week
 function calculateTotalCostWeek() {
     try {
         // Helper function to parse a value, remove £ symbol, and convert it to a float
@@ -2898,20 +2503,17 @@ function calculateTotalCostWeek() {
         };
 
         // Get the values from the relevant cells
-        const pensionValue = parseValue('#result-pension');
-        const taxValue = parseValue('#result-tax');
-        const holidayValue = parseValue('#result-holiday');
         const totalRowValue = getTotalPoundsValue();
 
         // Sum the values
-        const totalCost = pensionValue + taxValue + holidayValue + totalRowValue;
+        const totalCost = totalRowValue;
 
         // Update the total cost in the cell #totalcostweek
-        const totalCostWeekCell = document.querySelector('#totalcostweek');
+        const totalCostWeekCell = document.querySelector('#weeklySpentTotal');
         if (totalCostWeekCell) {
             totalCostWeekCell.textContent = `£ ${totalCost.toFixed(2)}`;
         } else {
-            console.error('Cell with ID #totalcostweek not found.');
+            console.error('Cell with ID #weeklySpentTotal not found.');
         }
     } catch (error) {
         console.error('Error calculating total cost for the week:', error);
@@ -2921,7 +2523,7 @@ function calculateTotalCostWeek() {
 async function updateWeeklyCostInDatabase() {
     try {
         // Get the total cost value
-        const totalCostWeekCell = document.querySelector('#totalcostweek');
+        const totalCostWeekCell = document.querySelector('#weeklySpentTotal');
         if (!totalCostWeekCell) {
             throw new Error('Total cost cell not found');
         }
@@ -3987,14 +3589,6 @@ window.onload = () => {
     fetchEmployeeData();
     // Display Curren Week
     displayCurrentWeek();
-    // Call the loader when the page loads
-    loadHolidayPercentage();
-    // Call the loader when the page loads
-    loadTaxPercentage();
-    // Call the loader when the page loads
-    loadPensionPercentage();
-    // Call the function when needed, e.g., after updates
-    calculateTotalCostWeek();
 };
 </script>
 </body>

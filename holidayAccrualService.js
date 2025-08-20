@@ -35,7 +35,7 @@ function updateAccruedHolidaysDaily(dbName, callback) {
             const holidayYearStart = new Date(holidayYearSettings.HolidayYearStart);
             const holidayYearEnd = new Date(holidayYearSettings.HolidayYearEnd);
             
-            connection.query('SELECT id, name, lastName, dateStart, startHoliday, accrued FROM Employees', (err, employees) => {
+            connection.query(`SELECT id, name, lastName, dateStart, startHoliday, accrued FROM Employees WHERE situation IS NULL OR situation = ''`, (err, employees) => {
                 if (err) {
                     connection.release();
                     return callback(err);

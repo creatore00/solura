@@ -32,7 +32,7 @@ app.post('/', isAuthenticated, upload, (req, res) => {
 
     console.log('Request Body:', req.body);
     // Destructure fields from req.body
-    const { name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart } = req.body;
+    const { name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart, pension_payer } = req.body;
     const passportImageFile = req.files['passportImage'] ? req.files['passportImage'][0] : null;
     const visaFile = req.files['visa'] ? req.files['visa'][0] : null;
 
@@ -46,9 +46,9 @@ app.post('/', isAuthenticated, upload, (req, res) => {
     const visaContent = visaFile ? visaFile.buffer : null;  // Visa can be null
 
     // Insert data into the database
-    const query = 'INSERT INTO Employees (name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, passportImage, visa, TotalHoliday, startHoliday, dateStart) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'INSERT INTO Employees (name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, passportImage, visa, TotalHoliday, startHoliday, dateStart, pension_payer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
-    pool.query(query, [name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, passportImageContent, visaContent, holiday, holiday, dateStart], (err, result) => {
+    pool.query(query, [name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, passportImageContent, visaContent, holiday, holiday, dateStart, pension_payer], (err, result) => {
         if (err) {
             console.error('Error inserting data:', err);
             res.status(500).json({ success: false, message: 'Server error' });
@@ -71,7 +71,7 @@ app.get('/employees', isAuthenticated, (req, res) => {
     const query = `
         SELECT id, name, lastName, email, phone, address, nin, wage, designation, 
                position, contractHours, Salary, SalaryPrice, dateStart, startHoliday, 
-               TotalHoliday, Accrued 
+               TotalHoliday, Accrued, pension_payer
         FROM Employees 
         WHERE situation IS NULL OR situation = ''
     `;
@@ -98,7 +98,7 @@ app.get('/edit-employee/:id', isAuthenticated, (req, res) => {
 
     pool.query(
         `SELECT id, name, lastName, email, phone, address, nin, wage, 
-         designation, position, contractHours, Salary, SalaryPrice, dateStart, startHoliday 
+         designation, position, contractHours, Salary, SalaryPrice, dateStart, startHoliday, pension_payer 
          FROM Employees WHERE id = ?`,
         [id],
         (err, rows) => {
@@ -140,7 +140,7 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
     const pool = getPool(dbName);
     const { id } = req.params;
     const { name, lastName, email, phone, address, nin, wage, 
-           designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart } = req.body;
+           designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart, pension_payer } = req.body;
 
     // First get the current employee data to compare holiday values
     pool.query('SELECT startHoliday, TotalHoliday FROM Employees WHERE id = ?', [id], (err, currentData) => {
@@ -171,12 +171,12 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
         let query = `UPDATE Employees SET 
             name = ?, lastName = ?, email = ?, phone = ?, address = ?,
             nin = ?, wage = ?, designation = ?, position = ?, contractHours = ?, Salary = ?, SalaryPrice =?,
-            dateStart = ?, startHoliday = ?, TotalHoliday = ?`;
+            dateStart = ?, startHoliday = ?, TotalHoliday = ?, pension_payer = ?`;
         
         const queryParams = [
             name, lastName, email, phone, address, 
             nin, wage, designation, position, contractHours, Salary, SalaryPrice,
-            dateStart, holiday, updatedTotalHoliday
+            dateStart, holiday, updatedTotalHoliday, pension_payer
         ];
 
         // Add file updates if provided
@@ -330,106 +330,6 @@ app.delete('/employee/:id', isAuthenticated, async (req, res) => {
             error: process.env.NODE_ENV === 'development' ? err.message : undefined
         });
     }
-});
-
-// Function to Update Accrued Holidays
-function updateAccruedHolidays(pool, callback) {
-    // 1. Get holiday year settings
-    pool.query('SELECT HolidayYearStart, HolidayYearEnd FROM HolidayYearSettings LIMIT 1', (err, yearSettings) => {
-        if (err) return callback(err);
-        if (!yearSettings || yearSettings.length === 0) {
-            return callback(new Error('Holiday year settings not found'));
-        }
-
-        const holidayYearStart = new Date(yearSettings[0].HolidayYearStart);
-        const holidayYearEnd = new Date(yearSettings[0].HolidayYearEnd);
-        const currentDate = new Date();
-
-        // Only run if current date is within holiday year
-        if (currentDate < holidayYearStart || currentDate > holidayYearEnd) {
-            return callback(null, { message: 'Not currently within holiday year - no updates made' });
-        }
-
-        // 2. Get all employees
-        pool.query(`SELECT id, name, lastName, startHoliday, dateStart, Accrued FROM Employees WHERE situation IS NULL OR situation = ''`, (err, employees) => {
-            if (err) return callback(err);
-
-            let updatedCount = 0;
-            const updatePromises = employees.map(employee => {
-                return new Promise((resolve) => {
-                    const employeeStartDate = new Date(employee.dateStart);
-                    const startHoliday = parseFloat(employee.startHoliday) || 0;
-                    let monthlyAccrual = 0;
-
-                    if (employeeStartDate <= holidayYearStart) {
-                        // Full year entitlement
-                        monthlyAccrual = startHoliday / 12;
-                    } else if (employeeStartDate <= holidayYearEnd) {
-                        // Pro-rated for mid-year starters
-                        const monthsRemaining = monthDiff(employeeStartDate, holidayYearEnd);
-                        monthlyAccrual = monthsRemaining > 0 ? startHoliday / monthsRemaining : 0;
-                    }
-
-                    monthlyAccrual = Math.round(monthlyAccrual * 100) / 100;
-                    const newAccrued = (parseFloat(employee.Accrued) || 0 + monthlyAccrual);
-
-                    pool.query(
-                        'UPDATE Employees SET Accrued = ? WHERE id = ?',
-                        [newAccrued, employee.id],
-                        (err) => {
-                            if (err) {
-                                console.error(`Error updating ${employee.name} ${employee.lastName}:`, err);
-                                return resolve();
-                            }
-                            updatedCount++;
-                            resolve();
-                        }
-                    );
-                });
-            });
-
-            Promise.all(updatePromises)
-                .then(() => callback(null, { 
-                    message: `Successfully updated ${updatedCount} employees`,
-                    updatedCount
-                }))
-                .catch(err => callback(err));
-        });
-    });
-}
-
-// Helper function to calculate months between dates
-function monthDiff(startDate, endDate) {
-    let months = (endDate.getFullYear() - startDate.getFullYear()) * 12;
-    months -= startDate.getMonth();
-    months += endDate.getMonth();
-    return months <= 0 ? 0 : months + 1; // Include both start and end months
-}
-
-app.post('/update-accrued-holidays', isAuthenticated, isAdmin, (req, res) => {
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
-    
-    updateAccruedHolidays(pool, (err, result) => {
-        if (err) {
-            console.error('Error updating accrued holidays:', err);
-            return res.status(500).json({ 
-                success: false, 
-                message: 'Error updating accrued holidays',
-                error: process.env.NODE_ENV === 'development' ? err.message : undefined
-            });
-        }
-        
-        res.json({ 
-            success: true, 
-            message: result.message,
-            updatedCount: result.updatedCount
-        });
-    });
 });
 
 // Route to serve the PersonalInfo.html file

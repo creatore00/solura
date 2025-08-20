@@ -714,7 +714,18 @@
                     <div class="form-col">
                         <div class="form-group">
                             <label for="contractHours" class="form-label">Contractual Hours</label>
-                            <input type="text" id="contractHours" name="contractHours" class="form-control" placeholder="e.g 35" inputmode="numeric" pattern="[0-9]*" required>                            
+                            <input type="text" id="contractHours" name="contractHours" class="form-control" placeholder="e.g 35" inputmode="numeric" pattern="[0-9]*" required>
+                            <label class="form-label">Pension</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="yespension_payer" name="pension_payer" value="Yes">
+                                        <label for="yespension_payer">Yes</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="nopension_payer" name="pension_payer" value="No" checked>
+                                        <label for="nopension_payer">No</label>
+                                    </div>
+                                </div>                            
                         </div>
                         <div class="form-col">
                             <div class="form-group">
@@ -790,13 +801,13 @@
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="editName" class="form-label">First Name</label>
-                                <input type="text" id="editName" name="name" class="form-control" placeholder="Jhon" required>
+                                <input type="text" id="editName" name="name" class="form-control" placeholder="Jhon" readonly>
                             </div>
                         </div>
                         <div class="form-col">
                             <div class="form-group">
                                 <label for="editLastName" class="form-label">Last Name</label>
-                                <input type="text" id="editLastName" name="lastName" class="form-control" placeholder="Ross" required>
+                                <input type="text" id="editLastName" name="lastName" class="form-control" placeholder="Ross" readonly>
                             </div>
                         </div>
                     </div>
@@ -820,6 +831,17 @@
                         <div class="form-group">
                             <label for="editcontractHours" class="form-label">Contractual Hours</label>
                             <input type="text" id="editcontractHours" name="contractHours" class="form-control" placeholder="e.g 35" inputmode="numeric" pattern="[0-9]*" required>
+                            <label class="form-label">Pension</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="edityespension_payer" name="pension_payer" value="Yes">
+                                        <label for="edityespension_payer">Yes</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="editnopension_payer" name="pension_payer" value="No" checked>
+                                        <label for="editnopension_payer">No</label><br>
+                                    </div>
+                                </div>
                         </div>
                         <div class="form-col">
                             <div class="form-group">
@@ -1143,7 +1165,7 @@
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
                                     <button class="btn btn-sm btn-danger delete-btn" data-employee-id="${employee.id}">
-                                        <i class="fas fa-trash"></i> Delete
+                                        <i class="fas fa-trash"></i> Remove
                                     </button>
                                 </div>
                             </td>
@@ -1267,6 +1289,10 @@
             radio.checked = false;
             console.log('Salary option:', radio.value); // Debug
         });
+        document.querySelectorAll('input[name="pension_payer"]').forEach(radio => {
+            radio.checked = false;
+            console.log('Pension option:', radio.value); // Debug
+        });
         
         // Set designation radio button (case-sensitive exact match)
         if (data.designation) {
@@ -1330,6 +1356,28 @@
                 // Fallback to first option
                 if (positionRadios.length > 0) {
                     positionRadios[0].checked = true;
+                }
+            }
+        }
+
+        // Set position radio button (case-sensitive exact match)
+        if (data.pension_payer) {
+            const pensionRadios = document.querySelectorAll('input[name="pension_payer"]');
+            let found = false;
+            
+            pensionRadios.forEach(radio => {
+                if (radio.value === data.pension_payer) {
+                    radio.checked = true;
+                    found = true;
+                    console.log('Matched pension:', radio.value); // Debug
+                }
+            });
+            
+            if (!found) {
+                console.warn(`No radio button matches pension: ${data.Pension}`);
+                // Fallback to first option
+                if (pensionRadios.length > 0) {
+                    pensionRadios[0].checked = true;
                 }
             }
         }
