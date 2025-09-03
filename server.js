@@ -95,6 +95,22 @@ cron.schedule('0 0 1 * *', async () => {
     scheduled: true,
     timezone: 'Europe/London' // Specify your timezone
 });
+
+// Function to generate a JWT token
+function generateToken(user) {
+    return jwt.sign(
+        { 
+            email: user.email, 
+            role: user.role, 
+            name: user.name, 
+            lastName: user.lastName, 
+            dbName: user.dbName 
+        },
+        process.env.JWT_SECRET || 'your-secret-key', // Use environment variable for production
+        { expiresIn: '7d' } // Token expires in 7 days
+    );
+}
+
 // Route to handle login and database selection
 app.post('/submit', (req, res) => {
     const { email, password, dbName } = req.body;
@@ -178,13 +194,18 @@ app.post('/submit', (req, res) => {
             const lastName = companyResults[0].lastName;
 
             // Step 5: Store user information in session
-            req.session.user = {
+            const userInfo = {
                 email: email,
                 role: userDetails.access,
                 name: name,
                 lastName: lastName,
                 dbName: userDetails.db_name,
             };
+            
+            req.session.user = userInfo;
+
+            // Generate JWT token for biometric storage
+            const authToken = generateToken(userInfo);
 
             // Explicitly save the session
             req.session.save((err) => {
@@ -197,11 +218,23 @@ app.post('/submit', (req, res) => {
                 const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
 
                 if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    return res.json({ success: true, redirectUrl: `/Admin.html${queryString}` });
+                    return res.json({ 
+                        success: true, 
+                        redirectUrl: `/Admin.html${queryString}`,
+                        token: authToken // Send token to client for biometric storage
+                    });
                 } else if (userDetails.access === 'user') {
-                    return res.json({ success: true, redirectUrl: `/User.html${queryString}` });
+                    return res.json({ 
+                        success: true, 
+                        redirectUrl: `/User.html${queryString}`,
+                        token: authToken // Send token to client for biometric storage
+                    });
                 } else if (userDetails.access === 'supervisor') {
-                    return res.json({ success: true, redirectUrl: `/Supervisor.html${queryString}` });
+                    return res.json({ 
+                        success: true, 
+                        redirectUrl: `/Supervisor.html${queryString}`,
+                        token: authToken // Send token to client for biometric storage
+                    });
                 } else {
                     return res.status(401).json({ message: 'Incorrect email or password' });
                 }
@@ -209,6 +242,68 @@ app.post('/submit', (req, res) => {
         });
     });
 });
+
+// Route to verify biometric authentication
+app.post('/verify-biometric', async (req, res) => {
+    try {
+        // Verify the biometric authentication
+        const verified = await NativeBiometric.isAvailable();
+        
+        if (!verified.isAvailable) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Biometric authentication not available' 
+            });
+        }
+
+        // Get the stored credentials
+        const credentials = await NativeBiometric.getCredentials({
+            server: 'solura.uk' // Use a unique identifier for your app
+        });
+
+        // Verify the token from the stored credentials
+        const token = credentials.password;
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        
+        // Set up the session
+        req.session.user = decoded;
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+            
+            // Return user information and redirect URL
+            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}`;
+            
+            let redirectUrl;
+            if (decoded.role === 'admin' || decoded.role === 'AM') {
+                redirectUrl = `/Admin.html${queryString}`;
+            } else if (decoded.role === 'user') {
+                redirectUrl = `/User.html${queryString}`;
+            } else if (decoded.role === 'supervisor') {
+                redirectUrl = `/Supervisor.html${queryString}`;
+            } else {
+                return res.status(401).json({ message: 'Invalid user role' });
+            }
+            
+            res.json({
+                success: true,
+                redirectUrl: redirectUrl,
+                user: decoded
+            });
+        });
+        
+    } catch (error) {
+        console.error('Biometric verification failed:', error);
+        res.status(401).json({ 
+            success: false, 
+            message: 'Biometric authentication failed' 
+        });
+    }
+});
+
 // Route to get user's accessible databases
 app.post('/getUserDatabases', (req, res) => {
     const { email } = req.body;
@@ -239,6 +334,7 @@ app.post('/getUserDatabases', (req, res) => {
         });
     });
 });
+
 // Route to switch databases
 app.post('/switchDatabase', (req, res) => {
     const { email, dbName } = req.body;
@@ -277,16 +373,20 @@ app.post('/switchDatabase', (req, res) => {
         });
     });
 });
+
 // Apply isAuthenticated middleware to all protected routes
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
+
 app.get('/User.html', isAuthenticated, isUser, (req, res) => {
     res.sendFile(path.join(__dirname, 'User.html'));
 });
+
 app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
     res.sendFile(path.join(__dirname, 'Supervisor.html'));
 });
+
 app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
@@ -339,6 +439,7 @@ app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
         res.status(500).json({ success: false, error: 'Server error' });
     }
 });
+
 app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
@@ -391,6 +492,7 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
         res.status(500).json({ success: false, error: 'Server error' });
     }
 });
+
 // Helper function to get current Monday's date in YYYY-MM-DD format
 function getCurrentMonday() {
     const today = new Date();
@@ -399,6 +501,7 @@ function getCurrentMonday() {
     const monday = new Date(today.setDate(diff));
     return monday.toISOString().split('T')[0];
 }
+
 // Endpoint to get employees on shift today
 app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
@@ -515,6 +618,7 @@ app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
         }
     );
 });
+
 // Function to get labor cost
 app.get('/api/labor-cost', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
@@ -554,9 +658,17 @@ app.get('/api/labor-cost', isAuthenticated, (req, res) => {
         }
     );
 });
+
 // Route to handle logout
 app.get('/logout', (req, res) => {
     if (req.session && req.session.user) {
+        // Delete biometric credentials on logout
+        NativeBiometric.deleteCredentials({
+            server: 'solura.uk'
+        }).catch(err => {
+            console.error('Failed to delete biometric credentials:', err);
+        });
+        
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to destroy session:', err);
@@ -569,10 +681,12 @@ app.get('/logout', (req, res) => {
         res.redirect('/');
     }
 });
+
 // Serve your HTML or other routes here...
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'Login.html'));
 });
+
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
     // Start holiday accrual updates for these databases

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="Front.ico" type="image/png">
     <title>Enterprise Login | Data Management Suite</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --primary-color: #001f3f; /* Navy blue */
@@ -15,57 +16,164 @@
             --light-text: #777;
             --background-color: #ffffff;
             --input-bg: #f8f9fa;
+            --gradient-start: #001f3f;
+            --gradient-end: #0074D9;
+            --success-color: #2ecc71;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
         
         body {
-            margin: 0;
             font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
             display: flex;
             height: 100vh;
             overflow: hidden;
             align-items: center;
             justify-content: center;
-            background-color: var(--background-color);
-            background-image: linear-gradient(135deg, rgba(0, 31, 63, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
+            background-color: #f5f7fa;
             color: var(--text-color);
-        }
-        
-        .login-container {
-            background: var(--background-color);
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 31, 63, 0.15);
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-            animation: fadeIn 0.6s ease;
-            border: 1px solid rgba(0, 31, 63, 0.1);
             position: relative;
-            overflow: hidden;
         }
         
-        .login-container::before {
+        body::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 6px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0, 31, 63, 0.05) 0%, rgba(255, 255, 255, 0.1) 100%);
+            z-index: -1;
         }
         
-        .login-container h2 {
-            color: var(--primary-color);
+        .login-wrapper {
+            display: flex;
+            width: 90%;
+            max-width: 1100px;
+            height: 600px;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            animation: fadeIn 0.8s ease;
+        }
+        
+        .graphic-side {
+            flex: 1;
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: white;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .graphic-side::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            right: -50px;
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .graphic-side::after {
+            content: '';
+            position: absolute;
+            bottom: -80px;
+            left: -80px;
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .logo-container {
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        
+        .logo {
             font-size: 28px;
-            margin-bottom: 10px;
+            font-weight: 700;
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            margin-bottom: 15px;
+        }
+        
+        .graphic-content h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
             font-weight: 600;
         }
         
-        .login-container p {
+        .graphic-content p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            opacity: 0.9;
+        }
+        
+        .features {
+            list-style: none;
+            margin-top: 30px;
+        }
+        
+        .features li {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+        }
+        
+        .features i {
+            margin-right: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .form-side {
+            flex: 1;
+            background: var(--background-color);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .form-container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        
+        .form-container h2 {
+            color: var(--primary-color);
+            font-size: 28px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        
+        .form-container .subtitle {
             color: var(--light-text);
             margin-bottom: 30px;
             font-size: 16px;
-            line-height: 1.5;
         }
         
         .login-form {
@@ -74,7 +182,7 @@
         
         .form-group {
             margin-bottom: 20px;
-            text-align: left;
+            position: relative;
         }
         
         .form-group label {
@@ -87,12 +195,28 @@
             letter-spacing: 0.5px;
         }
         
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-with-icon i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--light-text);
+        }
+        
+        .input-with-icon input {
+            padding-left: 45px;
+        }
+        
         .form-group input {
             width: 100%;
             padding: 14px 16px;
             box-sizing: border-box;
             border: 1px solid #ddd;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 16px;
             transition: all 0.3s;
             background-color: var(--input-bg);
@@ -104,12 +228,21 @@
             box-shadow: 0 0 0 3px rgba(0, 116, 217, 0.1);
         }
         
-        .form-group button {
-            background-color: var(--primary-color);
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: var(--light-text);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
             color: white;
             padding: 14px 20px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             width: 100%;
             transition: all 0.3s ease;
@@ -117,28 +250,58 @@
             font-weight: 500;
             margin-top: 10px;
             letter-spacing: 0.5px;
-        }
-        
-        .form-group button:hover {
-            background-color: var(--secondary-color);
-            transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2);
         }
         
-        .form-group button:active {
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 31, 63, 0.3);
+        }
+        
+        .btn-primary:active {
             transform: translateY(0);
         }
         
-        a {
-            text-decoration: none;
+        .biometric-option {
+            margin-top: 25px;
+            text-align: center;
+            padding: 15px;
+            border: 1px dashed #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .biometric-option:hover {
+            border-color: var(--accent-color);
+            background-color: rgba(0, 116, 217, 0.05);
+        }
+        
+        .biometric-option i {
+            font-size: 24px;
             color: var(--accent-color);
-            display: inline-block;
+            margin-bottom: 8px;
+        }
+        
+        .biometric-option p {
+            font-size: 14px;
+            color: var(--light-text);
+        }
+        
+        .links {
+            display: flex;
+            justify-content: space-between;
             margin-top: 20px;
             font-size: 14px;
+        }
+        
+        .links a {
+            text-decoration: none;
+            color: var(--accent-color);
             transition: color 0.3s;
         }
         
-        a:hover {
+        .links a:hover {
             color: var(--primary-color);
             text-decoration: underline;
         }
@@ -147,47 +310,49 @@
             margin-top: 30px;
             font-size: 12px;
             color: var(--light-text);
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            text-align: center;
         }
         
         /* Database Popup Styles */
         #databasePopup {
             display: none;
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 15px 35px rgba(0, 31, 63, 0.2);
-            z-index: 1000;
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-            border: 1px solid rgba(0, 31, 63, 0.1);
-            animation: fadeIn 0.4s ease;
-        }
-        
-        #databasePopup::before {
-            content: '';
-            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 6px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
         }
         
-        #databasePopup h3 {
+        .popup-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 31, 63, 0.2);
+            width: 90%;
+            max-width: 450px;
+            text-align: center;
+            position: relative;
+            animation: popIn 0.4s ease;
+        }
+        
+        .popup-header {
             margin-bottom: 20px;
-            font-size: 20px;
+        }
+        
+        .popup-header h3 {
+            font-size: 22px;
             color: var(--primary-color);
             font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .popup-header p {
+            color: var(--light-text);
+            font-size: 15px;
         }
         
         #databaseList {
@@ -200,57 +365,115 @@
         }
         
         #databaseList li {
-            margin: 12px 0;
-            padding: 10px;
-            border-radius: 5px;
+            margin: 10px 0;
+            padding: 12px 15px;
+            border-radius: 8px;
             transition: background 0.2s;
+            border: 1px solid #eee;
         }
         
         #databaseList li:hover {
             background-color: rgba(0, 31, 63, 0.05);
+            border-color: var(--light-accent);
         }
         
         #databaseList input {
             margin-right: 12px;
         }
         
-        #databasePopup button {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 12px 24px;
+        .popup-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .popup-btn {
+            padding: 10px 20px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            margin-top: 10px;
             transition: all 0.3s ease;
             font-weight: 500;
         }
         
-        #databasePopup button:hover {
-            background-color: var(--secondary-color);
+        .popup-btn.primary {
+            background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+            color: white;
         }
         
-        #databasePopup button.close-btn {
+        .popup-btn.secondary {
             background-color: #f8f9fa;
             color: var(--text-color);
-            margin-left: 10px;
             border: 1px solid #ddd;
         }
         
-        #databasePopup button.close-btn:hover {
-            background-color: #e9ecef;
+        .popup-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         /* Responsive adjustments */
-        @media (max-width: 600px) {
-            .login-container {
-                padding: 30px 20px;
-                margin: 0 15px;
+        @media (max-width: 900px) {
+            .login-wrapper {
+                flex-direction: column;
+                height: auto;
+                max-width: 500px;
             }
             
-            #databasePopup {
+            .graphic-side {
+                padding: 30px;
+                order: 2;
+            }
+            
+            .form-side {
+                padding: 30px;
+                order: 1;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .login-wrapper {
                 width: 95%;
-                padding: 25px 15px;
+            }
+            
+            .graphic-side, .form-side {
+                padding: 25px 20px;
+            }
+            
+            .popup-content {
+                padding: 20px 15px;
+            }
+            
+            .links {
+                flex-direction: column;
+                gap: 10px;
+                align-items: center;
             }
         }
     </style>
@@ -258,93 +481,246 @@
 <body>
     <!-- Database Selection Popup -->
     <div id="databasePopup">
-        <h3>Select Account</h3>
-        <p>Your account has access to multiple Accounts. Please select one to continue.</p>
-        <ul id="databaseList"></ul>
-        <button onclick="submitDatabase()">Continue</button>
-        <button onclick="closePopup()" class="close-btn">Cancel</button>
+        <div class="popup-content">
+            <div class="popup-header">
+                <h3>Select Account</h3>
+                <p>Your account has access to multiple databases. Please select one to continue.</p>
+            </div>
+            <ul id="databaseList"></ul>
+            <div class="popup-actions">
+                <button class="popup-btn primary" onclick="submitDatabase()">Continue</button>
+                <button class="popup-btn secondary" onclick="closePopup()">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <!-- Login Container -->
-    <div class="login-container">
-        <h2>Welcome Back</h2>
-        <p>Sign in to access your Enterprise Data Management Suite. Manage your databases, analyze performance metrics, and collaborate with your team.</p>
-        
-        <form class="login-form" id="loginForm" action="" method="post">
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required placeholder="your.email@company.com">
+    <div class="login-wrapper">
+        <div class="graphic-side">
+            <div class="logo-container">
+                <div class="logo">ENTERPRISE SUITE</div>
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="••••••••">
+            <div class="graphic-content">
+                <h2>Enterprise Data Management</h2>
+                <p>Access your powerful data management tools, analyze performance metrics, and collaborate with your team seamlessly.</p>
+                
+                <ul class="features">
+                    <li><i class="fas fa-shield-alt"></i> Enterprise-grade security</li>
+                    <li><i class="fas fa-database"></i> Multi-database support</li>
+                    <li><i class="fas fa-chart-line"></i> Advanced analytics</li>
+                    <li><i class="fas fa-users"></i> Team collaboration tools</li>
+                </ul>
             </div>
-            <div class="form-group">
-                <button type="submit">Sign In</button>
+        </div>
+        
+        <div class="form-side">
+            <div class="form-container">
+                <h2>Welcome Back</h2>
+                <p class="subtitle">Sign in to your account</p>
+                
+                <form class="login-form" id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" id="email" name="email" required placeholder="your.email@company.com">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="input-with-icon">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" id="password" name="password" required placeholder="••••••••">
+                            <span class="password-toggle" onclick="togglePassword()">
+                                <i class="fas fa-eye"></i>
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary" id="loginButton">
+                        <span>Sign In</span>
+                    </button>
+                    
+                    <div class="biometric-option" id="biometricOption" onclick="loginWithBiometrics()">
+                        <i class="fas fa-fingerprint"></i>
+                        <p>Use Biometric Authentication</p>
+                    </div>
+                    
+                    <div class="links">
+                        <a href="/ForgotPassword" id="forgotPasswordLink">Forgot password?</a>
+                        <a href="#" id="helpLink">Need help?</a>
+                    </div>
+                </form>
+                
+                <div class="powered-by">
+                    Enterprise Data Management Suite v3.2 · Secure Login
+                </div>
             </div>
-        </form>
-        
-        <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
-        
-        <div class="powered-by">
-            Enterprise Data Management Suite v3.2 · Secure Login
         </div>
     </div>
 
     <script>
         let databases = []; // Store databases for selection
+        let storedCredentials = false;
         
-        function submitForm(event) {
-            event.preventDefault(); // Prevent default form submission
-
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            // Show loading state
-            const submitBtn = document.querySelector('#loginForm button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner"></span> Authenticating...';
-
-            // Send a POST request to the server
-            fetch('/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include', // Include cookies
-                body: JSON.stringify({ email, password }),
-            })
-            .then(response => response.json())
-            .then(data => {
+        // Check for biometric support on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkBiometricSupport();
+            checkStoredCredentials();
+        });
+        
+        // Check if biometric authentication is available
+        async function checkBiometricSupport() {
+            try {
+                // This would normally use the NativeBiometric plugin
+                // For demo purposes, we're simulating the check
+                const biometricOption = document.getElementById('biometricOption');
+                
+                // Simulate checking if biometrics is available
+                setTimeout(() => {
+                    biometricOption.style.display = 'block';
+                }, 1000);
+            } catch (error) {
+                console.log('Biometric authentication not available');
+                document.getElementById('biometricOption').style.display = 'none';
+            }
+        }
+        
+        // Check if credentials are stored
+        async function checkStoredCredentials() {
+            try {
+                // This would use the NativeBiometric plugin in a real app
+                // For demo, we're just setting a flag
+                storedCredentials = localStorage.getItem('hasStoredCredentials') === 'true';
+                
+                if (storedCredentials) {
+                    document.getElementById('biometricOption').style.display = 'block';
+                }
+            } catch (error) {
+                console.log('No stored credentials found');
+            }
+        }
+        
+        // Toggle password visibility
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const eyeIcon = document.querySelector('.password-toggle i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+        
+        // Biometric login function
+        async function loginWithBiometrics() {
+            try {
+                // Show verifying state
+                const biometricOption = document.getElementById('biometricOption');
+                const originalHTML = biometricOption.innerHTML;
+                biometricOption.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><p>Verifying identity...</p>';
+                
+                // This would use the NativeBiometric plugin in a real app
+                // Simulate biometric verification
+                setTimeout(async () => {
+                    try {
+                        // Simulate successful biometric authentication
+                        const response = await fetch('/verify-biometric', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Redirect to the appropriate page
+                            window.location.href = result.redirectUrl;
+                        } else {
+                            throw new Error('Biometric authentication failed');
+                        }
+                    } catch (error) {
+                        console.error('Biometric authentication failed:', error);
+                        biometricOption.innerHTML = originalHTML;
+                        alert('Biometric authentication failed. Please login manually.');
+                    }
+                }, 1500);
+            } catch (error) {
+                console.error('Biometric authentication failed:', error);
+                alert('Biometric authentication failed. Please login manually.');
+            }
+        }
+        
+        // Regular login function
+        async function login(email, password, dbName = null) {
+            try {
+                // Show loading state
+                const loginButton = document.getElementById('loginButton');
+                loginButton.innerHTML = '<span class="spinner"></span> Authenticating...';
+                loginButton.disabled = true;
+                
+                // Send a POST request to the server
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password, dbName }),
+                });
+                
+                const data = await response.json();
+                
                 if (data.message === 'Multiple databases found') {
-                    databases = data.databases; // Store databases
-                    showDatabasePopup(data.databases); // Show popup
+                    databases = data.databases;
+                    showDatabasePopup(data.databases);
                 } else if (data.message === 'Incorrect email or password') {
                     alert('Incorrect Email or Password. Please try again.');
                     window.location.reload();
                 } else if (data.redirectUrl) {
-                    window.location.href = data.redirectUrl; // Redirect
+                    // Store credentials using biometrics if available
+                    try {
+                        // This would use the NativeBiometric plugin in a real app
+                        // For demo, we're just setting a flag in localStorage
+                        localStorage.setItem('hasStoredCredentials', 'true');
+                    } catch (error) {
+                        console.error('Failed to store credentials:', error);
+                    }
+                    
+                    window.location.href = data.redirectUrl;
                 } else {
                     console.error('Unexpected response:', data);
                     alert('An unexpected error occurred. Please try again.');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error:', error);
                 alert('An error occurred. Please check your connection and try again.');
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign In';
-            });
+            } finally {
+                const loginButton = document.getElementById('loginButton');
+                loginButton.innerHTML = '<span>Sign In</span>';
+                loginButton.disabled = false;
+            }
+        }
+        
+        function submitForm(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            login(email, password);
         }
         
         function showDatabasePopup(databases) {
             const popup = document.getElementById('databasePopup');
             const databaseList = document.getElementById('databaseList');
-            databaseList.innerHTML = ''; // Clear previous list
-
-            // Populate the list of databases
+            databaseList.innerHTML = '';
+            
             databases.forEach(db => {
                 const li = document.createElement('li');
                 li.innerHTML = `
@@ -356,59 +732,35 @@
                 `;
                 databaseList.appendChild(li);
             });
-
-            popup.style.display = 'block'; // Show the popup
+            
+            popup.style.display = 'flex';
         }
         
-        function submitDatabase() {
+        async function submitDatabase() {
             const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
             if (!selectedDatabase) {
                 alert('Please select a database to continue.');
                 return;
             }
-
+            
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
-
+            
             // Show loading state in popup
-            const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
-            popupBtn.disabled = true;
+            const popupBtn = document.querySelector('.popup-btn.primary');
+            const originalText = popupBtn.innerHTML;
             popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
-
-            // Send selected database to the server
-            fetch('/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({ email, password, dbName: selectedDatabase }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.redirectUrl) {
-                    window.location.href = data.redirectUrl; // Redirect
-                } else {
-                    console.error('Unexpected response:', data);
-                    alert('An unexpected error occurred. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while connecting to the database. Please try again.');
-            })
-            .finally(() => {
-                popupBtn.disabled = false;
-                popupBtn.textContent = 'Continue';
-            });
+            popupBtn.disabled = true;
+            
+            await login(email, password, selectedDatabase);
+            
+            popupBtn.innerHTML = originalText;
+            popupBtn.disabled = false;
         }
         
         function closePopup() {
             const popup = document.getElementById('databasePopup');
-            popup.style.display = 'none'; // Hide the popup
-            
-            // Reset form
-            document.getElementById('loginForm').reset();
+            popup.style.display = 'none';
         }
         
         // Add event listener to the form
