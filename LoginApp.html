@@ -1,354 +1,472 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="icon" href="Front.ico" type="image/png">
-<title>Enterprise Login | Data Management Suite</title>
-<style>
-:root {
-    --primary-color: #001f3f;
-    --secondary-color: #003366;
-    --accent-color: #0074D9;
-    --light-text: #777;
-    --background-color: #ffffff;
-    --input-bg: #f8f9fa;
-}
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-body {
-    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto',sans-serif;
-    height:100vh; overflow:hidden; background-color:var(--background-color);
-    display:flex; flex-direction:column; padding:0; width:100%; height:100%;
-}
-.login-container { padding:2rem 1.5rem; width:100%; height:100%; text-align:center; display:flex; flex-direction:column; justify-content:center; position:relative; overflow-y:auto; }
-.login-header { margin-bottom:2rem; }
-.logo { width:80px; height:80px; margin:0 auto 1.5rem; background-color:var(--primary-color); border-radius:20px; display:flex; align-items:center; justify-content:center; color:white; font-size:32px; font-weight:bold; }
-.login-container h2 { color:var(--primary-color); font-size:24px; margin-bottom:0.5rem; font-weight:600; }
-.login-container p { color:var(--light-text); margin-bottom:2rem; font-size:14px; line-height:1.5; padding:0 1rem; }
-.login-form { width:100%; margin:0 auto; }
-.form-group { margin-bottom:1.5rem; text-align:left; }
-.form-group label { display:block; font-weight:500; margin-bottom:0.5rem; color:var(--primary-color); font-size:14px; text-transform:uppercase; letter-spacing:0.5px; }
-.form-group input { width:100%; padding:16px; border:1px solid #ddd; border-radius:8px; font-size:16px; background-color:var(--input-bg); }
-.form-group input:focus { border-color:var(--accent-color); outline:none; box-shadow:0 0 0 3px rgba(0,116,217,0.1); }
-.form-group button { background-color:var(--primary-color); color:white; padding:16px; border:none; border-radius:8px; cursor:pointer; width:100%; font-size:16px; font-weight:500; margin-top:0.5rem; letter-spacing:0.5px; }
-.form-group button:hover { background-color:var(--secondary-color); }
-.powered-by { margin-top:2rem; font-size:12px; color:var(--light-text); padding:0 1rem; }
-.biometric-option { margin: 1.5rem 0; }
-.biometric-btn { background: none; border: none; color: var(--accent-color); font-size: 14px; cursor: pointer; text-decoration: underline; }
-
-/* Popup database */
-#databasePopup { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:1000; overflow-y:auto; padding:1rem; }
-.popup-content { background:white; border-radius:12px; padding:1.5rem; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90%; max-width:400px; text-align:center; max-height:80vh; overflow-y:auto; }
-.popup-content::before { content:''; position:absolute; top:0; left:0; width:100%; height:6px; background:linear-gradient(90deg,var(--primary-color),var(--accent-color)); border-radius:12px 12px 0 0; }
-#databasePopup h3 { margin-bottom:1rem; font-size:20px; color:var(--primary-color); font-weight:600; }
-#databasePopup p { margin-bottom:1.5rem; font-size:14px; color:var(--light-text); }
-#databaseList { list-style:none; padding:0; margin:0 0 1.5rem 0; text-align:left; max-height:200px; overflow-y:auto; }
-#databaseList li { margin:0.75rem 0; padding:0.75rem; border-radius:8px; border:1px solid #eee; }
-#databaseList input { margin-right:12px; }
-.popup-buttons { display:flex; gap:0.75rem; }
-.popup-buttons button { flex:1; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:500; }
-.popup-buttons button.primary-btn { background-color:var(--primary-color); color:white; }
-.popup-buttons button.primary-btn:hover { background-color:var(--secondary-color); }
-.popup-buttons button.close-btn { background-color:#f8f9fa; color:black; border:1px solid #ddd; }
-.popup-buttons button.close-btn:hover { background-color:#e9ecef; }
-.spinner { display:inline-block; width:20px; height:20px; border:3px solid rgba(255,255,255,.3); border-radius:50%; border-top-color:#fff; animation:spin 1s ease-in-out infinite; }
-@keyframes spin { to{ transform: rotate(360deg); } }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="icon" href="Front.ico" type="image/png">
+    <title>Enterprise Login | Data Management Suite</title>
+    <style>
+        :root {
+            --primary-color: #001f3f;
+            --secondary-color: #003366;
+            --accent-color: #0074D9;
+            --light-accent: #7FDBFF;
+            --text-color: #333;
+            --light-text: #777;
+            --background-color: #ffffff;
+            --input-bg: #f8f9fa;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background-color: var(--background-color);
+            background-image: linear-gradient(135deg, rgba(0,31,63,0.05) 0%, rgba(255,255,255,1) 100%);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        .login-container {
+            background: var(--background-color);
+            padding: 2rem 1.5rem;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow-y: auto;
+        }
+        .login-header { margin-bottom: 2rem; }
+        .logo {
+            width: 80px; height: 80px;
+            margin: 0 auto 1.5rem;
+            background-color: var(--primary-color);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .login-container h2 { color: var(--primary-color); font-size: 24px; margin-bottom: 0.5rem; font-weight: 600; }
+        .login-container p { color: var(--light-text); margin-bottom: 2rem; font-size: 14px; line-height: 1.5; padding: 0 1rem; }
+        .login-form { width: 100%; margin: 0 auto; }
+        .form-group { margin-bottom: 1.5rem; text-align: left; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--primary-color); font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-group input {
+            width: 100%; padding: 16px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; background-color: var(--input-bg);
+        }
+        .form-group input:focus { border-color: var(--accent-color); outline: none; box-shadow: 0 0 0 3px rgba(0,116,217,0.1); }
+        .form-group button {
+            background-color: var(--primary-color); color: white; padding: 16px; border: none; border-radius: 8px;
+            cursor: pointer; width: 100%; font-size: 16px; font-weight: 500; margin-top: 0.5rem; letter-spacing: 0.5px;
+        }
+        .form-group button:hover { background-color: var(--secondary-color); }
+        .powered-by { margin-top: 2rem; font-size: 12px; color: var(--light-text); padding: 0 1rem; }
+        
+        /* Biometric prompt */
+        #biometricPrompt {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            padding: 1rem;
+        }
+        .prompt-content {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+        }
+        .prompt-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            border-radius: 12px 12px 0 0;
+        }
+        .biometric-icon {
+            font-size: 48px;
+            margin-bottom: 1rem;
+        }
+        .prompt-buttons {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+        .prompt-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .prompt-buttons button.primary-btn {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .prompt-buttons button.primary-btn:hover {
+            background-color: var(--secondary-color);
+        }
+        .prompt-buttons button.secondary-btn {
+            background-color: #f8f9fa;
+            color: var(--text-color);
+            border: 1px solid #ddd;
+        }
+        .prompt-buttons button.secondary-btn:hover {
+            background-color: #e9ecef;
+        }
+        
+        /* Popup database */
+        #databasePopup { display: none; position: fixed; top: 0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.7); z-index:1000; overflow-y:auto; padding:1rem; }
+        .popup-content { background:white; border-radius:12px; padding:1.5rem; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90%; max-width:400px; text-align:center; max-height:80vh; overflow-y:auto; }
+        .popup-content::before { content:''; position:absolute; top:0; left:0; width:100%; height:6px; background: linear-gradient(90deg, var(--primary-color), var(--accent-color)); border-radius:12px 12px 0 0; }
+        #databasePopup h3 { margin-bottom:1rem; font-size:20px; color: var(--primary-color); font-weight:600; }
+        #databasePopup p { margin-bottom:1.5rem; font-size:14px; color: var(--light-text); }
+        #databaseList { list-style:none; padding:0; margin:0 0 1.5rem 0; text-align:left; max-height:200px; overflow-y:auto; }
+        #databaseList li { margin:0.75rem 0; padding:0.75rem; border-radius:8px; border:1px solid #eee; }
+        #databaseList input { margin-right:12px; }
+        .popup-buttons { display:flex; gap:0.75rem; }
+        .popup-buttons button { flex:1; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:500; }
+        .popup-buttons button.primary-btn { background-color: var(--primary-color); color:white; }
+        .popup-buttons button.primary-btn:hover { background-color: var(--secondary-color); }
+        .popup-buttons button.close-btn { background-color:#f8f9fa; color:var(--text-color); border:1px solid #ddd; }
+        .popup-buttons button.close-btn:hover { background-color:#e9ecef; }
+        .spinner { display:inline-block; width:20px; height:20px; border:3px solid rgba(255,255,255,.3); border-radius:50%; border-top-color:#fff; animation:spin 1s ease-in-out infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @supports (-webkit-touch-callout: none) { .login-container { padding:2rem 1.5rem; min-height:-webkit-fill-available; } input, button { font-size:16px !important; } }
+    </style>
 </head>
 <body>
-<!-- Popup Database -->
-<div id="databasePopup">
-    <div class="popup-content">
-        <h3>Select Account</h3>
-        <p>Your account has access to multiple accounts. Please select one to continue.</p>
-        <ul id="databaseList"></ul>
-        <div class="popup-buttons">
-            <button class="primary-btn" onclick="submitDatabase()">Continue</button>
-            <button class="close-btn" onclick="closePopup()">Cancel</button>
+    <!-- Database Popup -->
+    <div id="databasePopup">
+        <div class="popup-content">
+            <h3>Select Account</h3>
+            <p>Your account has access to multiple accounts. Please select one to continue.</p>
+            <ul id="databaseList"></ul>
+            <div class="popup-buttons">
+                <button class="primary-btn" onclick="submitDatabase()">Continue</button>
+                <button class="close-btn" onclick="closePopup()">Cancel</button>
+            </div>
         </div>
     </div>
-</div>
 
-<!-- Login -->
-<div class="login-container">
-    <div class="login-header">
-        <div class="logo">EDM</div>
-        <h2>Welcome Back</h2>
-        <p>Sign in to access your Enterprise Data Management Suite.</p>
+    <!-- Biometric Prompt -->
+    <div id="biometricPrompt">
+        <div class="prompt-content">
+            <div class="biometric-icon">🔒</div>
+            <h3>Enable Biometric Login?</h3>
+            <p>Would you like to use Face ID or Touch ID for faster login next time?</p>
+            <div class="prompt-buttons">
+                <button class="primary-btn" onclick="enableBiometric()">Yes, Enable</button>
+                <button class="secondary-btn" onclick="skipBiometric()">Not Now</button>
+            </div>
+        </div>
     </div>
-    <form class="login-form" id="loginForm">
-        <div class="form-group">
-            <label for="email">Email Address</label>
-            <input type="email" id="email" name="email" required placeholder="your.email@company.com" autocomplete="email">
+
+    <!-- Login Container -->
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">EDM</div>
+            <h2>Welcome Back</h2>
+            <p>Sign in to access your Enterprise Data Management Suite.</p>
         </div>
-        <div class="form-group">
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password">
-        </div>
-        <div class="form-group">
-            <button type="submit">Sign In</button>
-        </div>
-    </form>
-    
-    <div class="biometric-option">
-        <button class="biometric-btn" id="biometricLoginBtn" style="display:none;">Use Face ID/Touch ID instead</button>
+
+        <!-- Form manuale -->
+        <form class="login-form" id="loginForm">
+            <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="your.email@company.com" autocomplete="email">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <button type="submit">Sign In</button>
+            </div>
+        </form>
+
+        <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
+        <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
-    
-    <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
-    <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
-</div>
 
-<script>
-// Show login form by default
-document.getElementById('loginForm').style.display = 'block';
+    <script type="module">
+        import { NativeBiometric } from "capacitor-native-biometric";
 
-// Check if we're in a Capacitor environment
-const isCapacitor = typeof Capacitor !== 'undefined';
+        let databases = [];
+        let currentUserData = null;
 
-// Check if biometric login is available on page load
-window.addEventListener('DOMContentLoaded', async () => {
-    if (!isCapacitor) {
-        document.getElementById('biometricLoginBtn').style.display = 'none';
-        return;
-    }
-    
-    try {
-        // Dynamically import the Capacitor plugin
-        const { NativeBiometric } = await import('capacitor-native-biometric');
-        const available = await NativeBiometric.isAvailable();
-        
-        if (available.isAvailable) {
-            document.getElementById('biometricLoginBtn').style.display = 'block';
-            window.NativeBiometric = NativeBiometric; // Store for later use
-        }
-    } catch (err) {
-        console.error('Error checking biometric availability:', err);
-        document.getElementById('biometricLoginBtn').style.display = 'none';
-    }
-});
-
-// Event listener for biometric login button
-document.getElementById('biometricLoginBtn').addEventListener('click', loginWithBiometric);
-
-async function login(event) {
-    event.preventDefault();
-
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    
-    // Show loading state
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    const originalText = submitBtn.textContent;
-    submitBtn.innerHTML = '<span class="spinner"></span> Signing in...';
-    submitBtn.disabled = true;
-
-    try {
-        const response = await fetch('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ email, password })
-        });
-
-        const data = await response.json();
-
-        if (data.message) {
-            alert(data.message);
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            return;
-        }
-
-        // If multiple databases are available, show popup
-        if (data.databases && data.databases.length > 1) {
-            showDatabasePopup(data.databases);
-            submitBtn.innerHTML = originalText;
-            submitBtn.disabled = false;
-            return;
-        }
-
-        // If only one database, proceed with login
-        const dbName = data.databases && data.databases.length === 1 ? data.databases[0] : null;
-        
-        // Save biometric credentials if tokens are provided and we're in Capacitor
-        if (data.accessToken && data.refreshToken && isCapacitor && window.NativeBiometric) {
+        // Controlla se la biometria è disponibile
+        async function checkBiometricAvailability() {
             try {
-                await window.NativeBiometric.setCredentials({
-                    server: 'http://localhost:8080',
-                    username: email,
-                    password: JSON.stringify({
-                        accessToken: data.accessToken,
-                        refreshToken: data.refreshToken,
-                        dbName: dbName
-                    })
-                });
-                console.log('Biometric credentials saved');
-            } catch (err) {
-                console.error('Error saving biometric credentials:', err);
+                const available = await NativeBiometric.isAvailable();
+                return available.isAvailable;
+            } catch (error) {
+                console.warn('Biometric authentication not available:', error);
+                return false;
             }
         }
 
-        // Redirect to the correct page
-        if (data.redirectUrl) {
-            window.location.href = data.redirectUrl;
+        // Prova il login biometrico solo se ci sono credenziali salvate
+        async function tryBiometricLogin() {
+            try {
+                // Verifica se ci sono credenziali salvate
+                await NativeBiometric.getCredentials({ server: "solura-app" });
+                
+                // Se ci sono, procedi con la verifica biometrica
+                await NativeBiometric.verifyIdentity({
+                    reason: "Per accedere all'app",
+                    title: "Autenticazione",
+                    subtitle: "Usa Face ID o impronta"
+                });
+
+                const creds = await NativeBiometric.getCredentials({ server: "solura-app" });
+                let { accessToken, refreshToken } = JSON.parse(creds.password);
+
+                // Prova login automatico
+                let res = await fetch('/auto-login', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+
+                if (res.status === 401) {
+                    // accessToken scaduto, usa refreshToken
+                    const refreshRes = await fetch('/refresh-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ refreshToken })
+                    });
+
+                    if (!refreshRes.ok) throw new Error("Refresh token fallito");
+
+                    const data = await refreshRes.json();
+                    accessToken = data.accessToken;
+                    
+                    // Salva nuovo accessToken insieme al refreshToken
+                    await NativeBiometric.setCredentials({
+                        username: creds.username,
+                        password: JSON.stringify({ accessToken, refreshToken }),
+                        server: "solura-app"
+                    });
+
+                    // Login automatico con nuovo accessToken
+                    res = await fetch('/auto-login', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+                }
+
+                if (res.ok) {
+                    const userData = await res.json();
+                    window.location.href = userData.redirectUrl;
+                    return true;
+                }
+            } catch (e) {
+                console.warn('Login biometrico fallito:', e);
+                // Mostra il form di login manuale
+                document.getElementById('loginForm').style.display = 'block';
+            }
+            return false;
         }
 
-    } catch (err) {
-        console.error('Login error:', err);
-        alert('An error occurred. Please try again.');
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-    }
-}
+        // --- LOGIN MANUALE ---
+        async function submitForm(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Authenticating...';
 
-// Function to show database selection popup
-function showDatabasePopup(databases) {
-    const databaseList = document.getElementById('databaseList');
-    databaseList.innerHTML = '';
-    
-    databases.forEach(db => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-            <input type="radio" id="db-${db}" name="database" value="${db}">
-            <label for="db-${db}">${db}</label>
-        `;
-        databaseList.appendChild(li);
-    });
-    
-    document.getElementById('databasePopup').style.display = 'block';
-}
-
-// Function to submit database selection
-async function submitDatabase() {
-    const selectedDb = document.querySelector('input[name="database"]:checked');
-    
-    if (!selectedDb) {
-        alert('Please select a database to continue');
-        return;
-    }
-    
-    const dbName = selectedDb.value;
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    
-    try {
-        const response = await fetch('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ email, password, dbName })
-        });
-
-        const data = await response.json();
-
-        if (data.accessToken && data.refreshToken && isCapacitor && window.NativeBiometric) {
             try {
-                await window.NativeBiometric.setCredentials({
-                    server: 'http://localhost:8080',
-                    username: email,
-                    password: JSON.stringify({
+                const res = await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (data.message === 'Multiple databases found') {
+                    databases = data.databases;
+                    showDatabasePopup(data.databases);
+                } else if (data.message === 'Incorrect email or password') {
+                    alert('Incorrect Email or Password.');
+                    window.location.reload();
+                } else if (data.redirectUrl) {
+                    // Salva i dati utente per mostrare il prompt biometrico dopo
+                    currentUserData = {
+                        email: email,
                         accessToken: data.accessToken,
                         refreshToken: data.refreshToken,
-                        dbName: dbName
-                    })
-                });
-            } catch (err) {
-                console.error('Error saving biometric credentials:', err);
+                        redirectUrl: data.redirectUrl
+                    };
+                    
+                    // Verifica se la biometria è disponibile
+                    const biometricAvailable = await checkBiometricAvailability();
+                    
+                    if (biometricAvailable) {
+                        // Mostra il prompt per abilitare la biometria
+                        document.getElementById('biometricPrompt').style.display = 'block';
+                    } else {
+                        // Reindirizza direttamente
+                        window.location.href = data.redirectUrl;
+                    }
+                } else {
+                    console.error('Unexpected response:', data);
+                    alert('An unexpected error occurred.');
+                }
+            } catch (e) {
+                console.error('Error:', e);
+                alert('Errore di connessione.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
             }
         }
 
-        if (data.redirectUrl) {
-            window.location.href = data.redirectUrl;
+        // Abilita l'accesso biometrico
+        async function enableBiometric() {
+            try {
+                await NativeBiometric.setCredentials({
+                    username: currentUserData.email,
+                    password: JSON.stringify({
+                        accessToken: currentUserData.accessToken,
+                        refreshToken: currentUserData.refreshToken
+                    }),
+                    server: "solura-app"
+                });
+                
+                // Nascondi il prompt e reindirizza
+                document.getElementById('biometricPrompt').style.display = 'none';
+                window.location.href = currentUserData.redirectUrl;
+            } catch (error) {
+                console.error('Error saving biometric credentials:', error);
+                alert('Failed to enable biometric login. Please try again.');
+            }
         }
 
-    } catch (err) {
-        console.error('Error submitting database selection:', err);
-        alert('An error occurred. Please try again.');
-    }
-}
-
-// Function to close popup
-function closePopup() {
-    document.getElementById('databasePopup').style.display = 'none';
-}
-
-// Function for Face ID / fingerprint login
-async function loginWithBiometric() {
-    if (!isCapacitor || !window.NativeBiometric) {
-        alert('Biometric authentication is not available in this environment.');
-        return;
-    }
-    
-    try {
-        const available = await window.NativeBiometric.isAvailable();
-
-        if (!available.isAvailable) {
-            alert('Biometrics not available on this device.');
-            return;
+        // Salta l'abilitazione della biometria
+        function skipBiometric() {
+            document.getElementById('biometricPrompt').style.display = 'none';
+            window.location.href = currentUserData.redirectUrl;
         }
 
-        const credentials = await window.NativeBiometric.getCredentials({
-            server: 'http://localhost:8080'
-        });
+        // --- POPUP DATABASE ---
+        function showDatabasePopup(databases) {
+            const popup = document.getElementById('databasePopup');
+            const databaseList = document.getElementById('databaseList');
+            databaseList.innerHTML = '';
+            databases.forEach(db => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <input type="radio" name="database" id="db-${db.db_name}" value="${db.db_name}" required>
+                    <label for="db-${db.db_name}">
+                        <strong>${db.db_name}</strong>
+                        <span style="display:block; font-size:0.9em; color:var(--light-text)">${db.access} access</span>
+                    </label>
+                `;
+                databaseList.appendChild(li);
+            });
+            popup.style.display = 'block';
+        }
 
-        const { accessToken, refreshToken, dbName } = JSON.parse(credentials.password);
-        const email = credentials.username;
+        function submitDatabase() {
+            const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
+            if (!selectedDatabase) { alert('Please select a database.'); return; }
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
+            popupBtn.disabled = true; popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
-        // Verify token with server
-        const verifyResponse = await fetch('/verify-token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
-            },
-            credentials: 'include'
-        });
-
-        const verifyData = await verifyResponse.json();
-
-        if (verifyData.valid) {
-            window.location.href = verifyData.redirectUrl || '/dashboard';
-        } else {
-            // If token expired, use refreshToken to get new accessToken
-            const refreshResponse = await fetch('/refresh-token', {
+            fetch('/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ refreshToken, email, dbName })
-            });
-            
-            const refreshData = await refreshResponse.json();
-
-            if (refreshData.success) {
-                // Update biometric credentials
-                await window.NativeBiometric.setCredentials({
-                    server: 'http://localhost:8080',
-                    username: email,
-                    password: JSON.stringify({
-                        accessToken: refreshData.accessToken,
-                        refreshToken: refreshData.refreshToken,
-                        dbName: dbName
-                    })
-                });
-                window.location.href = refreshData.redirectUrl || '/dashboard';
-            } else {
-                alert('Biometric authentication failed. Please enter your email and password.');
-                document.getElementById('email').value = email;
-                document.getElementById('loginForm').style.display = 'block';
-            }
+                body: JSON.stringify({ email, password, dbName: selectedDatabase })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.redirectUrl) {
+                    currentUserData = {
+                        email: email,
+                        accessToken: data.accessToken,
+                        refreshToken: data.refreshToken,
+                        redirectUrl: data.redirectUrl
+                    };
+                    
+                    // Mostra il prompt biometrico dopo la selezione del database
+                    document.getElementById('databasePopup').style.display = 'none';
+                    checkBiometricAvailability().then(available => {
+                        if (available) {
+                            document.getElementById('biometricPrompt').style.display = 'block';
+                        } else {
+                            window.location.href = data.redirectUrl;
+                        }
+                    });
+                } else {
+                    alert('Unexpected error.');
+                }
+            })
+            .catch(e => { console.error(e); alert('Connection error.'); })
+            .finally(() => { popupBtn.disabled = false; popupBtn.textContent = 'Continue'; });
         }
 
-    } catch (err) {
-        console.error('Biometric login error:', err);
-        alert('Biometric login failed. Please use your email and password.');
-    }
-}
+        function closePopup() { 
+            document.getElementById('databasePopup').style.display = 'none'; 
+            document.getElementById('loginForm').reset(); 
+        }
 
-// Event listener form
-document.getElementById('loginForm').addEventListener('submit', login);
-</script>
-
+        // Inizializzazione
+        document.getElementById('loginForm').addEventListener('submit', submitForm);
+        
+        // All'avvio, prova il login biometrico solo se ci sono credenziali salvate
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                // Prima controlla se la biometria è disponibile
+                const biometricAvailable = await checkBiometricAvailability();
+                
+                if (biometricAvailable) {
+                    // Prova il login biometrico
+                    const biometricSuccess = await tryBiometricLogin();
+                    
+                    // Se il login biometrico fallisce, mostra il form
+                    if (!biometricSuccess) {
+                        document.getElementById('loginForm').style.display = 'block';
+                    }
+                } else {
+                    // Se la biometria non è disponibile, mostra direttamente il form
+                    document.getElementById('loginForm').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Initialization error:', error);
+                // In caso di errore, mostra il form
+                document.getElementById('loginForm').style.display = 'block';
+            }
+        });
+    </script>
 </body>
 </html>
