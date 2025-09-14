@@ -72,6 +72,26 @@ app.use('/financialsummary', financialsummary);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
+
+// Function to detect mobile devices
+function isMobile(userAgent) {
+  return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+}
+
+// Route principale
+app.get('/', (req, res) => {
+  const userAgent = req.headers['user-agent'] || '';
+  console.log('User-Agent:', userAgent);
+
+  if (isMobile(userAgent)) {
+    // Se è mobile (o l'app), mandiamo login-app.html
+    res.sendFile(path.join(__dirname, 'LoginApp.html'));
+  } else {
+    // Se è web, mandiamo login-web.html
+    res.sendFile(path.join(__dirname, 'Login.html'));
+  }
+});
+
 // Cron job to run on the 1st day of every month at midnight (00:00)
 cron.schedule('0 0 1 * *', async () => {
     try {
@@ -680,11 +700,6 @@ app.get('/logout', (req, res) => {
     } else {
         res.redirect('/');
     }
-});
-
-// Serve your HTML or other routes here...
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
 app.listen(port, () => {

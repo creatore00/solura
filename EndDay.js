@@ -144,7 +144,7 @@ app.get('/cashreport', isAuthenticated, (req, res) => {
         FROM cash_reports
         WHERE day IN (${placeholders})
     `;
-
+    
     // Execute the query with the formatted dates
     pool.query(sql, dateArray, (err, results) => {
         if (err) {
@@ -152,6 +152,7 @@ app.get('/cashreport', isAuthenticated, (req, res) => {
             return res.status(500).json({ error: 'Database error.' });
         }
         res.status(200).json(results); // Send the data as JSON
+        console.log(results);
     });
 });
 

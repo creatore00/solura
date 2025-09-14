@@ -56,11 +56,23 @@ app.post('/submitHolidayRequest', isAuthenticated, (req, res) => {
         return res.status(400).json({ success: false, message: 'Holiday requests can be for a maximum of two consecutive weeks.' });
     }
 
-    const requestDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    // Format dates to dd/mm/yyyy (DayName)
+    const formatDateWithDay = (date) => {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayName = days[date.getDay()];
+        return `${day}/${month}/${year} (${dayName})`;
+    };
+
+    const formattedStartDate = formatDateWithDay(start);
+    const formattedEndDate = formatDateWithDay(end);
+    const requestDate = formatDateWithDay(new Date());
 
     // Include email in the INSERT statement
     const sql = 'INSERT INTO Holiday (name, lastName, startDate, endDate, requestDate, days) VALUES (?, ?, ?, ?, ?, ?)';
-    const values = [name, lastName, startDate, endDate, requestDate, daysDiff];
+    const values = [name, lastName, formattedStartDate, formattedEndDate, requestDate, daysDiff];
 
     pool.query(sql, values, async (error, results) => {
         if (error) {
@@ -70,7 +82,7 @@ app.post('/submitHolidayRequest', isAuthenticated, (req, res) => {
 
         console.log('Holiday request submitted successfully');
         try {
-            await sendEmailNotification(dbName, email, name, startDate, endDate, daysDiff);
+            await sendEmailNotification(dbName, email, name, formattedStartDate, formattedEndDate, daysDiff);
             return res.json({ 
                 success: true, 
                 message: 'Holiday request submitted successfully',
@@ -91,7 +103,7 @@ app.post('/submitHolidayRequest', isAuthenticated, (req, res) => {
 // Improved email function
 async function getAllEmails(dbName) {
     const pool = getPool(dbName);
-    const query = 'SELECT email FROM Employees WHERE position = "manager"'; // Only active users
+    const query = 'SELECT email FROM Employees WHERE position = "manager" OR position = "AM"'; // Only active users
     const [results] = await pool.promise().query(query);
     return results.map(row => row.email);
 }
