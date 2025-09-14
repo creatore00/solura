@@ -213,14 +213,31 @@
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
 
-    <script type="module">
-        import { NativeBiometric } from "capacitor-native-biometric";
+    <script>
+        // Fallback if Capacitor is not available
+        let NativeBiometric = null;
+        let isCapacitor = typeof Capacitor !== 'undefined';
+        
+        // Try to load Capacitor plugin
+        if (isCapacitor) {
+            import("capacitor-native-biometric")
+                .then(module => {
+                    NativeBiometric = module.NativeBiometric;
+                    console.log("Biometric module loaded");
+                })
+                .catch(err => {
+                    console.warn("Could not load biometric module:", err);
+                    isCapacitor = false;
+                });
+        }
 
         let databases = [];
         let currentUserData = null;
 
         // Controlla se la biometria è disponibile
         async function checkBiometricAvailability() {
+            if (!isCapacitor || !NativeBiometric) return false;
+            
             try {
                 const available = await NativeBiometric.isAvailable();
                 return available.isAvailable;
@@ -232,6 +249,8 @@
 
         // Prova il login biometrico solo se ci sono credenziali salvate
         async function tryBiometricLogin() {
+            if (!isCapacitor || !NativeBiometric) return false;
+            
             try {
                 // Verifica se ci sono credenziali salvate
                 await NativeBiometric.getCredentials({ server: "solura-app" });
@@ -308,6 +327,11 @@
                     credentials: 'include',
                     body: JSON.stringify({ email, password })
                 });
+                
+                if (!res.ok) {
+                    throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+                }
+                
                 const data = await res.json();
 
                 if (data.message === 'Multiple databases found') {
@@ -315,7 +339,8 @@
                     showDatabasePopup(data.databases);
                 } else if (data.message === 'Incorrect email or password') {
                     alert('Incorrect Email or Password.');
-                    window.location.reload();
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign In';
                 } else if (data.redirectUrl) {
                     // Salva i dati utente per mostrare il prompt biometrico dopo
                     currentUserData = {
@@ -338,11 +363,12 @@
                 } else {
                     console.error('Unexpected response:', data);
                     alert('An unexpected error occurred.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign In';
                 }
             } catch (e) {
                 console.error('Error:', e);
-                alert('Errore di connessione.');
-            } finally {
+                alert('Connection error. Please check your network and try again.');
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Sign In';
             }
@@ -350,6 +376,12 @@
 
         // Abilita l'accesso biometrico
         async function enableBiometric() {
+            if (!isCapacitor || !NativeBiometric) {
+                alert('Biometric features not available');
+                window.location.href = currentUserData.redirectUrl;
+                return;
+            }
+            
             try {
                 await NativeBiometric.setCredentials({
                     username: currentUserData.email,
@@ -366,6 +398,7 @@
             } catch (error) {
                 console.error('Error saving biometric credentials:', error);
                 alert('Failed to enable biometric login. Please try again.');
+                window.location.href = currentUserData.redirectUrl;
             }
         }
 
@@ -394,7 +427,7 @@
             popup.style.display = 'block';
         }
 
-        function submitDatabase() {
+        async function submitDatabase() {
             const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
             if (!selectedDatabase) { alert('Please select a database.'); return; }
             const email = document.getElementById('email').value;
@@ -402,14 +435,20 @@
             const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
             popupBtn.disabled = true; popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
-            fetch('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password, dbName: selectedDatabase })
-            })
-            .then(res => res.json())
-            .then(data => {
+            try {
+                const res = await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password, dbName: selectedDatabase })
+                });
+                
+                if (!res.ok) {
+                    throw new Error(`Server returned ${res.status}`);
+                }
+                
+                const data = await res.json();
+
                 if (data.redirectUrl) {
                     currentUserData = {
                         email: email,
@@ -420,19 +459,23 @@
                     
                     // Mostra il prompt biometrico dopo la selezione del database
                     document.getElementById('databasePopup').style.display = 'none';
-                    checkBiometricAvailability().then(available => {
-                        if (available) {
-                            document.getElementById('biometricPrompt').style.display = 'block';
-                        } else {
-                            window.location.href = data.redirectUrl;
-                        }
-                    });
+                    const biometricAvailable = await checkBiometricAvailability();
+                    
+                    if (biometricAvailable) {
+                        document.getElementById('biometricPrompt').style.display = 'block';
+                    } else {
+                        window.location.href = data.redirectUrl;
+                    }
                 } else {
-                    alert('Unexpected error.');
+                    alert('Unexpected error from server.');
                 }
-            })
-            .catch(e => { console.error(e); alert('Connection error.'); })
-            .finally(() => { popupBtn.disabled = false; popupBtn.textContent = 'Continue'; });
+            } catch (e) {
+                console.error(e);
+                alert('Connection error. Please try again.');
+            } finally {
+                popupBtn.disabled = false;
+                popupBtn.textContent = 'Continue';
+            }
         }
 
         function closePopup() { 
