@@ -93,25 +93,35 @@ body {
     </form>
     
     <div class="biometric-option">
-        <button class="biometric-btn" id="biometricLoginBtn">Use Face ID/Touch ID instead</button>
+        <button class="biometric-btn" id="biometricLoginBtn" style="display:none;">Use Face ID/Touch ID instead</button>
     </div>
     
     <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
     <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
 </div>
 
-<script type="module">
-import { NativeBiometric } from "capacitor-native-biometric";
-
-// Show login form by default (removed display:none from HTML)
+<script>
+// Show login form by default
 document.getElementById('loginForm').style.display = 'block';
+
+// Check if we're in a Capacitor environment
+const isCapacitor = typeof Capacitor !== 'undefined';
 
 // Check if biometric login is available on page load
 window.addEventListener('DOMContentLoaded', async () => {
+    if (!isCapacitor) {
+        document.getElementById('biometricLoginBtn').style.display = 'none';
+        return;
+    }
+    
     try {
+        // Dynamically import the Capacitor plugin
+        const { NativeBiometric } = await import('capacitor-native-biometric');
         const available = await NativeBiometric.isAvailable();
+        
         if (available.isAvailable) {
             document.getElementById('biometricLoginBtn').style.display = 'block';
+            window.NativeBiometric = NativeBiometric; // Store for later use
         }
     } catch (err) {
         console.error('Error checking biometric availability:', err);
@@ -162,10 +172,10 @@ async function login(event) {
         // If only one database, proceed with login
         const dbName = data.databases && data.databases.length === 1 ? data.databases[0] : null;
         
-        // Save biometric credentials if tokens are provided
-        if (data.accessToken && data.refreshToken) {
+        // Save biometric credentials if tokens are provided and we're in Capacitor
+        if (data.accessToken && data.refreshToken && isCapacitor && window.NativeBiometric) {
             try {
-                await NativeBiometric.setCredentials({
+                await window.NativeBiometric.setCredentials({
                     server: 'http://localhost:8080',
                     username: email,
                     password: JSON.stringify({
@@ -233,9 +243,9 @@ async function submitDatabase() {
 
         const data = await response.json();
 
-        if (data.accessToken && data.refreshToken) {
+        if (data.accessToken && data.refreshToken && isCapacitor && window.NativeBiometric) {
             try {
-                await NativeBiometric.setCredentials({
+                await window.NativeBiometric.setCredentials({
                     server: 'http://localhost:8080',
                     username: email,
                     password: JSON.stringify({
@@ -266,15 +276,20 @@ function closePopup() {
 
 // Function for Face ID / fingerprint login
 async function loginWithBiometric() {
+    if (!isCapacitor || !window.NativeBiometric) {
+        alert('Biometric authentication is not available in this environment.');
+        return;
+    }
+    
     try {
-        const available = await NativeBiometric.isAvailable();
+        const available = await window.NativeBiometric.isAvailable();
 
         if (!available.isAvailable) {
             alert('Biometrics not available on this device.');
             return;
         }
 
-        const credentials = await NativeBiometric.getCredentials({
+        const credentials = await window.NativeBiometric.getCredentials({
             server: 'http://localhost:8080'
         });
 
@@ -308,7 +323,7 @@ async function loginWithBiometric() {
 
             if (refreshData.success) {
                 // Update biometric credentials
-                await NativeBiometric.setCredentials({
+                await window.NativeBiometric.setCredentials({
                     server: 'http://localhost:8080',
                     username: email,
                     password: JSON.stringify({
