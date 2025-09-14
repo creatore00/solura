@@ -253,21 +253,21 @@ app.post('/submit', (req, res) => {
                     return res.json({ 
                         success: true, 
                         redirectUrl: `/Admin.html${queryString}`,
-                        token: authToken, // Send token to client for biometric storage
+                        accessToken: authToken, // Send token to client for biometric storage
                         refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
                     });
                 } else if (userDetails.access === 'user') {
                     return res.json({ 
                         success: true, 
                         redirectUrl: `/User.html${queryString}`,
-                        token: authToken, // Send token to client for biometric storage
+                        accessToken: authToken, // Send token to client for biometric storage
                         refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
                     });
                 } else if (userDetails.access === 'supervisor') {
                     return res.json({ 
                         success: true, 
                         redirectUrl: `/Supervisor.html${queryString}`,
-                        token: authToken, // Send token to client for biometric storage
+                        accessToken: authToken, // Send token to client for biometric storage
                         refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
                     });
                 } else {
@@ -297,8 +297,8 @@ app.post('/verify-biometric', async (req, res) => {
         });
 
         // Verify the token from the stored credentials
-        const token = credentials.password;
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const accessToken = credentials.password;
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
         
         // Set up the session
         req.session.user = decoded;
@@ -542,11 +542,11 @@ app.post('/auto-login', async (req, res) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(401).json({ message: 'No token provided' });
 
-    const token = authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'No token provided' });
+    const accessToken = authHeader.split(' ')[1];
+    if (!accessToken) return res.status(401).json({ message: 'No token provided' });
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
         req.session.user = decoded;
         req.session.save(err => {
             if (err) return res.status(500).json({ error: 'Failed to save session' });
