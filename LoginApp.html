@@ -254,7 +254,7 @@
                 const credentials = await NativeBiometric.getCredentials({ server: "solura-app" });
                 
                 // If we have credentials, try to use them
-                if (credentials) {
+                if (credentials && credentials.username) {
                     await NativeBiometric.verifyIdentity({
                         reason: "Per accedere all'app",
                         title: "Autenticazione",
@@ -310,7 +310,7 @@
             return false;
         }
 
-        // Controlla se la biometria è disponibile
+        // Check if biometric authentication is available
         async function checkBiometricAvailability() {
             if (!isCapacitor || !NativeBiometric) return false;
             
@@ -323,7 +323,7 @@
             }
         }
 
-        // --- LOGIN MANUALE ---
+        // --- MANUAL LOGIN ---
         async function submitForm(event) {
             event.preventDefault();
             const email = document.getElementById('email').value;
@@ -345,6 +345,7 @@
                 }
                 
                 const data = await res.json();
+                console.log('Login response:', data);
 
                 if (data.message === 'Multiple databases found') {
                     databases = data.databases;
@@ -354,7 +355,7 @@
                     submitBtn.disabled = false;
                     submitBtn.textContent = 'Sign In';
                 } else if (data.redirectUrl) {
-                    // Salva i dati utente per mostrare il prompt biometrico dopo
+                    // Save user data to show biometric prompt later
                     currentUserData = {
                         email: email,
                         accessToken: data.accessToken,
@@ -362,14 +363,16 @@
                         redirectUrl: data.redirectUrl
                     };
                     
-                    // Verifica se la biometria è disponibile
+                    console.log('User data saved:', currentUserData);
+                    
+                    // Check if biometric authentication is available
                     const biometricAvailable = await checkBiometricAvailability();
                     
                     if (biometricAvailable) {
-                        // Mostra il prompt per abilitare la biometria
+                        // Show prompt to enable biometric authentication
                         document.getElementById('biometricPrompt').style.display = 'block';
                     } else {
-                        // Reindirizza direttamente
+                        // Redirect directly
                         window.location.href = data.redirectUrl;
                     }
                 } else {
@@ -385,7 +388,6 @@
                 submitBtn.textContent = 'Sign In';
             }
         }
-
         // Abilita l'accesso biometrico
         async function enableBiometric() {
             if (!isCapacitor || !NativeBiometric) {
