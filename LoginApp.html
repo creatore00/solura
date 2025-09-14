@@ -1,492 +1,215 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="icon" href="Front.ico" type="image/png">
-    <title>Enterprise Login | Data Management Suite</title>
-    <style>
-        :root {
-            --primary-color: #001f3f; /* Navy blue */
-            --secondary-color: #003366;
-            --accent-color: #0074D9;
-            --light-accent: #7FDBFF;
-            --text-color: #333;
-            --light-text: #777;
-            --background-color: #ffffff;
-            --input-bg: #f8f9fa;
-        }
-        
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', sans-serif;
-            height: 100vh;
-            overflow: hidden;
-            background-color: var(--background-color);
-            background-image: linear-gradient(135deg, rgba(0, 31, 63, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            padding: 0;
-            position: fixed;
-            width: 100%;
-            height: 100%;
-        }
-        
-        .login-container {
-            background: var(--background-color);
-            padding: 2rem 1.5rem;
-            border-radius: 0;
-            width: 100%;
-            height: 100%;
-            text-align: center;
-            animation: fadeIn 0.6s ease;
-            position: relative;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-        
-        .login-header {
-            margin-bottom: 2rem;
-        }
-        
-        .logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 1.5rem;
-            background-color: var(--primary-color);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 32px;
-            font-weight: bold;
-        }
-        
-        .login-container h2 {
-            color: var(--primary-color);
-            font-size: 24px;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-        
-        .login-container p {
-            color: var(--light-text);
-            margin-bottom: 2rem;
-            font-size: 14px;
-            line-height: 1.5;
-            padding: 0 1rem;
-        }
-        
-        .login-form {
-            width: 100%;
-            margin: 0 auto;
-        }
-        
-        .form-group {
-            margin-bottom: 1.5rem;
-            text-align: left;
-        }
-        
-        .form-group label {
-            display: block;
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-            color: var(--primary-color);
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .form-group input {
-            width: 100%;
-            padding: 16px;
-            box-sizing: border-box;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s;
-            background-color: var(--input-bg);
-        }
-        
-        .form-group input:focus {
-            border-color: var(--accent-color);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(0, 116, 217, 0.1);
-        }
-        
-        .form-group button {
-            background-color: var(--primary-color);
-            color: white;
-            padding: 16px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s ease;
-            font-size: 16px;
-            font-weight: 500;
-            margin-top: 0.5rem;
-            letter-spacing: 0.5px;
-        }
-        
-        .form-group button:hover, .form-group button:focus {
-            background-color: var(--secondary-color);
-        }
-        
-        .form-group button:active {
-            transform: scale(0.98);
-        }
-        
-        a {
-            text-decoration: none;
-            color: var(--accent-color);
-            display: inline-block;
-            margin-top: 1.5rem;
-            font-size: 14px;
-            transition: color 0.3s;
-        }
-        
-        a:hover, a:focus {
-            color: var(--primary-color);
-            text-decoration: underline;
-        }
-        
-        .powered-by {
-            margin-top: 2rem;
-            font-size: 12px;
-            color: var(--light-text);
-            padding: 0 1rem;
-        }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        
-        /* Database Popup Styles */
-        #databasePopup {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1000;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 1rem;
-        }
-        
-        .popup-content {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 400px;
-            text-align: center;
-            animation: popIn 0.3s ease;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-        
-        .popup-content::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 6px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
-            border-radius: 12px 12px 0 0;
-        }
-        
-        #databasePopup h3 {
-            margin-bottom: 1rem;
-            font-size: 20px;
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-        
-        #databasePopup p {
-            margin-bottom: 1.5rem;
-            font-size: 14px;
-            color: var(--light-text);
-        }
-        
-        #databaseList {
-            list-style: none;
-            padding: 0;
-            margin: 0 0 1.5rem 0;
-            text-align: left;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        
-        #databaseList li {
-            margin: 0.75rem 0;
-            padding: 0.75rem;
-            border-radius: 8px;
-            transition: background 0.2s;
-            border: 1px solid #eee;
-        }
-        
-        #databaseList li:active, #databaseList li:hover {
-            background-color: rgba(0, 31, 63, 0.05);
-        }
-        
-        #databaseList input {
-            margin-right: 12px;
-        }
-        
-        .popup-buttons {
-            display: flex;
-            gap: 0.75rem;
-        }
-        
-        .popup-buttons button {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .popup-buttons button.primary-btn {
-            background-color: var(--primary-color);
-            color: white;
-        }
-        
-        .popup-buttons button.primary-btn:hover, .popup-buttons button.primary-btn:focus {
-            background-color: var(--secondary-color);
-        }
-        
-        .popup-buttons button.close-btn {
-            background-color: #f8f9fa;
-            color: var(--text-color);
-            border: 1px solid #ddd;
-        }
-        
-        .popup-buttons button.close-btn:hover, .popup-buttons button.close-btn:focus {
-            background-color: #e9ecef;
-        }
-        
-        /* Loading spinner */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        @keyframes popIn {
-            from { opacity: 0; transform: translate(-50%, -40%); }
-            to { opacity: 1; transform: translate(-50%, -50%); }
-        }
-        
-        /* iOS specific adjustments */
-        @supports (-webkit-touch-callout: none) {
-            .login-container {
-                padding: 2rem 1.5rem;
-                min-height: -webkit-fill-available;
-            }
-            
-            input, button {
-                font-size: 16px !important; /* Prevent zoom on focus in iOS */
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="Front.ico" type="image/png">
+<title>Enterprise Login | Data Management Suite</title>
+<style>
+:root {
+    --primary-color: #001f3f;
+    --secondary-color: #003366;
+    --accent-color: #0074D9;
+    --light-text: #777;
+    --background-color: #ffffff;
+    --input-bg: #f8f9fa;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto',sans-serif;
+    height:100vh; overflow:hidden; background-color:var(--background-color);
+    display:flex; flex-direction:column; padding:0; width:100%; height:100%;
+}
+.login-container { padding:2rem 1.5rem; width:100%; height:100%; text-align:center; display:flex; flex-direction:column; justify-content:center; position:relative; overflow-y:auto; }
+.login-header { margin-bottom:2rem; }
+.logo { width:80px; height:80px; margin:0 auto 1.5rem; background-color:var(--primary-color); border-radius:20px; display:flex; align-items:center; justify-content:center; color:white; font-size:32px; font-weight:bold; }
+.login-container h2 { color:var(--primary-color); font-size:24px; margin-bottom:0.5rem; font-weight:600; }
+.login-container p { color:var(--light-text); margin-bottom:2rem; font-size:14px; line-height:1.5; padding:0 1rem; }
+.login-form { width:100%; margin:0 auto; }
+.form-group { margin-bottom:1.5rem; text-align:left; }
+.form-group label { display:block; font-weight:500; margin-bottom:0.5rem; color:var(--primary-color); font-size:14px; text-transform:uppercase; letter-spacing:0.5px; }
+.form-group input { width:100%; padding:16px; border:1px solid #ddd; border-radius:8px; font-size:16px; background-color:var(--input-bg); }
+.form-group input:focus { border-color:var(--accent-color); outline:none; box-shadow:0 0 0 3px rgba(0,116,217,0.1); }
+.form-group button { background-color:var(--primary-color); color:white; padding:16px; border:none; border-radius:8px; cursor:pointer; width:100%; font-size:16px; font-weight:500; margin-top:0.5rem; letter-spacing:0.5px; }
+.form-group button:hover { background-color:var(--secondary-color); }
+.powered-by { margin-top:2rem; font-size:12px; color:var(--light-text); padding:0 1rem; }
+/* Popup database */
+#databasePopup { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:1000; overflow-y:auto; padding:1rem; }
+.popup-content { background:white; border-radius:12px; padding:1.5rem; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:90%; max-width:400px; text-align:center; max-height:80vh; overflow-y:auto; }
+.popup-content::before { content:''; position:absolute; top:0; left:0; width:100%; height:6px; background:linear-gradient(90deg,var(--primary-color),var(--accent-color)); border-radius:12px 12px 0 0; }
+#databasePopup h3 { margin-bottom:1rem; font-size:20px; color:var(--primary-color); font-weight:600; }
+#databasePopup p { margin-bottom:1.5rem; font-size:14px; color:var(--light-text); }
+#databaseList { list-style:none; padding:0; margin:0 0 1.5rem 0; text-align:left; max-height:200px; overflow-y:auto; }
+#databaseList li { margin:0.75rem 0; padding:0.75rem; border-radius:8px; border:1px solid #eee; }
+#databaseList input { margin-right:12px; }
+.popup-buttons { display:flex; gap:0.75rem; }
+.popup-buttons button { flex:1; padding:12px; border:none; border-radius:8px; cursor:pointer; font-weight:500; }
+.popup-buttons button.primary-btn { background-color:var(--primary-color); color:white; }
+.popup-buttons button.primary-btn:hover { background-color:var(--secondary-color); }
+.popup-buttons button.close-btn { background-color:#f8f9fa; color:black; border:1px solid #ddd; }
+.popup-buttons button.close-btn:hover { background-color:#e9ecef; }
+.spinner { display:inline-block; width:20px; height:20px; border:3px solid rgba(255,255,255,.3); border-radius:50%; border-top-color:#fff; animation:spin 1s ease-in-out infinite; }
+@keyframes spin { to{ transform: rotate(360deg); } }
+</style>
 </head>
 <body>
-    <!-- Database Selection Popup -->
-    <div id="databasePopup">
-        <div class="popup-content">
-            <h3>Select Account</h3>
-            <p>Your account has access to multiple Accounts. Please select one to continue.</p>
-            <ul id="databaseList"></ul>
-            <div class="popup-buttons">
-                <button class="primary-btn" onclick="submitDatabase()">Continue</button>
-                <button class="close-btn" onclick="closePopup()">Cancel</button>
-            </div>
+<!-- Popup Database -->
+<div id="databasePopup">
+    <div class="popup-content">
+        <h3>Select Account</h3>
+        <p>Your account has access to multiple accounts. Please select one to continue.</p>
+        <ul id="databaseList"></ul>
+        <div class="popup-buttons">
+            <button class="primary-btn" onclick="submitDatabase()">Continue</button>
+            <button class="close-btn" onclick="closePopup()">Cancel</button>
         </div>
     </div>
+</div>
 
-    <!-- Login Container -->
-    <div class="login-container">
-        <div class="login-header">
-            <div class="logo">EDM</div>
-            <h2>Welcome Back</h2>
-            <p>Sign in to access your Enterprise Data Management Suite. Manage your databases, analyze performance metrics, and collaborate with your team.</p>
-        </div>
-        
-        <form class="login-form" id="loginForm">
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required placeholder="your.email@company.com" autocomplete="email">
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password">
-            </div>
-            <div class="form-group">
-                <button type="submit">Sign In</button>
-            </div>
-        </form>
-        
-        <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
-        
-        <div class="powered-by">
-            Enterprise Data Management Suite v3.2 · Secure Login
-        </div>
+<!-- Login -->
+<div class="login-container">
+    <div class="login-header">
+        <div class="logo">EDM</div>
+        <h2>Welcome Back</h2>
+        <p>Sign in to access your Enterprise Data Management Suite.</p>
     </div>
+    <form class="login-form" id="loginForm" style="display:none">
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" required placeholder="your.email@company.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="form-group">
+            <button type="submit">Sign In</button>
+        </div>
+    </form>
+    <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
+    <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
+</div>
 
-    <script>
-        let databases = []; // Store databases for selection
-        
-        function submitForm(event) {
-            event.preventDefault(); // Prevent default form submission
+<script type="module">
+import { NativeBiometric } from "capacitor-native-biometric";
 
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+async function login(event) {
+    event.preventDefault();
 
-            // Show loading state
-            const submitBtn = document.querySelector('#loginForm button[type="submit"]');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner"></span> Authenticating...';
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const dbName = document.querySelector('input[name="database"]:checked')?.value;
 
-            // Send a POST request to the server
-            fetch('/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include', // Include cookies
-                body: JSON.stringify({ email, password }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.message === 'Multiple databases found') {
-                    databases = data.databases; // Store databases
-                    showDatabasePopup(data.databases); // Show popup
-                } else if (data.message === 'Incorrect email or password') {
-                    alert('Incorrect Email or Password. Please try again.');
-                    window.location.reload();
-                } else if (data.redirectUrl) {
-                    window.location.href = data.redirectUrl; // Redirect
-                } else {
-                    console.error('Unexpected response:', data);
-                    alert('An unexpected error occurred. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please check your connection and try again.');
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign In';
-            });
+    try {
+        const response = await fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ email, password, dbName })
+        });
+
+        const data = await response.json();
+
+        if (data.message) {
+            alert(data.message);
+            return;
         }
-        
-        function showDatabasePopup(databases) {
-            const popup = document.getElementById('databasePopup');
-            const databaseList = document.getElementById('databaseList');
-            databaseList.innerHTML = ''; // Clear previous list
 
-            // Populate the list of databases
-            databases.forEach(db => {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <input type="radio" name="database" id="db-${db.db_name}" value="${db.db_name}" required>
-                    <label for="db-${db.db_name}">
-                        <strong>${db.db_name}</strong>
-                        <span style="display: block; font-size: 0.9em; color: var(--light-text);">${db.access} access</span>
-                    </label>
-                `;
-                databaseList.appendChild(li);
-            });
-
-            popup.style.display = 'block'; // Show the popup
-        }
-        
-        function submitDatabase() {
-            const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
-            if (!selectedDatabase) {
-                alert('Please select a database to continue.');
-                return;
+        // Salvataggio token biometrici
+        if (data.accessToken && data.refreshToken) {
+            try {
+                await NativeBiometric.setCredentials({
+                    server: 'http://localhost:8080', // identificatore app
+                    username: email,
+                    password: JSON.stringify({
+                        accessToken: data.accessToken,
+                        refreshToken: data.refreshToken
+                    })
+                });
+                console.log('Credenziali biometriche salvate');
+            } catch (err) {
+                console.error('Errore nel salvare credenziali biometriche:', err);
             }
+        }
 
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+        // Redirect alla pagina corretta
+        if (data.redirectUrl) {
+            window.location.href = data.redirectUrl;
+        }
 
-            // Show loading state in popup
-            const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
-            popupBtn.disabled = true;
-            popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+    } catch (err) {
+        console.error('Errore durante login:', err);
+        alert('Si è verificato un errore. Riprova.');
+    }
+}
 
-            // Send selected database to the server
-            fetch('/submit', {
+// Funzione per login tramite Face ID / impronta
+async function loginWithBiometric() {
+    try {
+        const available = await NativeBiometric.isAvailable();
+
+        if (!available.isAvailable) {
+            alert('Biometria non disponibile sul dispositivo.');
+            return;
+        }
+
+        const credentials = await NativeBiometric.getCredentials({
+            server: 'http://localhost:8080'
+        });
+
+        const { accessToken, refreshToken } = JSON.parse(credentials.password);
+
+        // Verifica accessToken con il server (opzionale, qui puoi fare fetch /verifyToken)
+        const verifyResponse = await fetch('/verify-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${accessToken}`
+            },
+            credentials: 'include'
+        });
+
+        const verifyData = await verifyResponse.json();
+
+        if (verifyData.success) {
+            window.location.href = verifyData.redirectUrl;
+        } else {
+            // Se token scaduto, usa refreshToken per ottenere nuovo accessToken
+            const refreshResponse = await fetch('/refresh-token', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ email, password, dbName: selectedDatabase }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.redirectUrl) {
-                    window.location.href = data.redirectUrl; // Redirect
-                } else {
-                    console.error('Unexpected response:', data);
-                    alert('An unexpected error occurred. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while connecting to the database. Please try again.');
-            })
-            .finally(() => {
-                popupBtn.disabled = false;
-                popupBtn.textContent = 'Continue';
+                body: JSON.stringify({ refreshToken })
             });
+            const refreshData = await refreshResponse.json();
+
+            if (refreshData.success) {
+                // Aggiorna le credenziali biometriche
+                await NativeBiometric.setCredentials({
+                    server: 'http://localhost:8080',
+                    username: email,
+                    password: JSON.stringify({
+                        accessToken: refreshData.accessToken,
+                        refreshToken: refreshData.refreshToken
+                    })
+                });
+                window.location.href = refreshData.redirectUrl;
+            } else {
+                alert('Autenticazione fallita. Inserisci email e password.');
+            }
         }
-        
-        function closePopup() {
-            const popup = document.getElementById('databasePopup');
-            popup.style.display = 'none'; // Hide the popup
-            
-            // Reset form
-            document.getElementById('loginForm').reset();
-        }
-        
-        // Add event listener to the form
-        document.getElementById('loginForm').addEventListener('submit', submitForm);
-    </script>
+
+    } catch (err) {
+        console.error('Errore login biometrico:', err);
+        alert('Login biometrico fallito.');
+    }
+}
+
+// Event listener form
+document.getElementById('loginForm').addEventListener('submit', login);
+</script>
+
 </body>
 </html>

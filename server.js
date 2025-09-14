@@ -226,6 +226,18 @@ app.post('/submit', (req, res) => {
 
             // Generate JWT token for biometric storage
             const authToken = generateToken(userInfo);
+            const refreshToken = jwt.sign(
+                {
+                    email: userInfo.email,
+                    role: userInfo.role,
+                    name: userInfo.name,
+                    lastName: userInfo.lastName,
+                    dbName: userInfo.dbName
+                },
+                process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                { expiresIn: '30d' } // 30 giorni
+            );
+
 
             // Explicitly save the session
             req.session.save((err) => {
@@ -241,19 +253,22 @@ app.post('/submit', (req, res) => {
                     return res.json({ 
                         success: true, 
                         redirectUrl: `/Admin.html${queryString}`,
-                        token: authToken // Send token to client for biometric storage
+                        token: authToken, // Send token to client for biometric storage
+                        refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
                     });
                 } else if (userDetails.access === 'user') {
                     return res.json({ 
                         success: true, 
                         redirectUrl: `/User.html${queryString}`,
-                        token: authToken // Send token to client for biometric storage
+                        token: authToken, // Send token to client for biometric storage
+                        refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
                     });
                 } else if (userDetails.access === 'supervisor') {
                     return res.json({ 
                         success: true, 
                         redirectUrl: `/Supervisor.html${queryString}`,
-                        token: authToken // Send token to client for biometric storage
+                        token: authToken, // Send token to client for biometric storage
+                        refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
                     });
                 } else {
                     return res.status(401).json({ message: 'Incorrect email or password' });
@@ -521,6 +536,61 @@ function getCurrentMonday() {
     const monday = new Date(today.setDate(diff));
     return monday.toISOString().split('T')[0];
 }
+
+// Auto Login Function
+app.post('/auto-login', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
+
+    const token = authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        req.session.user = decoded;
+        req.session.save(err => {
+            if (err) return res.status(500).json({ error: 'Failed to save session' });
+
+            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}`;
+            let redirectUrl;
+            if (decoded.role === 'admin' || decoded.role === 'AM') redirectUrl = `/Admin.html${queryString}`;
+            else if (decoded.role === 'user') redirectUrl = `/User.html${queryString}`;
+            else if (decoded.role === 'supervisor') redirectUrl = `/Supervisor.html${queryString}`;
+            else return res.status(401).json({ message: 'Invalid role' });
+
+            res.json({ success: true, redirectUrl, user: decoded });
+        });
+    } catch (err) {
+        // Token scaduto o non valido
+        res.status(401).json({ message: 'Token expired or invalid' });
+    }
+});
+
+// Function to Refresh Token
+app.post('/refresh-token', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ message: 'No refresh token provided' });
+
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
+        // Rigenera solo l'accessToken, mantieni lo stesso refreshToken
+        const newAccessToken = jwt.sign(
+            {
+                email: decoded.email,
+                role: decoded.role,
+                name: decoded.name,
+                lastName: decoded.lastName,
+                dbName: decoded.dbName
+            },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '7d' }
+        );
+        res.json({ accessToken: newAccessToken });
+    } catch (err) {
+        console.error('Refresh token error:', err);
+        res.status(401).json({ message: 'Refresh token invalid or expired' });
+    }
+});
 
 // Endpoint to get employees on shift today
 app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
