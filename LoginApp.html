@@ -52,21 +52,11 @@ body {
 .popup-buttons button.close-btn:hover { background-color:#e9ecef; }
 .spinner { display:inline-block; width:20px; height:20px; border:3px solid rgba(255,255,255,.3); border-radius:50%; border-top-color:#fff; animation:spin 1s ease-in-out infinite; }
 @keyframes spin { to{ transform: rotate(360deg); } }
+#biometricBtn { display:none; margin-top:1rem; padding:12px; width:100%; background:#0074D9; color:white; border:none; border-radius:8px; cursor:pointer; }
+#biometricBtn:hover { background:#005fa3; }
 </style>
 </head>
 <body>
-<!-- Popup Database -->
-<div id="databasePopup">
-    <div class="popup-content">
-        <h3>Select Account</h3>
-        <p>Your account has access to multiple accounts. Please select one to continue.</p>
-        <ul id="databaseList"></ul>
-        <div class="popup-buttons">
-            <button class="primary-btn" onclick="submitDatabase()">Continue</button>
-            <button class="close-btn" onclick="closePopup()">Cancel</button>
-        </div>
-    </div>
-</div>
 
 <!-- Login -->
 <div class="login-container">
@@ -78,137 +68,121 @@ body {
     <form class="login-form" id="loginForm" style="display:none">
         <div class="form-group">
             <label for="email">Email Address</label>
-            <input type="email" id="email" name="email" required placeholder="your.email@company.com" autocomplete="email">
+            <input type="email" id="email" required placeholder="your.email@company.com" autocomplete="email">
         </div>
         <div class="form-group">
             <label for="password">Password</label>
-            <input type="password" id="password" name="password" required placeholder="••••••••" autocomplete="current-password">
+            <input type="password" id="password" required placeholder="••••••••" autocomplete="current-password">
         </div>
         <div class="form-group">
             <button type="submit">Sign In</button>
         </div>
     </form>
-    <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
-    <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
+
+    <button id="biometricBtn">Login with Face ID / Fingerprint</button>
 </div>
 
 <script type="module">
 import { NativeBiometric } from "capacitor-native-biometric";
 
-async function login(event) {
-    event.preventDefault();
+const loginForm = document.getElementById('loginForm');
+const biometricBtn = document.getElementById('biometricBtn');
 
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const dbName = document.querySelector('input[name="database"]:checked')?.value;
+async function initLogin() {
+    loginForm.style.display = 'block'; // Mostra form di default
 
-    try {
-        const response = await fetch('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ email, password, dbName })
-        });
-
-        const data = await response.json();
-
-        if (data.message) {
-            alert(data.message);
-            return;
+    // Controlla se il dispositivo supporta biometric
+    const available = await NativeBiometric.isAvailable().catch(() => ({ isAvailable:false }));
+    if (available.isAvailable) {
+        // Controlla se ci sono credenziali salvate
+        const credentials = await NativeBiometric.getCredentials({ server: 'http://localhost:8080' }).catch(() => null);
+        if (credentials) {
+            biometricBtn.style.display = 'block';
         }
-
-        // Salvataggio token biometrici
-        if (data.accessToken && data.refreshToken) {
-            try {
-                await NativeBiometric.setCredentials({
-                    server: 'http://localhost:8080', // identificatore app
-                    username: email,
-                    password: JSON.stringify({
-                        accessToken: data.accessToken,
-                        refreshToken: data.refreshToken
-                    })
-                });
-                console.log('Credenziali biometriche salvate');
-            } catch (err) {
-                console.error('Errore nel salvare credenziali biometriche:', err);
-            }
-        }
-
-        // Redirect alla pagina corretta
-        if (data.redirectUrl) {
-            window.location.href = data.redirectUrl;
-        }
-
-    } catch (err) {
-        console.error('Errore durante login:', err);
-        alert('Si è verificato un errore. Riprova.');
     }
 }
 
-// Funzione per login tramite Face ID / impronta
-async function loginWithBiometric() {
-    try {
-        const available = await NativeBiometric.isAvailable();
+async function login(event) {
+    event.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
 
-        if (!available.isAvailable) {
-            alert('Biometria non disponibile sul dispositivo.');
-            return;
+    try {
+        const res = await fetch('/submit', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json' },
+            credentials:'include',
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (data.message) { alert(data.message); return; }
+
+        // Salva accessToken + refreshToken in biometria
+        if (data.accessToken && data.refreshToken) {
+            await NativeBiometric.setCredentials({
+                server:'http://localhost:8080',
+                username: email,
+                password: JSON.stringify({ accessToken:data.accessToken, refreshToken:data.refreshToken })
+            });
         }
 
-        const credentials = await NativeBiometric.getCredentials({
-            server: 'http://localhost:8080'
-        });
+        if (data.redirectUrl) window.location.href = data.redirectUrl;
 
+    } catch (err) {
+        console.error(err);
+        alert('Errore durante il login.');
+    }
+}
+
+async function loginWithBiometric() {
+    try {
+        await NativeBiometric.verifyIdentity({ reason:'Authenticate to login' });
+
+        const credentials = await NativeBiometric.getCredentials({ server:'http://localhost:8080' });
         const { accessToken, refreshToken } = JSON.parse(credentials.password);
 
-        // Verifica accessToken con il server (opzionale, qui puoi fare fetch /verifyToken)
-        const verifyResponse = await fetch('/verify-token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${accessToken}`
-            },
-            credentials: 'include'
+        // Verifica token o fai refresh
+        let res = await fetch('/verify-token', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${accessToken}` },
+            credentials:'include'
         });
+        let data = await res.json();
 
-        const verifyData = await verifyResponse.json();
-
-        if (verifyData.success) {
-            window.location.href = verifyData.redirectUrl;
-        } else {
-            // Se token scaduto, usa refreshToken per ottenere nuovo accessToken
-            const refreshResponse = await fetch('/refresh-token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
+        if (!data.success) {
+            // Token scaduto, usa refresh
+            res = await fetch('/refresh-token', {
+                method:'POST',
+                headers:{ 'Content-Type':'application/json' },
+                credentials:'include',
                 body: JSON.stringify({ refreshToken })
             });
-            const refreshData = await refreshResponse.json();
+            data = await res.json();
 
-            if (refreshData.success) {
-                // Aggiorna le credenziali biometriche
+            if (data.success) {
+                // Aggiorna credenziali biometriche
                 await NativeBiometric.setCredentials({
-                    server: 'http://localhost:8080',
-                    username: email,
-                    password: JSON.stringify({
-                        accessToken: refreshData.accessToken,
-                        refreshToken: refreshData.refreshToken
-                    })
+                    server:'http://localhost:8080',
+                    username:data.email,
+                    password: JSON.stringify({ accessToken:data.accessToken, refreshToken:data.refreshToken })
                 });
-                window.location.href = refreshData.redirectUrl;
             } else {
-                alert('Autenticazione fallita. Inserisci email e password.');
+                alert('Autenticazione biometrica fallita. Inserisci email e password.');
+                return;
             }
         }
 
+        window.location.href = data.redirectUrl;
+
     } catch (err) {
-        console.error('Errore login biometrico:', err);
+        console.error(err);
         alert('Login biometrico fallito.');
     }
 }
 
-// Event listener form
-document.getElementById('loginForm').addEventListener('submit', login);
+loginForm.addEventListener('submit', login);
+biometricBtn.addEventListener('click', loginWithBiometric);
+initLogin();
 </script>
 
 </body>
