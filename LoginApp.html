@@ -224,15 +224,91 @@
                 .then(module => {
                     NativeBiometric = module.NativeBiometric;
                     console.log("Biometric module loaded");
+                    // After loading, check if we should try biometric login
+                    tryBiometricLoginOnLoad();
                 })
                 .catch(err => {
                     console.warn("Could not load biometric module:", err);
                     isCapacitor = false;
+                    document.getElementById('loginForm').style.display = 'block';
                 });
+        } else {
+            document.getElementById('loginForm').style.display = 'block';
         }
 
         let databases = [];
         let currentUserData = null;
+
+        // Function to try biometric login on page load
+        async function tryBiometricLoginOnLoad() {
+            if (!isCapacitor || !NativeBiometric) return false;
+            
+            try {
+                const available = await NativeBiometric.isAvailable();
+                if (!available.isAvailable) {
+                    document.getElementById('loginForm').style.display = 'block';
+                    return false;
+                }
+                
+                // Check if credentials exist
+                const credentials = await NativeBiometric.getCredentials({ server: "solura-app" });
+                
+                // If we have credentials, try to use them
+                if (credentials) {
+                    await NativeBiometric.verifyIdentity({
+                        reason: "Per accedere all'app",
+                        title: "Autenticazione",
+                        subtitle: "Usa Face ID o impronta"
+                    });
+
+                    const creds = await NativeBiometric.getCredentials({ server: "solura-app" });
+                    let { accessToken, refreshToken } = JSON.parse(creds.password);
+
+                    // Try to auto-login with the token
+                    let res = await fetch('/auto-login', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
+
+                    if (res.status === 401) {
+                        // Token expired, try to refresh
+                        const refreshRes = await fetch('/refresh-token', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refreshToken })
+                        });
+
+                        if (!refreshRes.ok) throw new Error("Refresh token failed");
+
+                        const data = await refreshRes.json();
+                        accessToken = data.accessToken;
+                        
+                        // Save new tokens
+                        await NativeBiometric.setCredentials({
+                            username: creds.username,
+                            password: JSON.stringify({ accessToken, refreshToken }),
+                            server: "solura-app"
+                        });
+
+                        // Try auto-login again with new token
+                        res = await fetch('/auto-login', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${accessToken}` }
+                        });
+                    }
+
+                    if (res.ok) {
+                        const userData = await res.json();
+                        window.location.href = userData.redirectUrl;
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Biometric login failed or no credentials found:', e);
+                document.getElementById('loginForm').style.display = 'block';
+            }
+            return false;
+        }
 
         // Controlla se la biometria è disponibile
         async function checkBiometricAvailability() {
@@ -245,70 +321,6 @@
                 console.warn('Biometric authentication not available:', error);
                 return false;
             }
-        }
-
-        // Prova il login biometrico solo se ci sono credenziali salvate
-        async function tryBiometricLogin() {
-            if (!isCapacitor || !NativeBiometric) return false;
-            
-            try {
-                // Verifica se ci sono credenziali salvate
-                await NativeBiometric.getCredentials({ server: "solura-app" });
-                
-                // Se ci sono, procedi con la verifica biometrica
-                await NativeBiometric.verifyIdentity({
-                    reason: "Per accedere all'app",
-                    title: "Autenticazione",
-                    subtitle: "Usa Face ID o impronta"
-                });
-
-                const creds = await NativeBiometric.getCredentials({ server: "solura-app" });
-                let { accessToken, refreshToken } = JSON.parse(creds.password);
-
-                // Prova login automatico
-                let res = await fetch('/auto-login', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
-                });
-
-                if (res.status === 401) {
-                    // accessToken scaduto, usa refreshToken
-                    const refreshRes = await fetch('/refresh-token', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refreshToken })
-                    });
-
-                    if (!refreshRes.ok) throw new Error("Refresh token fallito");
-
-                    const data = await refreshRes.json();
-                    accessToken = data.accessToken;
-                    
-                    // Salva nuovo accessToken insieme al refreshToken
-                    await NativeBiometric.setCredentials({
-                        username: creds.username,
-                        password: JSON.stringify({ accessToken, refreshToken }),
-                        server: "solura-app"
-                    });
-
-                    // Login automatico con nuovo accessToken
-                    res = await fetch('/auto-login', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${accessToken}` }
-                    });
-                }
-
-                if (res.ok) {
-                    const userData = await res.json();
-                    window.location.href = userData.redirectUrl;
-                    return true;
-                }
-            } catch (e) {
-                console.warn('Login biometrico fallito:', e);
-                // Mostra il form di login manuale
-                document.getElementById('loginForm').style.display = 'block';
-            }
-            return false;
         }
 
         // --- LOGIN MANUALE ---
@@ -485,31 +497,6 @@
 
         // Inizializzazione
         document.getElementById('loginForm').addEventListener('submit', submitForm);
-        
-        // All'avvio, prova il login biometrico solo se ci sono credenziali salvate
-        window.addEventListener('DOMContentLoaded', async () => {
-            try {
-                // Prima controlla se la biometria è disponibile
-                const biometricAvailable = await checkBiometricAvailability();
-                
-                if (biometricAvailable) {
-                    // Prova il login biometrico
-                    const biometricSuccess = await tryBiometricLogin();
-                    
-                    // Se il login biometrico fallisce, mostra il form
-                    if (!biometricSuccess) {
-                        document.getElementById('loginForm').style.display = 'block';
-                    }
-                } else {
-                    // Se la biometria non è disponibile, mostra direttamente il form
-                    document.getElementById('loginForm').style.display = 'block';
-                }
-            } catch (error) {
-                console.error('Initialization error:', error);
-                // In caso di errore, mostra il form
-                document.getElementById('loginForm').style.display = 'block';
-            }
-        });
     </script>
 </body>
 </html>
