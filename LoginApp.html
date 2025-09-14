@@ -379,32 +379,38 @@
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner"></span> Authenticating...';
 
-            // Simulate API call (replace with your actual API endpoint)
-            setTimeout(() => {
-                // This is a simulation - replace with actual API call
-                simulateLoginResponse(email, password);
-                
+            // Send a POST request to the server
+            fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include', // Include cookies
+                body: JSON.stringify({ email, password }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === 'Multiple databases found') {
+                    databases = data.databases; // Store databases
+                    showDatabasePopup(data.databases); // Show popup
+                } else if (data.message === 'Incorrect email or password') {
+                    alert('Incorrect Email or Password. Please try again.');
+                    window.location.reload();
+                } else if (data.redirectUrl) {
+                    window.location.href = data.redirectUrl; // Redirect
+                } else {
+                    console.error('Unexpected response:', data);
+                    alert('An unexpected error occurred. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please check your connection and try again.');
+            })
+            .finally(() => {
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Sign In';
-            }, 1500);
-        }
-        
-        function simulateLoginResponse(email, password) {
-            // Simulation of different responses
-            if (email === "multi@example.com") {
-                // Simulate multiple databases response
-                const mockDatabases = [
-                    { db_name: "Production DB", access: "Admin" },
-                    { db_name: "Development DB", access: "Read/Write" },
-                    { db_name: "Analytics DB", access: "Read Only" }
-                ];
-                showDatabasePopup(mockDatabases);
-            } else if (email === "error@example.com") {
-                alert('Incorrect Email or Password. Please try again.');
-            } else {
-                // Simulate successful login with redirect
-                window.location.href = "/dashboard.html"; // Change to your actual dashboard URL
-            }
+            });
         }
         
         function showDatabasePopup(databases) {
@@ -422,13 +428,6 @@
                         <span style="display: block; font-size: 0.9em; color: var(--light-text);">${db.access} access</span>
                     </label>
                 `;
-                // Add touch event for better mobile experience
-                li.addEventListener('click', function(e) {
-                    if (e.target !== li.querySelector('input')) {
-                        const radio = li.querySelector('input');
-                        radio.checked = true;
-                    }
-                });
                 databaseList.appendChild(li);
             });
 
@@ -442,43 +441,52 @@
                 return;
             }
 
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
             // Show loading state in popup
-            const popupBtn = document.querySelector('#databasePopup .primary-btn');
-            const originalText = popupBtn.textContent;
+            const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
             popupBtn.disabled = true;
             popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
-            // Simulate connection (replace with actual API call)
-            setTimeout(() => {
-                // Redirect to dashboard after selection
-                window.location.href = "/dashboard.html"; // Change to your actual dashboard URL
-                
+            // Send selected database to the server
+            fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ email, password, dbName: selectedDatabase }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.redirectUrl) {
+                    window.location.href = data.redirectUrl; // Redirect
+                } else {
+                    console.error('Unexpected response:', data);
+                    alert('An unexpected error occurred. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while connecting to the database. Please try again.');
+            })
+            .finally(() => {
                 popupBtn.disabled = false;
-                popupBtn.textContent = originalText;
-            }, 1000);
+                popupBtn.textContent = 'Continue';
+            });
         }
         
         function closePopup() {
             const popup = document.getElementById('databasePopup');
             popup.style.display = 'none'; // Hide the popup
+            
+            // Reset form
+            document.getElementById('loginForm').reset();
         }
-        
-        // Close popup when clicking outside
-        document.getElementById('databasePopup').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closePopup();
-            }
-        });
         
         // Add event listener to the form
         document.getElementById('loginForm').addEventListener('submit', submitForm);
-        
-        // Prevent zoom on input focus on iOS
-        document.addEventListener('touchstart', function(e) {
-            if (e.touches.length > 1) {
-                e.preventDefault();
-            }
-        }, { passive: false });
     </script>
 </body>
 </html>

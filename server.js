@@ -278,7 +278,7 @@ app.post('/verify-biometric', async (req, res) => {
 
         // Get the stored credentials
         const credentials = await NativeBiometric.getCredentials({
-            server: 'solura.uk' // Use a unique identifier for your app
+            server: 'http://localhost:8080' // Use a unique identifier for your app
         });
 
         // Verify the token from the stored credentials
@@ -684,7 +684,7 @@ app.get('/logout', (req, res) => {
     if (req.session && req.session.user) {
         // Delete biometric credentials on logout
         NativeBiometric.deleteCredentials({
-            server: 'solura.uk'
+            server: 'http://localhost:8080'
         }).catch(err => {
             console.error('Failed to delete biometric credentials:', err);
         });
