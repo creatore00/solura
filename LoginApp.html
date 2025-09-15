@@ -388,7 +388,8 @@
                 submitBtn.textContent = 'Sign In';
             }
         }
-        // Abilita l'accesso biometrico
+
+        // Enable biometric authentication
         async function enableBiometric() {
             if (!isCapacitor || !NativeBiometric) {
                 alert('Biometric features not available');
@@ -406,7 +407,9 @@
                     server: "solura-app"
                 });
                 
-                // Nascondi il prompt e reindirizza
+                console.log('Biometric credentials saved successfully');
+                
+                // Hide prompt and redirect
                 document.getElementById('biometricPrompt').style.display = 'none';
                 window.location.href = currentUserData.redirectUrl;
             } catch (error) {
@@ -416,13 +419,13 @@
             }
         }
 
-        // Salta l'abilitazione della biometria
+        // Skip biometric authentication
         function skipBiometric() {
             document.getElementById('biometricPrompt').style.display = 'none';
             window.location.href = currentUserData.redirectUrl;
         }
 
-        // --- POPUP DATABASE ---
+        // --- DATABASE POPUP ---
         function showDatabasePopup(databases) {
             const popup = document.getElementById('databasePopup');
             const databaseList = document.getElementById('databaseList');
@@ -471,7 +474,7 @@
                         redirectUrl: data.redirectUrl
                     };
                     
-                    // Mostra il prompt biometrico dopo la selezione del database
+                    // Show biometric prompt after database selection
                     document.getElementById('databasePopup').style.display = 'none';
                     const biometricAvailable = await checkBiometricAvailability();
                     
@@ -497,7 +500,7 @@
             document.getElementById('loginForm').reset(); 
         }
 
-        // Inizializzazione
+        // Initialize
         document.getElementById('loginForm').addEventListener('submit', submitForm);
     </script>
 </body>
