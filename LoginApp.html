@@ -226,6 +226,8 @@ function closePopup(){
 async function tryBiometricAutoLogin() {
     try {
         const available = await window.Capacitor.Plugins.NativeBiometric.isAvailable();
+        console.log('Biometric available:', available.isAvailable);
+
         if (!available.isAvailable) return;
 
         const credentials = await window.Capacitor.Plugins.NativeBiometric.getCredentials({ server: 'http://localhost:8080' });
@@ -285,7 +287,5 @@ function skipBiometric() {
     if (currentUserData?.redirectUrl) window.location.href = currentUserData.redirectUrl;
 }
 </script>
-
-
 </body>
 </html>
