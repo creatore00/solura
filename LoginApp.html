@@ -160,7 +160,7 @@ async function submitDatabase(){
             credentials: 'include',
             body: JSON.stringify({
                 email: currentUserData?.email || '',  // se disponibile
-                password: '',                         // password non necessaria qui
+                password: currentUserData?.password || '', // password non necessaria qui
                 dbName: selectedDatabase
             })
         });
