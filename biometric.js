@@ -1,5 +1,6 @@
-import { Capacitor } from '@capacitor/core';
-import { NativeBiometric } from '@capgo/capacitor-native-biometric';
+const { Capacitor } = require('@capacitor/core');
+const { NativeBiometric } = require('@capgo/capacitor-native-biometric');
+
 
 const isCapacitor = Capacitor.isNativePlatform();
 let databases = [];
