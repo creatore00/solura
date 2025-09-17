@@ -133,149 +133,155 @@ function generateToken(user) {
 
 // Route to handle login and database selection
 app.post('/submit', (req, res) => {
-    const { email, password, dbName } = req.body;
+  console.log('Received /submit request:', req.body);
+  const { email, password, dbName } = req.body;
 
-    // Step 1: Fetch user details from the main database
-    const sql = `
-        SELECT u.Access, u.Password, u.Email, u.db_name
-        FROM users u
-        WHERE u.Email = ?
+  const sql = `
+      SELECT u.Access, u.Password, u.Email, u.db_name
+      FROM users u
+      WHERE u.Email = ?
+  `;
+
+  mainPool.query(sql, [email], async (err, results) => {
+    if (err) {
+      console.error('Error querying database:', err);
+      return res.status(500).json({ error: 'Internal Server Error' });
+    }
+    console.log('Query results:', results);
+
+    if (results.length === 0) {
+      console.log('No user found for email:', email);
+      return res.status(401).json({ message: 'Incorrect email or password' });
+    }
+
+    let matchingDatabases = [];
+    for (const row of results) {
+      const storedPassword = row.Password;
+      try {
+        const isMatch = await bcrypt.compare(password, storedPassword);
+        console.log('Password match for db:', row.db_name, isMatch);
+        if (isMatch) {
+          matchingDatabases.push({
+            db_name: row.db_name,
+            access: row.Access,
+          });
+        }
+      } catch (err) {
+        console.error('Error comparing passwords:', err);
+        return res.status(500).json({ error: 'Internal Server Error' });
+      }
+    }
+    console.log('Matching databases:', matchingDatabases);
+
+    if (matchingDatabases.length === 0) {
+      console.log('No matching databases found');
+      return res.status(401).json({ message: 'Incorrect email or password' });
+    }
+
+    if (matchingDatabases.length > 1 && !dbName) {
+      console.log('Multiple databases found, returning list');
+      return res.status(200).json({
+        message: 'Multiple databases found',
+        databases: matchingDatabases,
+      });
+    }
+
+    const userDetails = dbName
+      ? matchingDatabases.find((db) => db.db_name === dbName)
+      : matchingDatabases[0];
+    console.log('Selected user details:', userDetails);
+
+    if (!userDetails) {
+      console.log('Invalid database selection');
+      return res.status(400).json({ error: 'Invalid database selection' });
+    }
+
+    const companyPool = getPool(userDetails.db_name);
+    const companySql = `
+      SELECT name, lastName
+      FROM Employees
+      WHERE email = ?
     `;
 
-    mainPool.query(sql, [email], async (err, results) => {
+    companyPool.query(companySql, [email], (err, companyResults) => {
+      if (err) {
+        console.error('Error querying company database:', err);
+        return res.status(500).json({ error: 'Internal Server Error' });
+      }
+      console.log('Company query results:', companyResults);
+
+      if (companyResults.length === 0) {
+        console.log('User not found in company database');
+        return res.status(401).json({ message: 'User not found in company database' });
+      }
+
+      const name = companyResults[0].name;
+      const lastName = companyResults[0].lastName;
+
+      const userInfo = {
+        email: email,
+        role: userDetails.access,
+        name: name,
+        lastName: lastName,
+        dbName: userDetails.db_name,
+      };
+      console.log('Storing user info in session:', userInfo);
+
+      req.session.user = userInfo;
+
+      const authToken = generateToken(userInfo);
+      const refreshToken = jwt.sign(
+        {
+          email: userInfo.email,
+          role: userInfo.role,
+          name: userInfo.name,
+          lastName: userInfo.lastName,
+          dbName: userInfo.dbName
+        },
+        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+        { expiresIn: '30d' }
+      );
+
+      req.session.save((err) => {
         if (err) {
-            console.error('Error querying database:', err);
-            return res.status(500).json({ error: 'Internal Server Error' });
+          console.error('Error saving session:', err);
+          return res.status(500).json({ error: 'Internal Server Error' });
         }
+        console.log('Session saved successfully');
 
-        if (results.length === 0) {
-            return res.status(401).json({ message: 'Incorrect email or password' });
+        const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+
+        if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+          console.log('Redirecting to Admin.html');
+          return res.json({
+            success: true,
+            redirectUrl: `/Admin.html${queryString}`,
+            accessToken: authToken,
+            refreshToken: refreshToken
+          });
+        } else if (userDetails.access === 'user') {
+          console.log('Redirecting to User.html');
+          return res.json({
+            success: true,
+            redirectUrl: `/User.html${queryString}`,
+            accessToken: authToken,
+            refreshToken: refreshToken
+          });
+        } else if (userDetails.access === 'supervisor') {
+          console.log('Redirecting to Supervisor.html');
+          return res.json({
+            success: true,
+            redirectUrl: `/Supervisor.html${queryString}`,
+            accessToken: authToken,
+            refreshToken: refreshToken
+          });
+        } else {
+          console.log('Invalid access role');
+          return res.status(401).json({ message: 'Incorrect email or password' });
         }
-
-        // Step 2: Check all rows for the given email and password
-        let matchingDatabases = [];
-
-        for (const row of results) {
-            const storedPassword = row.Password;
-
-            try {
-                const isMatch = await bcrypt.compare(password, storedPassword);
-                if (isMatch) {
-                    matchingDatabases.push({
-                        db_name: row.db_name,
-                        access: row.Access,
-                    });
-                }
-            } catch (err) {
-                console.error('Error comparing passwords:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
-        }
-
-        if (matchingDatabases.length === 0) {
-            return res.status(401).json({ message: 'Incorrect email or password' });
-        }
-
-        // Step 3: If multiple databases match and no database is selected, return the list to the frontend
-        if (matchingDatabases.length > 1 && !dbName) {
-            return res.status(200).json({
-                message: 'Multiple databases found',
-                databases: matchingDatabases,
-            });
-        }
-
-        // Step 4: If only one database matches or a database is selected, proceed
-        const userDetails = dbName
-            ? matchingDatabases.find((db) => db.db_name === dbName) // Use the selected database
-            : matchingDatabases[0]; // Use the only matching database
-
-        if (!userDetails) {
-            return res.status(400).json({ error: 'Invalid database selection' });
-        }
-
-        const companyPool = getPool(userDetails.db_name); // Get the correct connection pool
-        const companySql = `
-            SELECT name, lastName
-            FROM Employees
-            WHERE email = ?
-        `;
-
-        companyPool.query(companySql, [email], (err, companyResults) => {
-            if (err) {
-                console.error('Error querying company database:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
-
-            if (companyResults.length === 0) {
-                return res.status(401).json({ message: 'User not found in company database' });
-            }
-
-            const name = companyResults[0].name;
-            const lastName = companyResults[0].lastName;
-
-            // Step 5: Store user information in session
-            const userInfo = {
-                email: email,
-                role: userDetails.access,
-                name: name,
-                lastName: lastName,
-                dbName: userDetails.db_name,
-            };
-            
-            req.session.user = userInfo;
-
-            // Generate JWT token for biometric storage
-            const authToken = generateToken(userInfo);
-            const refreshToken = jwt.sign(
-                {
-                    email: userInfo.email,
-                    role: userInfo.role,
-                    name: userInfo.name,
-                    lastName: userInfo.lastName,
-                    dbName: userInfo.dbName
-                },
-                process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                { expiresIn: '30d' } // 30 giorni
-            );
-
-
-            // Explicitly save the session
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Error saving session:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-
-                // Step 6: Redirect based on role
-                const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
-
-                if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    return res.json({ 
-                        success: true, 
-                        redirectUrl: `/Admin.html${queryString}`,
-                        accessToken: authToken, // Send token to client for biometric storage
-                        refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
-                    });
-                } else if (userDetails.access === 'user') {
-                    return res.json({ 
-                        success: true, 
-                        redirectUrl: `/User.html${queryString}`,
-                        accessToken: authToken, // Send token to client for biometric storage
-                        refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
-                    });
-                } else if (userDetails.access === 'supervisor') {
-                    return res.json({ 
-                        success: true, 
-                        redirectUrl: `/Supervisor.html${queryString}`,
-                        accessToken: authToken, // Send token to client for biometric storage
-                        refreshToken: refreshToken // questo serve per rigenerare l'accessToken quando scade
-                    });
-                } else {
-                    return res.status(401).json({ message: 'Incorrect email or password' });
-                }
-            });
-        });
+      });
     });
+  });
 });
 
 // Route to verify biometric authentication
@@ -293,7 +299,7 @@ app.post('/verify-biometric', async (req, res) => {
 
         // Get the stored credentials
         const credentials = await NativeBiometric.getCredentials({
-            server: 'solura.uk' // Use a unique identifier for your app
+            server: 'http://localhost:8080' // Use a unique identifier for your app
         });
 
         // Verify the token from the stored credentials
@@ -751,27 +757,26 @@ app.get('/api/labor-cost', isAuthenticated, (req, res) => {
 
 // Route to handle logout
 app.get('/logout', (req, res) => {
-    if (req.session && req.session.user) {
-        // Delete biometric credentials on logout
-        NativeBiometric.deleteCredentials({
-            server: 'solura.uk'
-        }).catch(err => {
-            console.error('Failed to delete biometric credentials:', err);
-        });
-        
-        req.session.destroy(err => {
-            if (err) {
-                console.error('Failed to destroy session:', err);
-                return res.status(500).json({ error: 'Failed to logout' });
-            }
-            res.clearCookie('connect.sid'); // Ensure the name matches the session cookie
-            res.redirect('/');
-        });
-    } else {
-        res.redirect('/');
+  if (req.session && req.session.user) {
+    if (isCapacitor) {
+      NativeBiometric.deleteCredentials({
+        server: 'com.solura.rota'
+      }).catch(err => {
+        console.error('Failed to delete biometric credentials:', err);
+      });
     }
+    req.session.destroy(err => {
+      if (err) {
+        console.error('Failed to destroy session:', err);
+        return res.status(500).json({ error: 'Failed to logout' });
+      }
+      res.clearCookie('connect.sid');
+      res.redirect('/');
+    });
+  } else {
+    res.redirect('/');
+  }
 });
-
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
     // Start holiday accrual updates for these databases
