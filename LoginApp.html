@@ -149,7 +149,7 @@ async function submitDatabase(){
     if(!selectedDatabase) return alert('Please select a database.');
 
     const popupBtn = document.getElementById('continueDbBtn');
-    popupBtn.disabled = true;
+    popupBtn.disabled = false;
     popupBtn.textContent = 'Connecting...';
 
     try {
