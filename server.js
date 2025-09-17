@@ -39,7 +39,7 @@ const bcrypt = require('bcrypt');
 const saltRounds = 10; // Number of salt rounds, higher is more secure but slower
 const jwt = require('jsonwebtoken');
 const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor, isUser } = require('./sessionConfig'); // Adjust the path as needed
-
+const session = require('express-session');
 const app = express();
 const port = process.env.PORT || 8080;
 app.use('/rota', newRota);
