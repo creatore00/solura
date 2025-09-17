@@ -97,7 +97,7 @@ let databases = [];
 let currentUserData = null;
 const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
 
-// Event listeners
+// --- EVENT LISTENERS ---
 document.getElementById('loginForm').addEventListener('submit', submitForm);
 document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
 document.getElementById('closeDbBtn').addEventListener('click', closePopup);
@@ -135,8 +135,7 @@ async function submitForm(event){
         if(data.message === 'Multiple databases found'){ 
             databases = data.databases; 
             showDatabasePopup(databases);
-            // Salva temporaneamente email/password per il biometric dopo la selezione del DB
-            currentUserData = { email, password }; 
+            currentUserData = { email, password }; // salva per DB selection + biometric
         } else if(data.redirectUrl){ 
             currentUserData = {
                 email,
@@ -146,7 +145,9 @@ async function submitForm(event){
             };
             if (isCapacitor) document.getElementById('biometricPrompt').style.display = 'block';
             else window.location.href = data.redirectUrl;
-        } else alert('Incorrect Email or Password.');
+        } else {
+            alert('Incorrect Email or Password.');
+        }
     } catch(e){ 
         alert(`Login failed: ${e.message}`); 
     } finally{
@@ -155,7 +156,22 @@ async function submitForm(event){
     }
 }
 
-// --- DATABASE SELECTION ---
+// --- DATABASE POPUP ---
+function showDatabasePopup(databases){
+    const popup = document.getElementById('databasePopup');
+    const list = document.getElementById('databaseList');
+    list.innerHTML = '';
+
+    databases.forEach(db => {
+        const li = document.createElement('li');
+        li.innerHTML = `<input type="radio" name="database" value="${db.db_name}" required>
+                        <label>${db.db_name} (${db.access} access)</label>`;
+        list.appendChild(li);
+    });
+
+    popup.style.display = 'block';
+}
+
 async function submitDatabase() {
     const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
     if (!selectedDatabase) {
@@ -206,7 +222,7 @@ function closePopup(){
     document.getElementById('databasePopup').style.display='none'; 
 }
 
-// --- BIOMETRIC LOGIN ---
+// --- BIOMETRIC AUTO LOGIN ---
 async function tryBiometricAutoLogin() {
     try {
         const available = await window.Capacitor.Plugins.NativeBiometric.isAvailable();
@@ -227,7 +243,6 @@ async function tryBiometricAutoLogin() {
             const data = await res.json();
             window.location.href = data.redirectUrl;
         } else if (res.status === 401) {
-            // refresh token
             const refreshRes = await fetch('/refresh-token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -248,7 +263,7 @@ async function tryBiometricAutoLogin() {
     }
 }
 
-// --- ENABLE BIOMETRIC ---
+// --- ENABLE BIOMETRIC AFTER LOGIN ---
 async function enableBiometric() {
     if (!currentUserData || !isCapacitor) return;
 
@@ -270,6 +285,7 @@ function skipBiometric() {
     if (currentUserData?.redirectUrl) window.location.href = currentUserData.redirectUrl;
 }
 </script>
+
 
 </body>
 </html>
