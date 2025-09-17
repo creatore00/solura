@@ -149,18 +149,17 @@ async function submitDatabase(){
     if(!selectedDatabase) return alert('Please select a database.');
 
     const popupBtn = document.getElementById('continueDbBtn');
-    popupBtn.disabled = false;
+    popupBtn.disabled = true;
     popupBtn.textContent = 'Connecting...';
 
     try {
-        // Invia anche email e password vuota (se hai già accessToken puoi inviare quello)
         const res = await fetch('/submit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-                email: currentUserData?.email || '',  // se disponibile
-                password: currentUserData?.password || '', // password non necessaria qui
+                email: currentUserData.email,        // << email dal login
+                password: currentUserData.password,  // << password dal login
                 dbName: selectedDatabase
             })
         });
@@ -168,11 +167,6 @@ async function submitDatabase(){
         const data = await res.json();
 
         if (data.redirectUrl) {
-            // Aggiorna eventuali token se ricevuti
-            if (currentUserData) {
-                currentUserData.accessToken = data.accessToken;
-                currentUserData.refreshToken = data.refreshToken;
-            }
             document.getElementById('databasePopup').style.display = 'none';
             window.location.href = data.redirectUrl;
         } else {
