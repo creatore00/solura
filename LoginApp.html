@@ -144,42 +144,49 @@ function showDatabasePopup(databases){
     popup.style.display='block';
 }
 
-async function submitDatabase(){
-    const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
-    if(!selectedDatabase) return alert('Please select a database.');
+function submitDatabase() {
+            const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
+            if (!selectedDatabase) {
+                alert('Please select a database to continue.');
+                return;
+            }
 
-    const popupBtn = document.getElementById('continueDbBtn');
-    popupBtn.disabled = true;
-    popupBtn.textContent = 'Connecting...';
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
 
-    try {
-        const res = await fetch('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                email: currentUserData.email,        // << email dal login
-                password: currentUserData.password,  // << password dal login
-                dbName: selectedDatabase
+            // Show loading state in popup
+            const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
+            popupBtn.disabled = true;
+            popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+
+            // Send selected database to the server
+            fetch('/submit', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ email, password, dbName: selectedDatabase }),
             })
-        });
-
-        const data = await res.json();
-
-        if (data.redirectUrl) {
-            document.getElementById('databasePopup').style.display = 'none';
-            window.location.href = data.redirectUrl;
-        } else {
-            alert('Database selection failed: no redirect URL returned.');
+            .then(response => response.json())
+            .then(data => {
+                if (data.redirectUrl) {
+                    window.location.href = data.redirectUrl; // Redirect
+                } else {
+                    console.error('Unexpected response:', data);
+                    alert('An unexpected error occurred. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while connecting to the database. Please try again.');
+            })
+            .finally(() => {
+                popupBtn.disabled = false;
+                popupBtn.textContent = 'Continue';
+            });
         }
-    } catch (e) {
-        alert(`Database selection failed: ${e.message}`);
-    } finally {
-        popupBtn.disabled = false;
-        popupBtn.textContent = 'Continue';
-    }
-}
-
+        
 function closePopup(){ 
     document.getElementById('databasePopup').style.display='none'; 
 }
