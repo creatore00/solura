@@ -95,103 +95,12 @@
 <script>
 let databases = [];
 let currentUserData = null;
+const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
 
 // Event listeners
 document.getElementById('loginForm').addEventListener('submit', submitForm);
 document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
 document.getElementById('closeDbBtn').addEventListener('click', closePopup);
-
-async function submitForm(event){
-    event.preventDefault();
-    const email=document.getElementById('email').value;
-    const password=document.getElementById('password').value;
-    const submitBtn=event.target.querySelector('button[type="submit"]');
-    submitBtn.disabled=true;
-    submitBtn.textContent='Authenticating...';
-    try{
-        const res=await fetch('/submit',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            credentials:'include',
-            body:JSON.stringify({email,password})
-        });
-        if(!res.ok) throw new Error(await res.text());
-        const data=await res.json();
-        if(data.message==='Multiple databases found'){ 
-            databases=data.databases; 
-            showDatabasePopup(databases); 
-        } else if(data.redirectUrl){ 
-            window.location.href=data.redirectUrl; 
-        } else alert('Incorrect Email or Password.');
-    } catch(e){ 
-        alert(`Login failed: ${e.message}`); 
-    } finally{
-        submitBtn.disabled=false; 
-        submitBtn.textContent='Sign In';
-    }
-}
-
-function showDatabasePopup(databases){
-    const popup=document.getElementById('databasePopup');
-    const list=document.getElementById('databaseList');
-    list.innerHTML='';
-    databases.forEach(db=>{
-        const li=document.createElement('li');
-        li.innerHTML=`<input type="radio" name="database" value="${db.db_name}" required>
-                      <label>${db.db_name} (${db.access} access)</label>`;
-        list.appendChild(li);
-    });
-    popup.style.display='block';
-}
-
-function submitDatabase() {
-            const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
-            if (!selectedDatabase) {
-                alert('Please select a database to continue.');
-                return;
-            }
-
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            // Show loading state in popup
-            const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
-            popupBtn.disabled = true;
-            popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
-
-            // Send selected database to the server
-            fetch('/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({ email, password, dbName: selectedDatabase }),
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.redirectUrl) {
-                    window.location.href = data.redirectUrl; // Redirect
-                } else {
-                    console.error('Unexpected response:', data);
-                    alert('An unexpected error occurred. Please try again.');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while connecting to the database. Please try again.');
-            })
-            .finally(() => {
-                popupBtn.disabled = false;
-                popupBtn.textContent = 'Continue';
-            });
-        }
-        
-function closePopup(){ 
-    document.getElementById('databasePopup').style.display='none'; 
-}
-const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
-
 document.getElementById('enableBioBtn')?.addEventListener('click', enableBiometric);
 document.getElementById('skipBioBtn')?.addEventListener('click', skipBiometric);
 
@@ -203,78 +112,7 @@ async function init() {
     await tryBiometricAutoLogin();
 }
 
-// --- AUTO LOGIN USING BIOMETRIC ---
-async function tryBiometricAutoLogin() {
-    try {
-        const available = await window.Capacitor.Plugins.NativeBiometric.isAvailable();
-        if (!available.isAvailable) return;
-
-        const credentials = await window.Capacitor.Plugins.NativeBiometric.getCredentials({
-            server: 'http://localhost:8080'
-        });
-
-        if (!credentials?.username) return;
-
-        const verify = await window.Capacitor.Plugins.NativeBiometric.verifyIdentity({
-            reason: 'Accedi all’app usando Face ID o Touch ID'
-        });
-
-        // Chiamata al server per auto-login
-        const res = await fetch('/auto-login', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${credentials.password}` },
-            credentials: 'include'
-        });
-
-        if (res.ok) {
-            const data = await res.json();
-            window.location.href = data.redirectUrl;
-        } else if (res.status === 401) {
-            // Prova a refreshare token se expired
-            const refreshRes = await fetch('/refresh-token', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refreshToken: credentials.password })
-            });
-            if (refreshRes.ok) {
-                const refreshData = await refreshRes.json();
-                await window.Capacitor.Plugins.NativeBiometric.setCredentials({
-                    username: credentials.username,
-                    password: refreshData.accessToken,
-                    server: 'http://localhost:8080'
-                });
-                // Retry auto-login
-                await tryBiometricAutoLogin();
-            }
-        }
-    } catch (e) {
-        console.warn('Biometric auto-login failed:', e.message);
-    }
-}
-
-// --- ENABLE BIOMETRIC AFTER LOGIN ---
-async function enableBiometric() {
-    if (!currentUserData || !isCapacitor) return;
-
-    try {
-        await window.Capacitor.Plugins.NativeBiometric.setCredentials({
-            username: currentUserData.email,
-            password: currentUserData.accessToken, // salviamo accessToken
-            server: 'http://localhost:8080'
-        });
-        document.getElementById('biometricPrompt').style.display = 'none';
-        window.location.href = currentUserData.redirectUrl;
-    } catch (e) {
-        alert('Impossibile abilitare il biometric login: ' + e.message);
-    }
-}
-
-function skipBiometric() {
-    document.getElementById('biometricPrompt').style.display = 'none';
-    if (currentUserData?.redirectUrl) window.location.href = currentUserData.redirectUrl;
-}
-
-// --- MODIFICA LOGIN FORM PER SALVARE I TOKEN ---
+// --- LOGIN FORM ---
 async function submitForm(event){
     event.preventDefault();
     const email = document.getElementById('email').value;
@@ -296,7 +134,9 @@ async function submitForm(event){
 
         if(data.message === 'Multiple databases found'){ 
             databases = data.databases; 
-            showDatabasePopup(databases); 
+            showDatabasePopup(databases);
+            // Salva temporaneamente email/password per il biometric dopo la selezione del DB
+            currentUserData = { email, password }; 
         } else if(data.redirectUrl){ 
             currentUserData = {
                 email,
@@ -304,8 +144,6 @@ async function submitForm(event){
                 refreshToken: data.refreshToken,
                 redirectUrl: data.redirectUrl
             };
-
-            // Mostra prompt per biometric
             if (isCapacitor) document.getElementById('biometricPrompt').style.display = 'block';
             else window.location.href = data.redirectUrl;
         } else alert('Incorrect Email or Password.');
@@ -316,6 +154,122 @@ async function submitForm(event){
         submitBtn.textContent = 'Sign In';
     }
 }
+
+// --- DATABASE SELECTION ---
+async function submitDatabase() {
+    const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
+    if (!selectedDatabase) {
+        alert('Please select a database to continue.');
+        return;
+    }
+
+    const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
+    popupBtn.disabled = true;
+    popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+
+    try {
+        const res = await fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ 
+                email: currentUserData.email, 
+                password: currentUserData.password, 
+                dbName: selectedDatabase 
+            })
+        });
+        const data = await res.json();
+
+        if (data.redirectUrl) {
+            currentUserData = {
+                email: currentUserData.email,
+                accessToken: data.accessToken,
+                refreshToken: data.refreshToken,
+                redirectUrl: data.redirectUrl
+            };
+            document.getElementById('databasePopup').style.display = 'none';
+            if (isCapacitor) document.getElementById('biometricPrompt').style.display = 'block';
+            else window.location.href = data.redirectUrl;
+        } else {
+            alert('Database selection failed. Please try again.');
+            console.error('Unexpected response:', data);
+        }
+    } catch(e) {
+        alert(`Database selection failed: ${e.message}`);
+    } finally {
+        popupBtn.disabled = false;
+        popupBtn.textContent = 'Continue';
+    }
+}
+
+function closePopup(){ 
+    document.getElementById('databasePopup').style.display='none'; 
+}
+
+// --- BIOMETRIC LOGIN ---
+async function tryBiometricAutoLogin() {
+    try {
+        const available = await window.Capacitor.Plugins.NativeBiometric.isAvailable();
+        if (!available.isAvailable) return;
+
+        const credentials = await window.Capacitor.Plugins.NativeBiometric.getCredentials({ server: 'http://localhost:8080' });
+        if (!credentials?.username) return;
+
+        await window.Capacitor.Plugins.NativeBiometric.verifyIdentity({ reason: 'Accedi all’app usando Face ID o Touch ID' });
+
+        const res = await fetch('/auto-login', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${credentials.password}` },
+            credentials: 'include'
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            window.location.href = data.redirectUrl;
+        } else if (res.status === 401) {
+            // refresh token
+            const refreshRes = await fetch('/refresh-token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken: credentials.password })
+            });
+            if (refreshRes.ok) {
+                const refreshData = await refreshRes.json();
+                await window.Capacitor.Plugins.NativeBiometric.setCredentials({
+                    username: credentials.username,
+                    password: refreshData.accessToken,
+                    server: 'http://localhost:8080'
+                });
+                await tryBiometricAutoLogin();
+            }
+        }
+    } catch(e) {
+        console.warn('Biometric auto-login failed:', e.message);
+    }
+}
+
+// --- ENABLE BIOMETRIC ---
+async function enableBiometric() {
+    if (!currentUserData || !isCapacitor) return;
+
+    try {
+        await window.Capacitor.Plugins.NativeBiometric.setCredentials({
+            username: currentUserData.email,
+            password: currentUserData.accessToken,
+            server: 'http://localhost:8080'
+        });
+        document.getElementById('biometricPrompt').style.display = 'none';
+        window.location.href = currentUserData.redirectUrl;
+    } catch(e) {
+        alert('Impossibile abilitare il biometric login: ' + e.message);
+    }
+}
+
+function skipBiometric() {
+    document.getElementById('biometricPrompt').style.display = 'none';
+    if (currentUserData?.redirectUrl) window.location.href = currentUserData.redirectUrl;
+}
 </script>
+
 </body>
 </html>
