@@ -5,16 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Solura',
   webDir: 'www',
   server: {
-    androidScheme: 'https',
-    hostname: 'solura.uk'
-  },
-  plugins: {
-    NativeBiometric: {
-      server: 'com.solura.app'
-    }
-  },
-  android: {
-    allowMixedContent: true // For testing, remove in production
+    url: "https://solura.uk",   // carica direttamente il tuo server Node
+    cleartext: true,
   }
 };
 
