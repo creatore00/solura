@@ -145,21 +145,44 @@ function showDatabasePopup(databases){
 }
 
 async function submitDatabase(){
-    const selectedDatabase=document.querySelector('input[name="database"]:checked')?.value;
+    const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
     if(!selectedDatabase) return alert('Please select a database.');
-    try{
-        const res=await fetch('/submit',{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            credentials:'include',
-            body:JSON.stringify({dbName:selectedDatabase})
+
+    const popupBtn = document.getElementById('continueDbBtn');
+    popupBtn.disabled = true;
+    popupBtn.textContent = 'Connecting...';
+
+    try {
+        // Invia anche email e password vuota (se hai già accessToken puoi inviare quello)
+        const res = await fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                email: currentUserData?.email || '',  // se disponibile
+                password: '',                         // password non necessaria qui
+                dbName: selectedDatabase
+            })
         });
-        const data=await res.json();
-        if(data.redirectUrl){ 
-            window.location.href=data.redirectUrl; 
+
+        const data = await res.json();
+
+        if (data.redirectUrl) {
+            // Aggiorna eventuali token se ricevuti
+            if (currentUserData) {
+                currentUserData.accessToken = data.accessToken;
+                currentUserData.refreshToken = data.refreshToken;
+            }
+            document.getElementById('databasePopup').style.display = 'none';
+            window.location.href = data.redirectUrl;
+        } else {
+            alert('Database selection failed: no redirect URL returned.');
         }
-    } catch(e){ 
-        alert(`Database selection failed: ${e.message}`); 
+    } catch (e) {
+        alert(`Database selection failed: ${e.message}`);
+    } finally {
+        popupBtn.disabled = false;
+        popupBtn.textContent = 'Continue';
     }
 }
 
@@ -167,6 +190,5 @@ function closePopup(){
     document.getElementById('databasePopup').style.display='none'; 
 }
 </script>
-
 </body>
 </html>
