@@ -212,330 +212,295 @@
         <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
-<script>
-  import { Capacitor } from '@capacitor/core';
-import { NativeBiometric } from '@capacitor-community/native-biometric';
-
-// Check if running in Capacitor environment
-const isCapacitor = Capacitor.isNativePlatform();
-console.log('Running in Capacitor:', isCapacitor);
-
-let databases = [];
-let currentUserData = null;
-
-// Function to try biometric login on page load
-async function tryBiometricLoginOnLoad() {
-  if (!isCapacitor) {
-    console.log('Not running in Capacitor, showing login form');
-    document.getElementById('loginForm').style.display = 'block';
-    return false;
-  }
-
-  try {
-    const available = await NativeBiometric.isAvailable();
-    console.log('Biometric availability:', available);
-    if (!available.isAvailable) {
-      console.log('Biometric authentication not available');
-      document.getElementById('loginForm').style.display = 'block';
-      return false;
-    }
-
-    // Check if credentials exist
-    const credentials = await NativeBiometric.getCredentials({ server: 'com.solura.app' });
-    console.log('Biometric credentials:', credentials);
-    if (credentials && credentials.username) {
-      await NativeBiometric.verifyIdentity({
-        reason: 'Log in to Solura',
-        title: 'Authentication',
-        subtitle: 'Use fingerprint or face recognition'
-      });
-
-      const creds = await NativeBiometric.getCredentials({ server: 'com.solura.app' });
-      let { accessToken, refreshToken } = JSON.parse(creds.password);
-
-      console.log('Attempting auto-login with token');
-      let res = await fetch('/auto-login', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-        credentials: 'include'
-      });
-
-      if (res.status === 401) {
-        console.log('Token expired, attempting refresh');
-        const refreshRes = await fetch('/refresh-token', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken })
-        });
-
-        if (!refreshRes.ok) {
-          console.error('Refresh token failed:', await refreshRes.text());
-          throw new Error('Refresh token failed');
+  <script>
+        // Fallback if Capacitor is not available
+        let NativeBiometric = null;
+        let isCapacitor = typeof Capacitor !== 'undefined';
+        
+        // Try to load Capacitor plugin
+        if (isCapacitor) {
+            import("capacitor-native-biometric")
+                .then(module => {
+                    NativeBiometric = module.NativeBiometric;
+                    console.log("Biometric module loaded");
+                    // After loading, check if we should try biometric login
+                    tryBiometricLoginOnLoad();
+                })
+                .catch(err => {
+                    console.warn("Could not load biometric module:", err);
+                    isCapacitor = false;
+                    document.getElementById('loginForm').style.display = 'block';
+                });
+        } else {
+            document.getElementById('loginForm').style.display = 'block';
         }
 
-        const data = await refreshRes.json();
-        accessToken = data.accessToken;
+        let databases = [];
+        let currentUserData = null;
 
-        console.log('Saving new tokens');
-        await NativeBiometric.setCredentials({
-          username: creds.username,
-          password: JSON.stringify({ accessToken, refreshToken }),
-          server: 'com.solura.app'
-        });
+        // Function to try biometric login on page load
+        async function tryBiometricLoginOnLoad() {
+            if (!isCapacitor || !NativeBiometric) return false;
+            
+            try {
+                const available = await NativeBiometric.isAvailable();
+                if (!available.isAvailable) {
+                    document.getElementById('loginForm').style.display = 'block';
+                    return false;
+                }
+                
+                // Check if credentials exist
+                const credentials = await NativeBiometric.getCredentials({ server: "solura.uk" });
+                
+                // If we have credentials, try to use them
+                if (credentials && credentials.username) {
+                    await NativeBiometric.verifyIdentity({
+                        reason: "Per accedere all'app",
+                        title: "Autenticazione",
+                        subtitle: "Usa Face ID o impronta"
+                    });
 
-        console.log('Retrying auto-login with new token');
-        res = await fetch('/auto-login', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-          credentials: 'include'
-        });
-      }
+                    const creds = await NativeBiometric.getCredentials({ server: "solura.uk" });
+                    let { accessToken, refreshToken } = JSON.parse(creds.password);
 
-      if (res.ok) {
-        const userData = await res.json();
-        console.log('Auto-login successful, redirecting to:', userData.redirectUrl);
-        window.location.href = userData.redirectUrl;
-        return true;
-      } else {
-        console.error('Auto-login failed:', await res.text());
-      }
-    }
-  } catch (e) {
-    console.warn('Biometric login failed or no credentials found:', e.message);
-    document.getElementById('loginForm').style.display = 'block';
-  }
-  return false;
-}
+                    // Try to auto-login with the token
+                    let res = await fetch('/auto-login', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${accessToken}` }
+                    });
 
-// Check if biometric authentication is available
-async function checkBiometricAvailability() {
-  if (!isCapacitor) {
-    console.log('Biometric not available in non-native environment');
-    return false;
-  }
+                    if (res.status === 401) {
+                        // Token expired, try to refresh
+                        const refreshRes = await fetch('/refresh-token', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refreshToken })
+                        });
 
-  try {
-    const available = await NativeBiometric.isAvailable();
-    console.log('Biometric check result:', available);
-    return available.isAvailable;
-  } catch (error) {
-    console.warn('Biometric availability check failed:', error.message);
-    return false;
-  }
-}
+                        if (!refreshRes.ok) throw new Error("Refresh token failed");
 
-// Manual login
-async function submitForm(event) {
-  event.preventDefault();
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-  const submitBtn = document.querySelector('#loginForm button[type="submit"]');
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = '<span class="spinner"></span> Authenticating...';
+                        const data = await refreshRes.json();
+                        accessToken = data.accessToken;
+                        
+                        // Save new tokens
+                        await NativeBiometric.setCredentials({
+                            username: creds.username,
+                            password: JSON.stringify({ accessToken, refreshToken }),
+                            server: "solura.uk"
+                        });
 
-  try {
-    console.log('Submitting login form:', { email });
-    const res = await fetch('/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, password })
-    });
+                        // Try auto-login again with new token
+                        res = await fetch('/auto-login', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${accessToken}` }
+                        });
+                    }
 
-    console.log('Response status:', res.status);
-    const contentType = res.headers.get('content-type');
-    console.log('Response content-type:', contentType);
+                    if (res.ok) {
+                        const userData = await res.json();
+                        window.location.href = userData.redirectUrl;
+                        return true;
+                    }
+                }
+            } catch (e) {
+                console.warn('Biometric login failed or no credentials found:', e);
+                document.getElementById('loginForm').style.display = 'block';
+            }
+            return false;
+        }
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Server error:', errorText);
-      throw new Error(`Server returned ${res.status}: ${errorText}`);
-    }
+        // Check if biometric authentication is available
+        async function checkBiometricAvailability() {
+            if (!isCapacitor || !NativeBiometric) return false;
+            
+            try {
+                const available = await NativeBiometric.isAvailable();
+                return available.isAvailable;
+            } catch (error) {
+                console.warn('Biometric authentication not available:', error);
+                return false;
+            }
+        }
 
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await res.text();
-      console.error('Non-JSON response:', text);
-      throw new Error('Server did not return JSON');
-    }
+        // --- MANUAL LOGIN ---
+        async function submitForm(event) {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Authenticating...';
 
-    const data = await res.json();
-    console.log('Login response:', data);
+            try {
+                const res = await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (!res.ok) {
+                    throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+                }
+                
+                const data = await res.json();
+                console.log('Login response:', data);
 
-    if (data.message === 'Multiple databases found') {
-      databases = data.databases;
-      console.log('Showing database popup with:', databases);
-      showDatabasePopup(data.databases);
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Sign In';
-    } else if (data.message === 'Incorrect email or password') {
-      console.log('Login failed: Incorrect email or password');
-      alert('Incorrect Email or Password.');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Sign In';
-    } else if (data.redirectUrl) {
-      currentUserData = {
-        email: email,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        redirectUrl: data.redirectUrl
-      };
-      console.log('User data saved:', currentUserData);
+                if (data.message === 'Multiple databases found') {
+                    databases = data.databases;
+                    showDatabasePopup(data.databases);
+                } else if (data.message === 'Incorrect email or password') {
+                    alert('Incorrect Email or Password.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign In';
+                } else if (data.redirectUrl) {
+                    // Save user data to show biometric prompt later
+                    currentUserData = {
+                        email: email,
+                        accessToken: data.accessToken,
+                        refreshToken: data.refreshToken,
+                        redirectUrl: data.redirectUrl
+                    };
+                    
+                    console.log('User data saved:', currentUserData);
+                    
+                    // Check if biometric authentication is available
+                    const biometricAvailable = await checkBiometricAvailability();
+                    
+                    if (biometricAvailable) {
+                        // Show prompt to enable biometric authentication
+                        document.getElementById('biometricPrompt').style.display = 'block';
+                    } else {
+                        // Redirect directly
+                        window.location.href = data.redirectUrl;
+                    }
+                } else {
+                    console.error('Unexpected response:', data);
+                    alert('An unexpected error occurred.');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Sign In';
+                }
+            } catch (e) {
+                console.error('Error:', e);
+                alert('Connection error. Please check your network and try again.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
+            }
+        }
 
-      const biometricAvailable = await checkBiometricAvailability();
-      console.log('Biometric available:', biometricAvailable);
-      if (biometricAvailable) {
-        console.log('Showing biometric prompt');
-        document.getElementById('biometricPrompt').style.display = 'block';
-      } else {
-        console.log('Redirecting to:', data.redirectUrl);
-        window.location.href = data.redirectUrl;
-      }
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Sign In';
-    } else {
-      console.error('Unexpected response:', data);
-      alert('An unexpected error occurred: Invalid server response.');
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Sign In';
-    }
-  } catch (e) {
-    console.error('Login error:', e.message);
-    alert(`Login failed: ${e.message}`);
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Sign In';
-  }
-}
+        // Enable biometric authentication
+        async function enableBiometric() {
+            if (!isCapacitor || !NativeBiometric) {
+                alert('Biometric features not available');
+                window.location.href = currentUserData.redirectUrl;
+                return;
+            }
+            
+            try {
+                await NativeBiometric.setCredentials({
+                    username: currentUserData.email,
+                    password: JSON.stringify({
+                        accessToken: currentUserData.accessToken,
+                        refreshToken: currentUserData.refreshToken
+                    }),
+                    server: "solura.uk"
+                });
+                
+                console.log('Biometric credentials saved successfully');
+                
+                // Hide prompt and redirect
+                document.getElementById('biometricPrompt').style.display = 'none';
+                window.location.href = currentUserData.redirectUrl;
+            } catch (error) {
+                console.error('Error saving biometric credentials:', error);
+                alert('Failed to enable biometric login. Please try again.');
+                window.location.href = currentUserData.redirectUrl;
+            }
+        }
 
-// Enable biometric authentication
-async function enableBiometric() {
-  if (!isCapacitor) {
-    console.log('Biometric not available, redirecting');
-    alert('Biometric features not available');
-    window.location.href = currentUserData.redirectUrl;
-    return;
-  }
+        // Skip biometric authentication
+        function skipBiometric() {
+            document.getElementById('biometricPrompt').style.display = 'none';
+            window.location.href = currentUserData.redirectUrl;
+        }
 
-  try {
-    console.log('Saving biometric credentials for:', currentUserData.email);
-    await NativeBiometric.setCredentials({
-      username: currentUserData.email,
-      password: JSON.stringify({
-        accessToken: currentUserData.accessToken,
-        refreshToken: currentUserData.refreshToken
-      }),
-      server: 'com.solura.app'
-    });
+        // --- DATABASE POPUP ---
+        function showDatabasePopup(databases) {
+            const popup = document.getElementById('databasePopup');
+            const databaseList = document.getElementById('databaseList');
+            databaseList.innerHTML = '';
+            databases.forEach(db => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <input type="radio" name="database" id="db-${db.db_name}" value="${db.db_name}" required>
+                    <label for="db-${db.db_name}">
+                        <strong>${db.db_name}</strong>
+                        <span style="display:block; font-size:0.9em; color:var(--light-text)">${db.access} access</span>
+                    </label>
+                `;
+                databaseList.appendChild(li);
+            });
+            popup.style.display = 'block';
+        }
 
-    console.log('Biometric credentials saved successfully');
-    document.getElementById('biometricPrompt').style.display = 'none';
-    window.location.href = currentUserData.redirectUrl;
-  } catch (error) {
-    console.error('Error saving biometric credentials:', error.message);
-    alert('Failed to enable biometric login: ' + error.message);
-    window.location.href = currentUserData.redirectUrl;
-  }
-}
+        async function submitDatabase() {
+            const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
+            if (!selectedDatabase) { alert('Please select a database.'); return; }
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
+            popupBtn.disabled = true; popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
-// Skip biometric authentication
-function skipBiometric() {
-  console.log('Skipping biometric, redirecting to:', currentUserData.redirectUrl);
-  document.getElementById('biometricPrompt').style.display = 'none';
-  window.location.href = currentUserData.redirectUrl;
-}
+            try {
+                const res = await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ email, password, dbName: selectedDatabase })
+                });
+                
+                if (!res.ok) {
+                    throw new Error(`Server returned ${res.status}`);
+                }
+                
+                const data = await res.json();
 
-// Database popup
-function showDatabasePopup(databases) {
-  const popup = document.getElementById('databasePopup');
-  const databaseList = document.getElementById('databaseList');
-  databaseList.innerHTML = '';
-  databases.forEach(db => {
-    const li = document.createElement('li');
-    li.innerHTML = `
-      <input type="radio" name="database" id="db-${db.db_name}" value="${db.db_name}" required>
-      <label for="db-${db.db_name}">
-        <strong>${db.db_name}</strong>
-        <span style="display:block; font-size:0.9em; color:var(--light-text)">${db.access} access</span>
-      </label>
-    `;
-    databaseList.appendChild(li);
-  });
-  console.log('Displaying database popup');
-  popup.style.display = 'block';
-}
+                if (data.redirectUrl) {
+                    currentUserData = {
+                        email: email,
+                        accessToken: data.accessToken,
+                        refreshToken: data.refreshToken,
+                        redirectUrl: data.redirectUrl
+                    };
+                    
+                    // Show biometric prompt after database selection
+                    document.getElementById('databasePopup').style.display = 'none';
+                    const biometricAvailable = await checkBiometricAvailability();
+                    
+                    if (biometricAvailable) {
+                        document.getElementById('biometricPrompt').style.display = 'block';
+                    } else {
+                        window.location.href = data.redirectUrl;
+                    }
+                } else {
+                    alert('Unexpected error from server.');
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Connection error. Please try again.');
+            } finally {
+                popupBtn.disabled = false;
+                popupBtn.textContent = 'Continue';
+            }
+        }
 
-async function submitDatabase() {
-  const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
-  if (!selectedDatabase) {
-    console.log('No database selected');
-    alert('Please select a database.');
-    return;
-  }
-  const email = document.getElementById('email').value;
-  const password = document.getElementById('password').value;
-  const popupBtn = document.querySelector('#databasePopup button:not(.close-btn)');
-  popupBtn.disabled = true;
-  popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+        function closePopup() { 
+            document.getElementById('databasePopup').style.display = 'none'; 
+            document.getElementById('loginForm').reset(); 
+        }
 
-  try {
-    console.log('Submitting database selection:', selectedDatabase);
-    const res = await fetch('/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ email, password, dbName: selectedDatabase })
-    });
-
-    console.log('Database selection response status:', res.status);
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error('Server error:', errorText);
-      throw new Error(`Server returned ${res.status}: ${errorText}`);
-    }
-
-    const data = await res.json();
-    console.log('Database selection response:', data);
-    if (data.redirectUrl) {
-      currentUserData = {
-        email: email,
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        redirectUrl: data.redirectUrl
-      };
-
-      document.getElementById('databasePopup').style.display = 'none';
-      const biometricAvailable = await checkBiometricAvailability();
-      console.log('Biometric available after database selection:', biometricAvailable);
-      if (biometricAvailable) {
-        console.log('Showing biometric prompt');
-        document.getElementById('biometricPrompt').style.display = 'block';
-      } else {
-        console.log('Redirecting to:', data.redirectUrl);
-        window.location.href = data.redirectUrl;
-      }
-    } else {
-      console.error('Unexpected response:', data);
-      alert('Unexpected error from server.');
-    }
-  } catch (e) {
-    console.error('Database selection error:', e.message);
-    alert(`Database selection failed: ${e.message}`);
-  } finally {
-    popupBtn.disabled = false;
-    popupBtn.textContent = 'Continue';
-  }
-}
-
-function closePopup() {
-  console.log('Closing database popup');
-  document.getElementById('databasePopup').style.display = 'none';
-  // Only reset form if explicitly closing popup
-  document.getElementById('loginForm').reset();
-}
-
-// Initialize
-document.getElementById('loginForm').addEventListener('submit', submitForm);
-console.log('Initializing app, attempting biometric login');
-tryBiometricLoginOnLoad();
-</script>
+        // Initialize
+        document.getElementById('loginForm').addEventListener('submit', submitForm);
+    </script>
 </body>
 </html>

@@ -72,7 +72,16 @@ app.use('/financialsummary', financialsummary);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
-
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // Set to true if using HTTPS in production
+    httpOnly: true,
+    sameSite: 'lax'
+  }
+}));
 // Function to detect mobile devices
 function isMobile(userAgent) {
   return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
@@ -136,16 +145,21 @@ app.post('/submit', (req, res) => {
   console.log('Received /submit request:', req.body);
   const { email, password, dbName } = req.body;
 
+  if (!email || !password) {
+    console.log('Missing email or password');
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+
   const sql = `
-      SELECT u.Access, u.Password, u.Email, u.db_name
-      FROM users u
-      WHERE u.Email = ?
+    SELECT u.Access, u.Password, u.Email, u.db_name
+    FROM users u
+    WHERE u.Email = ?
   `;
 
   mainPool.query(sql, [email], async (err, results) => {
     if (err) {
       console.error('Error querying database:', err);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      return res.status(500).json({ error: 'Internal Server Error', details: err.message });
     }
     console.log('Query results:', results);
 
@@ -168,7 +182,7 @@ app.post('/submit', (req, res) => {
         }
       } catch (err) {
         console.error('Error comparing passwords:', err);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
       }
     }
     console.log('Matching databases:', matchingDatabases);
@@ -206,7 +220,7 @@ app.post('/submit', (req, res) => {
     companyPool.query(companySql, [email], (err, companyResults) => {
       if (err) {
         console.error('Error querying company database:', err);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
       }
       console.log('Company query results:', companyResults);
 
@@ -229,7 +243,7 @@ app.post('/submit', (req, res) => {
 
       req.session.user = userInfo;
 
-      const authToken = generateToken(userInfo);
+      const authToken = generateToken(userInfo); // Ensure generateToken is defined
       const refreshToken = jwt.sign(
         {
           email: userInfo.email,
@@ -245,7 +259,7 @@ app.post('/submit', (req, res) => {
       req.session.save((err) => {
         if (err) {
           console.error('Error saving session:', err);
-          return res.status(500).json({ error: 'Internal Server Error' });
+          return res.status(500).json({ error: 'Internal Server Error', details: err.message });
         }
         console.log('Session saved successfully');
 
