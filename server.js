@@ -83,7 +83,6 @@ app.use(session({
     sameSite: 'lax'
   }
 }));
-
 // Function to detect mobile devices
 function isMobile(userAgent) {
   return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
@@ -299,124 +298,6 @@ app.post('/submit', (req, res) => {
     });
   });
 });
-
-// Update submitData to include PDF generation, email sending and push notifications
-app.post('/submitData', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
-    const tableData = req.body;
-
-    try {
-        // 1. First process all database operations
-        await processDatabaseOperations(pool, tableData);
-
-        // 2. Generate PDF
-        const pdfBuffer = await generatePDF(tableData);
-        console.log('PDF generated successfully');
-
-        // 3. Get recipient emails + pushTokens
-        const [results] = await pool.promise().query(`
-            SELECT email, pushToken 
-            FROM Employees 
-            WHERE situation IS NULL OR situation = ''
-        `);
-
-        const emailAddresses = results.map(r => r.email).filter(Boolean);
-        const pushTokens = results.map(r => r.pushToken).filter(Boolean);
-
-        // 4. Send emails
-        if (emailAddresses.length > 0) {
-            await sendEmail(pdfBuffer, emailAddresses);
-            console.log('Emails sent successfully');
-        }
-
-        // 5. Send push notifications
-        if (pushTokens.length > 0) {
-            await sendPushNotifications(pushTokens, "New Weekly Rota Available", "Your rota PDF has been sent to your email.");
-            console.log('Push notifications sent successfully');
-        }
-
-        res.status(200).send('Rota saved, emails and push notifications sent successfully!');
-    } catch (error) {
-        console.error('Error in /submitData:', error);
-        res.status(500).send('Error processing request: ' + error.message);
-    }
-});
-
-
-// --- Modified sendEmail function (already works) ---
-const sendEmail = (pdfBuffer, emailAddresses) => {
-    const transporter = nodemailer.createTransport({
-        host: 'smtp0001.neo.space',
-        port: 465,
-        secure: true,
-        auth: {
-            user: 'no-reply@solura.uk',
-            pass: 'Salvemini01@'
-        }
-    });
-
-    const sendPromises = emailAddresses.map(email => {
-        const mailOptions = {
-            from: 'Solura WorkForce <no-reply@solura.uk>',
-            to: email,
-            subject: 'Your Weekly Work Schedule',
-            text: `Hello,\n\nAttached is your rota for the upcoming week.\n\nBest regards,\nManagement Team`,
-            attachments: [{
-                filename: 'Weekly_Rota.pdf',
-                content: pdfBuffer
-            }]
-        };
-
-        return transporter.sendMail(mailOptions)
-            .then(() => console.log(`Email sent to ${email}`))
-            .catch(err => {
-                console.error(`Failed to send to ${email}:`, err);
-                throw err;
-            });
-    });
-
-    return Promise.all(sendPromises);
-};
-
-// --- New: Push Notifications sender ---
-const sendPushNotifications = async (pushTokens, title, body) => {
-    // Qui puoi scegliere il provider: OneSignal, Firebase Cloud Messaging, Expo, ecc.
-    // Ti preparo un esempio con Firebase Cloud Messaging (FCM)
-
-    const fcmServerKey = "YOUR_FCM_SERVER_KEY"; // 🔑 da Firebase Console
-    const url = "https://fcm.googleapis.com/fcm/send";
-
-    const notifications = pushTokens.map(token => {
-        return fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": "key=" + fcmServerKey
-            },
-            body: JSON.stringify({
-                to: token,
-                notification: {
-                    title,
-                    body,
-                    sound: "default"
-                },
-                data: {
-                    action: "rota_update"
-                }
-            })
-        })
-        .then(res => res.json())
-        .then(data => console.log("Push sent:", data))
-        .catch(err => console.error("Push error:", err));
-    });
-
-    return Promise.all(notifications);
-};
 
 // Route to save notification token
 app.post('/savePushToken', isAuthenticated, async (req, res) => {
