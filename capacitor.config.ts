@@ -6,7 +6,6 @@ const config: CapacitorConfig = {
   webDir: 'www',
   server: {
     url: "https://solura.uk",   // carica direttamente il tuo server Node
-    cleartext: true,
   }
 };
 
