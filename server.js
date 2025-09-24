@@ -73,18 +73,17 @@ app.use('/financialsummary', financialsummary);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
-// Replace your current session configuration with this:
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
-  resave: true,  // Changed from false to true
-  saveUninitialized: true,  // Changed from false to true
+  resave: false,
+  saveUninitialized: false,
   cookie: {
-    secure: false,  // Set to false for HTTP development
-    httpOnly: false,  // Set to false to allow JavaScript access
-    sameSite: 'lax',  // Changed from 'strict' to 'lax'
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    secure: false, // Set to true if using HTTPS in production
+    httpOnly: true,
+    sameSite: 'lax'
   }
 }));
+
 // Function to detect mobile devices
 function isMobile(userAgent) {
   return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
@@ -144,7 +143,7 @@ function generateToken(user) {
 }
 
 // Route to handle login and database selection
-app.post('/submit', async (req, res) => {
+app.post('/submit', (req, res) => {
   console.log('Received /submit request:', req.body);
   const { email, password, dbName } = req.body;
 
@@ -153,14 +152,17 @@ app.post('/submit', async (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
-  try {
-    const sql = `
-      SELECT u.Access, u.Password, u.Email, u.db_name
-      FROM users u
-      WHERE u.Email = ?
-    `;
+  const sql = `
+    SELECT u.Access, u.Password, u.Email, u.db_name
+    FROM users u
+    WHERE u.Email = ?
+  `;
 
-    const [results] = await mainPool.promise().query(sql, [email]);
+  mainPool.query(sql, [email], async (err, results) => {
+    if (err) {
+      console.error('Error querying database:', err);
+      return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+    }
     console.log('Query results:', results);
 
     if (results.length === 0) {
@@ -192,20 +194,17 @@ app.post('/submit', async (req, res) => {
       return res.status(401).json({ message: 'Incorrect email or password' });
     }
 
-    // If multiple databases and no selection made, return database list
     if (matchingDatabases.length > 1 && !dbName) {
       console.log('Multiple databases found, returning list');
       return res.status(200).json({
         message: 'Multiple databases found',
         databases: matchingDatabases,
-        requiresDatabaseSelection: true
       });
     }
 
     const userDetails = dbName
       ? matchingDatabases.find((db) => db.db_name === dbName)
       : matchingDatabases[0];
-    
     console.log('Selected user details:', userDetails);
 
     if (!userDetails) {
@@ -220,36 +219,33 @@ app.post('/submit', async (req, res) => {
       WHERE email = ?
     `;
 
-    const [companyResults] = await companyPool.promise().query(companySql, [email]);
-    console.log('Company query results:', companyResults);
-
-    if (companyResults.length === 0) {
-      console.log('User not found in company database');
-      return res.status(401).json({ message: 'User not found in company database' });
-    }
-
-    const name = companyResults[0].name;
-    const lastName = companyResults[0].lastName;
-
-    const userInfo = {
-      email: email,
-      role: userDetails.access,
-      name: name,
-      lastName: lastName,
-      dbName: userDetails.db_name,
-    };
-    console.log('Storing user info in session:', userInfo);
-
-    // Clear any existing session and create new one
-    req.session.regenerate((err) => {
+    companyPool.query(companySql, [email], (err, companyResults) => {
       if (err) {
-        console.error('Error regenerating session:', err);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Error querying company database:', err);
+        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
       }
+      console.log('Company query results:', companyResults);
+
+      if (companyResults.length === 0) {
+        console.log('User not found in company database');
+        return res.status(401).json({ message: 'User not found in company database' });
+      }
+
+      const name = companyResults[0].name;
+      const lastName = companyResults[0].lastName;
+
+      const userInfo = {
+        email: email,
+        role: userDetails.access,
+        name: name,
+        lastName: lastName,
+        dbName: userDetails.db_name,
+      };
+      console.log('Storing user info in session:', userInfo);
 
       req.session.user = userInfo;
 
-      const authToken = generateToken(userInfo);
+      const authToken = generateToken(userInfo); // Ensure generateToken is defined
       const refreshToken = jwt.sign(
         {
           email: userInfo.email,
@@ -262,40 +258,48 @@ app.post('/submit', async (req, res) => {
         { expiresIn: '30d' }
       );
 
-      console.log('Session saved successfully');
+      req.session.save((err) => {
+        if (err) {
+          console.error('Error saving session:', err);
+          return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+        }
+        console.log('Session saved successfully');
 
-      const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+        const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
 
-      let redirectUrl;
-      if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-        console.log('Redirecting to Admin.html');
-        redirectUrl = `/Admin.html${queryString}`;
-      } else if (userDetails.access === 'user') {
-        console.log('Redirecting to User.html');
-        redirectUrl = `/User.html${queryString}`;
-      } else if (userDetails.access === 'supervisor') {
-        console.log('Redirecting to Supervisor.html');
-        redirectUrl = `/Supervisor.html${queryString}`;
-      } else {
-        console.log('Invalid access role');
-        return res.status(401).json({ message: 'Incorrect email or password' });
-      }
-
-      // Send success response with redirect
-      res.json({
-        success: true,
-        redirectUrl: redirectUrl,
-        accessToken: authToken,
-        refreshToken: refreshToken,
-        user: userInfo
+        if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+          console.log('Redirecting to Admin.html');
+          return res.json({
+            success: true,
+            redirectUrl: `/Admin.html${queryString}`,
+            accessToken: authToken,
+            refreshToken: refreshToken
+          });
+        } else if (userDetails.access === 'user') {
+          console.log('Redirecting to User.html');
+          return res.json({
+            success: true,
+            redirectUrl: `/User.html${queryString}`,
+            accessToken: authToken,
+            refreshToken: refreshToken
+          });
+        } else if (userDetails.access === 'supervisor') {
+          console.log('Redirecting to Supervisor.html');
+          return res.json({
+            success: true,
+            redirectUrl: `/Supervisor.html${queryString}`,
+            accessToken: authToken,
+            refreshToken: refreshToken
+          });
+        } else {
+          console.log('Invalid access role');
+          return res.status(401).json({ message: 'Incorrect email or password' });
+        }
       });
     });
-
-  } catch (error) {
-    console.error('Error in /submit endpoint:', error);
-    res.status(500).json({ error: 'Internal Server Error', details: error.message });
-  }
+  });
 });
+
 // Update submitData to include PDF generation, email sending and push notifications
 app.post('/submitData', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName;
