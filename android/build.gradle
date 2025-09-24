@@ -11,7 +11,6 @@ buildscript {
 
         // Google services plugin (for Firebase and other services)
         classpath 'com.google.gms:google-services:4.4.2'
-
         // Add any other classpath dependencies required for the build system here
     }
 }

@@ -97,6 +97,26 @@ let databases = [];
 let currentUserData = null;
 const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
 
+const { PushNotifications } = window.Capacitor.Plugins;
+// Richiedi permessi e registra
+PushNotifications.requestPermissions().then(result => {
+  if (result.receive === 'granted') {
+    PushNotifications.register();
+  }
+});
+// Ottieni il token
+PushNotifications.addListener('registration', async (token) => {
+  console.log('Device token:', token.value);
+
+  // Manda il token al tuo server e salvalo in Employees
+  await fetch('/savePushToken', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ pushToken: token.value })
+  });
+});
+
 // --- EVENT LISTENERS ---
 document.getElementById('loginForm').addEventListener('submit', submitForm);
 document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
@@ -221,25 +241,6 @@ async function submitDatabase() {
 function closePopup(){ 
     document.getElementById('databasePopup').style.display='none'; 
 }
-
-document.addEventListener("deviceready", async () => {
-  console.log("Device ready – checking biometric...");
-
-  try {
-    const available = await window.Capacitor.Plugins.NativeBiometric.isAvailable();
-    console.log("Biometric available:", available);
-
-    if (available.isAvailable) {
-      const result = await window.Capacitor.Plugins.NativeBiometric.verifyIdentity({
-        reason: "Per accedere",
-        title: "Login biometrico",
-      });
-      console.log("Biometric result:", result);
-    }
-  } catch (err) {
-    console.error("Biometric error:", err);
-  }
-});
 
 // --- BIOMETRIC AUTO LOGIN ---
 async function tryBiometricAutoLogin() {

@@ -3,312 +3,495 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="data:image/png;base64,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" type="image/png">
-
-    <title>Work Hours Table</title>
+    <title>My Work Schedule</title>
     <style>
         * {
-        box-sizing: border-box;
-    }
-    body {
-        background: #e2e2e2;
-        margin: 0;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        color: #333; /* Darker text color */
-        min-height: 100vh;
-        overflow-x: hidden; /* Prevent horizontal scrolling */
-        text-transform: uppercase;
-    }
-    table {
-        width: 90%;
-        max-width: 1200px;
-        margin: 40px auto; /* This centers the table horizontally */
-        border-collapse: separate;
-        border-spacing: 0;
-        background-color: #fff; /* White background */
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Softer box shadow */
-        border: 1px solid #000000; /* Light grey border around the table */
-    }
-    th, td {
-        text-align: center;
-        border: 1px solid #000000; /* Light grey border for table cells */
-        padding: 12px;
-        white-space: nowrap;
-        background-color: #f1f3f5; /* Light grey background */
-        color: #333; /* Darker text color */
-        font-weight: bold; /* Bold text */
-    }
-    .table1 {
-        width: 74%;
-        margin: 0 auto; /* This centers the table horizontally */
-        border-collapse: separate;
-        border-spacing: 0;
-        background-color: #fff; /* White background */
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Softer box shadow */
-        border: 0.1px solid #ccc; /* Light grey border around the table */
-    }
-    .td1, .td2 {
-        text-align: center;
-        border: 1px solid #000000; /* Light grey border for table cells */
-        padding: 5px;
-        white-space: nowrap;
-        background-color: #f1f3f5; /* Light grey background */
-        color: #333; /* Darker text color */
-        font-weight: bold; /* Bold text */
-        border-radius: 8px;
-    }
-    .btn, .btn1 {
-        background-color: #474747; /* Blue button background */
-        color: #fff; /* White text */
-        padding: 10px 20px;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        align-self: center;
-        width: 200px;
-        margin-top: 10px;
-        margin-bottom: 10px;
-        transition: background-color 0.3s ease; /* Smooth color transition */
-        font-size: 14px; /* Font size */
-    }
-    .btn:hover, .btn1:hover {
-        background-color: #000000; /* Darker blue button background on hover */
-        transform: scale(1.05); /* Increase size by 5% */
-        transition: transform 0.3s ease; /* Add smooth transition effect */
-    }
-    .draggable {
-        cursor: pointer;
-    }
-    .dragging {
-        opacity: 0.5;
-    }
-    .dragover {
-        background-color: #f1f1f1; /* Light grey background */
-    }
-    .time-frame {
-        margin-bottom: 5px;
-        cursor: move;
-        border: 1px solid #000000; /* Added for highlighting */
-    }
-    .selected {
-        background-color: #8f8f8f; /* Light blue background */
-        border-color: #000000; /* Light grey border */
-    }
-    .border{
-                border: none;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            background: #f5f5f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            line-height: 1.6;
+            padding: 10px;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: 600;
+            text-align: center;
+            font-size: 1.4rem;
+            padding: 15px 0;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .date-selector {
+            margin-bottom: 20px;
+        }
+        .date-selector label {
+            display: block;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        .date-selector input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+        }
+        .week-navigation {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .nav-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            flex: 1;
+            min-height: 50px;
+            font-weight: 600;
+        }
+        .nav-btn:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .current-week-label {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+        .week-view {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .day-card {
+            border-bottom: 1px solid #ecf0f1;
+            padding: 0;
+        }
+        .day-card:last-child {
+            border-bottom: none;
+        }
+        .day-header {
+            background: #34495e;
+            color: white;
+            padding: 18px 20px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .current-day .day-header {
+            background: #3498db;
+        }
+        .past-day .day-header {
+            background: #7f8c8d;
+            opacity: 0.9;
+        }
+        .future-day .day-header {
+            background: #95a5a6;
+            opacity: 0.9;
+        }
+        .day-content {
+            padding: 20px;
+        }
+        .employee-shift {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 12px;
+            border-left: 4px solid #3498db;
+        }
+        .employee-shift:last-child {
+            margin-bottom: 0;
+        }
+        .employee-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        .shift-times {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #3498db;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+        .no-shifts {
+            text-align: center;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 30px 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .today-badge {
+            background: #e74c3c;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px 20px;
+            color: #7f8c8d;
+        }
+        .spinner {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(52, 152, 219, 0.3);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .footer {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9rem;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        /* Tablet and desktop */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
             }
-    #timeFrameInput {
-        display: none;
-        position:relative; /* Ensure it is positioned relative to the viewport */
-        width: 20%;
-        background: #919191; /* White background */
-        border: 1px solid #000000;
-        padding: 10px;
-        color: #333; /* Darker text color */
-        border-radius: 8px;
-    }
-    #timeFrameInput.show {
-        display: block;
-    }
-    #popupMessage {
-        display: none;
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background-color: #5c5c5c; /* Blue background */
-        color: white;
-        padding: 10px;
-        border-radius: 5px;
-        z-index: 1000;
-        transition: opacity 0.3s ease; /* Smooth transition */
-    }
-    #popupMessage.show {
-        display: block;
-        opacity: 1;
-    }
-    #customWeekNavigation {
-        margin-bottom: 10px; /* Add some space above the new line */
-    }
-    .date, .date1 {
-        background-color: #868686; /* Blue background */
-        font-family: Arial, sans-serif;
-        text-transform: uppercase;
-        color: white;
-        border-radius: 5px; /* Rounded corners */
-        padding: 6px 12px; /* Adjust padding for better fit */
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Softer shadow */
-    }
-    .holiday-cell {
-        background-color: rgb(79, 192, 79);
-        color: white;
-    }
-    #comment-section {
-        margin: 20px;
-    }
-    #comment-box {
-        color: #333; /* Darker text color */
-        border-radius: 5px;
-        width: 25%;
-        height: 100px;
-        margin-bottom: 10px;
-        background: #bebebe; /* White background */
-        border: 1px solid #ccc;
-        padding: 10px;
-    }
-    #char-count {
-        margin-bottom: 10px;
-        font-size: 14px;
-        color: #666; /* Grey text color */
-    }
-    #submit-comment {
-        padding: 10px 20px;
-        background-color: #818181; /* Blue background */
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-    }
-    #submit-comment:hover:enabled {
-        background-color: #4d4d4d;
-    }
-    #submit-comment:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-    }
-    /* Animation for table rows */
-    @keyframes fadeInUp {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
+            .container {
+                max-width: 800px;
+            }
+            .week-navigation {
+                gap: 15px;
+            }
+            .nav-btn {
+                font-size: 1.1rem;
+                padding: 18px;
+            }
+            .current-week-label {
+                font-size: 1.1rem;
+                padding: 18px;
+            }
+            .day-header {
+                font-size: 1.2rem;
+                padding: 20px 25px;
+            }
+            .employee-shift {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px;
+            }
+            .employee-name {
+                margin-bottom: 0;
+                font-size: 1.1rem;
+            }
+            .shift-times {
+                min-width: 140px;
+                font-size: 1.1rem;
+            }
         }
-        to {
-            opacity: 1;
-            transform: translateY(0);
+        
+        /* Large screens */
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1000px;
+            }
         }
-    }
-    tbody tr {
-        animation: fadeInUp 0.5s ease;
-    }
     </style>
 </head>
-<body onload="loadrota()">
-    <h1>Work Hours Table</h1>
-    <div>
-        <input class="date" type="date" id="daySelect" onchange="loadrota()">
+<body>
+    <div class="container">
+        <h1>📅 My Work Schedule</h1>
+        
+        <div class="controls">
+            <div class="date-selector">
+                <label for="daySelect">Select Date:</label>
+                <input type="date" id="daySelect">
+            </div>
+            
+            <div class="current-week-label" id="currentWeek"></div>
+            
+            <div class="week-navigation">
+                <button id="prevWeek" class="nav-btn">← Previous Week</button>
+                <button id="nextWeek" class="nav-btn" disabled>Next Week →</button>
+            </div>
+        </div>
+        
+        <div id="weekView" class="week-view">
+            <div class="loading">
+                <span class="spinner"></span>Loading schedule...
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Only past and current week schedules are displayed</p>
+            <p>Scroll down to see all days</p>
+        </div>
     </div>
-    <table id="rota">
-        <thead>
-            <tr id="headerRow">
-                <th>Name</th>
-                <th>Last Name</th>
-                <!-- Days of the week will be inserted here -->
-            </tr>
-        </thead>
-        <tbody>
-            <!-- Data will be inserted here -->
-        </tbody>
-    </table>
+
     <script>
-function loadrota() {
-    const daySelect = document.getElementById('daySelect');
-    let selectedDate = new Date(daySelect.value);
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
 
-    // Check if no date is selected, default to current week
-    if (!(selectedDate instanceof Date && !isNaN(selectedDate))) {
-        selectedDate = new Date(); // Default to current date
-        daySelect.value = formatDate(selectedDate); // Update daySelect value
-    }
-
-    const monday = getMonday(selectedDate);
-    const sunday = new Date(monday);
-    sunday.setDate(sunday.getDate() + 6);
-
-    // Format start and end dates
-    const startDate = formatDate(monday);
-    const endDate = formatDate(sunday);
-
-    fetch(`/UserCrota/rota?start=${startDate}&end=${endDate}`)
-        .then(response => response.json())
-        .then(data => {
-            console.log('Fetched data:', data); // Debugging: Check the fetched data
-            const tbody = document.querySelector('#rota tbody');
-            tbody.innerHTML = ''; // Clear existing rows
-
-            const headerRow = document.getElementById('headerRow');
-            headerRow.innerHTML = '<th>Name</th><th>Last Name</th>';
-            const weekDays = getWeekDays(monday);
-            weekDays.forEach(day => {
-                headerRow.innerHTML += `<th>${day}</th>`;
+        function initializeApp() {
+            // Get the current date and set maximum to Sunday of current week
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            // Calculate Sunday of current week
+            const currentSunday = new Date(today);
+            currentSunday.setDate(today.getDate() + (7 - today.getDay()) % 7);
+            
+            // Set max attribute for date input to current Sunday
+            const daySelect = document.getElementById('daySelect');
+            daySelect.max = currentSunday.toISOString().split('T')[0];
+            daySelect.value = today.toISOString().split('T')[0];
+            
+            // Initialize with current week
+            let currentDate = new Date(today);
+            
+            // Load the rota on page load
+            loadrota();
+            updateWeekNavigation();
+            
+            // Event listeners
+            daySelect.addEventListener('change', function() {
+                currentDate = new Date(this.value);
+                loadrota();
+                updateWeekNavigation();
             });
+            
+            document.getElementById('prevWeek').addEventListener('click', handlePrevWeek);
+            document.getElementById('nextWeek').addEventListener('click', handleNextWeek);
 
-            const groupedData = groupByPerson(data);
-            console.log('Grouped data:', groupedData); // Debugging: Check the grouped data
-            groupedData.forEach(person => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${person.name}</td>
-                    <td>${person.lastName}</td>
-                    ${generateDayCells(person.days, weekDays)}
-                `;
-                tbody.appendChild(row);
-            });
-        })
-        .catch(error => console.error('Error fetching employee data:', error));
-}
-
-        function groupByPerson(data) {
-            const groupedData = [];
-            const map = new Map();
-            data.forEach(entry => {
-                const key = `${entry.name} ${entry.lastName}`;
-                if (!map.has(key)) {
-                    map.set(key, { name: entry.name, lastName: entry.lastName, days: {} });
-                }
-                const day = map.get(key).days[entry.day] || [];
-                day.push({ startTime: entry.startTime, endTime: entry.endTime });
-                map.get(key).days[entry.day] = day;
-            });
-            map.forEach((value, key) => {
-                groupedData.push(value);
-            });
-            return groupedData;
-        }
-        function generateDayCells(days, weekDays) {
-            return weekDays.map(day => {
-                if (days[day]) {
-                    return `<td>${days[day].map(time => `${time.startTime.slice(0, 5)} - ${time.endTime.slice(0, 5)}`).join('<br>')}</td>`;
-
-                } else {
-                    return `<td></td>`;
-                }
-            }).join('');
-        }
-        function formatDate(date) {
-    const day = ('0' + date.getDate()).slice(-2); // Add leading zero if necessary
-    const month = ('0' + (date.getMonth() + 1)).slice(-2); // Add leading zero if necessary
-    const year = date.getFullYear();
-    const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
-    return `${day}/${month}/${year} (${dayOfWeek})`;
-}
-        function getMonday(date) {
-            const day = date.getDay();
-            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
-            return new Date(date.setDate(diff));
-        }
-        function getWeekDays(monday) {
-            const weekDays = [];
-            for (let i = 0; i < 7; i++) {
-                const date = new Date(monday);
-                date.setDate(date.getDate() + i);
-                weekDays.push(formatDate(date));
+            function handlePrevWeek() {
+                currentDate.setDate(currentDate.getDate() - 7);
+                daySelect.value = currentDate.toISOString().split('T')[0];
+                loadrota();
+                updateWeekNavigation();
             }
-            return weekDays;
+
+            function handleNextWeek() {
+                const nextWeekDate = new Date(currentDate);
+                nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+                
+                if (nextWeekDate <= currentSunday) {
+                    currentDate = nextWeekDate;
+                    daySelect.value = currentDate.toISOString().split('T')[0];
+                    loadrota();
+                    updateWeekNavigation();
+                }
+            }
+
+            function loadrota() {
+                const monday = getMonday(currentDate);
+                const sunday = new Date(monday);
+                sunday.setDate(sunday.getDate() + 6);
+                
+                const startDate = formatDateForAPI(monday);
+                const endDate = formatDateForAPI(sunday);
+                
+                // Update current week display
+                document.getElementById('currentWeek').textContent = 
+                    `Week of ${formatDisplayDate(monday)} to ${formatDisplayDate(sunday)}`;
+                
+                // Show loading state
+                const weekView = document.getElementById('weekView');
+                weekView.innerHTML = '<div class="loading"><span class="spinner"></span>Loading schedule...</div>';
+                
+                // Fetch data from API
+                fetch(`/UserCRota/rota?start=${startDate}&end=${endDate}`)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network error');
+                        return response.json();
+                    })
+                    .then(data => {
+                        displayWeekView(data, monday);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        weekView.innerHTML = '<div class="no-shifts">Error loading schedule. Please try again.</div>';
+                    });
+            }
+
+            function displayWeekView(data, monday) {
+                const weekView = document.getElementById('weekView');
+                const todayFormatted = formatDate(today);
+                const weekDays = getWeekDays(monday);
+                
+                let html = '';
+                
+                weekDays.forEach(day => {
+                    const dayDate = parseDisplayDate(day);
+                    let dayClass = '';
+                    let todayBadge = '';
+                    
+                    if (day === todayFormatted) {
+                        dayClass = 'current-day';
+                        todayBadge = '<span class="today-badge">TODAY</span>';
+                    } else if (dayDate < today) {
+                        dayClass = 'past-day';
+                    } else if (dayDate > today) {
+                        dayClass = 'future-day';
+                    }
+                    
+                    // Get shifts for this day
+                    const dayShifts = data.filter(shift => {
+                        const shiftDate = parseDisplayDate(shift.day);
+                        return shiftDate.getTime() === dayDate.getTime();
+                    });
+                    
+                    html += `
+                        <div class="day-card ${dayClass}">
+                            <div class="day-header">
+                                <span>${day}</span>
+                                ${todayBadge}
+                            </div>
+                            <div class="day-content">
+                    `;
+                    
+                    if (dayShifts.length > 0) {
+                        // Group by employee
+                        const shiftsByEmployee = groupShiftsByEmployee(dayShifts);
+                        
+                        Object.keys(shiftsByEmployee).forEach(employeeKey => {
+                            const employee = shiftsByEmployee[employeeKey];
+                            html += `
+                                <div class="employee-shift">
+                                    <div class="employee-name">${employee.name} ${employee.lastName}</div>
+                                    <div class="shift-times">
+                                        ${employee.shifts.map(shift => 
+                                            `${shift.startTime.slice(0, 5)} - ${shift.endTime.slice(0, 5)}`
+                                        ).join(' & ')}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += '<div class="no-shifts">No shifts scheduled</div>';
+                    }
+                    
+                    html += `
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                weekView.innerHTML = html;
+            }
+
+            function groupShiftsByEmployee(shifts) {
+                const grouped = {};
+                shifts.forEach(shift => {
+                    const key = `${shift.name}-${shift.lastName}`;
+                    if (!grouped[key]) {
+                        grouped[key] = {
+                            name: shift.name,
+                            lastName: shift.lastName,
+                            shifts: []
+                        };
+                    }
+                    grouped[key].shifts.push({
+                        startTime: shift.startTime,
+                        endTime: shift.endTime
+                    });
+                });
+                return grouped;
+            }
+
+            // Utility functions
+            function parseDisplayDate(dateString) {
+                const datePart = dateString.split(' ')[0];
+                const [day, month, year] = datePart.split('/');
+                return new Date(year, month - 1, day);
+            }
+
+            function formatDate(date) {
+                const day = ('0' + date.getDate()).slice(-2);
+                const month = ('0' + (date.getMonth() + 1)).slice(-2);
+                const year = date.getFullYear();
+                const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][date.getDay()];
+                return `${day}/${month}/${year} (${dayOfWeek})`;
+            }
+
+            function formatDisplayDate(date) {
+                const day = ('0' + date.getDate()).slice(-2);
+                const month = ('0' + (date.getMonth() + 1)).slice(-2);
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            function formatDateForAPI(date) {
+                const day = ('0' + date.getDate()).slice(-2);
+                const month = ('0' + (date.getMonth() + 1)).slice(-2);
+                const year = date.getFullYear();
+                return `${day}/${month}/${year}`;
+            }
+
+            function getMonday(date) {
+                const day = date.getDay();
+                const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+                return new Date(date.setDate(diff));
+            }
+
+            function getWeekDays(monday) {
+                const weekDays = [];
+                for (let i = 0; i < 7; i++) {
+                    const date = new Date(monday);
+                    date.setDate(date.getDate() + i);
+                    weekDays.push(formatDate(date));
+                }
+                return weekDays;
+            }
+
+            function updateWeekNavigation() {
+                const nextWeekDate = new Date(currentDate);
+                nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+                document.getElementById('nextWeek').disabled = nextWeekDate > currentSunday;
+            }
         }
     </script>
 </body>

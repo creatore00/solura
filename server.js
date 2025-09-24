@@ -3,6 +3,7 @@ const { query } = require('./dbPromise');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
 const cron = require('node-cron');
+const axios = require('axios');
 const moment = require('moment'); // Using moment for date handling
 const { scheduleTestUpdates } = require('./holidayAccrualService.js');
 const newRota = require('./Rota.js');
@@ -72,14 +73,16 @@ app.use('/financialsummary', financialsummary);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
+// Replace your current session configuration with this:
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
-  resave: false,
-  saveUninitialized: false,
+  resave: true,  // Changed from false to true
+  saveUninitialized: true,  // Changed from false to true
   cookie: {
-    secure: false, // Set to true if using HTTPS in production
-    httpOnly: true,
-    sameSite: 'lax'
+    secure: false,  // Set to false for HTTP development
+    httpOnly: false,  // Set to false to allow JavaScript access
+    sameSite: 'lax',  // Changed from 'strict' to 'lax'
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
 // Function to detect mobile devices
@@ -141,7 +144,7 @@ function generateToken(user) {
 }
 
 // Route to handle login and database selection
-app.post('/submit', (req, res) => {
+app.post('/submit', async (req, res) => {
   console.log('Received /submit request:', req.body);
   const { email, password, dbName } = req.body;
 
@@ -150,17 +153,14 @@ app.post('/submit', (req, res) => {
     return res.status(400).json({ message: 'Email and password are required' });
   }
 
-  const sql = `
-    SELECT u.Access, u.Password, u.Email, u.db_name
-    FROM users u
-    WHERE u.Email = ?
-  `;
+  try {
+    const sql = `
+      SELECT u.Access, u.Password, u.Email, u.db_name
+      FROM users u
+      WHERE u.Email = ?
+    `;
 
-  mainPool.query(sql, [email], async (err, results) => {
-    if (err) {
-      console.error('Error querying database:', err);
-      return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-    }
+    const [results] = await mainPool.promise().query(sql, [email]);
     console.log('Query results:', results);
 
     if (results.length === 0) {
@@ -192,17 +192,20 @@ app.post('/submit', (req, res) => {
       return res.status(401).json({ message: 'Incorrect email or password' });
     }
 
+    // If multiple databases and no selection made, return database list
     if (matchingDatabases.length > 1 && !dbName) {
       console.log('Multiple databases found, returning list');
       return res.status(200).json({
         message: 'Multiple databases found',
         databases: matchingDatabases,
+        requiresDatabaseSelection: true
       });
     }
 
     const userDetails = dbName
       ? matchingDatabases.find((db) => db.db_name === dbName)
       : matchingDatabases[0];
+    
     console.log('Selected user details:', userDetails);
 
     if (!userDetails) {
@@ -217,33 +220,36 @@ app.post('/submit', (req, res) => {
       WHERE email = ?
     `;
 
-    companyPool.query(companySql, [email], (err, companyResults) => {
+    const [companyResults] = await companyPool.promise().query(companySql, [email]);
+    console.log('Company query results:', companyResults);
+
+    if (companyResults.length === 0) {
+      console.log('User not found in company database');
+      return res.status(401).json({ message: 'User not found in company database' });
+    }
+
+    const name = companyResults[0].name;
+    const lastName = companyResults[0].lastName;
+
+    const userInfo = {
+      email: email,
+      role: userDetails.access,
+      name: name,
+      lastName: lastName,
+      dbName: userDetails.db_name,
+    };
+    console.log('Storing user info in session:', userInfo);
+
+    // Clear any existing session and create new one
+    req.session.regenerate((err) => {
       if (err) {
-        console.error('Error querying company database:', err);
-        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+        console.error('Error regenerating session:', err);
+        return res.status(500).json({ error: 'Internal Server Error' });
       }
-      console.log('Company query results:', companyResults);
-
-      if (companyResults.length === 0) {
-        console.log('User not found in company database');
-        return res.status(401).json({ message: 'User not found in company database' });
-      }
-
-      const name = companyResults[0].name;
-      const lastName = companyResults[0].lastName;
-
-      const userInfo = {
-        email: email,
-        role: userDetails.access,
-        name: name,
-        lastName: lastName,
-        dbName: userDetails.db_name,
-      };
-      console.log('Storing user info in session:', userInfo);
 
       req.session.user = userInfo;
 
-      const authToken = generateToken(userInfo); // Ensure generateToken is defined
+      const authToken = generateToken(userInfo);
       const refreshToken = jwt.sign(
         {
           email: userInfo.email,
@@ -256,47 +262,202 @@ app.post('/submit', (req, res) => {
         { expiresIn: '30d' }
       );
 
-      req.session.save((err) => {
-        if (err) {
-          console.error('Error saving session:', err);
-          return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-        }
-        console.log('Session saved successfully');
+      console.log('Session saved successfully');
 
-        const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+      const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
 
-        if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-          console.log('Redirecting to Admin.html');
-          return res.json({
-            success: true,
-            redirectUrl: `/Admin.html${queryString}`,
-            accessToken: authToken,
-            refreshToken: refreshToken
-          });
-        } else if (userDetails.access === 'user') {
-          console.log('Redirecting to User.html');
-          return res.json({
-            success: true,
-            redirectUrl: `/User.html${queryString}`,
-            accessToken: authToken,
-            refreshToken: refreshToken
-          });
-        } else if (userDetails.access === 'supervisor') {
-          console.log('Redirecting to Supervisor.html');
-          return res.json({
-            success: true,
-            redirectUrl: `/Supervisor.html${queryString}`,
-            accessToken: authToken,
-            refreshToken: refreshToken
-          });
-        } else {
-          console.log('Invalid access role');
-          return res.status(401).json({ message: 'Incorrect email or password' });
-        }
+      let redirectUrl;
+      if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+        console.log('Redirecting to Admin.html');
+        redirectUrl = `/Admin.html${queryString}`;
+      } else if (userDetails.access === 'user') {
+        console.log('Redirecting to User.html');
+        redirectUrl = `/User.html${queryString}`;
+      } else if (userDetails.access === 'supervisor') {
+        console.log('Redirecting to Supervisor.html');
+        redirectUrl = `/Supervisor.html${queryString}`;
+      } else {
+        console.log('Invalid access role');
+        return res.status(401).json({ message: 'Incorrect email or password' });
+      }
+
+      // Send success response with redirect
+      res.json({
+        success: true,
+        redirectUrl: redirectUrl,
+        accessToken: authToken,
+        refreshToken: refreshToken,
+        user: userInfo
       });
     });
-  });
+
+  } catch (error) {
+    console.error('Error in /submit endpoint:', error);
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
+  }
 });
+// Update submitData to include PDF generation, email sending and push notifications
+app.post('/submitData', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const tableData = req.body;
+
+    try {
+        // 1. First process all database operations
+        await processDatabaseOperations(pool, tableData);
+
+        // 2. Generate PDF
+        const pdfBuffer = await generatePDF(tableData);
+        console.log('PDF generated successfully');
+
+        // 3. Get recipient emails + pushTokens
+        const [results] = await pool.promise().query(`
+            SELECT email, pushToken 
+            FROM Employees 
+            WHERE situation IS NULL OR situation = ''
+        `);
+
+        const emailAddresses = results.map(r => r.email).filter(Boolean);
+        const pushTokens = results.map(r => r.pushToken).filter(Boolean);
+
+        // 4. Send emails
+        if (emailAddresses.length > 0) {
+            await sendEmail(pdfBuffer, emailAddresses);
+            console.log('Emails sent successfully');
+        }
+
+        // 5. Send push notifications
+        if (pushTokens.length > 0) {
+            await sendPushNotifications(pushTokens, "New Weekly Rota Available", "Your rota PDF has been sent to your email.");
+            console.log('Push notifications sent successfully');
+        }
+
+        res.status(200).send('Rota saved, emails and push notifications sent successfully!');
+    } catch (error) {
+        console.error('Error in /submitData:', error);
+        res.status(500).send('Error processing request: ' + error.message);
+    }
+});
+
+
+// --- Modified sendEmail function (already works) ---
+const sendEmail = (pdfBuffer, emailAddresses) => {
+    const transporter = nodemailer.createTransport({
+        host: 'smtp0001.neo.space',
+        port: 465,
+        secure: true,
+        auth: {
+            user: 'no-reply@solura.uk',
+            pass: 'Salvemini01@'
+        }
+    });
+
+    const sendPromises = emailAddresses.map(email => {
+        const mailOptions = {
+            from: 'Solura WorkForce <no-reply@solura.uk>',
+            to: email,
+            subject: 'Your Weekly Work Schedule',
+            text: `Hello,\n\nAttached is your rota for the upcoming week.\n\nBest regards,\nManagement Team`,
+            attachments: [{
+                filename: 'Weekly_Rota.pdf',
+                content: pdfBuffer
+            }]
+        };
+
+        return transporter.sendMail(mailOptions)
+            .then(() => console.log(`Email sent to ${email}`))
+            .catch(err => {
+                console.error(`Failed to send to ${email}:`, err);
+                throw err;
+            });
+    });
+
+    return Promise.all(sendPromises);
+};
+
+// --- New: Push Notifications sender ---
+const sendPushNotifications = async (pushTokens, title, body) => {
+    // Qui puoi scegliere il provider: OneSignal, Firebase Cloud Messaging, Expo, ecc.
+    // Ti preparo un esempio con Firebase Cloud Messaging (FCM)
+
+    const fcmServerKey = "YOUR_FCM_SERVER_KEY"; // 🔑 da Firebase Console
+    const url = "https://fcm.googleapis.com/fcm/send";
+
+    const notifications = pushTokens.map(token => {
+        return fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": "key=" + fcmServerKey
+            },
+            body: JSON.stringify({
+                to: token,
+                notification: {
+                    title,
+                    body,
+                    sound: "default"
+                },
+                data: {
+                    action: "rota_update"
+                }
+            })
+        })
+        .then(res => res.json())
+        .then(data => console.log("Push sent:", data))
+        .catch(err => console.error("Push error:", err));
+    });
+
+    return Promise.all(notifications);
+};
+
+// Route to save notification token
+app.post('/savePushToken', isAuthenticated, async (req, res) => {
+  const dbName = req.session.user.dbName;
+  const pool = getPool(dbName);
+  const { pushToken } = req.body;
+  const userEmail = req.session.user.email;
+
+  try {
+    await pool.promise().query(
+      "UPDATE Employees SET push_token = ? WHERE email = ?",
+      [pushToken, userEmail]
+    );
+    res.status(200).send('Push token saved');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Error saving token');
+  }
+});
+
+// Function to send Notifications
+async function sendPushNotification(tokens, title, body) {
+  const fcmUrl = "https://fcm.googleapis.com/fcm/send";
+  const serverKey = "LA_TUA_FIREBASE_SERVER_KEY"; // ⚠️ mettila in env var!
+
+  const payload = {
+    notification: {
+      title,
+      body
+    },
+    registration_ids: tokens // array di token
+  };
+
+  try {
+    const res = await axios.post(fcmUrl, payload, {
+      headers: {
+        Authorization: `key=${serverKey}`,
+        "Content-Type": "application/json"
+      }
+    });
+    console.log("Push result:", res.data);
+  } catch (err) {
+    console.error("Push error:", err.response?.data || err.message);
+  }
+}
 
 // Route to verify biometric authentication
 app.post('/verify-biometric', async (req, res) => {

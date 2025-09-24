@@ -5,296 +5,449 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Dashboard</title>
     <style>
+        :root {
+            --primary: #004f9e;
+            --secondary: #007acc;
+            --light: #f4f6f9;
+            --dark: #333;
+            --accent: #005fa3;
+            --card-bg: #fff;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: 'Arial', sans-serif;
             margin: 0;
             padding: 0;
-            background: #f4f6f9;
-            color: #333;
+            background: var(--light);
+            color: var(--dark);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            line-height: 1.5;
         }
         
         header {
-            background: #004f9e;
+            background: var(--primary);
             color: #fff;
-            padding: 20px;
+            padding: 15px 20px;
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            position: relative; /* Ensure the dropdown content is positioned relative to the header */
+            box-shadow: var(--shadow);
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         header h1 {
             margin: 0;
-            font-size: 2em;
+            font-size: 1.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
         }
         
         .dropdown {
-            position: absolute; /* Position dropdown absolutely */
-            top: 20px;
-            right: 20px;
+            position: relative;
         }
         
         .dropbtn {
-            background-color: #007acc;
+            background-color: var(--secondary);
             color: white;
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 10px 16px;
+            font-size: 0.95rem;
             border: none;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .dropbtn:after {
+            content: "▼";
+            font-size: 0.7rem;
+        }
+        
+        .dropbtn:hover {
+            background-color: var(--accent);
+            transform: translateY(-1px);
         }
         
         .dropdown-content {
             display: none;
-            position: absolute; /* Position dropdown content absolutely */
-            top: 100%; /* Position below the button */
+            position: absolute;
+            top: 100%;
             right: 0;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-            z-index: 1;
-            border-radius: 8px; /* Rounded corners for dropdown content */
+            background-color: #fff;
+            min-width: 180px;
+            box-shadow: var(--shadow);
+            z-index: 100;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-top: 5px;
         }
         
         .dropdown-content a {
-            color: black;
+            color: var(--dark);
             padding: 12px 16px;
             text-decoration: none;
             display: block;
-            border-radius: 8px; /* Rounded corners for dropdown items */
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+        
+        .dropdown-content a:last-child {
+            border-bottom: none;
         }
         
         .dropdown-content a:hover {
-            background-color: #f1f1f1;
+            background-color: #f5f9ff;
+            color: var(--primary);
         }
         
         .dropdown:hover .dropdown-content {
             display: block;
         }
-        .date {
-                    background: #e2e2e2;
-                    font-family: Arial, sans-serif;
-                    text-transform: uppercase;
-                    color: #333; /* Darker text color */
-                    border-radius: 5px; /* Rounded corners */
-                    padding: 6px 12px; /* Adjust padding for better fit */
-                    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2); /* Added shadow for depth */
-                }
+        
         .container {
-            width: 90%;
+            width: 95%;
             max-width: 1200px;
-            margin: 40px auto;
+            margin: 25px auto;
             padding: 20px;
-            background: #fff;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
+            background: var(--card-bg);
+            box-shadow: var(--shadow);
+            border-radius: 12px;
         }
         
         .button-group {
             display: flex;
-            justify-content: space-around;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
             margin-bottom: 30px;
         }
         
         .button-group a {
             text-decoration: none;
-            background: #007acc;
+            background: var(--secondary);
             color: #fff;
-            padding: 12px 24px;
-            border-radius: 5px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            transition: background 0.3s ease;
-            font-weight: bold;
+            padding: 14px 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            transition: all 0.3s ease;
+            font-weight: 600;
+            flex: 1;
+            min-width: 160px;
+            text-align: center;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .button-group a:hover {
-            background: #005fa3;
+            background: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
         }
         
         .features {
             display: flex;
-            justify-content: space-between;
+            flex-wrap: wrap;
+            justify-content: center;
             gap: 20px;
         }
         
         .feature {
             flex: 1;
-            padding: 20px;
-            background: #f1f3f5;
-            border-radius: 8px;
+            min-width: 250px;
+            padding: 25px 20px;
+            background: #f8fafc;
+            border-radius: 10px;
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            border-top: 4px solid var(--secondary);
+        }
+        
+        .feature:hover {
+            transform: translateY(-5px);
         }
         
         .feature h2 {
             margin-bottom: 15px;
-            font-size: 1.5em;
-            color: #004f9e;
+            font-size: 1.4rem;
+            color: var(--primary);
+            font-weight: 600;
         }
         
         .feature p {
-            font-size: 1em;
+            font-size: 0.95rem;
             color: #666;
-        }
-        
-        .rota-form {
-            margin-top: 30px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        .rota-form label {
-            font-size: 1em;
-            font-weight: bold;
-        }
-        
-        .rota-form input[type="date"] {
-            padding: 8px;
-            font-size: 1em;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-        }
-        
-        .rota-form button {
-            padding: 10px 20px;
-            background: #007acc;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            font-size: 1em;
-            cursor: pointer;
-        }
-        
-        .rota-form button:hover {
-            background: #005fa3;
+            margin: 0;
+            line-height: 1.6;
         }
         
         footer {
-            background: #004f9e;
+            background: var(--primary);
             color: #fff;
             text-align: center;
-            padding: 10px 0;
+            padding: 15px 0;
             margin-top: auto;
             box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
         }
         
         footer p {
             margin: 0;
-            font-size: 0.9em;
+            font-size: 0.9rem;
+            opacity: 0.9;
         }
         
-        @media (max-width: 768px) {
-            .features {
-                flex-direction: column;
-                align-items: center;
-            }
+        /* Mobile-specific styles */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+        }
         
-            .feature {
+        /* Media Queries for Mobile Optimization */
+        @media (max-width: 768px) {
+            header {
+                padding: 12px 15px;
+            }
+            
+            header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .dropdown {
+                display: none;
+            }
+            
+            .mobile-dropdown {
+                display: block;
                 width: 100%;
+                margin-top: 10px;
+            }
+            
+            .mobile-dropdown .dropbtn {
+                width: 100%;
+                text-align: left;
+                padding: 12px 15px;
+                justify-content: space-between;
+            }
+            
+            .mobile-dropdown .dropdown-content {
+                position: static;
+                width: 100%;
+                box-shadow: none;
+                border-radius: 0;
+                margin-top: 0;
+            }
+            
+            .container {
+                width: 98%;
+                padding: 15px;
+                margin: 15px auto;
+            }
+            
+            .button-group {
+                gap: 10px;
                 margin-bottom: 20px;
             }
-        
-            .button-group {
-                flex-direction: column;
-                align-items: center;
-            }
-        
+            
             .button-group a {
-                width: 100%;
-                text-align: center;
-                margin-bottom: 10px;
+                min-width: 140px;
+                padding: 12px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .feature {
+                min-width: 100%;
+                padding: 20px 15px;
+            }
+            
+            .features {
+                gap: 15px;
+            }
+            
+            .feature h2 {
+                font-size: 1.3rem;
             }
         }
         
-        </style>
-        </head>
-        <body>
-            <header>
-                <h1>Solura</h1>
-                <div class="dropdown">
-                  <button class="dropbtn">Account</button>
-                  <div class="dropdown-content">
-                    <a href="/profile">My Profile</a>
-                    <a href="/pastpayslips">Past Payslips</a>
-                    <a href="/UserHoliday">Closing Days</a>
-                    <a href="/UserHoliday">To Do</a>
-                    <a href="#" id="logoutBtn">Sign Out</a>
-                  </div>
-                </div>
-              </header>
+        @media (max-width: 480px) {
+            .button-group {
+                flex-direction: column;
+            }
             
-              <div class="container">
-                <div class="button-group">
-                  <a href="/UserCrota">Current Rota</a>
-                  <a href="/userholidays">Book Holidays</a>
-                  <a href="/UserHoliday">My Holidays</a>
-                  <a href="/UserHoliday">My Hours</a>
-                </div>
+            .button-group a {
+                width: 100%;
+            }
             
+            header h1 {
+                font-size: 1.3rem;
+            }
+            
+            .container {
+                padding: 12px;
+            }
+        }
         
-                <div class="features">
-                    <div class="feature">
-                        <h2>Efficient Scheduling</h2>
-                        <p>Organize your team’s work schedule effortlessly.</p>
-                    </div>
-                    <div class="feature">
-                        <h2>Real-Time Updates</h2>
-                        <p>Instant notifications for any schedule changes.</p>
-                    </div>
-                    <div class="feature">
-                        <h2>Detailed Reporting</h2>
-                        <p>Track hours, shifts, and performance with ease.</p>
-                    </div>
-                </div>
+        /* Animation for dropdown */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .dropdown-content {
+            animation: fadeIn 0.2s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <button class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+        <h1>Solura</h1>
+        <div class="dropdown">
+            <button class="dropbtn">Account</button>
+            <div class="dropdown-content">
+                <a href="/profile">My Profile</a>
+                <a href="/pastpayslips">Past Payslips</a>
+                <a href="/UserHoliday">Closing Days</a>
+                <a href="/UserHoliday">To Do</a>
+                <a href="#" id="logoutBtn">Sign Out</a>
             </div>
-            <footer>
-                <p>&copy; 2024 YQode All Rights Reserved.</p>
-            </footer>
+        </div>
+    </header>
+    
+    <!-- Mobile dropdown (hidden by default) -->
+    <div class="mobile-dropdown" id="mobileDropdown" style="display: none;">
+        <button class="dropbtn">Account Menu</button>
+        <div class="dropdown-content">
+            <a href="/profile">My Profile</a>
+            <a href="/pastpayslips">Past Payslips</a>
+            <a href="/UserHoliday">Closing Days</a>
+            <a href="/UserHoliday">To Do</a>
+            <a href="#" id="mobileLogoutBtn">Sign Out</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="button-group">
+            <a href="/UserCrota">Current Rota</a>
+            <a href="/userholidays">Book Holidays</a>
+            <a href="/UserHoliday">My Holidays</a>
+            <a href="/UserHoliday">My Hours</a>
+        </div>
+
+        <div class="features">
+            <div class="feature">
+                <h2>Efficient Scheduling</h2>
+                <p>Organize your team's work schedule effortlessly with our intuitive tools.</p>
+            </div>
+            <div class="feature">
+                <h2>Real-Time Updates</h2>
+                <p>Get instant notifications for any schedule changes or important updates.</p>
+            </div>
+            <div class="feature">
+                <h2>Detailed Reporting</h2>
+                <p>Track hours, shifts, and performance metrics with comprehensive reports.</p>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2024 YQode All Rights Reserved.</p>
+    </footer>
+
     <script>
+        // Inactivity timer
         let inactivityTimer;
-const resetInactivityTimer = () => {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-        alert('You have been logged out due to inactivity.');
-        window.location.href = '/logout'; // Replace with your logout route
-    }, 60 * 60 * 1000); // 5 minutes in milliseconds
-};
-// Track user activity
-window.onload = resetInactivityTimer;
-window.onmousemove = resetInactivityTimer;
-window.onkeypress = resetInactivityTimer;
-        const menuBtn = document.getElementById('menuBtn');
-        const sidebar = document.getElementById('sidebar');
-        const main = document.getElementById('main');
-        const body = document.body;
+        const resetInactivityTimer = () => {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                alert('You have been logged out due to inactivity.');
+                window.location.href = '/logout';
+            }, 60 * 60 * 1000); // 60 minutes
+        };
 
-        menuBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('open-sidebar');
-            main.classList.toggle('open-menu');
-            body.classList.toggle('sidebar-open');
+        // Track user activity
+        window.onload = resetInactivityTimer;
+        window.onmousemove = resetInactivityTimer;
+        window.onkeypress = resetInactivityTimer;
+        window.ontouchstart = resetInactivityTimer;
+
+        // Mobile menu functionality
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileDropdown = document.getElementById('mobileDropdown');
+        const desktopDropdown = document.querySelector('.dropdown');
+        
+        mobileMenuBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (mobileDropdown.style.display === 'block') {
+                mobileDropdown.style.display = 'none';
+            } else {
+                mobileDropdown.style.display = 'block';
+            }
         });
-  // Function to handle logout button click
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    try {
-      const response = await fetch('/logout', {
-        method: 'GET',
-        credentials: 'same-origin' // Ensures cookies are sent with the request
-      });
+        
+        // Close mobile dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            if (!mobileMenuBtn.contains(event.target) && !mobileDropdown.contains(event.target)) {
+                mobileDropdown.style.display = 'none';
+            }
+        });
 
-      if (response.ok) {
-        window.location.href = '/'; // Redirect to login page
-      } else {
-        console.error('Failed to logout:', response.statusText);
-        alert('Failed to logout. Please try again.');
-      }
-    } catch (error) {
-      console.error('Failed to logout:', error.message);
-      alert('Failed to logout. Please try again.');
-    }
-  });
+        // Desktop dropdown functionality
+        desktopDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            desktopDropdown.classList.toggle('active');
+        });
+        
+        // Close desktop dropdown when clicking outside
+        document.addEventListener('click', () => {
+            if (desktopDropdown.classList.contains('active')) {
+                desktopDropdown.classList.remove('active');
+            }
+        });
+
+        // Logout functionality
+        const logout = async () => {
+            try {
+                const response = await fetch('/logout', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    console.error('Failed to logout:', response.statusText);
+                    alert('Failed to logout. Please try again.');
+                }
+            } catch (error) {
+                console.error('Failed to logout:', error.message);
+                alert('Failed to logout. Please try again.');
+            }
+        };
+
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+        document.getElementById('mobileLogoutBtn').addEventListener('click', logout);
     </script>
 </body>
 </html>
