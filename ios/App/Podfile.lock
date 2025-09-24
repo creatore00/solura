@@ -1,0 +1,52 @@
+PODS:
+  - Capacitor (7.2.0):
+    - CapacitorCordova
+  - CapacitorApp (7.1.0):
+    - Capacitor
+  - CapacitorBrowser (7.0.2):
+    - Capacitor
+  - CapacitorCordova (7.2.0)
+  - CapacitorNativeBiometric (0.0.1):
+    - Capacitor
+  - CapacitorPushNotifications (7.0.2):
+    - Capacitor
+  - CapgoCapacitorNativeBiometric (0.0.1):
+    - Capacitor
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - CapacitorNativeBiometric (from `../../node_modules/capacitor-native-biometric`)
+  - "CapacitorPushNotifications (from `../../node_modules/@capacitor/push-notifications`)"
+  - "CapgoCapacitorNativeBiometric (from `../../node_modules/@capgo/capacitor-native-biometric`)"
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorBrowser:
+    :path: "../../node_modules/@capacitor/browser"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorNativeBiometric:
+    :path: "../../node_modules/capacitor-native-biometric"
+  CapacitorPushNotifications:
+    :path: "../../node_modules/@capacitor/push-notifications"
+  CapgoCapacitorNativeBiometric:
+    :path: "../../node_modules/@capgo/capacitor-native-biometric"
+
+SPEC CHECKSUMS:
+  Capacitor: 03bc7cbdde6a629a8b910a9d7d78c3cc7ed09ea7
+  CapacitorApp: 26587c2ce485d88ddb39adb21cac64f8e481afe3
+  CapacitorBrowser: 22541e48442de44dc629c214388290d6eecc6ae9
+  CapacitorCordova: 5967b9ba03915ef1d585469d6e31f31dc49be96f
+  CapacitorNativeBiometric: 78cf21304251a512e4597437325b5e9b0cd9f7b3
+  CapacitorPushNotifications: 7c0659b349b149ee3936a682da31a9d269de9582
+  CapgoCapacitorNativeBiometric: be4ceeff38739d9c0f59b8c41456a3b01cfeddf0
+
+PODFILE CHECKSUM: 7f99b185eb5a0b2f6eda1edfa09b3a7453f5efda
+
+COCOAPODS: 1.16.2
