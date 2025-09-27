@@ -133,47 +133,50 @@ async function init() {
 }
 
 // --- LOGIN FORM ---
-async function submitForm(event){
-    event.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Authenticating...';
+async function submitForm(event) {
+  event.preventDefault();
 
-    try {
-        const res = await fetch('/submit', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            credentials:'include',
-            body:JSON.stringify({email,password})
-        });
+  const email = document.querySelector("#email").value.trim();
+  const password = document.querySelector("#password").value;
 
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
+  if (!email || !password) {
+    alert("Inserisci email e password");
+    return;
+  }
 
-        if(data.message === 'Multiple databases found'){ 
-            databases = data.databases; 
-            showDatabasePopup(databases);
-            currentUserData = { email, password }; // salva per DB selection + biometric
-        } else if(data.redirectUrl){ 
-            currentUserData = {
-                email,
-                accessToken: data.accessToken,
-                refreshToken: data.refreshToken,
-                redirectUrl: data.redirectUrl
-            };
-            if (isCapacitor) document.getElementById('biometricPrompt').style.display = 'block';
-            else window.location.href = data.redirectUrl;
-        } else {
-            alert('Incorrect Email or Password.');
-        }
-    } catch(e){ 
-        alert(`Login failed: ${e.message}`); 
-    } finally{
-        submitBtn.disabled = false; 
-        submitBtn.textContent = 'Sign In';
+  try {
+    const response = await fetch("https://solura.uk/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error("Errore login: " + errorText);
     }
+
+    const data = await response.json();
+
+    if (data.accessToken && data.refreshToken) {
+      localStorage.setItem("accessToken", data.accessToken);
+      localStorage.setItem("refreshToken", data.refreshToken);
+    } else {
+      throw new Error("Token mancanti nella risposta dal server");
+    }
+
+    if (data.redirectUrl) {
+      // Assicurati che sia assoluto
+      const redirectUrl = new URL(data.redirectUrl, "https://solura.uk").href;
+      window.location.href = redirectUrl;
+    } else {
+      throw new Error("Redirect URL mancante");
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
 }
 
 // --- DATABASE POPUP ---
