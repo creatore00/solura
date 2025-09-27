@@ -46,46 +46,29 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Enhanced CORS configuration for iOS
+// Middleware
 app.use(cors({
     origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Set-Cookie'],
-    exposedHeaders: ['Set-Cookie', 'Cookie']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname)); // ✅ SERVE STATIC FILES
+app.use(sessionMiddleware);
 
-// Cache control middleware for iOS
-app.use((req, res, next) => {
-    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.header('Pragma', 'no-cache');
-    res.header('Expires', '0');
-    
-    // iOS-specific headers
-    res.header('X-Content-Type-Options', 'nosniff');
-    res.header('X-Frame-Options', 'SAMEORIGIN');
-    next();
-});
-
-// Enhanced session configuration for iOS
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret',
-    resave: true, // Changed to true for iOS
-    saveUninitialized: true, // Changed to true for iOS
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-        secure: false, // Should be true in production with HTTPS
-        httpOnly: false, // Set to false for iOS WebView compatibility
-        sameSite: 'none', // Important for cross-origin in iOS
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        secure: false,
+        httpOnly: true,
+        sameSite: 'lax'
     }
 }));
-
-app.use(sessionMiddleware);
 
 // Routes
 app.use('/rota', newRota);
@@ -115,40 +98,15 @@ app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
 
-// iOS diagnostic endpoint
-app.get('/api/ios-test', (req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = /iphone|ipad|ipod|ios/i.test(userAgent.toLowerCase());
-    
-    res.json({
-        iosDevice: isIOS,
-        userAgent: userAgent,
-        sessionId: req.sessionID,
-        sessionUser: req.session.user,
-        cookiesReceived: req.headers.cookie,
-        timestamp: new Date().toISOString()
-    });
-});
-
-// Improved mobile detection function
+// Function to detect mobile devices
 function isMobile(userAgent) {
-    const mobileRegex = /android|iphone|ipad|ipod|ios|mobile/i;
-    return mobileRegex.test(userAgent.toLowerCase());
+    return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 }
 
-// Route principale with enhanced iOS handling
+// Route principale
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     console.log('User-Agent:', userAgent);
-
-    // Specific iOS detection
-    const isIOS = /iphone|ipad|ipod|ios/i.test(userAgent.toLowerCase());
-    
-    if (isIOS) {
-        console.log('iOS device detected');
-        // Add iOS-specific headers
-        res.header('X-Target-Device', 'iOS');
-    }
 
     if (isMobile(userAgent)) {
         res.sendFile(path.join(__dirname, 'LoginApp.html'));
@@ -752,28 +710,6 @@ app.get('/logout', (req, res) => {
     }
 });
 
-// Enhanced error handling for iOS
-app.use((error, req, res, next) => {
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = /iphone|ipad|ipod|ios/i.test(userAgent.toLowerCase());
-    
-    if (isIOS) {
-        // Simplify error messages for iOS
-        res.status(error.status || 500).json({
-            success: false,
-            message: 'Request failed',
-            iosCompatible: true
-        });
-    } else {
-        // Regular error handling for other platforms
-        res.status(error.status || 500).json({
-            success: false,
-            message: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-});
-
 // ✅ CATCH-ALL HANDLER PER iOS WebView - IMPORTANTE!
 app.get('*', (req, res) => {
     const requestedPath = path.join(__dirname, req.path);
@@ -794,4 +730,4 @@ app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
     const databaseNames = ['bbuonaoxford', '100%pastaoxford'];
     scheduleTestUpdates(databaseNames);
-});
+}); 
