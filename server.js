@@ -45,18 +45,20 @@ const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 8080;
+// ====== CONFIG ======
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret';
 
-// Middleware
+// ====== MIDDLEWARE ======
 app.use(cors({
     origin: true,
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+    allowedHeaders: ['Content-Type','Authorization']
 }));
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname)); // ✅ SERVE STATIC FILES
+app.use(express.static(__dirname));
 app.use(sessionMiddleware);
 
 app.use(session({
@@ -64,11 +66,12 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false,
+        secure: true,        // must be true for sameSite='none'
         httpOnly: true,
-        sameSite: 'lax'
+        sameSite: 'none'     // allows cross-site / WebView cookies
     }
 }));
+
 
 // Routes
 app.use('/rota', newRota);
@@ -98,187 +101,106 @@ app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
 
-// Function to detect mobile devices
+// ====== JWT UTILITIES ======
+function generateToken(user) {
+    return jwt.sign({
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        lastName: user.lastName,
+        dbName: user.dbName
+    }, JWT_SECRET, { expiresIn: '7d' });
+}
+
+function generateRefreshToken(user) {
+    return jwt.sign(user, JWT_REFRESH_SECRET, { expiresIn: '30d' });
+}
+
+function authenticateJWT(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
+
+    const token = authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({ message: 'No token provided' });
+
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+        if (err) return res.status(401).json({ message: 'Invalid or expired token' });
+        req.user = decoded;
+        next();
+    });
+}
+
+function authorizeRoles(...roles) {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) return res.status(403).json({ message: 'Forbidden' });
+        next();
+    };
+}
+
+// ====== MOBILE DETECTION ======
 function isMobile(userAgent) {
     return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 }
-
-// Route principale
+// Login page detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
-    console.log('User-Agent:', userAgent);
-
-    if (isMobile(userAgent)) {
-        res.sendFile(path.join(__dirname, 'LoginApp.html'));
-    } else {
-        res.sendFile(path.join(__dirname, 'Login.html'));
-    }
+    if (isMobile(userAgent)) res.sendFile(path.join(__dirname, 'LoginApp.html'));
+    else res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
-// Cron job
+// ====== CRON JOB ======
 cron.schedule('0 0 1 * *', async () => {
     try {
         const [dbNames] = await mainPool.promise().query('SELECT db_name FROM users WHERE db_name IS NOT NULL');
         for (const db of dbNames) {
             const pool = getPool(db.db_name);
-            const updateQuery = `UPDATE Employees SET Accrued = Accrued + 2.333`;
-            await pool.promise().query(updateQuery);
+            await pool.promise().query('UPDATE Employees SET Accrued = Accrued + 2.333');
         }
     } catch (error) {
-        console.error('Error updating Accrued column:', error);
+        console.error('Error updating Accrued:', error);
     }
-}, {
-    scheduled: true,
-    timezone: 'Europe/London'
-});
+}, { scheduled: true, timezone: 'Europe/London' });
 
-// Function to generate a JWT token
-function generateToken(user) {
-    return jwt.sign(
-        { 
-            email: user.email, 
-            role: user.role, 
-            name: user.name, 
-            lastName: user.lastName, 
-            dbName: user.dbName 
-        },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-    );
-}
-
-// Route to handle login and database selection
-app.post('/submit', (req, res) => {
-    console.log('Received /submit request:', req.body);
+// ====== LOGIN ======
+app.post('/submit', async (req, res) => {
     const { email, password, dbName } = req.body;
+    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
-    }
+    try {
+        const [results] = await mainPool.promise().query('SELECT Access, Password, Email, db_name FROM users WHERE Email = ?', [email]);
+        if (!results.length) return res.status(401).json({ message: 'Incorrect email or password' });
 
-    const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
-
-    mainPool.query(sql, [email], async (err, results) => {
-        if (err) {
-            console.error('Error querying database:', err);
-            return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-        }
-
-        if (results.length === 0) {
-            return res.status(401).json({ message: 'Incorrect email or password' });
-        }
-
-        let matchingDatabases = [];
+        const matchingDatabases = [];
         for (const row of results) {
-            const storedPassword = row.Password;
-            try {
-                const isMatch = await bcrypt.compare(password, storedPassword);
-                if (isMatch) {
-                    matchingDatabases.push({
-                        db_name: row.db_name,
-                        access: row.Access,
-                    });
-                }
-            } catch (err) {
-                console.error('Error comparing passwords:', err);
-                return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-            }
+            const match = await bcrypt.compare(password, row.Password);
+            if (match) matchingDatabases.push({ db_name: row.db_name, access: row.Access });
         }
 
-        if (matchingDatabases.length === 0) {
-            return res.status(401).json({ message: 'Incorrect email or password' });
-        }
+        if (!matchingDatabases.length) return res.status(401).json({ message: 'Incorrect email or password' });
+        if (matchingDatabases.length > 1 && !dbName) return res.json({ multiple: true, databases: matchingDatabases });
 
-        if (matchingDatabases.length > 1 && !dbName) {
-            return res.status(200).json({
-                message: 'Multiple databases found',
-                databases: matchingDatabases,
-            });
-        }
+        const selectedDb = dbName ? matchingDatabases.find(d => d.db_name === dbName) : matchingDatabases[0];
+        if (!selectedDb) return res.status(400).json({ message: 'Invalid database selection' });
 
-        const userDetails = dbName
-            ? matchingDatabases.find((db) => db.db_name === dbName)
-            : matchingDatabases[0];
+        const companyPool = getPool(selectedDb.db_name);
+        const [employeeData] = await companyPool.promise().query('SELECT name, lastName FROM Employees WHERE email = ?', [email]);
+        if (!employeeData.length) return res.status(401).json({ message: 'User not found in company database' });
 
-        if (!userDetails) {
-            return res.status(400).json({ error: 'Invalid database selection' });
-        }
+        const userInfo = { email, role: selectedDb.access, name: employeeData[0].name, lastName: employeeData[0].lastName, dbName: selectedDb.db_name };
+        const accessToken = generateToken(userInfo);
+        const refreshToken = generateRefreshToken(userInfo);
 
-        const companyPool = getPool(userDetails.db_name);
-        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+        const queryString = `?name=${encodeURIComponent(userInfo.name)}&lastName=${encodeURIComponent(userInfo.lastName)}&email=${encodeURIComponent(email)}`;
+        let redirectUrl = '/';
+        if (userInfo.role === 'admin' || userInfo.role === 'AM') redirectUrl = `/Admin.html${queryString}`;
+        else if (userInfo.role === 'user') redirectUrl = `/User.html${queryString}`;
+        else if (userInfo.role === 'supervisor') redirectUrl = `/Supervisor.html${queryString}`;
 
-        companyPool.query(companySql, [email], (err, companyResults) => {
-            if (err) {
-                console.error('Error querying company database:', err);
-                return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-            }
-
-            if (companyResults.length === 0) {
-                return res.status(401).json({ message: 'User not found in company database' });
-            }
-
-            const name = companyResults[0].name;
-            const lastName = companyResults[0].lastName;
-
-            const userInfo = {
-                email: email,
-                role: userDetails.access,
-                name: name,
-                lastName: lastName,
-                dbName: userDetails.db_name,
-            };
-
-            req.session.user = userInfo;
-
-            const authToken = generateToken(userInfo);
-            const refreshToken = jwt.sign(
-                {
-                    email: userInfo.email,
-                    role: userInfo.role,
-                    name: userInfo.name,
-                    lastName: userInfo.lastName,
-                    dbName: userInfo.dbName
-                },
-                process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                { expiresIn: '30d' }
-            );
-
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Error saving session:', err);
-                    return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-                }
-
-                const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
-
-                // ✅ CORRETTO: USA URL RELATIVI invece di assoluti
-                if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    return res.json({
-                        success: true,
-                        redirectUrl: `/Admin.html${queryString}`, // RELATIVO
-                        accessToken: authToken,
-                        refreshToken: refreshToken
-                    });
-                } else if (userDetails.access === 'user') {
-                    return res.json({
-                        success: true,
-                        redirectUrl: `/User.html${queryString}`, // RELATIVO
-                        accessToken: authToken,
-                        refreshToken: refreshToken
-                    });
-                } else if (userDetails.access === 'supervisor') {
-                    return res.json({
-                        success: true,
-                        redirectUrl: `/Supervisor.html${queryString}`, // RELATIVO
-                        accessToken: authToken,
-                        refreshToken: refreshToken
-                    });
-                } else {
-                    return res.status(401).json({ message: 'Incorrect email or password' });
-                }
-            });
-        });
-    });
+        res.json({ success: true, redirectUrl, accessToken, refreshToken });
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ message: 'Server error', details: err.message });
+    }
 });
 
 // Route to save notification token
@@ -328,50 +250,26 @@ app.post('/getUserDatabases', (req, res) => {
 });
 
 // Route to switch databases
-app.post('/switchDatabase', (req, res) => {
-    const { email, dbName } = req.body;
-    
-    if (!req.session.user || req.session.user.email !== email) {
-        return res.status(403).json({ error: 'Unauthorized' });
+// ====== SWITCH DATABASE ======
+app.post('/switchDatabase', authenticateJWT, async (req, res) => {
+    const { dbName } = req.body;
+    try {
+        const [rows] = await mainPool.promise().query('SELECT 1 FROM users WHERE Email = ? AND db_name = ?', [req.user.email, dbName]);
+        if (!rows.length) return res.status(403).json({ message: 'Access to this database is not authorized' });
+
+        req.user.dbName = dbName;
+        const newToken = generateToken(req.user);
+        res.json({ success: true, accessToken: newToken });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error' });
     }
-
-    const verifySql = `SELECT 1 FROM users WHERE Email = ? AND db_name = ?`;
-
-    mainPool.query(verifySql, [email, dbName], (err, results) => {
-        if (err) {
-            console.error('Error verifying database access:', err);
-            return res.status(500).json({ error: 'Internal Server Error' });
-        }
-
-        if (results.length === 0) {
-            return res.status(403).json({ error: 'Access to this database is not authorized' });
-        }
-
-        req.session.user.dbName = dbName;
-        
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving session:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
-            }
-            
-            res.json({ success: true });
-        });
-    });
 });
 
-// Protected routes - ✅ CORRETTE
-app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(path.join(__dirname, 'Admin.html'));
-});
-
-app.get('/User.html', isAuthenticated, isUser, (req, res) => {
-    res.sendFile(path.join(__dirname, 'User.html'));
-});
-
-app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
-    res.sendFile(path.join(__dirname, 'Supervisor.html'));
-});
+// ====== PROTECTED HTML ROUTES ======
+app.get('/Admin.html', authenticateJWT, authorizeRoles('admin','AM'), (req, res) => res.sendFile(path.join(__dirname,'Admin.html')));
+app.get('/User.html', authenticateJWT, authorizeRoles('user'), (req, res) => res.sendFile(path.join(__dirname,'User.html')));
+app.get('/Supervisor.html', authenticateJWT, authorizeRoles('supervisor'), (req, res) => res.sendFile(path.join(__dirname,'Supervisor.html')));
 
 // API routes
 app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
@@ -484,67 +382,27 @@ function getCurrentMonday() {
     return monday.toISOString().split('T')[0];
 }
 
-// Auto Login Function - ✅ CORRETTO: USA URL RELATIVI
-app.post('/auto-login', async (req, res) => {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
-
-    const accessToken = authHeader.split(' ')[1];
-    if (!accessToken) return res.status(401).json({ message: 'No token provided' });
-
-    try {
-        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
-        req.session.user = decoded;
-        req.session.save(err => {
-            if (err) return res.status(500).json({ error: 'Failed to save session' });
-
-            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}`;
-            let redirectUrl;
-            
-            // ✅ CORRETTO: URL RELATIVI
-            if (decoded.role === 'admin' || decoded.role === 'AM') {
-                redirectUrl = `/Admin.html${queryString}`;
-            } else if (decoded.role === 'user') {
-                redirectUrl = `/User.html${queryString}`;
-            } else if (decoded.role === 'supervisor') {
-                redirectUrl = `/Supervisor.html${queryString}`;
-            } else {
-                return res.status(401).json({ message: 'Invalid role' });
-            }
-
-            res.json({ 
-                success: true, 
-                redirectUrl, 
-                user: decoded,
-                accessToken: accessToken
-            });
-        });
-    } catch (err) {
-        res.status(401).json({ message: 'Token expired or invalid' });
-    }
+// ====== AUTO LOGIN ======
+app.post('/auto-login', authenticateJWT, (req, res) => {
+    const user = req.user;
+    const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}`;
+    let redirectUrl = '/';
+    if (user.role === 'admin' || user.role === 'AM') redirectUrl = `/Admin.html${queryString}`;
+    else if (user.role === 'user') redirectUrl = `/User.html${queryString}`;
+    else if (user.role === 'supervisor') redirectUrl = `/Supervisor.html${queryString}`;
+    res.json({ success: true, redirectUrl, user, accessToken: req.headers['authorization'].split(' ')[1] });
 });
 
-// Function to Refresh Token
-app.post('/refresh-token', async (req, res) => {
+// ====== REFRESH TOKEN ======
+app.post('/refresh-token', (req, res) => {
     const { refreshToken } = req.body;
     if (!refreshToken) return res.status(401).json({ message: 'No refresh token provided' });
 
     try {
-        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
-        const newAccessToken = jwt.sign(
-            {
-                email: decoded.email,
-                role: decoded.role,
-                name: decoded.name,
-                lastName: decoded.lastName,
-                dbName: decoded.dbName
-            },
-            process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: '7d' }
-        );
+        const decoded = jwt.verify(refreshToken, JWT_REFRESH_SECRET);
+        const newAccessToken = generateToken(decoded);
         res.json({ accessToken: newAccessToken });
     } catch (err) {
-        console.error('Refresh token error:', err);
         res.status(401).json({ message: 'Refresh token invalid or expired' });
     }
 });
@@ -710,20 +568,12 @@ app.get('/logout', (req, res) => {
     }
 });
 
-// ✅ CATCH-ALL HANDLER PER iOS WebView - IMPORTANTE!
-app.get('*', (req, res) => {
+// ====== CATCH-ALL ======
+app.get('*', (req,res) => {
     const requestedPath = path.join(__dirname, req.path);
-    
-    // Se il file esiste, servilo
-    if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) {
-        res.sendFile(requestedPath);
-    } else if (req.path.startsWith('/api/')) {
-        // API routes - return 404
-        res.status(404).json({ error: 'API endpoint not found' });
-    } else {
-        // Per tutte le altre routes, reindirizza alla login
-        res.redirect('/');
-    }
+    if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) return res.sendFile(requestedPath);
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API endpoint not found' });
+    res.redirect('/');
 });
 
 app.listen(port, () => {
