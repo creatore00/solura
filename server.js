@@ -83,6 +83,7 @@ app.use('/financialsummary', financialsummary);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(sessionMiddleware);
+app.use(express.static(__dirname));
 app.use(session({
   secret: process.env.SESSION_SECRET || 'your-session-secret',
   resave: false,
