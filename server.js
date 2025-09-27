@@ -59,12 +59,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname)); // ✅ SERVE STATIC FILES
 app.use(sessionMiddleware);
 
+// Session middleware
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret',
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false,
+        secure: process.env.NODE_ENV === 'production', // ✅ HTTPS richiesto su iOS per SameSite=None
         httpOnly: true,
         sameSite: 'lax'
     }
@@ -98,17 +99,15 @@ app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
 
-// Function to detect mobile devices
+// Helper: detect mobile
 function isMobile(userAgent) {
     return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 }
 
-// Route principale
-app.get('/', (req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-    console.log('User-Agent:', userAgent);
-
-    if (isMobile(userAgent)) {
+// Login page
+app.get('/', (req,res) => {
+    const ua = req.headers['user-agent'] || '';
+    if (isMobile(ua)) {
         res.sendFile(path.join(__dirname, 'LoginApp.html'));
     } else {
         res.sendFile(path.join(__dirname, 'Login.html'));
@@ -121,27 +120,17 @@ cron.schedule('0 0 1 * *', async () => {
         const [dbNames] = await mainPool.promise().query('SELECT db_name FROM users WHERE db_name IS NOT NULL');
         for (const db of dbNames) {
             const pool = getPool(db.db_name);
-            const updateQuery = `UPDATE Employees SET Accrued = Accrued + 2.333`;
-            await pool.promise().query(updateQuery);
+            await pool.promise().query(`UPDATE Employees SET Accrued = Accrued + 2.333`);
         }
-    } catch (error) {
-        console.error('Error updating Accrued column:', error);
+    } catch (err) {
+        console.error('Error updating Accrued column:', err);
     }
-}, {
-    scheduled: true,
-    timezone: 'Europe/London'
-});
+}, { scheduled: true, timezone: 'Europe/London' });
 
-// Function to generate a JWT token
+// JWT generation
 function generateToken(user) {
     return jwt.sign(
-        { 
-            email: user.email, 
-            role: user.role, 
-            name: user.name, 
-            lastName: user.lastName, 
-            dbName: user.dbName 
-        },
+        { email: user.email, role: user.role, name: user.name, lastName: user.lastName, dbName: user.dbName },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '7d' }
     );
@@ -710,24 +699,22 @@ app.get('/logout', (req, res) => {
     }
 });
 
-// ✅ CATCH-ALL HANDLER PER iOS WebView - IMPORTANTE!
+// Catch-all handler per iOS WebView
 app.get('*', (req, res) => {
     const requestedPath = path.join(__dirname, req.path);
-    
-    // Se il file esiste, servilo
+
     if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) {
         res.sendFile(requestedPath);
     } else if (req.path.startsWith('/api/')) {
-        // API routes - return 404
         res.status(404).json({ error: 'API endpoint not found' });
     } else {
-        // Per tutte le altre routes, reindirizza alla login
         res.redirect('/');
     }
 });
 
+// Start server
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
-    const databaseNames = ['bbuonaoxford', '100%pastaoxford'];
+    const databaseNames = ['bbuonaoxford','100%pastaoxford'];
     scheduleTestUpdates(databaseNames);
 });
