@@ -41,8 +41,18 @@ const saltRounds = 10; // Number of salt rounds, higher is more secure but slowe
 const jwt = require('jsonwebtoken');
 const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor, isUser } = require('./sessionConfig'); // Adjust the path as needed
 const session = require('express-session');
+const cors = require('cors'); // Add this line
 const app = express();
 const port = process.env.PORT || 8080;
+
+// Add CORS middleware here - this is the only change needed
+app.use(cors({
+    origin: true, // Allows all origins (both mobile and desktop)
+    credentials: true, // Important for sessions and cookies
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use('/rota', newRota);
 app.use('/rota2', newRota2);
 app.use('/confirmpassword', confirmpassword);
