@@ -361,6 +361,10 @@ app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
 
+app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'AdminApp.html'));
+});
+
 app.get('/User.html', isAuthenticated, isUser, (req, res) => {
     res.sendFile(path.join(__dirname, 'User.html'));
 });
