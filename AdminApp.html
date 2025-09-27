@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Solura | Workforce Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #004f9e;
+            --secondary-color: #007acc;
+            --accent-color: #00a8ff;
+            --light-gray: #f4f6f9;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--light-gray);
+            color: var(--dark-gray);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Mobile Header */
+        .mobile-header {
+            background-color: var(--white);
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .mobile-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .mobile-menu-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 0.25rem;
+        }
+        
+        /* Mobile Menu */
+        .mobile-menu {
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 85%;
+            height: 100%;
+            background: var(--white);
+            z-index: 1000;
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .mobile-menu.active {
+            left: 0;
+        }
+        
+        .menu-header {
+            padding: 1.5rem 1rem;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .close-menu {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .mobile-nav {
+            padding: 1rem 0;
+        }
+        
+        .mobile-nav-section {
+            margin-bottom: 1rem;
+        }
+        
+        .mobile-nav-title {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary-color);
+            font-weight: 600;
+            background: rgba(0, 122, 204, 0.1);
+        }
+        
+        .mobile-nav-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            color: var(--dark-gray);
+            text-decoration: none;
+            border-bottom: 1px solid #eee;
+            gap: 0.75rem;
+        }
+        
+        .mobile-nav-link i {
+            width: 24px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        .mobile-nav-link.active {
+            background-color: rgba(0, 122, 204, 0.1);
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .notification-badge {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            margin-left: auto;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(255, 0, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+        
+        /* Main Content */
+        .mobile-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .content-title {
+            font-size: 1.25rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .date-display {
+            font-size: 0.9rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* Dashboard Widgets */
+        .mobile-dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mobile-widget {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .widget-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .widget-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark-gray);
+            margin: 0.25rem 0;
+        }
+        
+        .widget-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        /* Quick Actions */
+        .quick-actions-title {
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .mobile-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mobile-action {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            color: var(--dark-gray);
+            transition: transform 0.2s ease;
+        }
+        
+        .mobile-action:active {
+            transform: scale(0.98);
+        }
+        
+        .action-icon {
+            font-size: 1.5rem;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+        
+        .action-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        /* Data Tables */
+        .mobile-table-container {
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mobile-table {
+            width: 100%;
+            min-width: 500px;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        
+        .mobile-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .mobile-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+        
+        .mobile-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .boh-cell {
+            background-color: #ffebee;
+            color: #c62828;
+            font-weight: bold;
+        }
+
+        .foh-cell {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            font-size: 0.8rem;
+        }
+
+        .status-indicator.working {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .status-indicator.inactive {
+            background-color: #f5f5f5;
+            color: #616161;
+        }
+        
+        /* Footer */
+        .mobile-footer {
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+        
+        /* Modal */
+        .mobile-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+        
+        .mobile-modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+        }
+        
+        .modal-title {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #004f9e;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-body {
+            padding: 1rem;
+        }
+        
+        .report-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        
+        .report-info {
+            flex: 1;
+        }
+        
+        .report-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .report-desc {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        .report-button {
+            padding: 0.5rem 0.75rem;
+            background: #007acc;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        
+        /* Overlay for menu */
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        
+        .menu-overlay.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+        <div class="mobile-title">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Solura Workforce</span>
+        </div>
+        <button class="mobile-menu-btn" id="menuToggle">
+            <i class="fas fa-bars"></i>
+        </button>
+    </header>
+    
+    <!-- Mobile Menu -->
+    <div class="menu-overlay" id="menuOverlay"></div>
+    <nav class="mobile-menu" id="mobileMenu">
+        <div class="menu-header">
+            <span>Menu</span>
+            <button class="close-menu" id="closeMenu">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="mobile-nav">
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-title">Management</div>
+                <a href="index.html" class="mobile-nav-link active">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="updateinfo.html" class="mobile-nav-link">
+                    <i class="fas fa-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="rota.html" class="mobile-nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Rotas</span>
+                </a>
+            </div>
+            
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-title">Daily</div>
+                <a href="endday.html" class="mobile-nav-link">
+                    <i class="fas fa-clock"></i>
+                    <span>End Of Day</span>
+                </a>
+                <a href="confirmrota.html" class="mobile-nav-link">
+                    <i class="fas fa-check-double"></i>
+                    <span>Approve Rota</span>
+                </a>
+                <a href="tip.html" class="mobile-nav-link">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Tips</span>
+                </a>
+            </div>
+            
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-title">Holidays</div>
+                <a href="TotalHolidays.html" class="mobile-nav-link">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Holidays Management</span>
+                </a>
+                <a href="request.html" class="mobile-nav-link">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approve/Reject Holidays</span>
+                    <span class="notification-badge" id="holidayNotification" style="display: none;"></span>
+                </a>
+                <a href="userholidays.html" class="mobile-nav-link">
+                    <i class="fas fa-umbrella-beach"></i>
+                    <span>Request Holidays</span>
+                </a>
+            </div>
+            
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-title">Finance</div>
+                <a href="timetracking.html" class="mobile-nav-link">
+                    <i class="fas fa-clock"></i>
+                    <span>Time Tracking</span>
+                </a>
+                <a href="insertpayslip.html" class="mobile-nav-link">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Insert Payslips</span>
+                </a>
+                <a href="pastpayslips.html" class="mobile-nav-link">
+                    <i class="fas fa-receipt"></i>
+                    <span>Past Payslips</span>
+                </a>
+                <a href="#" class="mobile-nav-link" id="reportsLinkMobile">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+            </div>
+            
+            <div class="mobile-nav-section">
+                <div class="mobile-nav-title">System</div>
+                <a href="profile.html" class="mobile-nav-link">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Account</span>
+                </a>
+                <a href="generate.html" class="mobile-nav-link">
+                    <i class="fas fa-cog"></i>
+                    <span>Manage Access</span>
+                </a>
+                <a href="logout.html" class="mobile-nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="mobile-content">
+        <div class="content-header">
+            <h1 class="content-title">Dashboard</h1>
+            <div class="date-display">
+                <i class="fas fa-calendar-day"></i>
+                <span id="currentDate"></span>
+            </div>
+        </div>
+        
+        <!-- Stats Widgets -->
+        <div class="mobile-dashboard">
+            <div class="mobile-widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">On Shift Today</h3>
+                    <i class="fas fa-users" style="color: var(--secondary-color);"></i>
+                </div>
+                <div class="widget-value" id="employees"></div>
+                <div class="widget-footer">
+                    <span>Employees</span>
+                </div>
+            </div>
+            
+            <div class="mobile-widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">Pending Rota Approvals</h3>
+                    <i class="fas fa-clock" style="color: #ff9800;"></i>
+                </div>
+                <div class="widget-value" id="approve"></div>
+                <div class="widget-footer">
+                    <span>Confirmations waiting</span>
+                    <a href="confirmrota.html" style="color: var(--secondary-color);">Review</a>
+                </div>
+            </div>
+
+            <div class="mobile-widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">Pending Tips Approvals</h3>
+                    <i class="fas fa-clock" style="color: #29bce0;"></i>
+                </div>
+                <div class="widget-value" id="tip"></div>
+                <div class="widget-footer">
+                    <span>Confirmations waiting</span>
+                    <a href="tip.html" style="color: var(--secondary-color);">Review</a>
+                </div>
+            </div>
+            
+            <div class="mobile-widget">
+                <div class="widget-header">
+                    <h3 class="widget-title">Labor Cost</h3>
+                    <i class="fas fa-pound-sign" style="color: #f44336;"></i>
+                </div>
+                <div class="widget-value" id="labor"></div>
+                <div class="widget-footer">
+                    <span>This Week</span>
+                    <a href="labor.html" style="color: var(--secondary-color);">Details</a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <h2 class="quick-actions-title">Quick Actions</h2>
+        <div class="mobile-actions">
+            <a href="rota.html" class="mobile-action">
+                <div class="action-icon">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div class="action-label">Create Rota</div>
+            </a>
+            
+            <a href="confirmrota.html" class="mobile-action">
+                <div class="action-icon">
+                    <i class="fas fa-check-double"></i>
+                </div>
+                <div class="action-label">Approve Rota</div>
+            </a>
+            
+            <a href="endday.html" class="mobile-action">
+                <div class="action-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="action-label">End of Day</div>
+            </a>
+            
+            <a href="tip.html" class="mobile-action">
+                <div class="action-icon">
+                    <i class="fas fa-hand-holding-usd"></i>
+                </div>
+                <div class="action-label">Daily Tips</div>
+            </a>
+            
+            <a href="insertpayslip.html" class="mobile-action">
+                <div class="action-icon">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="action-label">New Payslips</div>
+            </a>
+            
+            <a href="userholidays.html" class="mobile-action">
+                <div class="action-icon">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="action-label">Holiday Booking</div>
+            </a>
+        </div>
+        
+        <!-- Recent Activity -->
+        <h2 style="margin: 1.5rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
+        <div class="mobile-table-container">
+            <table class="mobile-table">
+                <thead>
+                    <tr>                                   
+                        <th>Employee</th>                                    
+                        <th>Designation</th>
+                        <th>Shift</th>
+                        <th>Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+    
+    <!-- Footer -->
+    <footer class="mobile-footer">
+        <p>Solura Workforce Management System &copy; 2024</p>
+    </footer>
+    
+    <!-- Reports Modal -->
+    <div class="mobile-modal" id="reportsModalMobile">
+        <div class="mobile-modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Available Reports</h3>
+                <button class="close-modal" id="closeReportsModalMobile">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Report Item 1 -->
+                <div class="report-item">
+                    <div class="report-info">
+                        <div class="report-name">Payroll Report</div>
+                        <div class="report-desc">Comprehensive Payroll Overview</div>
+                    </div>
+                    <a href="hours.html" class="report-button">Open</a>
+                </div>
+                
+                <!-- Report Item 2 -->
+                <div class="report-item">
+                    <div class="report-info">
+                        <div class="report-name">Weekly Labor Cost Report</div>
+                        <div class="report-desc">Weekly Performance Metrics</div>
+                    </div>
+                    <a href="labor.html" class="report-button">Open</a>
+                </div>
+                
+                <!-- Report Item 3 -->
+                <div class="report-item">
+                    <div class="report-info">
+                        <div class="report-name">Financial Summary</div>
+                        <div class="report-desc">Revenue & Cost Overview</div>
+                    </div>
+                    <a href="financialsummary.html" class="report-button">Open</a>
+                </div>
+                
+                <!-- Report Item 4 -->
+                <div class="report-item">
+                    <div class="report-info">
+                        <div class="report-name">Coming Soon...</div>
+                        <div class="report-desc">N/A</div>
+                    </div>
+                    <a href="payroll-analysis.html" class="report-button">Open</a>
+                </div>
+
+                <!-- Report Item 5 -->
+                <div class="report-item">
+                    <div class="report-info">
+                        <div class="report-name">Coming Soon...</div>
+                        <div class="report-desc">N/A</div>
+                    </div>
+                    <a href="employee-hours.html" class="report-button">Open</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile menu functionality
+        const menuToggle = document.getElementById('menuToggle');
+        const closeMenu = document.getElementById('closeMenu');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const menuOverlay = document.getElementById('menuOverlay');
+        
+        menuToggle.addEventListener('click', () => {
+            mobileMenu.classList.add('active');
+            menuOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        
+        closeMenu.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+            menuOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+        
+        menuOverlay.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+            menuOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+        
+        // Reports modal functionality
+        const reportsLinkMobile = document.getElementById('reportsLinkMobile');
+        const reportsModalMobile = document.getElementById('reportsModalMobile');
+        const closeReportsModalMobile = document.getElementById('closeReportsModalMobile');
+        
+        reportsLinkMobile.addEventListener('click', (e) => {
+            e.preventDefault();
+            reportsModalMobile.style.display = 'flex';
+        });
+        
+        closeReportsModalMobile.addEventListener('click', () => {
+            reportsModalMobile.style.display = 'none';
+        });
+        
+        reportsModalMobile.addEventListener('click', (e) => {
+            if (e.target === reportsModalMobile) {
+                reportsModalMobile.style.display = 'none';
+            }
+        });
+        
+        // Set current date
+        function updateLiveDateTime() {
+            const now = new Date();
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false
+            }).replace(',', '');
+        }
+        
+        // Update every second
+        setInterval(updateLiveDateTime, 1000);
+        updateLiveDateTime();
+        
+        // Function to check for pending requests
+        function checkPendingRequests() {
+            fetch('/request/holidays')
+                .then(response => response.json())
+                .then(data => {
+                    const pendingRequests = data.filter(request => 
+                        !(request.accepted === 'true' || request.accepted === 'unpaid')
+                    );
+                    
+                    const notificationBadge = document.getElementById('holidayNotification');
+                    if (pendingRequests.length > 0) {
+                        notificationBadge.style.display = 'block';
+                    } else {
+                        notificationBadge.style.display = 'none';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking pending requests:', error);
+                });
+        }
+        
+        // Check initially when page loads
+        document.addEventListener('DOMContentLoaded', checkPendingRequests);
+        
+        // Optional: Check periodically (every 5 minutes)
+        setInterval(checkPendingRequests, 300000);
+        
+        // Helper to format time
+        function formatTimeRange(start, end) {
+            const format = (time) => {
+                const [h, m] = time.split(':');
+                const hour = h % 12 || 12;
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                return `${hour}:${m} ${ampm}`;
+            };
+            return `${format(start)} - ${format(end)}`;
+        }
+        
+        // Function to Populate Shift Table
+        function populateShiftTable(employees) {
+            const tableBody = document.querySelector('.mobile-table tbody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            employees.forEach(employee => {
+                const row = document.createElement('tr');
+                
+                // Employee column
+                const nameCell = document.createElement('td');
+                nameCell.textContent = employee.employeeName;
+                
+                // Department column
+                const deptCell = document.createElement('td');
+                deptCell.textContent = employee.designation;
+                deptCell.className = employee.designation === 'BOH' ? 'boh-cell' : 'foh-cell';
+                
+                // Time Frames column
+                const timeCell = document.createElement('td');
+                timeCell.innerHTML = employee.timeFrames.map(frame => 
+                    `<div>${formatTimeRange(frame.start, frame.end)}</div>`
+                ).join('');
+                
+                // Status column
+                const statusCell = document.createElement('td');
+                statusCell.innerHTML = `
+                    <div class="status-indicator ${employee.status === 'Working now' ? 'working' : 'inactive'}">
+                        ${employee.status}
+                    </div>
+                    <small>${employee.nextEvent}</small>
+                `;
+                
+                row.appendChild(nameCell);
+                row.appendChild(deptCell);
+                row.appendChild(timeCell);
+                row.appendChild(statusCell);
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Function to update employees on shift widget
+        function updateEmployeesOnShift(count) {
+            const widgetValue = document.getElementById('employees');
+            if (widgetValue) {
+                widgetValue.textContent = count;
+            }
+        }
+        
+        // Function to update pending approvals count
+        function updatePendingApprovals(count) {
+            const widget = document.getElementById('approve');
+            if (widget) {
+                widget.textContent = count;
+            }
+        }
+        
+        // Function to fetch pending approvals
+        async function fetchPendingApprovals() {
+            try {
+                const response = await fetch('/api/pending-approvals');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                
+                if (data.success) {
+                    updatePendingApprovals(data.count);
+                } else {
+                    console.error('Error fetching pending approvals:', data.error);
+                    updatePendingApprovals('--');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                updatePendingApprovals('--');
+            }
+        }
+        
+        // Function to update tip approvals count
+        function updateTipApprovals(count) {
+            const widget = document.getElementById('tip');
+            if (widget) {
+                widget.textContent = count;
+            }
+        }
+        
+        // Function to fetch tip approvals
+        async function fetchTipApprovals() {
+            try {
+                const response = await fetch('/api/tip-approvals');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateTipApprovals(data.count);
+                } else {
+                    console.error('Error fetching Tip approvals:', data.error);
+                    updateTipApprovals('--');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                updateTipApprovals('--');
+            }
+        }
+        
+        // Function to fetch Shift Data
+        async function fetchEmployeesOnShift() {
+            try {
+                const response = await fetch('/api/employees-on-shift');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateEmployeesOnShift(data.count);
+                    populateShiftTable(data.employees);
+                } else {
+                    console.error('Error:', data.error || 'Unknown error');
+                    updateEmployeesOnShift('--');
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                updateEmployeesOnShift('--');
+            }
+        }
+        
+        // Function for Labor
+        function updateLaborCostWidget(cost) {
+            // Format the cost with thousands separator
+            const formattedCost = new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: 'GBP',
+                maximumFractionDigits: 0
+            }).format(cost).replace('GBP', '').trim();
+            
+            // Update the widget value
+            const widgetValue = document.getElementById('labor');
+            if (widgetValue) {
+                widgetValue.textContent = formattedCost;
+            }
+        }
+        
+        // Function for Labor
+        function fetchLaborCost(callback) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/labor-cost', true);
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            callback(null, data.cost);
+                        } else {
+                            callback(data.message || 'No data available');
+                        }
+                    } catch (e) {
+                        callback('Error parsing response');
+                    }
+                } else {
+                    callback('Request failed with status: ' + xhr.status);
+                }
+            };
+            
+            xhr.onerror = function() {
+                callback('Network error');
+            };
+            
+            xhr.send();
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchEmployeesOnShift();
+            // Refresh every 10 seconds
+            setInterval(fetchEmployeesOnShift, 10000);
+            
+            // Function to Call Approvals
+            fetchPendingApprovals();
+            
+            // Function To Call Tip
+            fetchTipApprovals();
+            
+            // Fetch labor cost
+            fetchLaborCost(function(error, cost) {
+                if (error) {
+                    console.error('Error fetching labor cost:', error);
+                    return;
+                }
+                updateLaborCostWidget(cost);
+            });
+        });
+        
+        // Inactivity timer
+        let inactivityTimer;
+        const resetInactivityTimer = () => {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                alert('You have been logged out due to inactivity.');
+                window.location.href = 'logout.html';
+            }, 60 * 60 * 1000); // 60 minutes
+        };
+        
+        // Initialize timer and event listeners
+        window.onload = function() {
+            resetInactivityTimer();
+        };
+        
+        window.onmousemove = resetInactivityTimer;
+        window.ontouchstart = resetInactivityTimer;
+        window.onkeypress = resetInactivityTimer;
+    </script>
+</body>
+</html>

@@ -250,36 +250,32 @@ app.post('/submit', (req, res) => {
                 }
 
                 const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 
-                // ✅ CORRETTO: USA URL RELATIVI invece di assoluti
+                let redirectUrl = '';
+
                 if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    return res.json({
-                        success: true,
-                        redirectUrl: `/Admin.html${queryString}`, // RELATIVO
-                        accessToken: authToken,
-                        refreshToken: refreshToken
-                    });
+                    redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
                 } else if (userDetails.access === 'user') {
-                    return res.json({
-                        success: true,
-                        redirectUrl: `/User.html${queryString}`, // RELATIVO
-                        accessToken: authToken,
-                        refreshToken: refreshToken
-                    });
+                    redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
                 } else if (userDetails.access === 'supervisor') {
-                    return res.json({
-                        success: true,
-                        redirectUrl: `/Supervisor.html${queryString}`, // RELATIVO
-                        accessToken: authToken,
-                        refreshToken: refreshToken
-                    });
+                    redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
                 } else {
                     return res.status(401).json({ message: 'Incorrect email or password' });
                 }
+
+                return res.json({
+                    success: true,
+                    redirectUrl,
+                    accessToken: authToken,
+                    refreshToken: refreshToken
+                });
             });
         });
     });
 });
+
 
 // Route to save notification token
 app.post('/savePushToken', isAuthenticated, async (req, res) => {
