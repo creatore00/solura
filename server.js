@@ -162,46 +162,101 @@ cron.schedule('0 0 1 * *', async () => {
 }, { scheduled: true, timezone: 'Europe/London' });
 
 // ====== LOGIN ======
+// Route to handle login and database selection
 app.post('/submit', async (req, res) => {
     const { email, password, dbName } = req.body;
-    if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+    }
 
     try {
-        const [results] = await mainPool.promise().query('SELECT Access, Password, Email, db_name FROM users WHERE Email = ?', [email]);
-        if (!results.length) return res.status(401).json({ message: 'Incorrect email or password' });
+        // Get all databases the user has access to
+        const [results] = await mainPool.promise().query(
+            `SELECT Access, Password, Email, db_name FROM users WHERE Email = ?`,
+            [email]
+        );
 
-        const matchingDatabases = [];
-        for (const row of results) {
-            const match = await bcrypt.compare(password, row.Password);
-            if (match) matchingDatabases.push({ db_name: row.db_name, access: row.Access });
+        if (results.length === 0) {
+            return res.status(401).json({ message: 'Incorrect email or password' });
         }
 
-        if (!matchingDatabases.length) return res.status(401).json({ message: 'Incorrect email or password' });
-        if (matchingDatabases.length > 1 && !dbName) return res.json({ multiple: true, databases: matchingDatabases });
+        // Filter databases that match the password
+        const matchingDatabases = [];
+        for (const row of results) {
+            const isMatch = await bcrypt.compare(password, row.Password);
+            if (isMatch) {
+                matchingDatabases.push({
+                    db_name: row.db_name,
+                    access: row.Access
+                });
+            }
+        }
 
-        const selectedDb = dbName ? matchingDatabases.find(d => d.db_name === dbName) : matchingDatabases[0];
-        if (!selectedDb) return res.status(400).json({ message: 'Invalid database selection' });
+        if (matchingDatabases.length === 0) {
+            return res.status(401).json({ message: 'Incorrect email or password' });
+        }
 
-        const companyPool = getPool(selectedDb.db_name);
-        const [employeeData] = await companyPool.promise().query('SELECT name, lastName FROM Employees WHERE email = ?', [email]);
-        if (!employeeData.length) return res.status(401).json({ message: 'User not found in company database' });
+        // If multiple databases and dbName not provided, return them
+        if (matchingDatabases.length > 1 && !dbName) {
+            return res.json({
+                multiple: true,
+                databases: matchingDatabases
+            });
+        }
 
-        const userInfo = { email, role: selectedDb.access, name: employeeData[0].name, lastName: employeeData[0].lastName, dbName: selectedDb.db_name };
-        const accessToken = generateToken(userInfo);
-        const refreshToken = generateRefreshToken(userInfo);
+        // Choose database
+        const userDetails = dbName
+            ? matchingDatabases.find(d => d.db_name === dbName)
+            : matchingDatabases[0];
 
-        const queryString = `?name=${encodeURIComponent(userInfo.name)}&lastName=${encodeURIComponent(userInfo.lastName)}&email=${encodeURIComponent(email)}`;
-        let redirectUrl = '/';
-        if (userInfo.role === 'admin' || userInfo.role === 'AM') redirectUrl = `/Admin.html${queryString}`;
-        else if (userInfo.role === 'user') redirectUrl = `/User.html${queryString}`;
-        else if (userInfo.role === 'supervisor') redirectUrl = `/Supervisor.html${queryString}`;
+        if (!userDetails) {
+            return res.status(400).json({ error: 'Invalid database selection' });
+        }
 
-        res.json({ success: true, redirectUrl, accessToken, refreshToken });
+        // Fetch user info from company database
+        const companyPool = getPool(userDetails.db_name);
+        const [companyResults] = await companyPool.promise().query(
+            `SELECT name, lastName FROM Employees WHERE email = ?`,
+            [email]
+        );
+
+        if (companyResults.length === 0) {
+            return res.status(401).json({ message: 'User not found in company database' });
+        }
+
+        const { name, lastName } = companyResults[0];
+
+        // Create session user
+        const userInfo = { email, role: userDetails.access, name, lastName, dbName: userDetails.db_name };
+        req.session.user = userInfo;
+        await new Promise((resolve, reject) => req.session.save(err => err ? reject(err) : resolve()));
+
+        // Generate JWT tokens
+        const accessToken = jwt.sign(userInfo, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '7d' });
+        const refreshToken = jwt.sign(userInfo, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret', { expiresIn: '30d' });
+
+        // Redirect URL
+        const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+        let redirectUrl;
+        if (userDetails.access === 'admin' || userDetails.access === 'AM') redirectUrl = `/Admin.html${queryString}`;
+        else if (userDetails.access === 'supervisor') redirectUrl = `/Supervisor.html${queryString}`;
+        else redirectUrl = `/User.html${queryString}`;
+
+        res.json({
+            success: true,
+            multiple: false,
+            redirectUrl,
+            accessToken,
+            refreshToken
+        });
+
     } catch (err) {
         console.error('Login error:', err);
-        res.status(500).json({ message: 'Server error', details: err.message });
+        res.status(500).json({ message: 'Internal server error', error: err.message });
     }
 });
+
 
 // Route to save notification token
 app.post('/savePushToken', isAuthenticated, async (req, res) => {
