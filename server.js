@@ -276,37 +276,37 @@ app.post('/submit', (req, res) => {
 
         const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
 
-        if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-          console.log('Redirecting to Admin.html');
-          return res.json({
-            success: true,
-            redirectUrl: `/Admin.html${queryString}`,
-            accessToken: authToken,
-            refreshToken: refreshToken
-          });
-        } else if (userDetails.access === 'user') {
-          console.log('Redirecting to User.html');
-          return res.json({
-            success: true,
-            redirectUrl: `/User.html${queryString}`,
-            accessToken: authToken,
-            refreshToken: refreshToken
-          });
-        } else if (userDetails.access === 'supervisor') {
-          console.log('Redirecting to Supervisor.html');
-          return res.json({
-            success: true,
-            redirectUrl: `/Supervisor.html${queryString}`,
-            accessToken: authToken,
-            refreshToken: refreshToken
-          });
-        } else {
-          console.log('Invalid access role');
-          return res.status(401).json({ message: 'Incorrect email or password' });
-        }
+if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+      console.log('Redirecting to Admin.html');
+      return res.json({
+        success: true,
+        redirectUrl: `https://solura.uk/Admin.html${queryString}`, // URL ASSOLUTO
+        accessToken: authToken,
+        refreshToken: refreshToken
       });
-    });
+    } else if (userDetails.access === 'user') {
+      console.log('Redirecting to User.html');
+      return res.json({
+        success: true,
+        redirectUrl: `https://solura.uk/User.html${queryString}`, // URL ASSOLUTO
+        accessToken: authToken,
+        refreshToken: refreshToken
+      });
+    } else if (userDetails.access === 'supervisor') {
+      console.log('Redirecting to Supervisor.html');
+      return res.json({
+        success: true,
+        redirectUrl: `https://solura.uk/Supervisor.html${queryString}`, // URL ASSOLUTO
+        accessToken: authToken,
+        refreshToken: refreshToken
+      });
+    } else {
+      console.log('Invalid access role');
+      return res.status(401).json({ message: 'Incorrect email or password' });
+    }
   });
+});
+});
 });
 
 // Route to save notification token
@@ -629,15 +629,24 @@ app.post('/auto-login', async (req, res) => {
 
             const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}`;
             let redirectUrl;
-            if (decoded.role === 'admin' || decoded.role === 'AM') redirectUrl = `/Admin.html${queryString}`;
-            else if (decoded.role === 'user') redirectUrl = `/User.html${queryString}`;
-            else if (decoded.role === 'supervisor') redirectUrl = `/Supervisor.html${queryString}`;
-            else return res.status(401).json({ message: 'Invalid role' });
+            if (decoded.role === 'admin' || decoded.role === 'AM') {
+                redirectUrl = `https://solura.uk/Admin.html${queryString}`;
+            } else if (decoded.role === 'user') {
+                redirectUrl = `https://solura.uk/User.html${queryString}`;
+            } else if (decoded.role === 'supervisor') {
+                redirectUrl = `https://solura.uk/Supervisor.html${queryString}`;
+            } else {
+                return res.status(401).json({ message: 'Invalid role' });
+            }
 
-            res.json({ success: true, redirectUrl, user: decoded });
+            res.json({ 
+                success: true, 
+                redirectUrl, 
+                user: decoded,
+                accessToken: accessToken // Restituisci lo stesso token o un nuovo se vuoi rigenerarlo
+            });
         });
     } catch (err) {
-        // Token scaduto o non valido
         res.status(401).json({ message: 'Token expired or invalid' });
     }
 });
@@ -847,6 +856,7 @@ app.get('/logout', (req, res) => {
     res.redirect('/');
   }
 });
+
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
     // Start holiday accrual updates for these databases
