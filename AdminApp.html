@@ -860,37 +860,37 @@
         }
     }
 
-    // Enhanced fetch with recovery
-    async function fetchWithRecovery(url, options = {}) {
-        const config = {
-            ...options,
-            credentials: 'include', // CRITICAL: Include cookies
-            headers: {
-                'Accept': 'application/json',
-                ...options.headers
-            }
-        };
-        
-        let response = await fetch(url, config);
-        
-        // If unauthorized, try to recover session and retry
-        if (response.status === 401) {
-            console.log('Request unauthorized, attempting session recovery...');
-            const recovered = await recoverSession();
-            
-            if (recovered) {
-                console.log('Session recovered, retrying request...');
-                response = await fetch(url, config);
-            } else {
-                console.log('Session recovery failed, redirecting to login');
-                window.location.href = '/';
-                throw new Error('Unauthorized');
-            }
+// Enhanced fetch with recovery
+async function fetchWithRecovery(url, options = {}) {
+    const config = {
+        ...options,
+        credentials: 'include', // CRITICAL: Include cookies
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            ...options.headers
         }
+    };
+    
+    let response = await fetch(url, config);
+    
+    // If unauthorized, try to recover session and retry
+    if (response.status === 401) {
+        console.log('Request unauthorized, attempting session recovery...');
+        const recovered = await recoverSession();
         
-        return response;
+        if (recovered) {
+            console.log('Session recovered, retrying request...');
+            response = await fetch(url, config);
+        } else {
+            console.log('Session recovery failed, redirecting to login');
+            window.location.href = '/';
+            throw new Error('Unauthorized');
+        }
     }
-
+    
+    return response;
+}
     // Set current date
     function updateLiveDateTime() {
         const now = new Date();

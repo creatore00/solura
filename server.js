@@ -60,7 +60,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// SINGLE session configuration - REMOVED sessionMiddleware import
+// FIXED session configuration - removed domain for Heroku
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret-heroku-production-2024',
     resave: false,
@@ -69,8 +69,8 @@ app.use(session({
         secure: true, // REQUIRED for Heroku/HTTPS
         httpOnly: true,
         sameSite: 'none', // REQUIRED for cross-site cookies
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        domain: '.solura.uk' // Use wildcard domain for subdomains
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        // REMOVED: domain: '.solura.uk' - Heroku doesn't need this
     },
     store: new (require('express-session').MemoryStore)(),
     proxy: true // REQUIRED for Heroku
@@ -115,6 +115,7 @@ function isAuthenticated(req, res, next) {
     // Only redirect for page requests
     res.redirect('/');
 }
+
 
 // Role-based middleware
 function isAdmin(req, res, next) {
@@ -184,7 +185,7 @@ app.get('/api/validate-session', (req, res) => {
     }
 });
 
-// Session recovery endpoint
+// Session recovery endpoint - FIXED to set cookies properly
 app.post('/api/recover-session', (req, res) => {
     const { email, dbName } = req.body;
     
@@ -250,6 +251,14 @@ app.post('/api/recover-session', (req, res) => {
                     
                     console.log('Session recovered successfully:', req.session.user);
                     
+                    // Set cookie manually to ensure it's sent
+                    res.cookie('connect.sid', req.sessionID, {
+                        secure: true,
+                        httpOnly: true,
+                        sameSite: 'none',
+                        maxAge: 24 * 60 * 60 * 1000
+                    });
+                    
                     res.json({ 
                         success: true, 
                         message: 'Session recovered',
@@ -261,6 +270,7 @@ app.post('/api/recover-session', (req, res) => {
         });
     });
 });
+
 
 // Routes
 app.use('/rota', newRota);
@@ -340,6 +350,7 @@ function generateToken(user) {
 }
 
 // Login route - FIXED SESSION CREATION
+// Login route - FIXED to set cookies properly
 app.post('/submit', (req, res) => {
     console.log('Received /submit request:', { ...req.body, password: '***' });
     const { email, password, dbName } = req.body;
@@ -471,13 +482,12 @@ app.post('/submit', (req, res) => {
                         return res.status(401).json({ message: 'Incorrect email or password' });
                     }
 
-                    // Set cookie manually as backup
+                    // Set cookie manually to ensure it's sent
                     res.cookie('connect.sid', req.sessionID, {
                         secure: true,
                         httpOnly: true,
                         sameSite: 'none',
-                        maxAge: 24 * 60 * 60 * 1000,
-                        domain: '.solura.uk'
+                        maxAge: 24 * 60 * 60 * 1000
                     });
 
                     return res.json({
