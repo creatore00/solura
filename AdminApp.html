@@ -743,7 +743,7 @@
         </div>
     </div>
 <script>
-    // Enhanced session validation that works with your login flow
+    // Enhanced session validation that works with iOS
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Page loaded, checking session...');
         
@@ -755,7 +755,8 @@
         const dbName = urlParams.get('dbName');
         
         if (name && lastName && email && dbName) {
-            // Store user info for potential recovery (matches your login flow)
+            console.log('Found URL parameters, storing user info...');
+            // Store user info for recovery
             const userInfo = {
                 email: email,
                 name: name,
@@ -764,18 +765,18 @@
             };
             localStorage.setItem('userInfo', JSON.stringify(userInfo));
             localStorage.setItem('lastDb', dbName);
-            console.log('Logged in via redirect with:', userInfo);
             
             // Immediately restore session with URL params
             await restoreSessionFromParams(userInfo);
         }
         
-        // Validate session with recovery capability
+        // Validate session with enhanced recovery for iOS
         console.log('Validating session...');
         const isValid = await validateSessionWithRecovery();
         
         if (!isValid) {
             console.log('Session validation failed, not loading data');
+            showSessionError();
             return;
         }
         
@@ -783,7 +784,7 @@
         initializePage();
     });
 
-    // Enhanced session validation that matches your login flow
+    // Enhanced session validation for iOS
     async function validateSessionWithRecovery() {
         try {
             console.log('🔐 Validating session...');
@@ -806,10 +807,13 @@
                 if (data.valid && data.user) {
                     console.log('✅ Session valid, user:', data.user.email);
                     
-                    // Store user info for recovery (matches your login flow)
+                    // Store user info for recovery
                     localStorage.setItem('userInfo', JSON.stringify(data.user));
                     if (data.user.dbName) {
                         localStorage.setItem('lastDb', data.user.dbName);
+                    }
+                    if (data.sessionId) {
+                        localStorage.setItem('sessionId', data.sessionId);
                     }
                     
                     return true;
@@ -831,48 +835,65 @@
         }
     }
 
-    // Session recovery that matches your login storage
+    // Enhanced session recovery for iOS
     async function attemptSessionRecovery() {
         console.log('🔄 Attempting session recovery...');
         
-        // Try to recover using stored session ID (from your login)
+        // Try multiple recovery methods
+        
+        // Method 1: Try with stored session ID and user info
         const sessionId = localStorage.getItem('sessionId');
         const storedUser = localStorage.getItem('userInfo');
         
         if (sessionId && storedUser) {
             console.log('Found stored session ID, attempting recovery...');
-            const recovered = await recoverSession();
+            const recovered = await recoverSessionWithCredentials();
             if (recovered) {
                 return true;
             }
         }
         
-        // Try recovery with stored user info
+        // Method 2: Try with URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        
+        if (email && dbName) {
+            console.log('Attempting recovery with URL parameters...');
+            const userInfo = {
+                email: email,
+                dbName: dbName,
+                name: urlParams.get('name'),
+                lastName: urlParams.get('lastName')
+            };
+            const recovered = await restoreSessionFromParams(userInfo);
+            if (recovered) {
+                return true;
+            }
+        }
+        
+        // Method 3: Try with stored user info only
         if (storedUser) {
-            console.log('Attempting recovery with stored user info...');
-            const recovered = await recoverSession();
+            console.log('Attempting recovery with stored user info only...');
+            const recovered = await recoverSessionWithCredentials();
             if (recovered) {
                 return true;
             }
         }
         
         console.log('❌ All recovery attempts failed, redirecting to login');
-        window.location.href = '/';
+        redirectToLogin();
         return false;
     }
 
-    // Enhanced session recovery
-    async function recoverSession() {
+    // Recover session with stored credentials
+    async function recoverSessionWithCredentials() {
         try {
-            console.log('🔄 Attempting session recovery...');
-            
-            // Get stored user info (matches your login storage)
             const storedUser = localStorage.getItem('userInfo');
             const lastDb = localStorage.getItem('lastDb');
             const sessionId = localStorage.getItem('sessionId');
             
             if (!storedUser) {
-                console.log('❌ No stored user info for recovery');
                 return false;
             }
             
@@ -880,13 +901,12 @@
             const recoveryData = {
                 email: userInfo.email,
                 dbName: userInfo.dbName || lastDb,
-                sessionId: sessionId // Include session ID from login
+                sessionId: sessionId
             };
             
             console.log('Recovery data:', recoveryData);
             
             if (!recoveryData.email || !recoveryData.dbName) {
-                console.log('❌ Missing email or dbName for recovery');
                 return false;
             }
             
@@ -925,16 +945,16 @@
         }
     }
 
-    // Function to restore session from URL parameters (matches your login redirect)
+    // Restore session from URL parameters
     async function restoreSessionFromParams(userInfo) {
         try {
-            console.log('Restoring session from URL parameters...');
+            console.log('Restoring session from parameters...');
             
             const response = await fetch('/api/restore-session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                    'Accept': 'application/json'
                 },
                 credentials: 'include',
                 body: JSON.stringify(userInfo)
@@ -942,16 +962,15 @@
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ Session restored successfully from URL params');
+                console.log('✅ Session restored successfully from params');
                 
-                // Store the session ID if provided
                 if (data.sessionId) {
                     localStorage.setItem('sessionId', data.sessionId);
                 }
                 
                 return true;
             } else {
-                console.log('❌ Session restoration from URL params failed');
+                console.log('❌ Session restoration from params failed');
                 return false;
             }
         } catch (error) {
@@ -960,7 +979,7 @@
         }
     }
 
-    // Enhanced fetch with session recovery
+    // Enhanced fetch with session recovery for iOS
     async function fetchWithRecovery(url, options = {}) {
         try {
             const config = {
@@ -988,7 +1007,7 @@
             // If unauthorized, try to recover session and retry
             if (response.status === 401) {
                 console.log('🔄 Request unauthorized, attempting session recovery...');
-                const recovered = await recoverSession();
+                const recovered = await recoverSessionWithCredentials();
                 
                 if (recovered) {
                     console.log('🔄 Session recovered, retrying request...');
@@ -1003,7 +1022,7 @@
                     console.log(`📨 Retry response status: ${response.status} for ${url}`);
                 } else {
                     console.log('❌ Session recovery failed, redirecting to login');
-                    window.location.href = '/';
+                    redirectToLogin();
                     throw new Error('Unauthorized');
                 }
             }
@@ -1014,11 +1033,35 @@
             
             // If it's an auth error, redirect to login
             if (error.message === 'Unauthorized') {
-                window.location.href = '/';
+                redirectToLogin();
             }
             
             throw error;
         }
+    }
+
+    function showSessionError() {
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div class="session-error">
+                    <h2>Session Expired</h2>
+                    <p>Your session has expired. Please log in again.</p>
+                    <button onclick="redirectToLogin()" class="btn-primary">Return to Login</button>
+                </div>
+            `;
+        }
+    }
+
+    function redirectToLogin() {
+        // Clear all stored data
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('lastDb');
+        localStorage.removeItem('sessionId');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        
+        window.location.href = '/';
     }
 
     // Initialize the page
@@ -1220,6 +1263,17 @@
         });
     }
     
+    // Function to manually set session cookie (for iOS)
+    function setSessionCookie(sessionId) {
+        document.cookie = `solura_sid=${sessionId}; path=/; domain=.solura.uk; secure; samesite=none`;
+    }
+     if (data.valid && data.user) {
+        console.log('✅ Session valid, user:', data.user.email);
+        
+        // Manually set cookie for iOS
+        if (data.sessionId) {
+            setSessionCookie(data.sessionId);
+        }    }
     // Function to update employees on shift widget
     function updateEmployeesOnShift(count) {
         const widgetValue = document.getElementById('employees');
@@ -1329,50 +1383,35 @@
     
     // Function for Labor
     function fetchLaborCost(callback) {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', '/api/labor-cost', true);
-        xhr.withCredentials = true;
-        
-        xhr.onload = function() {
-            if (xhr.status === 200) {
-                try {
-                    const data = JSON.parse(xhr.responseText);
-                    if (data.success) {
-                        callback(null, data.cost);
-                    } else {
-                        callback(data.message || 'No data available');
-                    }
-                } catch (e) {
-                    callback('Error parsing response');
+        fetchWithRecovery('/api/labor-cost')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
-            } else if (xhr.status === 401) {
-                console.log('Labor cost fetch unauthorized, attempting recovery...');
-                recoverSession().then(recovered => {
-                    if (recovered) {
-                        fetchLaborCost(callback);
-                    } else {
-                        window.location.href = '/';
-                    }
-                });
-                return;
-            } else {
-                callback('Request failed with status: ' + xhr.status);
-            }
-        };
-        
-        xhr.onerror = function() {
-            callback('Network error');
-        };
-        
-        xhr.send();
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    callback(null, data.cost);
+                } else {
+                    callback(data.message || 'No data available');
+                }
+            })
+            .catch(error => {
+                callback('Error: ' + error.message);
+            });
     }
 
     // Logout function
     function logout() {
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('lastDb');
-        localStorage.removeItem('sessionId');
-        window.location.href = '/logout';
+        fetchWithRecovery('/logout')
+            .then(() => {
+                redirectToLogin();
+            })
+            .catch(error => {
+                console.error('Logout error:', error);
+                redirectToLogin();
+            });
     }
 
     // Inactivity timer
@@ -1389,9 +1428,13 @@
     window.addEventListener('unhandledrejection', function(event) {
         if (event.reason && (event.reason.message === 'Unauthorized' || event.reason.status === 401)) {
             console.log('Global auth error caught, redirecting to login');
-            window.location.href = '/';
+            redirectToLogin();
         }
     });
+
+    // Export functions for global access
+    window.logout = logout;
+    window.redirectToLogin = redirectToLogin;
 </script>
 </body>
 </html>

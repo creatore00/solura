@@ -107,8 +107,16 @@
     init();
 
     async function init() {
+        // Clear any existing session data on init
+        localStorage.removeItem('pendingLogin');
+        
         // Check for existing session first
-        await checkExistingSession();
+        const hasSession = await checkExistingSession();
+        
+        if (hasSession) {
+            console.log('Existing session found, skipping auto-login');
+            return;
+        }
         
         if (!isCapacitor) return;
         
@@ -137,7 +145,11 @@
     async function checkExistingSession() {
         try {
             const response = await fetch('/api/validate-session', {
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
             });
             
             if (response.ok) {
@@ -170,22 +182,23 @@
 
     // Redirect to dashboard based on user role
     function redirectToDashboard(user) {
-    const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}&dbName=${encodeURIComponent(user.dbName)}`;
-    let redirectUrl = '';
+        const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}&dbName=${encodeURIComponent(user.dbName)}`;
+        let redirectUrl = '';
 
-    if (user.role === 'admin' || user.role === 'AM') {
-        redirectUrl = `/AdminApp.html${queryString}`;
-    } else if (user.role === 'user') {
-        redirectUrl = `/UserApp.html${queryString}`;
-    } else if (user.role === 'supervisor') {
-        redirectUrl = `/SupervisorApp.html${queryString}`;
-    }
+        if (user.role === 'admin' || user.role === 'AM') {
+            redirectUrl = `/AdminApp.html${queryString}`;
+        } else if (user.role === 'user') {
+            redirectUrl = `/UserApp.html${queryString}`;
+        } else if (user.role === 'supervisor') {
+            redirectUrl = `/SupervisorApp.html${queryString}`;
+        }
 
-    if (redirectUrl) {
-        console.log('Redirecting to:', redirectUrl);
-        window.location.href = redirectUrl;
+        if (redirectUrl) {
+            console.log('Redirecting to:', redirectUrl);
+            // For iOS, use replace to avoid history issues
+            window.location.replace(redirectUrl);
+        }
     }
-}
 
     // --- DATABASE POPUP ---
     function showDatabasePopup(databases) {
@@ -208,90 +221,104 @@
     }
 
     async function submitForm(event) {
-    event.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Authenticating...';
-
-    try {
-        // First, make a pre-flight request to set cookies
-        await fetch('/', {
-            method: 'GET',
-            credentials: 'include'
-        });
-
-        const res = await fetch('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include', // Include cookies
-            body: JSON.stringify({ email, password })
-        });
-
-        const responseText = await res.text();
-        let data;
+        event.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const submitBtn = event.target.querySelector('button[type="submit"]');
         
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Authenticating...';
+
         try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('Failed to parse response:', responseText);
-            throw new Error('Invalid response from server');
-        }
-
-        if (!res.ok) {
-            throw new Error(data.message || `Server error: ${res.status}`);
-        }
-
-        if (!data.success) {
-            throw new Error(data.message || 'Login failed');
-        }
-
-        if (data.message === 'Multiple databases found') {
-            databases = data.databases;
-            showDatabasePopup(databases);
-            currentUserData = { email, password };
-        } else if (data.redirectUrl) {
-            // Store session info
-            localStorage.setItem('userInfo', JSON.stringify(data.user));
-            localStorage.setItem('sessionId', data.sessionId);
-
-            console.log('✅ Login successful, session created:', data.sessionId);
-
-            // Safari workaround: Make a request to set cookies before redirect
-            await fetch('/api/validate-session', {
-                credentials: 'include'
+            const res = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password })
             });
 
-            // Wait a bit for cookies to be set, then redirect
-            setTimeout(() => {
-                window.location.href = data.redirectUrl;
-            }, 1000);
+            const responseText = await res.text();
+            let data;
             
-        } else {
-            throw new Error('Invalid response from server');
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Failed to parse response:', responseText);
+                throw new Error('Invalid response from server');
+            }
+
+            if (!res.ok) {
+                throw new Error(data.message || `Server error: ${res.status}`);
+            }
+
+            if (!data.success) {
+                throw new Error(data.message || 'Login failed');
+            }
+
+            if (data.message === 'Multiple databases found') {
+                databases = data.databases;
+                showDatabasePopup(databases);
+                currentUserData = { 
+                    email, 
+                    password,
+                    // Store session info for recovery
+                    sessionId: data.sessionId,
+                    userInfo: data.user
+                };
+                
+                // Store pending login for recovery
+                localStorage.setItem('pendingLogin', JSON.stringify({
+                    email: email,
+                    password: password, // Note: In production, don't store password
+                    timestamp: Date.now()
+                }));
+                
+            } else if (data.redirectUrl) {
+                // Store session info for recovery
+                storeSessionData(data);
+                
+                console.log('✅ Login successful, session created:', data.sessionId);
+                
+                // For iOS, wait a bit to ensure cookies are set
+                setTimeout(() => {
+                    window.location.replace(data.redirectUrl);
+                }, 500);
+                
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert(`Login failed: ${error.message}`);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
         }
-    } catch (error) {
-        console.error('Login error:', error);
-        alert(`Login failed: ${error.message}`);
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign In';
     }
-}
 
-    // Token-based redirect function
-    function redirectWithToken(url, token) {
-        // Add token to URL as parameter for the next page
-        const separator = url.includes('?') ? '&' : '?';
-        const tokenUrl = `${url}${separator}token=${encodeURIComponent(token)}`;
+    // Store session data for recovery
+    function storeSessionData(data) {
+        if (data.sessionId) {
+            localStorage.setItem('sessionId', data.sessionId);
+        }
+        if (data.user) {
+            localStorage.setItem('userInfo', JSON.stringify(data.user));
+        }
+        if (data.localStorageUser) {
+            localStorage.setItem('userInfo', JSON.stringify(data.localStorageUser));
+        }
+        if (data.accessToken) {
+            localStorage.setItem('accessToken', data.accessToken);
+        }
+        if (data.refreshToken) {
+            localStorage.setItem('refreshToken', data.refreshToken);
+        }
         
-        console.log('Redirecting with token to:', tokenUrl);
-        window.location.href = tokenUrl;
+        // Clear any pending login
+        localStorage.removeItem('pendingLogin');
     }
 
-    // Database selection - also updated
+    // Database selection - FIXED for iOS
     async function submitDatabase() {
         const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
         if (!selectedDatabase) {
@@ -333,26 +360,21 @@
                 throw new Error(data.message || 'Database selection failed');
             }
 
-            if (data.redirectUrl && data.accessToken) {
-                const userInfo = {
-                    email: currentUserData.email,
-                    dbName: selectedDatabase,
-                    name: data.user?.name,
-                    lastName: data.user?.lastName,
-                    role: data.user?.role
-                };
+            if (data.redirectUrl) {
+                // Store all session data for recovery
+                storeSessionData(data);
                 
-                localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                localStorage.setItem("accessToken", data.accessToken);
-                localStorage.setItem("refreshToken", data.refreshToken);
-
                 document.getElementById('databasePopup').style.display = 'none';
                 
-                console.log('Database selection successful, redirecting with token');
+                console.log('Database selection successful, redirecting...');
 
-                redirectWithToken(data.redirectUrl, data.accessToken);
+                // For iOS, use replace and add delay for cookie setting
+                setTimeout(() => {
+                    window.location.replace(data.redirectUrl);
+                }, 100);
+                
             } else {
-                throw new Error('Invalid response from server: missing redirect URL or token');
+                throw new Error('Invalid response from server: missing redirect URL');
             }
         } catch (error) {
             console.error('Database selection error:', error);
@@ -360,6 +382,38 @@
         } finally {
             popupBtn.disabled = false;
             popupBtn.textContent = 'Continue';
+        }
+    }
+    // Recovery after database selection failure
+    async function attemptRecoveryAfterFailure() {
+        const storedUser = localStorage.getItem('userInfo');
+        if (storedUser) {
+            console.log('Attempting recovery after database selection failure...');
+            const userInfo = JSON.parse(storedUser);
+            const recoveryData = {
+                email: userInfo.email,
+                dbName: userInfo.dbName
+            };
+            
+            try {
+                const response = await fetch('/api/recover-session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(recoveryData)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        console.log('Recovery successful, redirecting...');
+                        redirectToDashboard(data.user);
+                        return;
+                    }
+                }
+            } catch (error) {
+                console.error('Recovery attempt failed:', error);
+            }
         }
     }
         
@@ -392,19 +446,16 @@
                     'Authorization': `Bearer ${credentials.password}`,
                     'Content-Type': 'application/json'
                 },
-                credentials: 'include' // CRITICAL: Include cookies
+                credentials: 'include'
             });
 
             if (res.ok) {
                 const data = await res.json();
                 if (data.redirectUrl) {
                     console.log('Biometric auto-login successful');
-                    // Save new tokens if provided
-                    if (data.accessToken) {
-                        localStorage.setItem("accessToken", data.accessToken);
-                        localStorage.setItem("refreshToken", data.refreshToken);
-                    }
-                    window.location.href = data.redirectUrl;
+                    // Store session data
+                    storeSessionData(data);
+                    window.location.replace(data.redirectUrl);
                 }
             } else if (res.status === 401) {
                 // Token expired, try refresh
@@ -448,7 +499,7 @@
             
             document.getElementById('biometricPrompt').style.display = 'none';
             if (currentUserData.redirectUrl) {
-                window.location.href = currentUserData.redirectUrl;
+                window.location.replace(currentUserData.redirectUrl);
             }
         } catch (error) {
             console.error('Biometric setup failed:', error);
@@ -460,7 +511,7 @@
     function skipBiometric() {
         document.getElementById('biometricPrompt').style.display = 'none';
         if (currentUserData?.redirectUrl) {
-            window.location.href = currentUserData.redirectUrl;
+            window.location.replace(currentUserData.redirectUrl);
         }
     }
 </script>

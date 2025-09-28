@@ -73,16 +73,9 @@ app.use('/insertpayslip', insertpayslip);
 app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
+
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
-
-// Middleware with Safari-compatible CORS
-app.use(cors({
-    origin: ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080'],
-    credentials: true, // Keep credentials true
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
-}));
 
 // Create session store using your MAIN database
 const sessionStore = new MySQLStore({
@@ -105,25 +98,35 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
+// Enhanced CORS configuration for iOS
+app.use(cors({
+    origin: ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'X-Session-ID'],
+    exposedHeaders: ['Set-Cookie']
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// FIXED session configuration for Safari
+// FIXED session configuration for iOS Safari
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret-heroku-production-2024',
-    resave: true, // Changed to true for Safari
-    saveUninitialized: true, // Changed to true for Safari
+    resave: false,
+    saveUninitialized: false,
     store: sessionStore,
     cookie: {
-        secure: true, // Must be true for HTTPS
-        httpOnly: false, // Changed to false for Safari compatibility
+        secure: true,
+        httpOnly: true,
         sameSite: 'none', // Must be 'none' for cross-site
         maxAge: 24 * 60 * 60 * 1000,
-        domain: '.solura.uk' // Use wildcard domain
+        domain: '.solura.uk'
     },
     proxy: true,
-    name: 'solura_sid' // Custom session name
+    name: 'connect.sid',
+    rolling: true // Reset maxAge on every request
 }));
 
 // Enhanced session debugging middleware
@@ -137,7 +140,6 @@ app.use((req, res, next) => {
     console.log('Cookies Header:', req.headers.cookie);
     console.log('User-Agent:', req.headers['user-agent']);
     console.log('Origin:', req.headers.origin);
-    console.log('Referer:', req.headers.referer);
     console.log('=== END DEBUG ===');
     next();
 });
@@ -149,9 +151,7 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie');
-        
-        // Safari specific headers
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID');
         res.header('Access-Control-Expose-Headers', 'Set-Cookie');
     }
     
@@ -161,30 +161,6 @@ app.use((req, res, next) => {
         next();
     }
 });
-
-// Authentication middleware
-function isAuthenticated(req, res, next) {
-    console.log('=== AUTH CHECK ===');
-    console.log('Session ID:', req.sessionID);
-    console.log('Session User:', req.session?.user);
-    
-    if (req.session?.user) {
-        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
-        return next();
-    }
-    
-    console.log('❌ Authentication FAILED - Path:', req.path);
-    
-    if (req.path.startsWith('/api/')) {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Unauthorized',
-            message: 'Please log in again'
-        });
-    }
-    
-    res.redirect('/');
-}
 
 // Test session store connection
 sessionStore.on('connected', () => {
@@ -202,6 +178,8 @@ app.get('/api/validate-session', (req, res) => {
     console.log('Session User:', req.session?.user);
     
     if (req.session?.user) {
+        // Update session to extend expiration
+        req.session.touch();
         res.json({ 
             valid: true, 
             user: req.session.user,
@@ -216,9 +194,135 @@ app.get('/api/validate-session', (req, res) => {
     }
 });
 
-// Login route with manual cookie setting
-app.post('/submit', (req, res) => {
-    console.log('Received /submit request:', { ...req.body, password: '***' });
+// NEW: Enhanced session recovery endpoint for iOS
+app.post('/api/recover-session', async (req, res) => {
+    try {
+        const { email, dbName, sessionId } = req.body;
+        
+        console.log('🔄 Attempting session recovery for:', { email, dbName, sessionId });
+        
+        if (!email || !dbName) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing email or dbName' 
+            });
+        }
+
+        // Verify user has access to this database
+        const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
+        
+        mainPool.query(verifySql, [email, dbName], (err, results) => {
+            if (err) {
+                console.error('Error verifying user access:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Internal Server Error' 
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: 'User not authorized for this database' 
+                });
+            }
+
+            const userDetails = results[0];
+            
+            // Get user info from company database
+            const companyPool = getPool(dbName);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+            
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Internal Server Error' 
+                    });
+                }
+
+                if (companyResults.length === 0) {
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'User not found in company database' 
+                    });
+                }
+
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                const userInfo = {
+                    email: email,
+                    role: userDetails.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+
+                console.log('✅ Session recovery successful for user:', userInfo);
+
+                // Restore session - create new session with user data
+                req.session.user = userInfo;
+                
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving recovered session:', err);
+                        return res.status(500).json({ 
+                            success: false, 
+                            error: 'Failed to restore session' 
+                        });
+                    }
+
+                    console.log('✅ Recovered session saved with ID:', req.sessionID);
+
+                    res.json({ 
+                        success: true, 
+                        user: userInfo,
+                        sessionId: req.sessionID 
+                    });
+                });
+            });
+        });
+        
+    } catch (error) {
+        console.error('Session recovery error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
+// Authentication middleware
+function isAuthenticated(req, res, next) {
+    console.log('=== AUTH CHECK ===');
+    console.log('Session ID:', req.sessionID);
+    console.log('Session User:', req.session?.user);
+    
+    if (req.session?.user) {
+        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
+        // Update session to extend expiration
+        req.session.touch();
+        return next();
+    }
+    
+    console.log('❌ Authentication FAILED - Path:', req.path);
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Unauthorized',
+            message: 'Please log in again'
+        });
+    }
+    
+    res.redirect('/');
+}
+
+// Login route - COMPLETELY REWRITTEN for iOS compatibility
+app.post('/submit', async (req, res) => {
+    console.log('=== LOGIN ATTEMPT ===');
     const { email, password, dbName } = req.body;
 
     if (!email || !password) {
@@ -228,126 +332,107 @@ app.post('/submit', (req, res) => {
         });
     }
 
-    const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
-
-    mainPool.query(sql, [email], async (err, results) => {
-        if (err) {
-            console.error('Error querying database:', err);
-            return res.status(500).json({ 
-                success: false,
-                error: 'Internal Server Error'
-            });
-        }
-
-        if (results.length === 0) {
-            return res.status(401).json({ 
-                success: false,
-                message: 'Incorrect email or password' 
-            });
-        }
-
-        let matchingDatabases = [];
-        for (const row of results) {
-            const storedPassword = row.Password;
-            try {
-                const isMatch = await bcrypt.compare(password, storedPassword);
-                if (isMatch) {
-                    matchingDatabases.push({
-                        db_name: row.db_name,
-                        access: row.Access,
-                    });
-                }
-            } catch (err) {
-                console.error('Error comparing passwords:', err);
-                return res.status(500).json({ 
-                    success: false,
-                    error: 'Internal Server Error'
-                });
-            }
-        }
-
-        if (matchingDatabases.length === 0) {
-            return res.status(401).json({ 
-                success: false,
-                message: 'Incorrect email or password' 
-            });
-        }
-
-        if (matchingDatabases.length > 1 && !dbName) {
-            return res.status(200).json({
-                success: true,
-                message: 'Multiple databases found',
-                databases: matchingDatabases,
-            });
-        }
-
-        const userDetails = dbName
-            ? matchingDatabases.find((db) => db.db_name === dbName)
-            : matchingDatabases[0];
-
-        if (!userDetails) {
-            return res.status(400).json({ 
-                success: false,
-                error: 'Invalid database selection' 
-            });
-        }
-
-        const companyPool = getPool(userDetails.db_name);
-        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-
-        companyPool.query(companySql, [email], (err, companyResults) => {
+    try {
+        const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
+        
+        mainPool.query(sql, [email], async (err, results) => {
             if (err) {
-                console.error('Error querying company database:', err);
+                console.error('Error querying database:', err);
                 return res.status(500).json({ 
                     success: false,
                     error: 'Internal Server Error'
                 });
             }
 
-            if (companyResults.length === 0) {
+            if (results.length === 0) {
                 return res.status(401).json({ 
                     success: false,
-                    message: 'User not found in company database' 
+                    message: 'Incorrect email or password' 
                 });
             }
 
-            const name = companyResults[0].name;
-            const lastName = companyResults[0].lastName;
-
-            const userInfo = {
-                email: email,
-                role: userDetails.access,
-                name: name,
-                lastName: lastName,
-                dbName: userDetails.db_name,
-            };
-
-            console.log('Creating session for user:', userInfo);
-
-            // Set session data
-            req.session.user = userInfo;
-
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Error saving session:', err);
+            let matchingDatabases = [];
+            for (const row of results) {
+                const storedPassword = row.Password;
+                try {
+                    const isMatch = await bcrypt.compare(password, storedPassword);
+                    if (isMatch) {
+                        matchingDatabases.push({
+                            db_name: row.db_name,
+                            access: row.Access,
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error comparing passwords:', err);
                     return res.status(500).json({ 
                         success: false,
-                        error: 'Failed to create session'
+                        error: 'Internal Server Error'
+                    });
+                }
+            }
+
+            if (matchingDatabases.length === 0) {
+                return res.status(401).json({ 
+                    success: false,
+                    message: 'Incorrect email or password' 
+                });
+            }
+
+            if (matchingDatabases.length > 1 && !dbName) {
+                return res.status(200).json({
+                    success: true,
+                    message: 'Multiple databases found',
+                    databases: matchingDatabases,
+                });
+            }
+
+            const userDetails = dbName
+                ? matchingDatabases.find((db) => db.db_name === dbName)
+                : matchingDatabases[0];
+
+            if (!userDetails) {
+                return res.status(400).json({ 
+                    success: false,
+                    error: 'Invalid database selection' 
+                });
+            }
+
+            const companyPool = getPool(userDetails.db_name);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Internal Server Error'
                     });
                 }
 
-                console.log('✅ Session created successfully. Session ID:', req.sessionID);
+                if (companyResults.length === 0) {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'User not found in company database' 
+                    });
+                }
 
-                // MANUALLY SET COOKIE for Safari compatibility
-                res.cookie('solura_sid', req.sessionID, {
-                    secure: true,
-                    httpOnly: false, // Allow JavaScript access for debugging
-                    sameSite: 'none',
-                    maxAge: 24 * 60 * 60 * 1000,
-                    domain: '.solura.uk',
-                    path: '/'
-                });
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
 
+                const userInfo = {
+                    email: email,
+                    role: userDetails.access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: userDetails.db_name,
+                };
+
+                console.log('✅ Login successful, creating session for user:', userInfo);
+
+                // Set session data
+                req.session.user = userInfo;
+                
+                // Generate tokens
                 const authToken = generateToken(userInfo);
                 const refreshToken = jwt.sign(
                     {
@@ -380,18 +465,48 @@ app.post('/submit', (req, res) => {
                     });
                 }
 
-                return res.json({
-                    success: true,
-                    message: 'Login successful',
-                    redirectUrl: redirectUrl,
-                    user: userInfo,
-                    accessToken: authToken,
-                    refreshToken: refreshToken,
-                    sessionId: req.sessionID
+                // Save session and then respond
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            error: 'Failed to create session'
+                        });
+                    }
+
+                    console.log('✅ Session saved successfully. Session ID:', req.sessionID);
+
+                    // MANUALLY SET COOKIE for Safari compatibility
+                    res.cookie('connect.sid', req.sessionID, {
+                        secure: true,
+                        httpOnly: true,
+                        sameSite: 'none',
+                        maxAge: 24 * 60 * 60 * 1000,
+                        domain: '.solura.uk',
+                        path: '/'
+                    });
+
+                    res.json({
+                        success: true,
+                        message: 'Login successful',
+                        redirectUrl: redirectUrl,
+                        user: userInfo,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID,
+                        localStorageUser: userInfo
+                    });
                 });
             });
         });
-    });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Internal server error'
+        });
+    }
 });
 
 // Role-based middleware
@@ -743,40 +858,33 @@ app.post('/auto-login', async (req, res) => {
     try {
         const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
         
-        // Create new session for auto-login
-        req.session.regenerate((err) => {
+        // Set session data
+        req.session.user = decoded;
+        
+        req.session.save((err) => {
             if (err) {
-                console.error('Error regenerating session for auto-login:', err);
-                return res.status(500).json({ error: 'Failed to create session' });
+                console.error('Error saving auto-login session:', err);
+                return res.status(500).json({ error: 'Failed to save session' });
             }
 
-            req.session.user = decoded;
+            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}&dbName=${encodeURIComponent(decoded.dbName)}`;
+            let redirectUrl;
             
-            req.session.save((err) => {
-                if (err) {
-                    console.error('Error saving auto-login session:', err);
-                    return res.status(500).json({ error: 'Failed to save session' });
-                }
+            if (decoded.role === 'admin' || decoded.role === 'AM') {
+                redirectUrl = `/Admin.html${queryString}`;
+            } else if (decoded.role === 'user') {
+                redirectUrl = `/User.html${queryString}`;
+            } else if (decoded.role === 'supervisor') {
+                redirectUrl = `/Supervisor.html${queryString}`;
+            } else {
+                return res.status(401).json({ message: 'Invalid role' });
+            }
 
-                const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}&dbName=${encodeURIComponent(decoded.dbName)}`;
-                let redirectUrl;
-                
-                if (decoded.role === 'admin' || decoded.role === 'AM') {
-                    redirectUrl = `/Admin.html${queryString}`;
-                } else if (decoded.role === 'user') {
-                    redirectUrl = `/User.html${queryString}`;
-                } else if (decoded.role === 'supervisor') {
-                    redirectUrl = `/Supervisor.html${queryString}`;
-                } else {
-                    return res.status(401).json({ message: 'Invalid role' });
-                }
-
-                res.json({ 
-                    success: true, 
-                    redirectUrl, 
-                    user: decoded,
-                    accessToken: accessToken
-                });
+            res.json({ 
+                success: true, 
+                redirectUrl, 
+                user: decoded,
+                accessToken: accessToken
             });
         });
     } catch (err) {
