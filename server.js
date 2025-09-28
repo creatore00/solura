@@ -66,7 +66,7 @@ app.use(session({
     cookie: {
         secure: false,
         httpOnly: true,
-        sameSite: 'lax'
+        sameSite: 'none'
     }
 }));
 
@@ -275,7 +275,6 @@ app.post('/submit', (req, res) => {
         });
     });
 });
-
 
 // Route to save notification token
 app.post('/savePushToken', isAuthenticated, async (req, res) => {
