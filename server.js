@@ -46,9 +46,12 @@ const cors = require('cors');
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Trust proxy for Heroku
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(cors({
-    origin: true, // Or specify your exact origins
+    origin: ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
@@ -56,32 +59,71 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(__dirname)); // ✅ SERVE STATIC FILES
-app.use(sessionMiddleware);
+app.use(express.static(__dirname));
 
+// Enhanced session configuration for Heroku
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'your-session-secret',
-    resave: false, // Changed back to false
-    saveUninitialized: false, // Changed back to false
+    secret: process.env.SESSION_SECRET || 'your-session-secret-heroku-production-2024',
+    resave: false,
+    saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Auto based on environment
+        secure: true, // REQUIRED for Heroku/HTTPS
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-site in production
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        sameSite: 'none', // REQUIRED for cross-site cookies
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        domain: '.solura.uk' // Use wildcard domain for subdomains
     },
-    store: new (require('express-session').MemoryStore)()
+    store: new (require('express-session').MemoryStore)(),
+    proxy: true // REQUIRED for Heroku
 }));
 
-// Session recovery endpoint for when cookies are lost
+// Enhanced session debugging middleware
+app.use((req, res, next) => {
+    console.log('=== SESSION DEBUG ===');
+    console.log('URL:', req.url);
+    console.log('Method:', req.method);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session User:', req.session.user);
+    console.log('Cookies Header:', req.headers.cookie);
+    console.log('User-Agent:', req.headers['user-agent']);
+    console.log('Origin:', req.headers.origin);
+    console.log('Host:', req.headers.host);
+    console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
+    console.log('=== END DEBUG ===');
+    next();
+});
+
+// Session validation endpoint
+app.get('/api/validate-session', (req, res) => {
+    console.log('Validate session called - User:', req.session.user);
+    
+    if (req.session.user) {
+        res.json({ 
+            valid: true, 
+            user: req.session.user,
+            sessionId: req.sessionID 
+        });
+    } else {
+        console.log('Session validation failed - no user in session');
+        res.status(401).json({ 
+            valid: false,
+            message: 'No active session'
+        });
+    }
+});
+
+// Session recovery endpoint
 app.post('/api/recover-session', (req, res) => {
     const { email, dbName } = req.body;
+    
+    console.log('Session recovery requested for:', { email, dbName });
     
     if (!email || !dbName) {
         return res.status(400).json({ error: 'Email and database name required' });
     }
     
     // Verify user exists and has access to this database
-    const verifySql = `SELECT 1 FROM users WHERE Email = ? AND db_name = ?`;
+    const verifySql = `SELECT Access FROM users WHERE Email = ? AND db_name = ?`;
     
     mainPool.query(verifySql, [email, dbName], (err, results) => {
         if (err) {
@@ -109,8 +151,11 @@ app.post('/api/recover-session', (req, res) => {
             
             const name = companyResults[0].name;
             const lastName = companyResults[0].lastName;
+            const role = results[0].Access;
             
-            // Regenerate session
+            console.log('Creating new session for:', { email, name, lastName, role, dbName });
+            
+            // Create new session
             req.session.regenerate((err) => {
                 if (err) {
                     console.error('Error regenerating session:', err);
@@ -119,7 +164,7 @@ app.post('/api/recover-session', (req, res) => {
                 
                 req.session.user = {
                     email: email,
-                    role: results[0].Access,
+                    role: role,
                     name: name,
                     lastName: lastName,
                     dbName: dbName
@@ -131,38 +176,18 @@ app.post('/api/recover-session', (req, res) => {
                         return res.status(500).json({ error: 'Failed to save session' });
                     }
                     
+                    console.log('Session recovered successfully:', req.session.user);
+                    
                     res.json({ 
                         success: true, 
                         message: 'Session recovered',
-                        user: req.session.user
+                        user: req.session.user,
+                        sessionId: req.sessionID
                     });
                 });
             });
         });
     });
-});
-
-// Add this after session middleware
-app.use((req, res, next) => {
-    console.log('Session check:', {
-        sessionId: req.sessionID,
-        user: req.session.user,
-        cookies: req.headers.cookie
-    });
-    next();
-});
-
-// Session validation endpoint
-app.get('/api/validate-session', (req, res) => {
-    if (req.session.user) {
-        res.json({ 
-            valid: true, 
-            user: req.session.user,
-            sessionId: req.sessionID 
-        });
-    } else {
-        res.status(401).json({ valid: false });
-    }
 });
 
 // Routes
@@ -198,10 +223,10 @@ function isMobile(userAgent) {
     return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 }
 
-// Route principale
+// Main route
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
-    console.log('User-Agent:', userAgent);
+    console.log('Root route - User-Agent:', userAgent);
 
     if (isMobile(userAgent)) {
         res.sendFile(path.join(__dirname, 'LoginApp.html'));
@@ -242,9 +267,9 @@ function generateToken(user) {
     );
 }
 
-// Route to handle login and database selection
+// Login route - FIXED SESSION CREATION
 app.post('/submit', (req, res) => {
-    console.log('Received /submit request:', req.body);
+    console.log('Received /submit request:', { ...req.body, password: '***' });
     const { email, password, dbName } = req.body;
 
     if (!email || !password) {
@@ -323,62 +348,80 @@ app.post('/submit', (req, res) => {
                 dbName: userDetails.db_name,
             };
 
-            // CRITICAL FIX: Regenerate session to prevent fixation attacks
-            req.session.regenerate((err) => {
+            console.log('Creating session for user:', userInfo);
+
+            // Destroy any existing session first
+            req.session.destroy((err) => {
                 if (err) {
-                    console.error('Error regenerating session:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
+                    console.error('Error destroying existing session:', err);
                 }
-
-                req.session.user = userInfo;
-
-                // CRITICAL: Save session before sending response
-                req.session.save((err) => {
+                
+                // Create new session
+                req.session.regenerate((err) => {
                     if (err) {
-                        console.error('Error saving session:', err);
-                        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+                        console.error('Error regenerating session:', err);
+                        return res.status(500).json({ error: 'Internal Server Error' });
                     }
 
-                    console.log('Session created successfully:', {
-                        sessionId: req.sessionID,
-                        user: req.session.user
-                    });
+                    req.session.user = userInfo;
 
-                    const authToken = generateToken(userInfo);
-                    const refreshToken = jwt.sign(
-                        {
-                            email: userInfo.email,
-                            role: userInfo.role,
-                            name: userInfo.name,
-                            lastName: userInfo.lastName,
-                            dbName: userInfo.dbName
-                        },
-                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                        { expiresIn: '30d' }
-                    );
+                    req.session.save((err) => {
+                        if (err) {
+                            console.error('Error saving session:', err);
+                            return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+                        }
 
-                    const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
-                    const userAgent = req.headers['user-agent'] || '';
-                    const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+                        console.log('Session created successfully:', {
+                            sessionId: req.sessionID,
+                            user: req.session.user
+                        });
 
-                    let redirectUrl = '';
+                        const authToken = generateToken(userInfo);
+                        const refreshToken = jwt.sign(
+                            {
+                                email: userInfo.email,
+                                role: userInfo.role,
+                                name: userInfo.name,
+                                lastName: userInfo.lastName,
+                                dbName: userInfo.dbName
+                            },
+                            process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                            { expiresIn: '30d' }
+                        );
 
-                    if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                        redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
-                    } else if (userDetails.access === 'user') {
-                        redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
-                    } else if (userDetails.access === 'supervisor') {
-                        redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
-                    } else {
-                        return res.status(401).json({ message: 'Incorrect email or password' });
-                    }
+                        const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
+                        const userAgent = req.headers['user-agent'] || '';
+                        const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 
-                    return res.json({
-                        success: true,
-                        redirectUrl,
-                        accessToken: authToken,
-                        refreshToken: refreshToken,
-                        sessionId: req.sessionID // For debugging
+                        let redirectUrl = '';
+
+                        if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+                            redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
+                        } else if (userDetails.access === 'user') {
+                            redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
+                        } else if (userDetails.access === 'supervisor') {
+                            redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
+                        } else {
+                            return res.status(401).json({ message: 'Incorrect email or password' });
+                        }
+
+                        // Set cookie manually as backup
+                        res.cookie('connect.sid', req.sessionID, {
+                            secure: true,
+                            httpOnly: true,
+                            sameSite: 'none',
+                            maxAge: 24 * 60 * 60 * 1000,
+                            domain: '.solura.uk'
+                        });
+
+                        return res.json({
+                            success: true,
+                            redirectUrl,
+                            accessToken: authToken,
+                            refreshToken: refreshToken,
+                            sessionId: req.sessionID,
+                            user: userInfo
+                        });
                     });
                 });
             });
@@ -465,7 +508,7 @@ app.post('/switchDatabase', (req, res) => {
     });
 });
 
-// Protected routes - ✅ CORRETTE
+// Protected routes
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
@@ -593,7 +636,7 @@ function getCurrentMonday() {
     return monday.toISOString().split('T')[0];
 }
 
-// Auto Login Function - ✅ CORRETTO: USA URL RELATIVI
+// Auto Login Function
 app.post('/auto-login', async (req, res) => {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return res.status(401).json({ message: 'No token provided' });
@@ -603,32 +646,45 @@ app.post('/auto-login', async (req, res) => {
 
     try {
         const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
-        req.session.user = decoded;
-        req.session.save(err => {
-            if (err) return res.status(500).json({ error: 'Failed to save session' });
-
-            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}`;
-            let redirectUrl;
-            
-            // ✅ CORRETTO: URL RELATIVI
-            if (decoded.role === 'admin' || decoded.role === 'AM') {
-                redirectUrl = `/Admin.html${queryString}`;
-            } else if (decoded.role === 'user') {
-                redirectUrl = `/User.html${queryString}`;
-            } else if (decoded.role === 'supervisor') {
-                redirectUrl = `/Supervisor.html${queryString}`;
-            } else {
-                return res.status(401).json({ message: 'Invalid role' });
+        
+        // Create new session for auto-login
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error('Error regenerating session for auto-login:', err);
+                return res.status(500).json({ error: 'Failed to create session' });
             }
 
-            res.json({ 
-                success: true, 
-                redirectUrl, 
-                user: decoded,
-                accessToken: accessToken
+            req.session.user = decoded;
+            
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Error saving auto-login session:', err);
+                    return res.status(500).json({ error: 'Failed to save session' });
+                }
+
+                const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}&dbName=${encodeURIComponent(decoded.dbName)}`;
+                let redirectUrl;
+                
+                if (decoded.role === 'admin' || decoded.role === 'AM') {
+                    redirectUrl = `/Admin.html${queryString}`;
+                } else if (decoded.role === 'user') {
+                    redirectUrl = `/User.html${queryString}`;
+                } else if (decoded.role === 'supervisor') {
+                    redirectUrl = `/Supervisor.html${queryString}`;
+                } else {
+                    return res.status(401).json({ message: 'Invalid role' });
+                }
+
+                res.json({ 
+                    success: true, 
+                    redirectUrl, 
+                    user: decoded,
+                    accessToken: accessToken
+                });
             });
         });
     } catch (err) {
+        console.error('Auto-login token error:', err);
         res.status(401).json({ message: 'Token expired or invalid' });
     }
 });
@@ -803,7 +859,7 @@ app.get('/api/labor-cost', isAuthenticated, (req, res) => {
     );
 });
 
-// Route to handle logout - ✅ CORRETTO
+// Route to handle logout
 app.get('/logout', (req, res) => {
     if (req.session && req.session.user) {
         req.session.destroy(err => {
@@ -819,18 +875,15 @@ app.get('/logout', (req, res) => {
     }
 });
 
-// ✅ CATCH-ALL HANDLER PER iOS WebView - IMPORTANTE!
+// Catch-all handler
 app.get('*', (req, res) => {
     const requestedPath = path.join(__dirname, req.path);
     
-    // Se il file esiste, servilo
     if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) {
         res.sendFile(requestedPath);
     } else if (req.path.startsWith('/api/')) {
-        // API routes - return 404
         res.status(404).json({ error: 'API endpoint not found' });
     } else {
-        // Per tutte le altre routes, reindirizza alla login
         res.redirect('/');
     }
 });
