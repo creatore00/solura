@@ -588,7 +588,7 @@
                 <div class="widget-value" id="approve"></div>
                 <div class="widget-footer">
                     <span>Confirmations waiting</span>
-                    <a href="#" id="goRequest" style="color: var(--secondary-color);">Review</a>
+                    <a href="#" id="confirmrota" style="color: var(--secondary-color);">Review</a>
                 </div>
             </div>
 
@@ -744,15 +744,16 @@
     </div>
 
     <script>
-        document.getElementById("goRequest").addEventListener("click", (e) => {
+        document.getElementById("confirmrota").addEventListener("click", (e) => {
             e.preventDefault();
             const token = localStorage.getItem("accessToken");
             if (!token) {
                 window.location.href = "/"; // torna al login
             } else {
-                window.location.href = "/request"; // naviga normalmente
+                window.location.href = "/confirmrota"; // naviga normalmente
             }
         });
+        
         // Mobile menu functionality
         const menuToggle = document.getElementById('menuToggle');
         const closeMenu = document.getElementById('closeMenu');
