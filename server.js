@@ -39,7 +39,6 @@ const { getPool, mainPool } = require('./db.js');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const jwt = require('jsonwebtoken');
-const { sessionMiddleware, isAuthenticated, isAM, isAdmin, isSupervisor, isUser } = require('./sessionConfig');
 const session = require('express-session');
 const cors = require('cors');
 
@@ -61,7 +60,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// Enhanced session configuration for Heroku
+// SINGLE session configuration - REMOVED sessionMiddleware import
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret-heroku-production-2024',
     resave: false,
@@ -83,7 +82,7 @@ app.use((req, res, next) => {
     console.log('URL:', req.url);
     console.log('Method:', req.method);
     console.log('Session ID:', req.sessionID);
-    console.log('Session User:', req.session.user);
+    console.log('Session User:', req.session?.user);
     console.log('Cookies Header:', req.headers.cookie);
     console.log('User-Agent:', req.headers['user-agent']);
     console.log('Origin:', req.headers.origin);
@@ -93,11 +92,84 @@ app.use((req, res, next) => {
     next();
 });
 
+// Authentication middleware (replaces the imported one)
+function isAuthenticated(req, res, next) {
+    console.log('Auth Check - Session User:', req.session?.user);
+    
+    if (req.session?.user) {
+        console.log('Authentication SUCCESS for user:', req.session.user.email);
+        return next();
+    }
+    
+    console.log('Authentication FAILED - Path:', req.path);
+    
+    // For API routes, return JSON error
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Unauthorized',
+            message: 'Please log in again'
+        });
+    }
+    
+    // Only redirect for page requests
+    res.redirect('/');
+}
+
+// Role-based middleware
+function isAdmin(req, res, next) {
+    if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
+        return next();
+    }
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Forbidden',
+            message: 'Admin access required'
+        });
+    }
+    
+    res.redirect('/');
+}
+
+function isSupervisor(req, res, next) {
+    if (req.session?.user && req.session.user.role === 'supervisor') {
+        return next();
+    }
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Forbidden',
+            message: 'Supervisor access required'
+        });
+    }
+    
+    res.redirect('/');
+}
+
+function isUser(req, res, next) {
+    if (req.session?.user && req.session.user.role === 'user') {
+        return next();
+    }
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Forbidden',
+            message: 'User access required'
+        });
+    }
+    
+    res.redirect('/');
+}
+
 // Session validation endpoint
 app.get('/api/validate-session', (req, res) => {
-    console.log('Validate session called - User:', req.session.user);
+    console.log('Validate session called - User:', req.session?.user);
     
-    if (req.session.user) {
+    if (req.session?.user) {
         res.json({ 
             valid: true, 
             user: req.session.user,
@@ -350,78 +422,71 @@ app.post('/submit', (req, res) => {
 
             console.log('Creating session for user:', userInfo);
 
-            // Destroy any existing session first
-            req.session.destroy((err) => {
+            // Create new session
+            req.session.regenerate((err) => {
                 if (err) {
-                    console.error('Error destroying existing session:', err);
+                    console.error('Error regenerating session:', err);
+                    return res.status(500).json({ error: 'Internal Server Error' });
                 }
-                
-                // Create new session
-                req.session.regenerate((err) => {
+
+                req.session.user = userInfo;
+
+                req.session.save((err) => {
                     if (err) {
-                        console.error('Error regenerating session:', err);
-                        return res.status(500).json({ error: 'Internal Server Error' });
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
                     }
 
-                    req.session.user = userInfo;
+                    console.log('Session created successfully:', {
+                        sessionId: req.sessionID,
+                        user: req.session.user
+                    });
 
-                    req.session.save((err) => {
-                        if (err) {
-                            console.error('Error saving session:', err);
-                            return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-                        }
+                    const authToken = generateToken(userInfo);
+                    const refreshToken = jwt.sign(
+                        {
+                            email: userInfo.email,
+                            role: userInfo.role,
+                            name: userInfo.name,
+                            lastName: userInfo.lastName,
+                            dbName: userInfo.dbName
+                        },
+                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                        { expiresIn: '30d' }
+                    );
 
-                        console.log('Session created successfully:', {
-                            sessionId: req.sessionID,
-                            user: req.session.user
-                        });
+                    const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
+                    const userAgent = req.headers['user-agent'] || '';
+                    const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 
-                        const authToken = generateToken(userInfo);
-                        const refreshToken = jwt.sign(
-                            {
-                                email: userInfo.email,
-                                role: userInfo.role,
-                                name: userInfo.name,
-                                lastName: userInfo.lastName,
-                                dbName: userInfo.dbName
-                            },
-                            process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                            { expiresIn: '30d' }
-                        );
+                    let redirectUrl = '';
 
-                        const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
-                        const userAgent = req.headers['user-agent'] || '';
-                        const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+                    if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+                        redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
+                    } else if (userDetails.access === 'user') {
+                        redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
+                    } else if (userDetails.access === 'supervisor') {
+                        redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
+                    } else {
+                        return res.status(401).json({ message: 'Incorrect email or password' });
+                    }
 
-                        let redirectUrl = '';
+                    // Set cookie manually as backup
+                    res.cookie('connect.sid', req.sessionID, {
+                        secure: true,
+                        httpOnly: true,
+                        sameSite: 'none',
+                        maxAge: 24 * 60 * 60 * 1000,
+                        domain: '.solura.uk'
+                    });
 
-                        if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                            redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
-                        } else if (userDetails.access === 'user') {
-                            redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
-                        } else if (userDetails.access === 'supervisor') {
-                            redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
-                        } else {
-                            return res.status(401).json({ message: 'Incorrect email or password' });
-                        }
-
-                        // Set cookie manually as backup
-                        res.cookie('connect.sid', req.sessionID, {
-                            secure: true,
-                            httpOnly: true,
-                            sameSite: 'none',
-                            maxAge: 24 * 60 * 60 * 1000,
-                            domain: '.solura.uk'
-                        });
-
-                        return res.json({
-                            success: true,
-                            redirectUrl,
-                            accessToken: authToken,
-                            refreshToken: refreshToken,
-                            sessionId: req.sessionID,
-                            user: userInfo
-                        });
+                    return res.json({
+                        success: true,
+                        redirectUrl,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID,
+                        user: userInfo
                     });
                 });
             });
@@ -449,7 +514,7 @@ app.post('/savePushToken', isAuthenticated, async (req, res) => {
 });
 
 // Route to get user's accessible databases
-app.post('/getUserDatabases', (req, res) => {
+app.post('/getUserDatabases', isAuthenticated, (req, res) => {
     const { email } = req.body;
     
     if (!req.session.user || req.session.user.email !== email) {
@@ -476,7 +541,7 @@ app.post('/getUserDatabases', (req, res) => {
 });
 
 // Route to switch databases
-app.post('/switchDatabase', (req, res) => {
+app.post('/switchDatabase', isAuthenticated, (req, res) => {
     const { email, dbName } = req.body;
     
     if (!req.session.user || req.session.user.email !== email) {
@@ -861,7 +926,7 @@ app.get('/api/labor-cost', isAuthenticated, (req, res) => {
 
 // Route to handle logout
 app.get('/logout', (req, res) => {
-    if (req.session && req.session.user) {
+    if (req.session) {
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to destroy session:', err);
