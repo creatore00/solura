@@ -64,11 +64,12 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: false,
+        secure: true,        // ✅ obbligatorio per iOS/Safari (funziona SOLO in HTTPS)
         httpOnly: true,
-        sameSite: 'lax'
+        sameSite: "none"     // ✅ necessario per far salvare i cookie in WebView iOS
     }
 }));
+
 
 // Routes
 app.use('/rota', newRota);
