@@ -168,78 +168,8 @@
         }
     }
 
-// --- LOGIN FORM - UPDATED WITH CLIENT-SIDE REDIRECT ---
-async function submitForm(event) {
-    event.preventDefault();
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Authenticating...';
-
-    try {
-        const res = await fetch('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include', // CRITICAL: Include cookies
-            body: JSON.stringify({ email, password })
-        });
-
-        if (!res.ok) {
-            const errorText = await res.text();
-            throw new Error(errorText || 'Login failed');
-        }
-        
-        const data = await res.json();
-
-        if (data.message === 'Multiple databases found') {
-            databases = data.databases;
-            showDatabasePopup(databases);
-            currentUserData = { email, password };
-        } else if (data.success) {
-            // Store user info for session recovery
-            localStorage.setItem('userInfo', JSON.stringify({
-                email: data.user.email,
-                dbName: data.user.dbName,
-                name: data.user.name,
-                lastName: data.user.lastName
-            }));
-
-            // Store tokens
-            if (data.accessToken) {
-                localStorage.setItem("accessToken", data.accessToken);
-                localStorage.setItem("refreshToken", data.refreshToken);
-            }
-
-            console.log('Login successful, session created:', data.user);
-
-            // Wait a moment for cookies to be set, then redirect
-            setTimeout(() => {
-                redirectToDashboard(data.user);
-            }, 100);
-            
-        } else {
-            alert('Unexpected response from server. Please try again.');
-        }
-    } catch (error) {
-        console.error('Login error:', error);
-        let errorMessage = 'Login failed. Please try again.';
-        try {
-            const errorData = JSON.parse(error.message);
-            errorMessage = errorData.message || errorMessage;
-        } catch (e) {
-            errorMessage = error.message || errorMessage;
-        }
-        alert(errorMessage);
-    } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign In';
-    }
-}
-
-// Redirect to dashboard based on user role
-function redirectToDashboard(user) {
+    // Redirect to dashboard based on user role
+    function redirectToDashboard(user) {
     const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}&dbName=${encodeURIComponent(user.dbName)}`;
     let redirectUrl = '';
 
@@ -277,6 +207,81 @@ function redirectToDashboard(user) {
         popup.style.display = 'block';
     }
 
+    // --- LOGIN FORM - IMPROVED ERROR HANDLING ---
+    async function submitForm(event) {
+        event.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Authenticating...';
+
+        try {
+            const res = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ email, password })
+            });
+
+            const responseText = await res.text();
+            let data;
+            
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Failed to parse response:', responseText);
+                throw new Error('Invalid response from server');
+            }
+
+            if (!res.ok) {
+                throw new Error(data.message || `Server error: ${res.status}`);
+            }
+
+            if (!data.success) {
+                throw new Error(data.message || 'Login failed');
+            }
+
+            if (data.message === 'Multiple databases found') {
+                databases = data.databases;
+                showDatabasePopup(databases);
+                currentUserData = { email, password };
+            } else if (data.redirectUrl) {
+                // Store user info for session recovery
+                localStorage.setItem('userInfo', JSON.stringify({
+                    email: data.user.email,
+                    dbName: data.user.dbName,
+                    name: data.user.name,
+                    lastName: data.user.lastName
+                }));
+
+                // Store tokens
+                if (data.accessToken) {
+                    localStorage.setItem("accessToken", data.accessToken);
+                    localStorage.setItem("refreshToken", data.refreshToken);
+                }
+
+                console.log('Login successful, redirecting to:', data.redirectUrl);
+
+                // Wait a moment for cookies to be set, then redirect
+                setTimeout(() => {
+                    window.location.href = data.redirectUrl;
+                }, 500);
+                
+            } else {
+                throw new Error('Invalid response from server: no redirect URL');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            alert(`Login failed: ${error.message}`);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+        }
+    }
+
+    // Database selection function - also needs updating
     async function submitDatabase() {
         const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
         if (!selectedDatabase) {
@@ -292,7 +297,7 @@ function redirectToDashboard(user) {
             const res = await fetch('/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', // CRITICAL: Include cookies
+                credentials: 'include',
                 body: JSON.stringify({
                     email: currentUserData.email,
                     password: currentUserData.password,
@@ -300,12 +305,23 @@ function redirectToDashboard(user) {
                 })
             });
 
-            if (!res.ok) {
-                const errorText = await res.text();
-                throw new Error(errorText || 'Database selection failed');
-            }
+            const responseText = await res.text();
+            let data;
             
-            const data = await res.json();
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Failed to parse response:', responseText);
+                throw new Error('Invalid response from server');
+            }
+
+            if (!res.ok) {
+                throw new Error(data.message || `Server error: ${res.status}`);
+            }
+
+            if (!data.success) {
+                throw new Error(data.message || 'Database selection failed');
+            }
 
             if (data.redirectUrl) {
                 // Store user info for session recovery
@@ -322,36 +338,19 @@ function redirectToDashboard(user) {
                     localStorage.setItem("refreshToken", data.refreshToken);
                 }
 
-                currentUserData = {
-                    email: currentUserData.email,
-                    accessToken: data.accessToken,
-                    refreshToken: data.refreshToken,
-                    redirectUrl: data.redirectUrl,
-                    user: data.user
-                };
-
                 document.getElementById('databasePopup').style.display = 'none';
                 
-                console.log('Database selection successful, session created');
+                console.log('Database selection successful, redirecting to:', data.redirectUrl);
 
-                if (isCapacitor) {
-                    document.getElementById('biometricPrompt').style.display = 'block';
-                } else {
+                setTimeout(() => {
                     window.location.href = data.redirectUrl;
-                }
+                }, 500);
             } else {
-                throw new Error('Invalid response from server');
+                throw new Error('Invalid response from server: no redirect URL');
             }
         } catch (error) {
             console.error('Database selection error:', error);
-            let errorMessage = 'Database selection failed. Please try again.';
-            try {
-                const errorData = JSON.parse(error.message);
-                errorMessage = errorData.message || errorMessage;
-            } catch (e) {
-                errorMessage = error.message || errorMessage;
-            }
-            alert(errorMessage);
+            alert(`Database selection failed: ${error.message}`);
         } finally {
             popupBtn.disabled = false;
             popupBtn.textContent = 'Continue';

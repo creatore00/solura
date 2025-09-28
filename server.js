@@ -365,147 +365,6 @@ function generateToken(user) {
     );
 }
 
-// In your login route, replace the redirect logic with this:
-
-// Login route - FIXED REDIRECT LOGIC
-app.post('/submit', (req, res) => {
-    console.log('Received /submit request:', { ...req.body, password: '***' });
-    const { email, password, dbName } = req.body;
-
-    if (!email || !password) {
-        return res.status(400).json({ message: 'Email and password are required' });
-    }
-
-    const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
-
-    mainPool.query(sql, [email], async (err, results) => {
-        if (err) {
-            console.error('Error querying database:', err);
-            return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-        }
-
-        if (results.length === 0) {
-            return res.status(401).json({ message: 'Incorrect email or password' });
-        }
-
-        let matchingDatabases = [];
-        for (const row of results) {
-            const storedPassword = row.Password;
-            try {
-                const isMatch = await bcrypt.compare(password, storedPassword);
-                if (isMatch) {
-                    matchingDatabases.push({
-                        db_name: row.db_name,
-                        access: row.Access,
-                    });
-                }
-            } catch (err) {
-                console.error('Error comparing passwords:', err);
-                return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-            }
-        }
-
-        if (matchingDatabases.length === 0) {
-            return res.status(401).json({ message: 'Incorrect email or password' });
-        }
-
-        if (matchingDatabases.length > 1 && !dbName) {
-            return res.status(200).json({
-                message: 'Multiple databases found',
-                databases: matchingDatabases,
-            });
-        }
-
-        const userDetails = dbName
-            ? matchingDatabases.find((db) => db.db_name === dbName)
-            : matchingDatabases[0];
-
-        if (!userDetails) {
-            return res.status(400).json({ error: 'Invalid database selection' });
-        }
-
-        const companyPool = getPool(userDetails.db_name);
-        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-
-        companyPool.query(companySql, [email], (err, companyResults) => {
-            if (err) {
-                console.error('Error querying company database:', err);
-                return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-            }
-
-            if (companyResults.length === 0) {
-                return res.status(401).json({ message: 'User not found in company database' });
-            }
-
-            const name = companyResults[0].name;
-            const lastName = companyResults[0].lastName;
-
-            const userInfo = {
-                email: email,
-                role: userDetails.access,
-                name: name,
-                lastName: lastName,
-                dbName: userDetails.db_name,
-            };
-
-            console.log('Creating session for user:', userInfo);
-
-            // Create new session
-            req.session.regenerate((err) => {
-                if (err) {
-                    console.error('Error regenerating session:', err);
-                    return res.status(500).json({ error: 'Internal Server Error' });
-                }
-
-                req.session.user = userInfo;
-
-                req.session.save((err) => {
-                    if (err) {
-                        console.error('Error saving session:', err);
-                        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
-                    }
-
-                    console.log('Session created successfully:', {
-                        sessionId: req.sessionID,
-                        user: req.session.user
-                    });
-
-                    const authToken = generateToken(userInfo);
-                    const refreshToken = jwt.sign(
-                        {
-                            email: userInfo.email,
-                            role: userInfo.role,
-                            name: userInfo.name,
-                            lastName: userInfo.lastName,
-                            dbName: userInfo.dbName
-                        },
-                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                        { expiresIn: '30d' }
-                    );
-
-                    // Set cookie manually to ensure it's sent
-                    res.cookie('connect.sid', req.sessionID, {
-                        secure: true,
-                        httpOnly: true,
-                        sameSite: 'none',
-                        maxAge: 24 * 60 * 60 * 1000
-                    });
-
-                    // Return success without redirect - let client handle redirect
-                    return res.json({
-                        success: true,
-                        message: 'Login successful',
-                        user: userInfo,
-                        accessToken: authToken,
-                        refreshToken: refreshToken,
-                        sessionId: req.sessionID
-                    });
-                });
-            });
-        });
-    });
-});
-
 // Route to save notification token
 app.post('/savePushToken', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName;
@@ -712,6 +571,200 @@ function getCurrentMonday() {
     const monday = new Date(today.setDate(diff));
     return monday.toISOString().split('T')[0];
 }
+
+// Login route - FIXED RESPONSE FORMAT
+app.post('/submit', (req, res) => {
+    console.log('Received /submit request:', { ...req.body, password: '***' });
+    const { email, password, dbName } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'Email and password are required' 
+        });
+    }
+
+    const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
+
+    mainPool.query(sql, [email], async (err, results) => {
+        if (err) {
+            console.error('Error querying database:', err);
+            return res.status(500).json({ 
+                success: false,
+                error: 'Internal Server Error', 
+                details: err.message 
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Incorrect email or password' 
+            });
+        }
+
+        let matchingDatabases = [];
+        for (const row of results) {
+            const storedPassword = row.Password;
+            try {
+                const isMatch = await bcrypt.compare(password, storedPassword);
+                if (isMatch) {
+                    matchingDatabases.push({
+                        db_name: row.db_name,
+                        access: row.Access,
+                    });
+                }
+            } catch (err) {
+                console.error('Error comparing passwords:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Internal Server Error', 
+                    details: err.message 
+                });
+            }
+        }
+
+        if (matchingDatabases.length === 0) {
+            return res.status(401).json({ 
+                success: false,
+                message: 'Incorrect email or password' 
+            });
+        }
+
+        if (matchingDatabases.length > 1 && !dbName) {
+            return res.status(200).json({
+                success: true,
+                message: 'Multiple databases found',
+                databases: matchingDatabases,
+            });
+        }
+
+        const userDetails = dbName
+            ? matchingDatabases.find((db) => db.db_name === dbName)
+            : matchingDatabases[0];
+
+        if (!userDetails) {
+            return res.status(400).json({ 
+                success: false,
+                error: 'Invalid database selection' 
+            });
+        }
+
+        const companyPool = getPool(userDetails.db_name);
+        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+
+        companyPool.query(companySql, [email], (err, companyResults) => {
+            if (err) {
+                console.error('Error querying company database:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Internal Server Error', 
+                    details: err.message 
+                });
+            }
+
+            if (companyResults.length === 0) {
+                return res.status(401).json({ 
+                    success: false,
+                    message: 'User not found in company database' 
+                });
+            }
+
+            const name = companyResults[0].name;
+            const lastName = companyResults[0].lastName;
+
+            const userInfo = {
+                email: email,
+                role: userDetails.access,
+                name: name,
+                lastName: lastName,
+                dbName: userDetails.db_name,
+            };
+
+            console.log('Creating session for user:', userInfo);
+
+            // Create new session
+            req.session.regenerate((err) => {
+                if (err) {
+                    console.error('Error regenerating session:', err);
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Internal Server Error' 
+                    });
+                }
+
+                req.session.user = userInfo;
+
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            error: 'Internal Server Error', 
+                            details: err.message 
+                        });
+                    }
+
+                    console.log('Session created successfully:', {
+                        sessionId: req.sessionID,
+                        user: req.session.user
+                    });
+
+                    const authToken = generateToken(userInfo);
+                    const refreshToken = jwt.sign(
+                        {
+                            email: userInfo.email,
+                            role: userInfo.role,
+                            name: userInfo.name,
+                            lastName: userInfo.lastName,
+                            dbName: userInfo.dbName
+                        },
+                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                        { expiresIn: '30d' }
+                    );
+
+                    // Set cookie manually to ensure it's sent
+                    res.cookie('connect.sid', req.sessionID, {
+                        secure: true,
+                        httpOnly: true,
+                        sameSite: 'none',
+                        maxAge: 24 * 60 * 60 * 1000
+                    });
+
+                    // Return success with redirect URL
+                    const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
+                    const userAgent = req.headers['user-agent'] || '';
+                    const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+
+                    let redirectUrl = '';
+
+                    if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+                        redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
+                    } else if (userDetails.access === 'user') {
+                        redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
+                    } else if (userDetails.access === 'supervisor') {
+                        redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
+                    } else {
+                        return res.status(401).json({ 
+                            success: false,
+                            message: 'Incorrect email or password' 
+                        });
+                    }
+
+                    return res.json({
+                        success: true,
+                        message: 'Login successful',
+                        redirectUrl: redirectUrl,
+                        user: userInfo,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID
+                    });
+                });
+            });
+        });
+    });
+});
 
 // Auto Login Function
 app.post('/auto-login', async (req, res) => {

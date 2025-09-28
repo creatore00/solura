@@ -745,7 +745,7 @@
 
 <script>
     // Initialize everything when DOM is loaded
-document.addEventListener('DOMContentLoaded', async function() {
+    document.addEventListener('DOMContentLoaded', async function() {
     console.log('AdminApp page loaded, initializing...');
     
     // Check if we have URL parameters (from login redirect)
@@ -786,7 +786,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     loadDashboardData();
 });
 
-function initializeUI() {
+    function initializeUI() {
     // Initialize mobile menu
     menuToggle.addEventListener('click', () => {
         mobileMenu.classList.add('active');
@@ -827,7 +827,7 @@ function initializeUI() {
     setInterval(updateLiveDateTime, 1000);
 }
 
-function loadDashboardData() {
+    function loadDashboardData() {
     // Load initial data
     fetchEmployeesOnShift();
     fetchPendingApprovals();
@@ -858,6 +858,7 @@ function loadDashboardData() {
     document.addEventListener('mousemove', resetInactivityTimer);
     document.addEventListener('keypress', resetInactivityTimer);
 }
+    
     // Mobile menu functionality
     const menuToggle = document.getElementById('menuToggle');
     const closeMenu = document.getElementById('closeMenu');
@@ -922,16 +923,18 @@ function loadDashboardData() {
         }
     }
 
-    // Enhanced session validation with recovery
+    // Enhanced session validation with debugging
     async function validateSessionWithRecovery() {
         try {
             console.log('Validating session...');
             const response = await fetch('/api/validate-session', {
-                credentials: 'include', // CRITICAL: Include cookies
+                credentials: 'include',
                 headers: {
                     'Accept': 'application/json'
                 }
             });
+            
+            console.log('Session validation response status:', response.status);
             
             if (response.status === 401) {
                 console.log('Session invalid, attempting recovery...');
@@ -961,7 +964,7 @@ function loadDashboardData() {
             if (response.ok) {
                 const data = await response.json();
                 if (data.valid) {
-                    console.log('Session valid');
+                    console.log('Session valid, user:', data.user);
                     return true;
                 }
             }
@@ -973,38 +976,39 @@ function loadDashboardData() {
             return false;
         }
     }
-
-// Enhanced fetch with recovery
-async function fetchWithRecovery(url, options = {}) {
-    const config = {
-        ...options,
-        credentials: 'include', // CRITICAL: Include cookies
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            ...options.headers
-        }
-    };
     
-    let response = await fetch(url, config);
-    
-    // If unauthorized, try to recover session and retry
-    if (response.status === 401) {
-        console.log('Request unauthorized, attempting session recovery...');
-        const recovered = await recoverSession();
+    // Enhanced fetch with recovery
+    async function fetchWithRecovery(url, options = {}) {
+        const config = {
+            ...options,
+            credentials: 'include', // CRITICAL: Include cookies
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                ...options.headers
+            }
+        };
         
-        if (recovered) {
-            console.log('Session recovered, retrying request...');
-            response = await fetch(url, config);
-        } else {
-            console.log('Session recovery failed, redirecting to login');
-            window.location.href = '/';
-            throw new Error('Unauthorized');
+        let response = await fetch(url, config);
+        
+        // If unauthorized, try to recover session and retry
+        if (response.status === 401) {
+            console.log('Request unauthorized, attempting session recovery...');
+            const recovered = await recoverSession();
+            
+            if (recovered) {
+                console.log('Session recovered, retrying request...');
+                response = await fetch(url, config);
+            } else {
+                console.log('Session recovery failed, redirecting to login');
+                window.location.href = '/';
+                throw new Error('Unauthorized');
+            }
         }
+        
+        return response;
     }
     
-    return response;
-}
     // Set current date
     function updateLiveDateTime() {
         const now = new Date();
