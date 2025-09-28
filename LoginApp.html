@@ -207,76 +207,79 @@
         popup.style.display = 'block';
     }
 
-    // --- LOGIN FORM - WITH TOKEN FALLBACK ---
     async function submitForm(event) {
-        event.preventDefault();
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const submitBtn = event.target.querySelector('button[type="submit"]');
-        
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Authenticating...';
+    event.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Authenticating...';
 
+    try {
+        // First, make a pre-flight request to set cookies
+        await fetch('/', {
+            method: 'GET',
+            credentials: 'include'
+        });
+
+        const res = await fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // Include cookies
+            body: JSON.stringify({ email, password })
+        });
+
+        const responseText = await res.text();
+        let data;
+        
         try {
-            const res = await fetch('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include',
-                body: JSON.stringify({ email, password })
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('Failed to parse response:', responseText);
+            throw new Error('Invalid response from server');
+        }
+
+        if (!res.ok) {
+            throw new Error(data.message || `Server error: ${res.status}`);
+        }
+
+        if (!data.success) {
+            throw new Error(data.message || 'Login failed');
+        }
+
+        if (data.message === 'Multiple databases found') {
+            databases = data.databases;
+            showDatabasePopup(databases);
+            currentUserData = { email, password };
+        } else if (data.redirectUrl) {
+            // Store session info
+            localStorage.setItem('userInfo', JSON.stringify(data.user));
+            localStorage.setItem('sessionId', data.sessionId);
+
+            console.log('✅ Login successful, session created:', data.sessionId);
+
+            // Safari workaround: Make a request to set cookies before redirect
+            await fetch('/api/validate-session', {
+                credentials: 'include'
             });
 
-            const responseText = await res.text();
-            let data;
+            // Wait a bit for cookies to be set, then redirect
+            setTimeout(() => {
+                window.location.href = data.redirectUrl;
+            }, 1000);
             
-            try {
-                data = JSON.parse(responseText);
-            } catch (parseError) {
-                console.error('Failed to parse response:', responseText);
-                throw new Error('Invalid response from server');
-            }
-
-            if (!res.ok) {
-                throw new Error(data.message || `Server error: ${res.status}`);
-            }
-
-            if (!data.success) {
-                throw new Error(data.message || 'Login failed');
-            }
-
-            if (data.message === 'Multiple databases found') {
-                databases = data.databases;
-                showDatabasePopup(databases);
-                currentUserData = { email, password };
-            } else if (data.redirectUrl && data.accessToken) {
-                // Store user info and token for authentication
-                const userInfo = {
-                    email: data.user.email,
-                    dbName: data.user.dbName,
-                    name: data.user.name,
-                    lastName: data.user.lastName,
-                    role: data.user.role
-                };
-                
-                localStorage.setItem('userInfo', JSON.stringify(userInfo));
-                localStorage.setItem("accessToken", data.accessToken);
-                localStorage.setItem("refreshToken", data.refreshToken);
-
-                console.log('Login successful, storing token and redirecting');
-
-                // Use token-based redirect
-                redirectWithToken(data.redirectUrl, data.accessToken);
-                
-            } else {
-                throw new Error('Invalid response from server: missing redirect URL or token');
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            alert(`Login failed: ${error.message}`);
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Sign In';
+        } else {
+            throw new Error('Invalid response from server');
         }
+    } catch (error) {
+        console.error('Login error:', error);
+        alert(`Login failed: ${error.message}`);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
     }
+}
 
     // Token-based redirect function
     function redirectWithToken(url, token) {

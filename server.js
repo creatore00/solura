@@ -76,52 +76,54 @@ app.use('/financialsummary', financialsummary);
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
-// Middleware
+// Middleware with Safari-compatible CORS
 app.use(cors({
     origin: ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080'],
-    credentials: true,
+    credentials: true, // Keep credentials true
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
 }));
 
-// Create session store using your MAIN database (yassir_access)
+// Create session store using your MAIN database
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
     port: 3306,
-    user: 'yassir_yassir', // Main database user
-    password: 'Qazokm123890', // Main database password
-    database: 'yassir_access', // Main database for sessions
+    user: 'yassir_yassir',
+    password: 'Qazokm123890',
+    database: 'yassir_access',
     createDatabaseTable: true,
     schema: {
-        tableName: 'user_sessions', // Different table name to avoid conflicts
+        tableName: 'user_sessions',
         columnNames: {
             session_id: 'session_id',
             expires: 'expires',
             data: 'data'
         }
     },
-    checkExpirationInterval: 900000, // Check for expired sessions every 15 minutes
-    expiration: 86400000, // Session expiration (24 hours)
-    clearExpired: true // Automatically clear expired sessions
-}, mainPool); // Use your existing mainPool
+    checkExpirationInterval: 900000,
+    expiration: 86400000,
+    clearExpired: true
+}, mainPool);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// FIXED session configuration with proper store
+// FIXED session configuration for Safari
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret-heroku-production-2024',
-    resave: false,
-    saveUninitialized: false,
-    store: sessionStore, // Use MySQL store with your main database
+    resave: true, // Changed to true for Safari
+    saveUninitialized: true, // Changed to true for Safari
+    store: sessionStore,
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Auto-detect for local/dev
-        httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        secure: true, // Must be true for HTTPS
+        httpOnly: false, // Changed to false for Safari compatibility
+        sameSite: 'none', // Must be 'none' for cross-site
+        maxAge: 24 * 60 * 60 * 1000,
+        domain: '.solura.uk' // Use wildcard domain
     },
-    proxy: true
+    proxy: true,
+    name: 'solura_sid' // Custom session name
 }));
 
 // Enhanced session debugging middleware
@@ -135,21 +137,24 @@ app.use((req, res, next) => {
     console.log('Cookies Header:', req.headers.cookie);
     console.log('User-Agent:', req.headers['user-agent']);
     console.log('Origin:', req.headers.origin);
-    console.log('Host:', req.headers.host);
-    console.log('X-Forwarded-Proto:', req.headers['x-forwarded-proto']);
+    console.log('Referer:', req.headers.referer);
     console.log('=== END DEBUG ===');
     next();
 });
 
-// Add this middleware right after your session configuration
+// Add CORS headers manually for Safari
 app.use((req, res, next) => {
-    // Set CORS headers for all responses
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    const origin = req.headers.origin;
+    if (origin && (origin.includes('solura.uk') || origin.includes('localhost'))) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Credentials', 'true');
+        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie');
+        
+        // Safari specific headers
+        res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+    }
     
-    // Handle preflight
     if (req.method === 'OPTIONS') {
         res.sendStatus(200);
     } else {
@@ -157,11 +162,10 @@ app.use((req, res, next) => {
     }
 });
 
-// SIMPLIFIED Authentication middleware
+// Authentication middleware
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
     if (req.session?.user) {
@@ -171,7 +175,6 @@ function isAuthenticated(req, res, next) {
     
     console.log('❌ Authentication FAILED - Path:', req.path);
     
-    // For API routes, return JSON error
     if (req.path.startsWith('/api/')) {
         return res.status(401).json({ 
             success: false, 
@@ -180,7 +183,6 @@ function isAuthenticated(req, res, next) {
         });
     }
     
-    // Only redirect for page requests
     res.redirect('/');
 }
 
@@ -193,11 +195,10 @@ sessionStore.on('error', (error) => {
     console.error('❌ Session store error:', error);
 });
 
-// SIMPLIFIED session validation endpoint
+// Session validation endpoint
 app.get('/api/validate-session', (req, res) => {
     console.log('=== VALIDATE SESSION ===');
     console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
     if (req.session?.user) {
@@ -215,7 +216,7 @@ app.get('/api/validate-session', (req, res) => {
     }
 });
 
-// SIMPLIFIED Login route
+// Login route with manual cookie setting
 app.post('/submit', (req, res) => {
     console.log('Received /submit request:', { ...req.body, password: '***' });
     const { email, password, dbName } = req.body;
@@ -323,7 +324,7 @@ app.post('/submit', (req, res) => {
 
             console.log('Creating session for user:', userInfo);
 
-            // SIMPLIFIED session creation
+            // Set session data
             req.session.user = userInfo;
 
             req.session.save((err) => {
@@ -336,7 +337,16 @@ app.post('/submit', (req, res) => {
                 }
 
                 console.log('✅ Session created successfully. Session ID:', req.sessionID);
-                console.log('Session data:', req.session.user);
+
+                // MANUALLY SET COOKIE for Safari compatibility
+                res.cookie('solura_sid', req.sessionID, {
+                    secure: true,
+                    httpOnly: false, // Allow JavaScript access for debugging
+                    sameSite: 'none',
+                    maxAge: 24 * 60 * 60 * 1000,
+                    domain: '.solura.uk',
+                    path: '/'
+                });
 
                 const authToken = generateToken(userInfo);
                 const refreshToken = jwt.sign(
@@ -433,90 +443,37 @@ function isUser(req, res, next) {
     res.redirect('/');
 }
 
-// Session recovery endpoint - FIXED to set cookies properly
-app.post('/api/recover-session', (req, res) => {
-    const { email, dbName } = req.body;
-    
-    console.log('Session recovery requested for:', { email, dbName });
-    
-    if (!email || !dbName) {
-        return res.status(400).json({ error: 'Email and database name required' });
-    }
-    
-    // Verify user exists and has access to this database
-    const verifySql = `SELECT Access FROM users WHERE Email = ? AND db_name = ?`;
-    
-    mainPool.query(verifySql, [email, dbName], (err, results) => {
-        if (err) {
-            console.error('Error verifying user:', err);
-            return res.status(500).json({ error: 'Internal Server Error' });
+// Add these to your server
+app.post('/api/restore-session', async (req, res) => {
+    try {
+        const { email, dbName } = req.body;
+        
+        if (!email || !dbName) {
+            return res.status(400).json({ success: false, error: 'Missing email or dbName' });
         }
         
-        if (results.length === 0) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
+        // Restore user data to session
+        req.session.user = {
+            email: email,
+            dbName: dbName
+        };
         
-        // Get user details from company database
-        const companyPool = getPool(dbName);
-        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-        
-        companyPool.query(companySql, [email], (err, companyResults) => {
+        req.session.save((err) => {
             if (err) {
-                console.error('Error querying company database:', err);
-                return res.status(500).json({ error: 'Internal Server Error' });
+                console.error('Session save error:', err);
+                return res.status(500).json({ success: false, error: 'Failed to restore session' });
             }
-            
-            if (companyResults.length === 0) {
-                return res.status(404).json({ error: 'User not found in company database' });
-            }
-            
-            const name = companyResults[0].name;
-            const lastName = companyResults[0].lastName;
-            const role = results[0].Access;
-            
-            console.log('Creating new session for:', { email, name, lastName, role, dbName });
-            
-            // Create new session
-            req.session.regenerate((err) => {
-                if (err) {
-                    console.error('Error regenerating session:', err);
-                    return res.status(500).json({ error: 'Failed to create session' });
-                }
-                
-                req.session.user = {
-                    email: email,
-                    role: role,
-                    name: name,
-                    lastName: lastName,
-                    dbName: dbName
-                };
-                
-                req.session.save((err) => {
-                    if (err) {
-                        console.error('Error saving session:', err);
-                        return res.status(500).json({ error: 'Failed to save session' });
-                    }
-                    
-                    console.log('Session recovered successfully:', req.session.user);
-                    
-                    // Set cookie manually to ensure it's sent
-                    res.cookie('connect.sid', req.sessionID, {
-                        secure: true,
-                        httpOnly: true,
-                        sameSite: 'none',
-                        maxAge: 24 * 60 * 60 * 1000
-                    });
-                    
-                    res.json({ 
-                        success: true, 
-                        message: 'Session recovered',
-                        user: req.session.user,
-                        sessionId: req.sessionID
-                    });
-                });
+            res.json({ 
+                success: true, 
+                user: req.session.user,
+                sessionId: req.session.id 
             });
         });
-    });
+        
+    } catch (error) {
+        console.error('Restore session error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // Function to detect mobile devices
