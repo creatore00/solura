@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Solura | Workforce Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -744,88 +744,69 @@
     </div>
 
 <script>
-    // Initialize everything when DOM is loaded
+    // Simple session check on page load
     document.addEventListener('DOMContentLoaded', async function() {
-    console.log('AdminApp page loaded, initializing...');
-    
-    // Check if we have URL parameters (from login redirect)
-    const urlParams = new URLSearchParams(window.location.search);
-    const name = urlParams.get('name');
-    const lastName = urlParams.get('lastName');
-    const email = urlParams.get('email');
-    const dbName = urlParams.get('dbName');
-    
-    if (name && lastName && email && dbName) {
-        // Store user info for potential recovery
-        const userInfo = {
-            email: email,
-            name: name,
-            lastName: lastName,
-            dbName: dbName
-        };
-        localStorage.setItem('userInfo', JSON.stringify(userInfo));
-        console.log('Logged in via redirect with:', userInfo);
-    }
-    
-    // Validate session with recovery capability
-    console.log('Validating session...');
-    const isValid = await validateSessionWithRecovery();
-    
-    if (!isValid) {
-        console.log('Session validation failed, redirecting to login');
-        window.location.href = '/';
-        return;
-    }
-    
-    console.log('Session valid, loading dashboard data...');
-    
-    // Initialize UI components
-    initializeUI();
-    
-    // Load data
-    loadDashboardData();
-});
-
-    function initializeUI() {
-    // Initialize mobile menu
-    menuToggle.addEventListener('click', () => {
-        mobileMenu.classList.add('active');
-        menuOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    });
-    
-    closeMenu.addEventListener('click', () => {
-        mobileMenu.classList.remove('active');
-        menuOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    });
-    
-    menuOverlay.addEventListener('click', () => {
-        mobileMenu.classList.remove('active');
-        menuOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    });
-    
-    // Initialize reports modal
-    reportsLinkMobile.addEventListener('click', (e) => {
-        e.preventDefault();
-        reportsModalMobile.style.display = 'flex';
-    });
-    
-    closeReportsModalMobile.addEventListener('click', () => {
-        reportsModalMobile.style.display = 'none';
-    });
-    
-    reportsModalMobile.addEventListener('click', (e) => {
-        if (e.target === reportsModalMobile) {
-            reportsModalMobile.style.display = 'none';
+        console.log('AdminApp loaded, checking session...');
+        
+        try {
+            const response = await fetch('/api/validate-session', {
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.valid) {
+                    console.log('✅ Session valid, loading page...');
+                    initializePage();
+                    return;
+                }
+            }
+            
+            console.log('❌ Session invalid, redirecting to login');
+            window.location.href = '/';
+            
+        } catch (error) {
+            console.error('Session check failed:', error);
+            window.location.href = '/';
         }
     });
-    
-    // Update date display
-    updateLiveDateTime();
-    setInterval(updateLiveDateTime, 1000);
-}
+
+    function initializePage() {
+        console.log('Initializing AdminApp page...');
+        
+        // Initialize mobile menu
+        const menuToggle = document.getElementById('menuToggle');
+        const closeMenu = document.getElementById('closeMenu');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const menuOverlay = document.getElementById('menuOverlay');
+        
+        if (menuToggle) {
+            menuToggle.addEventListener('click', () => {
+                mobileMenu.classList.add('active');
+                menuOverlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+        }
+        
+        if (closeMenu) {
+            closeMenu.addEventListener('click', () => {
+                mobileMenu.classList.remove('active');
+                menuOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+        }
+        
+        if (menuOverlay) {
+            menuOverlay.addEventListener('click', () => {
+                mobileMenu.classList.remove('active');
+                menuOverlay.classList.remove('active');
+                document.body.style.overflow = '';
+            });
+        }
+        
+        // Load initial data
+        loadDashboardData();
+    }
 
     function loadDashboardData() {
     // Load initial data
@@ -923,18 +904,48 @@
         }
     }
 
-    // Enhanced session validation with debugging
+    // Enhanced session validation with token fallback
     async function validateSessionWithRecovery() {
         try {
             console.log('Validating session...');
+            
+            // Get token from URL or localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('token');
+            const storedToken = localStorage.getItem('accessToken');
+            const token = urlToken || storedToken;
+            
+            const headers = {
+                'Accept': 'application/json'
+            };
+            
+            // Add token to headers if available
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+                console.log('Using token for authentication');
+            }
+            
             const response = await fetch('/api/validate-session', {
                 credentials: 'include',
-                headers: {
-                    'Accept': 'application/json'
-                }
+                headers: headers
             });
             
             console.log('Session validation response status:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.valid) {
+                    console.log('Session validation successful, user:', data.user);
+                    
+                    // Remove token from URL if it was used
+                    if (urlToken) {
+                        const newUrl = window.location.pathname + window.location.search.replace(/[?&]token=[^&]*(&|$)/, '$1').replace(/[?&]$/, '');
+                        window.history.replaceState({}, document.title, newUrl);
+                    }
+                    
+                    return true;
+                }
+            }
             
             if (response.status === 401) {
                 console.log('Session invalid, attempting recovery...');
@@ -942,52 +953,50 @@
                 
                 if (recovered) {
                     console.log('Session recovered, retrying validation...');
-                    // Retry validation after recovery
                     const retryResponse = await fetch('/api/validate-session', {
                         credentials: 'include',
-                        headers: {
-                            'Accept': 'application/json'
-                        }
+                        headers: headers
                     });
                     
                     if (retryResponse.ok) {
-                        console.log('Session validation successful after recovery');
-                        return true;
+                        const retryData = await retryResponse.json();
+                        if (retryData.valid) {
+                            console.log('Session validation successful after recovery');
+                            return true;
+                        }
                     }
                 }
-                
-                console.log('Session recovery failed, redirecting to login');
-                window.location.href = '/';
-                return false;
             }
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.valid) {
-                    console.log('Session valid, user:', data.user);
-                    return true;
-                }
-            }
-            
-            console.log('Session validation failed');
+            console.log('Session validation failed, redirecting to login');
+            window.location.href = '/';
             return false;
         } catch (error) {
             console.error('Session validation error:', error);
+            window.location.href = '/';
             return false;
         }
     }
-    
-    // Enhanced fetch with recovery
+
+    // Enhanced fetch with token fallback
     async function fetchWithRecovery(url, options = {}) {
+        // Get token from localStorage
+        const token = localStorage.getItem('accessToken');
+        
         const config = {
             ...options,
-            credentials: 'include', // CRITICAL: Include cookies
+            credentials: 'include',
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 ...options.headers
             }
         };
+        
+        // Add token to headers if available
+        if (token) {
+            config.headers['Authorization'] = `Bearer ${token}`;
+        }
         
         let response = await fetch(url, config);
         
@@ -1008,7 +1017,7 @@
         
         return response;
     }
-    
+        
     // Set current date
     function updateLiveDateTime() {
         const now = new Date();

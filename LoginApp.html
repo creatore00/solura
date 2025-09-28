@@ -207,7 +207,7 @@
         popup.style.display = 'block';
     }
 
-    // --- LOGIN FORM - IMPROVED ERROR HANDLING ---
+    // --- LOGIN FORM - WITH TOKEN FALLBACK ---
     async function submitForm(event) {
         event.preventDefault();
         const email = document.getElementById('email').value;
@@ -247,30 +247,27 @@
                 databases = data.databases;
                 showDatabasePopup(databases);
                 currentUserData = { email, password };
-            } else if (data.redirectUrl) {
-                // Store user info for session recovery
-                localStorage.setItem('userInfo', JSON.stringify({
+            } else if (data.redirectUrl && data.accessToken) {
+                // Store user info and token for authentication
+                const userInfo = {
                     email: data.user.email,
                     dbName: data.user.dbName,
                     name: data.user.name,
-                    lastName: data.user.lastName
-                }));
+                    lastName: data.user.lastName,
+                    role: data.user.role
+                };
+                
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                localStorage.setItem("accessToken", data.accessToken);
+                localStorage.setItem("refreshToken", data.refreshToken);
 
-                // Store tokens
-                if (data.accessToken) {
-                    localStorage.setItem("accessToken", data.accessToken);
-                    localStorage.setItem("refreshToken", data.refreshToken);
-                }
+                console.log('Login successful, storing token and redirecting');
 
-                console.log('Login successful, redirecting to:', data.redirectUrl);
-
-                // Wait a moment for cookies to be set, then redirect
-                setTimeout(() => {
-                    window.location.href = data.redirectUrl;
-                }, 500);
+                // Use token-based redirect
+                redirectWithToken(data.redirectUrl, data.accessToken);
                 
             } else {
-                throw new Error('Invalid response from server: no redirect URL');
+                throw new Error('Invalid response from server: missing redirect URL or token');
             }
         } catch (error) {
             console.error('Login error:', error);
@@ -281,7 +278,17 @@
         }
     }
 
-    // Database selection function - also needs updating
+    // Token-based redirect function
+    function redirectWithToken(url, token) {
+        // Add token to URL as parameter for the next page
+        const separator = url.includes('?') ? '&' : '?';
+        const tokenUrl = `${url}${separator}token=${encodeURIComponent(token)}`;
+        
+        console.log('Redirecting with token to:', tokenUrl);
+        window.location.href = tokenUrl;
+    }
+
+    // Database selection - also updated
     async function submitDatabase() {
         const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
         if (!selectedDatabase) {
@@ -323,30 +330,26 @@
                 throw new Error(data.message || 'Database selection failed');
             }
 
-            if (data.redirectUrl) {
-                // Store user info for session recovery
-                localStorage.setItem('userInfo', JSON.stringify({
+            if (data.redirectUrl && data.accessToken) {
+                const userInfo = {
                     email: currentUserData.email,
                     dbName: selectedDatabase,
                     name: data.user?.name,
-                    lastName: data.user?.lastName
-                }));
-
-                // Store tokens
-                if (data.accessToken) {
-                    localStorage.setItem("accessToken", data.accessToken);
-                    localStorage.setItem("refreshToken", data.refreshToken);
-                }
+                    lastName: data.user?.lastName,
+                    role: data.user?.role
+                };
+                
+                localStorage.setItem('userInfo', JSON.stringify(userInfo));
+                localStorage.setItem("accessToken", data.accessToken);
+                localStorage.setItem("refreshToken", data.refreshToken);
 
                 document.getElementById('databasePopup').style.display = 'none';
                 
-                console.log('Database selection successful, redirecting to:', data.redirectUrl);
+                console.log('Database selection successful, redirecting with token');
 
-                setTimeout(() => {
-                    window.location.href = data.redirectUrl;
-                }, 500);
+                redirectWithToken(data.redirectUrl, data.accessToken);
             } else {
-                throw new Error('Invalid response from server: no redirect URL');
+                throw new Error('Invalid response from server: missing redirect URL or token');
             }
         } catch (error) {
             console.error('Database selection error:', error);
@@ -356,7 +359,7 @@
             popupBtn.textContent = 'Continue';
         }
     }
-
+        
     function closePopup() {
         document.getElementById('databasePopup').style.display = 'none';
     }
