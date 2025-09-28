@@ -750,44 +750,134 @@
     const mobileMenu = document.getElementById('mobileMenu');
     const menuOverlay = document.getElementById('menuOverlay');
     
-    menuToggle.addEventListener('click', () => {
-        mobileMenu.classList.add('active');
-        menuOverlay.classList.add('active');
-        document.body.style.overflow = 'hidden';
-    });
-    
-    closeMenu.addEventListener('click', () => {
-        mobileMenu.classList.remove('active');
-        menuOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    });
-    
-    menuOverlay.addEventListener('click', () => {
-        mobileMenu.classList.remove('active');
-        menuOverlay.classList.remove('active');
-        document.body.style.overflow = '';
-    });
-    
     // Reports modal functionality
     const reportsLinkMobile = document.getElementById('reportsLinkMobile');
     const reportsModalMobile = document.getElementById('reportsModalMobile');
     const closeReportsModalMobile = document.getElementById('closeReportsModalMobile');
     
-    reportsLinkMobile.addEventListener('click', (e) => {
-        e.preventDefault();
-        reportsModalMobile.style.display = 'flex';
-    });
-    
-    closeReportsModalMobile.addEventListener('click', () => {
-        reportsModalMobile.style.display = 'none';
-    });
-    
-    reportsModalMobile.addEventListener('click', (e) => {
-        if (e.target === reportsModalMobile) {
-            reportsModalMobile.style.display = 'none';
+    // Session recovery function
+    async function recoverSession() {
+        try {
+            // Get stored user info from localStorage or URL params
+            const urlParams = new URLSearchParams(window.location.search);
+            const storedUser = localStorage.getItem('userInfo');
+            
+            let email, dbName;
+            
+            if (storedUser) {
+                const userInfo = JSON.parse(storedUser);
+                email = userInfo.email;
+                dbName = userInfo.dbName;
+            } else if (urlParams.get('email')) {
+                // Get from URL parameters (from login redirect)
+                email = urlParams.get('email');
+                dbName = urlParams.get('dbName') || localStorage.getItem('lastDb');
+            } else {
+                console.log('No user info available for recovery');
+                return false;
+            }
+            
+            if (!email || !dbName) {
+                console.log('Missing email or dbName for recovery');
+                return false;
+            }
+            
+            console.log('Attempting session recovery for:', { email, dbName });
+            
+            const response = await fetch('/api/recover-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ email, dbName })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('Session recovered successfully:', data);
+                return true;
+            } else {
+                console.log('Session recovery failed');
+                return false;
+            }
+        } catch (error) {
+            console.error('Session recovery error:', error);
+            return false;
         }
-    });
-    
+    }
+
+    // Enhanced session validation with recovery
+    async function validateSessionWithRecovery() {
+        try {
+            const response = await fetch('/api/validate-session', {
+                credentials: 'include'
+            });
+            
+            if (response.status === 401) {
+                console.log('Session invalid, attempting recovery...');
+                const recovered = await recoverSession();
+                
+                if (recovered) {
+                    console.log('Session recovered, retrying validation...');
+                    // Retry validation after recovery
+                    const retryResponse = await fetch('/api/validate-session', {
+                        credentials: 'include'
+                    });
+                    
+                    if (retryResponse.ok) {
+                        console.log('Session validation successful after recovery');
+                        return true;
+                    }
+                }
+                
+                console.log('Session recovery failed, redirecting to login');
+                window.location.href = '/';
+                return false;
+            }
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.valid) {
+                    console.log('Session valid');
+                    return true;
+                }
+            }
+            
+            return false;
+        } catch (error) {
+            console.error('Session validation error:', error);
+            return false;
+        }
+    }
+
+    // Enhanced fetch with recovery
+    async function fetchWithRecovery(url, options = {}) {
+        const config = {
+            ...options,
+            credentials: 'include'
+        };
+        
+        let response = await fetch(url, config);
+        
+        // If unauthorized, try to recover session and retry
+        if (response.status === 401) {
+            console.log('Request unauthorized, attempting session recovery...');
+            const recovered = await recoverSession();
+            
+            if (recovered) {
+                console.log('Session recovered, retrying request...');
+                response = await fetch(url, config);
+            } else {
+                console.log('Session recovery failed, redirecting to login');
+                window.location.href = '/';
+                throw new Error('Unauthorized');
+            }
+        }
+        
+        return response;
+    }
+
     // Set current date
     function updateLiveDateTime() {
         const now = new Date();
@@ -802,22 +892,10 @@
         }).replace(',', '');
     }
     
-    // Update every second
-    setInterval(updateLiveDateTime, 1000);
-    updateLiveDateTime();
-    
     // Function to check for pending requests
     function checkPendingRequests() {
-        fetch('/request/holidays', {
-            credentials: 'include'
-        })
-            .then(response => {
-                if (response.status === 401) {
-                    window.location.href = '/';
-                    return;
-                }
-                return response.json();
-            })
+        fetchWithRecovery('/request/holidays')
+            .then(response => response.json())
             .then(data => {
                 const pendingRequests = data.filter(request => 
                     !(request.accepted === 'true' || request.accepted === 'unpaid')
@@ -834,12 +912,6 @@
                 console.error('Error checking pending requests:', error);
             });
     }
-    
-    // Check initially when page loads
-    document.addEventListener('DOMContentLoaded', checkPendingRequests);
-    
-    // Optional: Check periodically (every 5 minutes)
-    setInterval(checkPendingRequests, 300000);
     
     // Helper to format time
     function formatTimeRange(start, end) {
@@ -912,14 +984,7 @@
     // Function to fetch pending approvals
     async function fetchPendingApprovals() {
         try {
-            const response = await fetch('/api/pending-approvals', {
-                credentials: 'include'
-            });
-            
-            if (response.status === 401) {
-                window.location.href = '/';
-                return;
-            }
+            const response = await fetchWithRecovery('/api/pending-approvals');
             
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -950,14 +1015,7 @@
     // Function to fetch tip approvals
     async function fetchTipApprovals() {
         try {
-            const response = await fetch('/api/tip-approvals', {
-                credentials: 'include'
-            });
-            
-            if (response.status === 401) {
-                window.location.href = '/';
-                return;
-            }
+            const response = await fetchWithRecovery('/api/tip-approvals');
             
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -980,14 +1038,7 @@
     // Function to fetch Shift Data
     async function fetchEmployeesOnShift() {
         try {
-            const response = await fetch('/api/employees-on-shift', {
-                credentials: 'include'
-            });
-            
-            if (response.status === 401) {
-                window.location.href = '/';
-                return;
-            }
+            const response = await fetchWithRecovery('/api/employees-on-shift');
             
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -1043,7 +1094,15 @@
                     callback('Error parsing response');
                 }
             } else if (xhr.status === 401) {
-                window.location.href = '/';
+                console.log('Labor cost fetch unauthorized, attempting recovery...');
+                recoverSession().then(recovered => {
+                    if (recovered) {
+                        // Retry after recovery
+                        fetchLaborCost(callback);
+                    } else {
+                        window.location.href = '/';
+                    }
+                });
                 return;
             } else {
                 callback('Request failed with status: ' + xhr.status);
@@ -1057,58 +1116,102 @@
         xhr.send();
     }
 
-    // Enhanced fetch wrapper with authentication handling
-    async function authenticatedFetch(url, options = {}) {
-        const config = {
-            ...options,
-            credentials: 'include'
-        };
+    // Logout function
+    function logout() {
+        // Clear stored user info
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('lastDb');
         
-        const response = await fetch(url, config);
+        // Perform logout
+        window.location.href = '/logout';
+    }
+
+    // Inactivity timer
+    let inactivityTimer;
+    const resetInactivityTimer = () => {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+            alert('You have been logged out due to inactivity.');
+            logout();
+        }, 60 * 60 * 1000); // 60 minutes
+    };
+
+    // Initialize everything when DOM is loaded
+    document.addEventListener('DOMContentLoaded', async function() {
+        console.log('Page loaded, initializing...');
         
-        if (response.status === 401) {
-            // Session expired
-            console.log('Session expired, redirecting to login');
-            window.location.href = '/';
-            throw new Error('Unauthorized');
+        // Check if we have URL parameters (from login redirect)
+        const urlParams = new URLSearchParams(window.location.search);
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        const email = urlParams.get('email');
+        
+        if (name && lastName && email) {
+            // Store user info for potential recovery
+            const userInfo = {
+                email: email,
+                name: name,
+                lastName: lastName
+            };
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            console.log('Logged in via redirect with:', { name, lastName, email });
         }
         
-        return response;
-    }
-
-    // Session validation function
-    function validateSession() {
-        fetch('/api/validate-session', {
-            credentials: 'include'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.valid) {
-                console.log('Session invalid, redirecting to login');
-                window.location.href = '/';
-            }
-        })
-        .catch(error => {
-            console.error('Session validation error:', error);
+        // Validate session with recovery capability
+        console.log('Validating session...');
+        const isValid = await validateSessionWithRecovery();
+        
+        if (!isValid) {
+            console.log('Session validation failed, not loading data');
+            return;
+        }
+        
+        console.log('Session valid, loading dashboard data...');
+        
+        // Initialize mobile menu
+        menuToggle.addEventListener('click', () => {
+            mobileMenu.classList.add('active');
+            menuOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
         });
-    }
-
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Validate session first
-        validateSession();
         
-        // Then load data
+        closeMenu.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+            menuOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+        
+        menuOverlay.addEventListener('click', () => {
+            mobileMenu.classList.remove('active');
+            menuOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        });
+        
+        // Initialize reports modal
+        reportsLinkMobile.addEventListener('click', (e) => {
+            e.preventDefault();
+            reportsModalMobile.style.display = 'flex';
+        });
+        
+        closeReportsModalMobile.addEventListener('click', () => {
+            reportsModalMobile.style.display = 'none';
+        });
+        
+        reportsModalMobile.addEventListener('click', (e) => {
+            if (e.target === reportsModalMobile) {
+                reportsModalMobile.style.display = 'none';
+            }
+        });
+        
+        // Update date display
+        updateLiveDateTime();
+        setInterval(updateLiveDateTime, 1000);
+        
+        // Load initial data
         fetchEmployeesOnShift();
-        
-        // Refresh every 10 seconds
-        setInterval(fetchEmployeesOnShift, 10000);
-        
-        // Function to Call Approvals
         fetchPendingApprovals();
-        
-        // Function To Call Tip
         fetchTipApprovals();
+        checkPendingRequests();
         
         // Fetch labor cost
         fetchLaborCost(function(error, cost) {
@@ -1118,41 +1221,30 @@
             }
             updateLaborCostWidget(cost);
         });
-
-        // Validate session every minute
-        setInterval(validateSession, 60000);
+        
+        // Set up periodic refreshes
+        setInterval(fetchEmployeesOnShift, 10000);
+        setInterval(checkPendingRequests, 300000);
+        setInterval(validateSessionWithRecovery, 60000);
+        
+        // Initialize inactivity timer
+        resetInactivityTimer();
+        
+        // Add activity listeners for all user interactions
+        document.addEventListener('click', resetInactivityTimer);
+        document.addEventListener('scroll', resetInactivityTimer);
+        document.addEventListener('touchstart', resetInactivityTimer);
+        document.addEventListener('mousemove', resetInactivityTimer);
+        document.addEventListener('keypress', resetInactivityTimer);
     });
     
     // Global error handler for authentication
     window.addEventListener('unhandledrejection', function(event) {
         if (event.reason && (event.reason.message === 'Unauthorized' || event.reason.status === 401)) {
+            console.log('Global auth error caught, redirecting to login');
             window.location.href = '/';
         }
     });
-
-    // Inactivity timer
-    let inactivityTimer;
-    const resetInactivityTimer = () => {
-        clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => {
-            alert('You have been logged out due to inactivity.');
-            window.location.href = '/logout';
-        }, 60 * 60 * 1000); // 60 minutes
-    };
-    
-    // Initialize timer and event listeners
-    window.onload = function() {
-        resetInactivityTimer();
-    };
-    
-    window.onmousemove = resetInactivityTimer;
-    window.ontouchstart = resetInactivityTimer;
-    window.onkeypress = resetInactivityTimer;
-
-    // Add activity listeners for all user interactions
-    document.addEventListener('click', resetInactivityTimer);
-    document.addEventListener('scroll', resetInactivityTimer);
-    document.addEventListener('touchstart', resetInactivityTimer);
 </script>
 </body>
 </html>

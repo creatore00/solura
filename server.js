@@ -61,16 +61,86 @@ app.use(sessionMiddleware);
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret',
-    resave: true, // Changed to true
-    saveUninitialized: true, // Changed to true
+    resave: false, // Changed back to false
+    saveUninitialized: false, // Changed back to false
     cookie: {
-        secure: false, // Set to true if using HTTPS
+        secure: process.env.NODE_ENV === 'production', // Auto based on environment
         httpOnly: true,
-        sameSite: 'lax', // Changed from 'none' to 'lax'
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-site in production
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
-    store: new (require('express-session').MemoryStore)() // Or use Redis/store
+    store: new (require('express-session').MemoryStore)()
 }));
+
+// Session recovery endpoint for when cookies are lost
+app.post('/api/recover-session', (req, res) => {
+    const { email, dbName } = req.body;
+    
+    if (!email || !dbName) {
+        return res.status(400).json({ error: 'Email and database name required' });
+    }
+    
+    // Verify user exists and has access to this database
+    const verifySql = `SELECT 1 FROM users WHERE Email = ? AND db_name = ?`;
+    
+    mainPool.query(verifySql, [email, dbName], (err, results) => {
+        if (err) {
+            console.error('Error verifying user:', err);
+            return res.status(500).json({ error: 'Internal Server Error' });
+        }
+        
+        if (results.length === 0) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        
+        // Get user details from company database
+        const companyPool = getPool(dbName);
+        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+        
+        companyPool.query(companySql, [email], (err, companyResults) => {
+            if (err) {
+                console.error('Error querying company database:', err);
+                return res.status(500).json({ error: 'Internal Server Error' });
+            }
+            
+            if (companyResults.length === 0) {
+                return res.status(404).json({ error: 'User not found in company database' });
+            }
+            
+            const name = companyResults[0].name;
+            const lastName = companyResults[0].lastName;
+            
+            // Regenerate session
+            req.session.regenerate((err) => {
+                if (err) {
+                    console.error('Error regenerating session:', err);
+                    return res.status(500).json({ error: 'Failed to create session' });
+                }
+                
+                req.session.user = {
+                    email: email,
+                    role: results[0].Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName
+                };
+                
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ error: 'Failed to save session' });
+                    }
+                    
+                    res.json({ 
+                        success: true, 
+                        message: 'Session recovered',
+                        user: req.session.user
+                    });
+                });
+            });
+        });
+    });
+});
 
 // Add this after session middleware
 app.use((req, res, next) => {
@@ -253,48 +323,63 @@ app.post('/submit', (req, res) => {
                 dbName: userDetails.db_name,
             };
 
-            req.session.user = userInfo;
-
-            const authToken = generateToken(userInfo);
-            const refreshToken = jwt.sign(
-                {
-                    email: userInfo.email,
-                    role: userInfo.role,
-                    name: userInfo.name,
-                    lastName: userInfo.lastName,
-                    dbName: userInfo.dbName
-                },
-                process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                { expiresIn: '30d' }
-            );
-
-            req.session.save((err) => {
+            // CRITICAL FIX: Regenerate session to prevent fixation attacks
+            req.session.regenerate((err) => {
                 if (err) {
-                    console.error('Error saving session:', err);
-                    return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+                    console.error('Error regenerating session:', err);
+                    return res.status(500).json({ error: 'Internal Server Error' });
                 }
 
-                const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
-                const userAgent = req.headers['user-agent'] || '';
-                const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+                req.session.user = userInfo;
 
-                let redirectUrl = '';
+                // CRITICAL: Save session before sending response
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ error: 'Internal Server Error', details: err.message });
+                    }
 
-                if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
-                } else if (userDetails.access === 'user') {
-                    redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
-                } else if (userDetails.access === 'supervisor') {
-                    redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
-                } else {
-                    return res.status(401).json({ message: 'Incorrect email or password' });
-                }
+                    console.log('Session created successfully:', {
+                        sessionId: req.sessionID,
+                        user: req.session.user
+                    });
 
-                return res.json({
-                    success: true,
-                    redirectUrl,
-                    accessToken: authToken,
-                    refreshToken: refreshToken
+                    const authToken = generateToken(userInfo);
+                    const refreshToken = jwt.sign(
+                        {
+                            email: userInfo.email,
+                            role: userInfo.role,
+                            name: userInfo.name,
+                            lastName: userInfo.lastName,
+                            dbName: userInfo.dbName
+                        },
+                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                        { expiresIn: '30d' }
+                    );
+
+                    const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}`;
+                    const userAgent = req.headers['user-agent'] || '';
+                    const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+
+                    let redirectUrl = '';
+
+                    if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+                        redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
+                    } else if (userDetails.access === 'user') {
+                        redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
+                    } else if (userDetails.access === 'supervisor') {
+                        redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
+                    } else {
+                        return res.status(401).json({ message: 'Incorrect email or password' });
+                    }
+
+                    return res.json({
+                        success: true,
+                        redirectUrl,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID // For debugging
+                    });
                 });
             });
         });

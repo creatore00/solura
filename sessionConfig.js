@@ -32,22 +32,36 @@ const sessionMiddleware = session({
 
 // Middleware to check if the user is authenticated
 function isAuthenticated(req, res, next) {
-    if (req.session.user) {
+    console.log('Auth Check - Session:', req.session.user);
+    console.log('Auth Check - Session ID:', req.sessionID);
+    console.log('Auth Check - Cookies:', req.headers.cookie);
+    
+    if (req.session.user && req.session.user.dbName) {
+        console.log('Authentication SUCCESS for user:', req.session.user.email);
         return next();
     }
     
-    console.log('Authentication failed - Path:', req.path);
+    console.log('Authentication FAILED - Path:', req.path);
+    console.log('Available headers:', {
+        cookie: req.headers.cookie,
+        origin: req.headers.origin,
+        referer: req.headers.referer
+    });
     
-    // For API routes, return JSON error instead of redirect
+    // For API routes, return JSON error
     if (req.path.startsWith('/api/')) {
         return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized',
-            message: 'Please log in again'
+            message: 'Please log in again',
+            sessionInfo: {
+                hasSession: !!req.session.user,
+                sessionId: req.sessionID
+            }
         });
     }
     
-    // Only redirect for page requests (HTML files)
+    // Only redirect for page requests
     res.redirect('/');
 }
 
