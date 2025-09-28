@@ -35,45 +35,71 @@ function isAuthenticated(req, res, next) {
     if (req.session.user) {
         return next();
     }
+    
+    console.log('Authentication failed - Path:', req.path);
+    
+    // For API routes, return JSON error instead of redirect
+    if (req.path.startsWith('/api/')) {
+        return res.status(401).json({ 
+            success: false, 
+            error: 'Unauthorized',
+            message: 'Please log in again'
+        });
+    }
+    
+    // Only redirect for page requests (HTML files)
     res.redirect('/');
 }
 
-// Middleware to check if the user is a Area Manager
-function isAM(req, res, next) {
-    if (req.session.user && req.session.user.role === 'AM') {
-        return next();
-    } else {
-        return res.status(403).json({ error: 'Access denied' });
-    }
-}
-
-// Middleware to check if the user is an admin or assistant manager
+// Fixed isAdmin middleware
 function isAdmin(req, res, next) {
-    const role = req.session.user?.role;
-    if (role === 'admin' || role === 'AM') {
+    if (req.session.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
         return next();
-    } else {
-        return res.status(403).json({ error: 'Access denied' });
     }
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Forbidden',
+            message: 'Admin access required'
+        });
+    }
+    
+    res.redirect('/');
 }
 
-
-// Middleware to check if the user is a supervisor
+// Fixed isSupervisor middleware
 function isSupervisor(req, res, next) {
     if (req.session.user && req.session.user.role === 'supervisor') {
         return next();
-    } else {
-        return res.status(403).json({ error: 'Access denied' });
     }
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Forbidden',
+            message: 'Supervisor access required'
+        });
+    }
+    
+    res.redirect('/');
 }
 
-// Middleware to check if the user is a regular user
+// Fixed isUser middleware
 function isUser(req, res, next) {
     if (req.session.user && req.session.user.role === 'user') {
         return next();
-    } else {
-        return res.status(403).json({ error: 'Access denied' });
     }
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Forbidden',
+            message: 'User access required'
+        });
+    }
+    
+    res.redirect('/');
 }
 
 // Export the session middleware and role-based middleware

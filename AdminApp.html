@@ -743,323 +743,416 @@
         </div>
     </div>
 
-    <script>        
-        // Mobile menu functionality
-        const menuToggle = document.getElementById('menuToggle');
-        const closeMenu = document.getElementById('closeMenu');
-        const mobileMenu = document.getElementById('mobileMenu');
-        const menuOverlay = document.getElementById('menuOverlay');
-        
-        menuToggle.addEventListener('click', () => {
-            mobileMenu.classList.add('active');
-            menuOverlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        });
-        
-        closeMenu.addEventListener('click', () => {
-            mobileMenu.classList.remove('active');
-            menuOverlay.classList.remove('active');
-            document.body.style.overflow = '';
-        });
-        
-        menuOverlay.addEventListener('click', () => {
-            mobileMenu.classList.remove('active');
-            menuOverlay.classList.remove('active');
-            document.body.style.overflow = '';
-        });
-        
-        // Reports modal functionality
-        const reportsLinkMobile = document.getElementById('reportsLinkMobile');
-        const reportsModalMobile = document.getElementById('reportsModalMobile');
-        const closeReportsModalMobile = document.getElementById('closeReportsModalMobile');
-        
-        reportsLinkMobile.addEventListener('click', (e) => {
-            e.preventDefault();
-            reportsModalMobile.style.display = 'flex';
-        });
-        
-        closeReportsModalMobile.addEventListener('click', () => {
+<script>
+    // Mobile menu functionality
+    const menuToggle = document.getElementById('menuToggle');
+    const closeMenu = document.getElementById('closeMenu');
+    const mobileMenu = document.getElementById('mobileMenu');
+    const menuOverlay = document.getElementById('menuOverlay');
+    
+    menuToggle.addEventListener('click', () => {
+        mobileMenu.classList.add('active');
+        menuOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    });
+    
+    closeMenu.addEventListener('click', () => {
+        mobileMenu.classList.remove('active');
+        menuOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    });
+    
+    menuOverlay.addEventListener('click', () => {
+        mobileMenu.classList.remove('active');
+        menuOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    });
+    
+    // Reports modal functionality
+    const reportsLinkMobile = document.getElementById('reportsLinkMobile');
+    const reportsModalMobile = document.getElementById('reportsModalMobile');
+    const closeReportsModalMobile = document.getElementById('closeReportsModalMobile');
+    
+    reportsLinkMobile.addEventListener('click', (e) => {
+        e.preventDefault();
+        reportsModalMobile.style.display = 'flex';
+    });
+    
+    closeReportsModalMobile.addEventListener('click', () => {
+        reportsModalMobile.style.display = 'none';
+    });
+    
+    reportsModalMobile.addEventListener('click', (e) => {
+        if (e.target === reportsModalMobile) {
             reportsModalMobile.style.display = 'none';
-        });
-        
-        reportsModalMobile.addEventListener('click', (e) => {
-            if (e.target === reportsModalMobile) {
-                reportsModalMobile.style.display = 'none';
-            }
-        });
-        
-        // Set current date
-        function updateLiveDateTime() {
-            const now = new Date();
-            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
-                weekday: 'short',
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            }).replace(',', '');
         }
-        
-        // Update every second
-        setInterval(updateLiveDateTime, 1000);
-        updateLiveDateTime();
-        
-        // Function to check for pending requests
-        function checkPendingRequests() {
-            fetch('/request/holidays')
-                .then(response => response.json())
-                .then(data => {
-                    const pendingRequests = data.filter(request => 
-                        !(request.accepted === 'true' || request.accepted === 'unpaid')
-                    );
-                    
-                    const notificationBadge = document.getElementById('holidayNotification');
-                    if (pendingRequests.length > 0) {
-                        notificationBadge.style.display = 'block';
-                    } else {
-                        notificationBadge.style.display = 'none';
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking pending requests:', error);
-                });
-        }
-        
-        // Check initially when page loads
-        document.addEventListener('DOMContentLoaded', checkPendingRequests);
-        
-        // Optional: Check periodically (every 5 minutes)
-        setInterval(checkPendingRequests, 300000);
-        
-        // Helper to format time
-        function formatTimeRange(start, end) {
-            const format = (time) => {
-                const [h, m] = time.split(':');
-                const hour = h % 12 || 12;
-                const ampm = h >= 12 ? 'PM' : 'AM';
-                return `${hour}:${m} ${ampm}`;
-            };
-            return `${format(start)} - ${format(end)}`;
-        }
-        
-        // Function to Populate Shift Table
-        function populateShiftTable(employees) {
-            const tableBody = document.querySelector('.mobile-table tbody');
-            if (!tableBody) return;
-            tableBody.innerHTML = '';
-
-            employees.forEach(employee => {
-                const row = document.createElement('tr');
-                
-                // Employee column
-                const nameCell = document.createElement('td');
-                nameCell.textContent = employee.employeeName;
-                
-                // Department column
-                const deptCell = document.createElement('td');
-                deptCell.textContent = employee.designation;
-                deptCell.className = employee.designation === 'BOH' ? 'boh-cell' : 'foh-cell';
-                
-                // Time Frames column
-                const timeCell = document.createElement('td');
-                timeCell.innerHTML = employee.timeFrames.map(frame => 
-                    `<div>${formatTimeRange(frame.start, frame.end)}</div>`
-                ).join('');
-                
-                // Status column
-                const statusCell = document.createElement('td');
-                statusCell.innerHTML = `
-                    <div class="status-indicator ${employee.status === 'Working now' ? 'working' : 'inactive'}">
-                        ${employee.status}
-                    </div>
-                    <small>${employee.nextEvent}</small>
-                `;
-                
-                row.appendChild(nameCell);
-                row.appendChild(deptCell);
-                row.appendChild(timeCell);
-                row.appendChild(statusCell);
-                tableBody.appendChild(row);
-            });
-        }
-        
-        // Function to update employees on shift widget
-        function updateEmployeesOnShift(count) {
-            const widgetValue = document.getElementById('employees');
-            if (widgetValue) {
-                widgetValue.textContent = count;
-            }
-        }
-        
-        // Function to update pending approvals count
-        function updatePendingApprovals(count) {
-            const widget = document.getElementById('approve');
-            if (widget) {
-                widget.textContent = count;
-            }
-        }
-        
-        // Function to fetch pending approvals
-        async function fetchPendingApprovals() {
-            try {
-                const response = await fetch('/api/pending-approvals');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                
-                if (data.success) {
-                    updatePendingApprovals(data.count);
-                } else {
-                    console.error('Error fetching pending approvals:', data.error);
-                    updatePendingApprovals('--');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                updatePendingApprovals('--');
-            }
-        }
-        
-        // Function to update tip approvals count
-        function updateTipApprovals(count) {
-            const widget = document.getElementById('tip');
-            if (widget) {
-                widget.textContent = count;
-            }
-        }
-        
-        // Function to fetch tip approvals
-        async function fetchTipApprovals() {
-            try {
-                const response = await fetch('/api/tip-approvals');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const data = await response.json();
-                
-                if (data.success) {
-                    updateTipApprovals(data.count);
-                } else {
-                    console.error('Error fetching Tip approvals:', data.error);
-                    updateTipApprovals('--');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                updateTipApprovals('--');
-            }
-        }
-        
-        // Function to fetch Shift Data
-        async function fetchEmployeesOnShift() {
-            try {
-                const response = await fetch('/api/employees-on-shift');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    updateEmployeesOnShift(data.count);
-                    populateShiftTable(data.employees);
-                } else {
-                    console.error('Error:', data.error || 'Unknown error');
-                    updateEmployeesOnShift('--');
-                }
-            } catch (error) {
-                console.error('Fetch error:', error);
-                updateEmployeesOnShift('--');
-            }
-        }
-        
-        // Function for Labor
-        function updateLaborCostWidget(cost) {
-            // Format the cost with thousands separator
-            const formattedCost = new Intl.NumberFormat('en-GB', {
-                style: 'currency',
-                currency: 'GBP',
-                maximumFractionDigits: 0
-            }).format(cost).replace('GBP', '').trim();
-            
-            // Update the widget value
-            const widgetValue = document.getElementById('labor');
-            if (widgetValue) {
-                widgetValue.textContent = formattedCost;
-            }
-        }
-        
-        // Function for Labor
-        function fetchLaborCost(callback) {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', '/api/labor-cost', true);
-            
-            xhr.onload = function() {
-                if (xhr.status === 200) {
-                    try {
-                        const data = JSON.parse(xhr.responseText);
-                        if (data.success) {
-                            callback(null, data.cost);
-                        } else {
-                            callback(data.message || 'No data available');
-                        }
-                    } catch (e) {
-                        callback('Error parsing response');
-                    }
-                } else {
-                    callback('Request failed with status: ' + xhr.status);
-                }
-            };
-            
-            xhr.onerror = function() {
-                callback('Network error');
-            };
-            
-            xhr.send();
-        }
-        
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            fetchEmployeesOnShift();
-            // Refresh every 10 seconds
-            setInterval(fetchEmployeesOnShift, 10000);
-            
-            // Function to Call Approvals
-            fetchPendingApprovals();
-            
-            // Function To Call Tip
-            fetchTipApprovals();
-            
-            // Fetch labor cost
-            fetchLaborCost(function(error, cost) {
-                if (error) {
-                    console.error('Error fetching labor cost:', error);
+    });
+    
+    // Set current date
+    function updateLiveDateTime() {
+        const now = new Date();
+        document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).replace(',', '');
+    }
+    
+    // Update every second
+    setInterval(updateLiveDateTime, 1000);
+    updateLiveDateTime();
+    
+    // Function to check for pending requests
+    function checkPendingRequests() {
+        fetch('/request/holidays', {
+            credentials: 'include'
+        })
+            .then(response => {
+                if (response.status === 401) {
+                    window.location.href = '/';
                     return;
                 }
-                updateLaborCostWidget(cost);
+                return response.json();
+            })
+            .then(data => {
+                const pendingRequests = data.filter(request => 
+                    !(request.accepted === 'true' || request.accepted === 'unpaid')
+                );
+                
+                const notificationBadge = document.getElementById('holidayNotification');
+                if (pendingRequests.length > 0) {
+                    notificationBadge.style.display = 'block';
+                } else {
+                    notificationBadge.style.display = 'none';
+                }
+            })
+            .catch(error => {
+                console.error('Error checking pending requests:', error);
             });
+    }
+    
+    // Check initially when page loads
+    document.addEventListener('DOMContentLoaded', checkPendingRequests);
+    
+    // Optional: Check periodically (every 5 minutes)
+    setInterval(checkPendingRequests, 300000);
+    
+    // Helper to format time
+    function formatTimeRange(start, end) {
+        const format = (time) => {
+            const [h, m] = time.split(':');
+            const hour = h % 12 || 12;
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            return `${hour}:${m} ${ampm}`;
+        };
+        return `${format(start)} - ${format(end)}`;
+    }
+    
+    // Function to Populate Shift Table
+    function populateShiftTable(employees) {
+        const tableBody = document.querySelector('.mobile-table tbody');
+        if (!tableBody) return;
+        tableBody.innerHTML = '';
+
+        employees.forEach(employee => {
+            const row = document.createElement('tr');
+            
+            // Employee column
+            const nameCell = document.createElement('td');
+            nameCell.textContent = employee.employeeName;
+            
+            // Department column
+            const deptCell = document.createElement('td');
+            deptCell.textContent = employee.designation;
+            deptCell.className = employee.designation === 'BOH' ? 'boh-cell' : 'foh-cell';
+            
+            // Time Frames column
+            const timeCell = document.createElement('td');
+            timeCell.innerHTML = employee.timeFrames.map(frame => 
+                `<div>${formatTimeRange(frame.start, frame.end)}</div>`
+            ).join('');
+            
+            // Status column
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = `
+                <div class="status-indicator ${employee.status === 'Working now' ? 'working' : 'inactive'}">
+                    ${employee.status}
+                </div>
+                <small>${employee.nextEvent}</small>
+            `;
+            
+            row.appendChild(nameCell);
+            row.appendChild(deptCell);
+            row.appendChild(timeCell);
+            row.appendChild(statusCell);
+            tableBody.appendChild(row);
         });
+    }
+    
+    // Function to update employees on shift widget
+    function updateEmployeesOnShift(count) {
+        const widgetValue = document.getElementById('employees');
+        if (widgetValue) {
+            widgetValue.textContent = count;
+        }
+    }
+    
+    // Function to update pending approvals count
+    function updatePendingApprovals(count) {
+        const widget = document.getElementById('approve');
+        if (widget) {
+            widget.textContent = count;
+        }
+    }
+    
+    // Function to fetch pending approvals
+    async function fetchPendingApprovals() {
+        try {
+            const response = await fetch('/api/pending-approvals', {
+                credentials: 'include'
+            });
+            
+            if (response.status === 401) {
+                window.location.href = '/';
+                return;
+            }
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updatePendingApprovals(data.count);
+            } else {
+                console.error('Error fetching pending approvals:', data.error);
+                updatePendingApprovals('--');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            updatePendingApprovals('--');
+        }
+    }
+    
+    // Function to update tip approvals count
+    function updateTipApprovals(count) {
+        const widget = document.getElementById('tip');
+        if (widget) {
+            widget.textContent = count;
+        }
+    }
+    
+    // Function to fetch tip approvals
+    async function fetchTipApprovals() {
+        try {
+            const response = await fetch('/api/tip-approvals', {
+                credentials: 'include'
+            });
+            
+            if (response.status === 401) {
+                window.location.href = '/';
+                return;
+            }
+            
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updateTipApprovals(data.count);
+            } else {
+                console.error('Error fetching Tip approvals:', data.error);
+                updateTipApprovals('--');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            updateTipApprovals('--');
+        }
+    }
+    
+    // Function to fetch Shift Data
+    async function fetchEmployeesOnShift() {
+        try {
+            const response = await fetch('/api/employees-on-shift', {
+                credentials: 'include'
+            });
+            
+            if (response.status === 401) {
+                window.location.href = '/';
+                return;
+            }
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updateEmployeesOnShift(data.count);
+                populateShiftTable(data.employees);
+            } else {
+                console.error('Error:', data.error || 'Unknown error');
+                updateEmployeesOnShift('--');
+            }
+        } catch (error) {
+            console.error('Fetch error:', error);
+            updateEmployeesOnShift('--');
+        }
+    }
+    
+    // Function for Labor
+    function updateLaborCostWidget(cost) {
+        // Format the cost with thousands separator
+        const formattedCost = new Intl.NumberFormat('en-GB', {
+            style: 'currency',
+            currency: 'GBP',
+            maximumFractionDigits: 0
+        }).format(cost).replace('GBP', '').trim();
         
-        // Inactivity timer
-        let inactivityTimer;
-        const resetInactivityTimer = () => {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = setTimeout(() => {
-                alert('You have been logged out due to inactivity.');
-                window.location.href = 'logout.html';
-            }, 60 * 60 * 1000); // 60 minutes
+        // Update the widget value
+        const widgetValue = document.getElementById('labor');
+        if (widgetValue) {
+            widgetValue.textContent = formattedCost;
+        }
+    }
+    
+    // Function for Labor
+    function fetchLaborCost(callback) {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', '/api/labor-cost', true);
+        xhr.withCredentials = true; // For XMLHttpRequest
+        
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.success) {
+                        callback(null, data.cost);
+                    } else {
+                        callback(data.message || 'No data available');
+                    }
+                } catch (e) {
+                    callback('Error parsing response');
+                }
+            } else if (xhr.status === 401) {
+                window.location.href = '/';
+                return;
+            } else {
+                callback('Request failed with status: ' + xhr.status);
+            }
         };
         
-        // Initialize timer and event listeners
-        window.onload = function() {
-            resetInactivityTimer();
+        xhr.onerror = function() {
+            callback('Network error');
         };
         
-        window.onmousemove = resetInactivityTimer;
-        window.ontouchstart = resetInactivityTimer;
-        window.onkeypress = resetInactivityTimer;
-    </script>
+        xhr.send();
+    }
+
+    // Enhanced fetch wrapper with authentication handling
+    async function authenticatedFetch(url, options = {}) {
+        const config = {
+            ...options,
+            credentials: 'include'
+        };
+        
+        const response = await fetch(url, config);
+        
+        if (response.status === 401) {
+            // Session expired
+            console.log('Session expired, redirecting to login');
+            window.location.href = '/';
+            throw new Error('Unauthorized');
+        }
+        
+        return response;
+    }
+
+    // Session validation function
+    function validateSession() {
+        fetch('/api/validate-session', {
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.valid) {
+                console.log('Session invalid, redirecting to login');
+                window.location.href = '/';
+            }
+        })
+        .catch(error => {
+            console.error('Session validation error:', error);
+        });
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Validate session first
+        validateSession();
+        
+        // Then load data
+        fetchEmployeesOnShift();
+        
+        // Refresh every 10 seconds
+        setInterval(fetchEmployeesOnShift, 10000);
+        
+        // Function to Call Approvals
+        fetchPendingApprovals();
+        
+        // Function To Call Tip
+        fetchTipApprovals();
+        
+        // Fetch labor cost
+        fetchLaborCost(function(error, cost) {
+            if (error) {
+                console.error('Error fetching labor cost:', error);
+                return;
+            }
+            updateLaborCostWidget(cost);
+        });
+
+        // Validate session every minute
+        setInterval(validateSession, 60000);
+    });
+    
+    // Global error handler for authentication
+    window.addEventListener('unhandledrejection', function(event) {
+        if (event.reason && (event.reason.message === 'Unauthorized' || event.reason.status === 401)) {
+            window.location.href = '/';
+        }
+    });
+
+    // Inactivity timer
+    let inactivityTimer;
+    const resetInactivityTimer = () => {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+            alert('You have been logged out due to inactivity.');
+            window.location.href = '/logout';
+        }, 60 * 60 * 1000); // 60 minutes
+    };
+    
+    // Initialize timer and event listeners
+    window.onload = function() {
+        resetInactivityTimer();
+    };
+    
+    window.onmousemove = resetInactivityTimer;
+    window.ontouchstart = resetInactivityTimer;
+    window.onkeypress = resetInactivityTimer;
+
+    // Add activity listeners for all user interactions
+    document.addEventListener('click', resetInactivityTimer);
+    document.addEventListener('scroll', resetInactivityTimer);
+    document.addEventListener('touchstart', resetInactivityTimer);
+</script>
 </body>
 </html>

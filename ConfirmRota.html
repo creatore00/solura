@@ -430,6 +430,42 @@
         </div>
     </footer>
     <script>
+        // Session monitor - add this to all pages
+let sessionCheckInterval;
+
+function startSessionMonitor() {
+    sessionCheckInterval = setInterval(() => {
+        fetch('/api/validate-session')
+            .then(response => response.json())
+            .then(data => {
+                if (!data.valid) {
+                    console.log('Session expired, redirecting to login');
+                    clearInterval(sessionCheckInterval);
+                    window.location.href = '/';
+                }
+            })
+            .catch(error => {
+                console.error('Session check failed:', error);
+            });
+    }, 30000); // Check every 30 seconds
+}
+
+// Check session on page load
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/validate-session')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.valid) {
+                window.location.href = '/';
+            } else {
+                startSessionMonitor();
+            }
+        })
+        .catch(error => {
+            console.error('Initial session check failed:', error);
+            window.location.href = '/';
+        });
+});
         // Function to get Rota Data by Date
         async function getRotaByDate(date) {
             showLoading(true);

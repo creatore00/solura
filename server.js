@@ -48,10 +48,10 @@ const port = process.env.PORT || 8080;
 
 // Middleware
 app.use(cors({
-    origin: true,
+    origin: true, // Or specify your exact origins
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie']
 }));
 
 app.use(express.json());
@@ -61,14 +61,39 @@ app.use(sessionMiddleware);
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret',
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Changed to true
+    saveUninitialized: true, // Changed to true
     cookie: {
-        secure: false,
+        secure: false, // Set to true if using HTTPS
         httpOnly: true,
-        sameSite: 'none'
-    }
+        sameSite: 'lax', // Changed from 'none' to 'lax'
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    },
+    store: new (require('express-session').MemoryStore)() // Or use Redis/store
 }));
+
+// Add this after session middleware
+app.use((req, res, next) => {
+    console.log('Session check:', {
+        sessionId: req.sessionID,
+        user: req.session.user,
+        cookies: req.headers.cookie
+    });
+    next();
+});
+
+// Session validation endpoint
+app.get('/api/validate-session', (req, res) => {
+    if (req.session.user) {
+        res.json({ 
+            valid: true, 
+            user: req.session.user,
+            sessionId: req.sessionID 
+        });
+    } else {
+        res.status(401).json({ valid: false });
+    }
+});
 
 // Routes
 app.use('/rota', newRota);
