@@ -52,6 +52,24 @@ function isAuthenticated(req, res, next) {
 }
 
 // Fixed isAdmin middleware
+function isAM(req, res, next) {
+    if (req.session.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
+        return next();
+    }
+    
+    if (req.path.startsWith('/api/')) {
+        return res.status(403).json({ 
+            success: false, 
+            error: 'Forbidden',
+            message: 'Admin access required'
+        });
+    }
+    
+    res.redirect('/');
+}
+
+
+// Fixed isAdmin middleware
 function isAdmin(req, res, next) {
     if (req.session.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
         return next();

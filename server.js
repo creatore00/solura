@@ -39,7 +39,7 @@ const { getPool, mainPool } = require('./db.js');
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
 const jwt = require('jsonwebtoken');
-const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor, isUser } = require('./sessionConfig');
+const { sessionMiddleware, isAuthenticated, isAM, isAdmin, isSupervisor, isUser } = require('./sessionConfig');
 const session = require('express-session');
 const cors = require('cors');
 
