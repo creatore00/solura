@@ -788,8 +788,9 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                'Accept': 'application/json'
                 },
-                credentials: 'include',
+                credentials: 'include', // CRITICAL: Include cookies
                 body: JSON.stringify({ email, dbName })
             });
             
@@ -798,7 +799,7 @@
                 console.log('Session recovered successfully:', data);
                 return true;
             } else {
-                console.log('Session recovery failed');
+                console.log('Session recovery failed with status:', response.status);
                 return false;
             }
         } catch (error) {
@@ -810,8 +811,12 @@
     // Enhanced session validation with recovery
     async function validateSessionWithRecovery() {
         try {
+            console.log('Validating session...');
             const response = await fetch('/api/validate-session', {
-                credentials: 'include'
+                credentials: 'include', // CRITICAL: Include cookies
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
             
             if (response.status === 401) {
@@ -822,7 +827,10 @@
                     console.log('Session recovered, retrying validation...');
                     // Retry validation after recovery
                     const retryResponse = await fetch('/api/validate-session', {
-                        credentials: 'include'
+                        credentials: 'include',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
                     });
                     
                     if (retryResponse.ok) {
@@ -844,6 +852,7 @@
                 }
             }
             
+            console.log('Session validation failed');
             return false;
         } catch (error) {
             console.error('Session validation error:', error);
@@ -855,7 +864,11 @@
     async function fetchWithRecovery(url, options = {}) {
         const config = {
             ...options,
-            credentials: 'include'
+            credentials: 'include', // CRITICAL: Include cookies
+            headers: {
+                'Accept': 'application/json',
+                ...options.headers
+            }
         };
         
         let response = await fetch(url, config);
@@ -895,7 +908,12 @@
     // Function to check for pending requests
     function checkPendingRequests() {
         fetchWithRecovery('/request/holidays')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to fetch holidays');
+                }
+                return response.json();
+            })
             .then(data => {
                 const pendingRequests = data.filter(request => 
                     !(request.accepted === 'true' || request.accepted === 'unpaid')
@@ -1138,23 +1156,25 @@
 
     // Initialize everything when DOM is loaded
     document.addEventListener('DOMContentLoaded', async function() {
-        console.log('Page loaded, initializing...');
+        console.log('AdminApp page loaded, initializing...');
         
         // Check if we have URL parameters (from login redirect)
         const urlParams = new URLSearchParams(window.location.search);
         const name = urlParams.get('name');
         const lastName = urlParams.get('lastName');
         const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
         
-        if (name && lastName && email) {
+        if (name && lastName && email && dbName) {
             // Store user info for potential recovery
             const userInfo = {
                 email: email,
                 name: name,
-                lastName: lastName
+                lastName: lastName,
+                dbName: dbName
             };
             localStorage.setItem('userInfo', JSON.stringify(userInfo));
-            console.log('Logged in via redirect with:', { name, lastName, email });
+            console.log('Logged in via redirect with:', userInfo);
         }
         
         // Validate session with recovery capability

@@ -91,293 +91,382 @@
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
 
-    <script>
-        let databases = [];
-        let currentUserData = null;
-        const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
+<script>
+    let databases = [];
+    let currentUserData = null;
+    const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
 
-        // --- EVENT LISTENERS ---
-        document.getElementById('loginForm').addEventListener('submit', submitForm);
-        document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
-        document.getElementById('closeDbBtn').addEventListener('click', closePopup);
-        document.getElementById('enableBioBtn')?.addEventListener('click', enableBiometric);
-        document.getElementById('skipBioBtn')?.addEventListener('click', skipBiometric);
+    // --- EVENT LISTENERS ---
+    document.getElementById('loginForm').addEventListener('submit', submitForm);
+    document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
+    document.getElementById('closeDbBtn').addEventListener('click', closePopup);
+    document.getElementById('enableBioBtn')?.addEventListener('click', enableBiometric);
+    document.getElementById('skipBioBtn')?.addEventListener('click', skipBiometric);
 
-        // --- INIT ---
-        init();
+    // --- INIT ---
+    init();
 
-        async function init() {
-            if (!isCapacitor) return;
-            
-            // Initialize push notifications for Capacitor
-            if (window.Capacitor?.Plugins?.PushNotifications) {
-                const { PushNotifications } = window.Capacitor.Plugins;
-                try {
-                    const result = await PushNotifications.requestPermissions();
-                    if (result.receive === 'granted') {
-                        await PushNotifications.register();
-                    }
-                    
-                    PushNotifications.addListener('registration', async (token) => {
-                        console.log('Device token:', token.value);
-                        await savePushToken(token.value);
-                    });
-                } catch (error) {
-                    console.warn('Push notifications not available:', error);
-                }
-            }
-            
-            await tryBiometricAutoLogin();
-        }
-
-        async function savePushToken(token) {
+    async function init() {
+        // Check for existing session first
+        await checkExistingSession();
+        
+        if (!isCapacitor) return;
+        
+        // Initialize push notifications for Capacitor
+        if (window.Capacitor?.Plugins?.PushNotifications) {
+            const { PushNotifications } = window.Capacitor.Plugins;
             try {
-                await fetch('/savePushToken', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ pushToken: token })
+                const result = await PushNotifications.requestPermissions();
+                if (result.receive === 'granted') {
+                    await PushNotifications.register();
+                }
+                
+                PushNotifications.addListener('registration', async (token) => {
+                    console.log('Device token:', token.value);
+                    await savePushToken(token.value);
                 });
             } catch (error) {
-                console.warn('Failed to save push token:', error);
+                console.warn('Push notifications not available:', error);
             }
         }
+        
+        await tryBiometricAutoLogin();
+    }
 
-        // --- LOGIN FORM - MODIFICATA ---
-        async function submitForm(event) {
-            event.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const submitBtn = event.target.querySelector('button[type="submit"]');
+    // Check for existing session
+    async function checkExistingSession() {
+        try {
+            const response = await fetch('/api/validate-session', {
+                credentials: 'include'
+            });
             
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Authenticating...';
-
-            try {
-                const res = await fetch('/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({ email, password })
-                });
-
-                if (!res.ok) throw new Error(await res.text());
-                const data = await res.json();
-
-                if (data.message === 'Multiple databases found') {
-                    databases = data.databases;
-                    showDatabasePopup(databases);
-                    currentUserData = { email, password };
-                } else if (data.redirectUrl) {
-                    // SALVA I TOKEN PRIMA DEL REDIRECT
-                    if (data.accessToken) {
-                        localStorage.setItem("accessToken", data.accessToken);
-                        localStorage.setItem("refreshToken", data.refreshToken);
-                    }
-
-                    currentUserData = {
-                        email,
-                        accessToken: data.accessToken,
-                        refreshToken: data.refreshToken,
-                        redirectUrl: data.redirectUrl
-                    };
-
-                    // PER MOBILE: mostra prompt biometrico
-                    if (isCapacitor) {
-                        document.getElementById('biometricPrompt').style.display = 'block';
-                    } else {
-                        // PER DESKTOP: redirect immediato
-                        window.location.href = data.redirectUrl;
-                    }
-                } else {
-                    alert('Unexpected response from server. Please try again.');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.valid && data.user) {
+                    console.log('Existing session found, redirecting...');
+                    redirectToDashboard(data.user);
+                    return true;
                 }
-            } catch (error) {
-                console.error('Login error:', error);
-                alert(`Login failed: ${error.message}`);
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign In';
             }
+            return false;
+        } catch (error) {
+            console.log('No existing session:', error.message);
+            return false;
+        }
+    }
+
+    // Redirect to dashboard based on user role
+    function redirectToDashboard(user) {
+        const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}&dbName=${encodeURIComponent(user.dbName)}`;
+        let redirectUrl = '';
+
+        if (user.role === 'admin' || user.role === 'AM') {
+            redirectUrl = `/AdminApp.html${queryString}`;
+        } else if (user.role === 'user') {
+            redirectUrl = `/UserApp.html${queryString}`;
+        } else if (user.role === 'supervisor') {
+            redirectUrl = `/SupervisorApp.html${queryString}`;
         }
 
-        // --- DATABASE POPUP ---
-        function showDatabasePopup(databases) {
-            const popup = document.getElementById('databasePopup');
-            const list = document.getElementById('databaseList');
-            list.innerHTML = '';
+        if (redirectUrl) {
+            window.location.href = redirectUrl;
+        }
+    }
 
-            databases.forEach(db => {
-                const li = document.createElement('li');
-                li.style.listStyle = 'none';
-                li.style.marginBottom = '10px';
-                li.innerHTML = `
-                    <input type="radio" name="database" value="${db.db_name}" required style="margin-right: 10px;">
-                    <label>${db.db_name} (${db.access} access)</label>
-                `;
-                list.appendChild(li);
+    async function savePushToken(token) {
+        try {
+            await fetch('/savePushToken', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ pushToken: token })
+            });
+        } catch (error) {
+            console.warn('Failed to save push token:', error);
+        }
+    }
+
+    // --- LOGIN FORM - UPDATED WITH BETTER SESSION HANDLING ---
+    async function submitForm(event) {
+        event.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const submitBtn = event.target.querySelector('button[type="submit"]');
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Authenticating...';
+
+        try {
+            const res = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // CRITICAL: Include cookies
+                body: JSON.stringify({ email, password })
             });
 
-            popup.style.display = 'block';
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(errorText || 'Login failed');
+            }
+            
+            const data = await res.json();
+
+            if (data.message === 'Multiple databases found') {
+                databases = data.databases;
+                showDatabasePopup(databases);
+                currentUserData = { email, password };
+            } else if (data.redirectUrl) {
+                // Store user info for session recovery
+                localStorage.setItem('userInfo', JSON.stringify({
+                    email: email,
+                    dbName: data.user?.dbName,
+                    name: data.user?.name,
+                    lastName: data.user?.lastName
+                }));
+
+                // Store tokens
+                if (data.accessToken) {
+                    localStorage.setItem("accessToken", data.accessToken);
+                    localStorage.setItem("refreshToken", data.refreshToken);
+                }
+
+                currentUserData = {
+                    email,
+                    accessToken: data.accessToken,
+                    refreshToken: data.refreshToken,
+                    redirectUrl: data.redirectUrl,
+                    user: data.user
+                };
+
+                console.log('Login successful, session created');
+
+                // For mobile: show biometric prompt
+                if (isCapacitor) {
+                    document.getElementById('biometricPrompt').style.display = 'block';
+                } else {
+                    // For desktop: redirect immediately
+                    window.location.href = data.redirectUrl;
+                }
+            } else {
+                alert('Unexpected response from server. Please try again.');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            let errorMessage = 'Login failed. Please try again.';
+            try {
+                const errorData = JSON.parse(error.message);
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                errorMessage = error.message || errorMessage;
+            }
+            alert(errorMessage);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+        }
+    }
+
+    // --- DATABASE POPUP ---
+    function showDatabasePopup(databases) {
+        const popup = document.getElementById('databasePopup');
+        const list = document.getElementById('databaseList');
+        list.innerHTML = '';
+
+        databases.forEach(db => {
+            const li = document.createElement('li');
+            li.style.listStyle = 'none';
+            li.style.marginBottom = '10px';
+            li.innerHTML = `
+                <input type="radio" name="database" value="${db.db_name}" required style="margin-right: 10px;">
+                <label>${db.db_name} (${db.access} access)</label>
+            `;
+            list.appendChild(li);
+        });
+
+        popup.style.display = 'block';
+    }
+
+    async function submitDatabase() {
+        const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
+        if (!selectedDatabase) {
+            alert('Please select a database to continue.');
+            return;
         }
 
-        async function submitDatabase() {
-            const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
-            if (!selectedDatabase) {
-                alert('Please select a database to continue.');
-                return;
+        const popupBtn = document.getElementById('continueDbBtn');
+        popupBtn.disabled = true;
+        popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+
+        try {
+            const res = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // CRITICAL: Include cookies
+                body: JSON.stringify({
+                    email: currentUserData.email,
+                    password: currentUserData.password,
+                    dbName: selectedDatabase
+                })
+            });
+
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(errorText || 'Database selection failed');
             }
+            
+            const data = await res.json();
 
-            const popupBtn = document.getElementById('continueDbBtn');
-            popupBtn.disabled = true;
-            popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
+            if (data.redirectUrl) {
+                // Store user info for session recovery
+                localStorage.setItem('userInfo', JSON.stringify({
+                    email: currentUserData.email,
+                    dbName: selectedDatabase,
+                    name: data.user?.name,
+                    lastName: data.user?.lastName
+                }));
 
+                // Store tokens
+                if (data.accessToken) {
+                    localStorage.setItem("accessToken", data.accessToken);
+                    localStorage.setItem("refreshToken", data.refreshToken);
+                }
+
+                currentUserData = {
+                    email: currentUserData.email,
+                    accessToken: data.accessToken,
+                    refreshToken: data.refreshToken,
+                    redirectUrl: data.redirectUrl,
+                    user: data.user
+                };
+
+                document.getElementById('databasePopup').style.display = 'none';
+                
+                console.log('Database selection successful, session created');
+
+                if (isCapacitor) {
+                    document.getElementById('biometricPrompt').style.display = 'block';
+                } else {
+                    window.location.href = data.redirectUrl;
+                }
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        } catch (error) {
+            console.error('Database selection error:', error);
+            let errorMessage = 'Database selection failed. Please try again.';
             try {
-                const res = await fetch('/submit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                        email: currentUserData.email,
-                        password: currentUserData.password,
-                        dbName: selectedDatabase
-                    })
-                });
+                const errorData = JSON.parse(error.message);
+                errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+                errorMessage = error.message || errorMessage;
+            }
+            alert(errorMessage);
+        } finally {
+            popupBtn.disabled = false;
+            popupBtn.textContent = 'Continue';
+        }
+    }
 
-                if (!res.ok) throw new Error(await res.text());
+    function closePopup() {
+        document.getElementById('databasePopup').style.display = 'none';
+    }
+
+    // --- BIOMETRIC AUTO LOGIN ---
+    async function tryBiometricAutoLogin() {
+        if (!isCapacitor || !window.Capacitor?.Plugins?.NativeBiometric) return;
+
+        try {
+            const available = await window.Capacitor.Plugins.NativeBiometric.isAvailable();
+            if (!available.isAvailable) return;
+
+            const credentials = await window.Capacitor.Plugins.NativeBiometric.getCredentials({
+                server: 'https://solura.uk'
+            });
+
+            if (!credentials?.username) return;
+
+            await window.Capacitor.Plugins.NativeBiometric.verifyIdentity({
+                reason: 'Login using Face ID or Touch ID'
+            });
+
+            // Use auto-login endpoint with token
+            const res = await fetch('/auto-login', {
+                method: 'POST',
+                headers: { 
+                    'Authorization': `Bearer ${credentials.password}`,
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include' // CRITICAL: Include cookies
+            });
+
+            if (res.ok) {
                 const data = await res.json();
-
                 if (data.redirectUrl) {
-                    // SALVA I TOKEN PRIMA DEL REDIRECT
+                    console.log('Biometric auto-login successful');
+                    // Save new tokens if provided
                     if (data.accessToken) {
                         localStorage.setItem("accessToken", data.accessToken);
                         localStorage.setItem("refreshToken", data.refreshToken);
                     }
-
-                    currentUserData = {
-                        email: currentUserData.email,
-                        accessToken: data.accessToken,
-                        refreshToken: data.refreshToken,
-                        redirectUrl: data.redirectUrl
-                    };
-
-                    document.getElementById('databasePopup').style.display = 'none';
-                    
-                    if (isCapacitor) {
-                        document.getElementById('biometricPrompt').style.display = 'block';
-                    } else {
-                        window.location.href = data.redirectUrl;
-                    }
-                } else {
-                    throw new Error('Invalid response from server');
+                    window.location.href = data.redirectUrl;
                 }
-            } catch (error) {
-                console.error('Database selection error:', error);
-                alert(`Database selection failed: ${error.message}`);
-            } finally {
-                popupBtn.disabled = false;
-                popupBtn.textContent = 'Continue';
-            }
-        }
-
-        function closePopup() {
-            document.getElementById('databasePopup').style.display = 'none';
-        }
-
-        // --- BIOMETRIC AUTO LOGIN ---
-        async function tryBiometricAutoLogin() {
-            if (!isCapacitor || !window.Capacitor?.Plugins?.NativeBiometric) return;
-
-            try {
-                const available = await window.Capacitor.Plugins.NativeBiometric.isAvailable();
-                if (!available.isAvailable) return;
-
-                const credentials = await window.Capacitor.Plugins.NativeBiometric.getCredentials({
-                    server: 'https://solura.uk'
-                });
-
-                if (!credentials?.username) return;
-
-                await window.Capacitor.Plugins.NativeBiometric.verifyIdentity({
-                    reason: 'Login using Face ID or Touch ID'
-                });
-
-                // Usa auto-login endpoint con token
-                const res = await fetch('/auto-login', {
+            } else if (res.status === 401) {
+                // Token expired, try refresh
+                const refreshRes = await fetch('/refresh-token', {
                     method: 'POST',
-                    headers: { 
-                        'Authorization': `Bearer ${credentials.password}`,
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include'
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ refreshToken: credentials.password })
                 });
 
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.redirectUrl) {
-                        // Salva i nuovi token se forniti
-                        if (data.accessToken) {
-                            localStorage.setItem("accessToken", data.accessToken);
-                            localStorage.setItem("refreshToken", data.refreshToken);
-                        }
-                        window.location.href = data.redirectUrl;
-                    }
-                } else if (res.status === 401) {
-                    // Token scaduto, prova refresh
-                    const refreshRes = await fetch('/refresh-token', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ refreshToken: credentials.password })
+                if (refreshRes.ok) {
+                    const refreshData = await refreshRes.json();
+                    // Update biometric credentials
+                    await window.Capacitor.Plugins.NativeBiometric.setCredentials({
+                        username: credentials.username,
+                        password: refreshData.accessToken,
+                        server: 'https://solura.uk'
                     });
-
-                    if (refreshRes.ok) {
-                        const refreshData = await refreshRes.json();
-                        // Aggiorna le credenziali biometriche
-                        await window.Capacitor.Plugins.NativeBiometric.setCredentials({
-                            username: credentials.username,
-                            password: refreshData.accessToken,
-                            server: 'https://solura.uk'
-                        });
-                        // Riprova auto-login
-                        await tryBiometricAutoLogin();
-                    }
+                    // Retry auto-login
+                    await tryBiometricAutoLogin();
                 }
-            } catch (error) {
-                console.warn('Biometric auto-login failed:', error.message);
             }
+        } catch (error) {
+            console.warn('Biometric auto-login failed:', error.message);
+        }
+    }
+
+    // --- ENABLE BIOMETRIC AFTER LOGIN ---
+    async function enableBiometric() {
+        if (!currentUserData || !isCapacitor || !window.Capacitor?.Plugins?.NativeBiometric) {
+            skipBiometric();
+            return;
         }
 
-        // --- ENABLE BIOMETRIC AFTER LOGIN ---
-        async function enableBiometric() {
-            if (!currentUserData || !isCapacitor || !window.Capacitor?.Plugins?.NativeBiometric) {
-                skipBiometric();
-                return;
-            }
-
-            try {
-                await window.Capacitor.Plugins.NativeBiometric.setCredentials({
-                    username: currentUserData.email,
-                    password: currentUserData.accessToken,
-                    server: 'https://solura.uk'
-                });
-                
-                document.getElementById('biometricPrompt').style.display = 'none';
-                if (currentUserData.redirectUrl) {
-                    window.location.href = currentUserData.redirectUrl;
-                }
-            } catch (error) {
-                console.error('Biometric setup failed:', error);
-                alert('Unable to enable biometric login: ' + error.message);
-                skipBiometric();
-            }
-        }
-
-        function skipBiometric() {
+        try {
+            await window.Capacitor.Plugins.NativeBiometric.setCredentials({
+                username: currentUserData.email,
+                password: currentUserData.accessToken,
+                server: 'https://solura.uk'
+            });
+            
             document.getElementById('biometricPrompt').style.display = 'none';
-            if (currentUserData?.redirectUrl) {
+            if (currentUserData.redirectUrl) {
                 window.location.href = currentUserData.redirectUrl;
             }
+        } catch (error) {
+            console.error('Biometric setup failed:', error);
+            alert('Unable to enable biometric login: ' + error.message);
+            skipBiometric();
         }
-    </script>
+    }
+
+    function skipBiometric() {
+        document.getElementById('biometricPrompt').style.display = 'none';
+        if (currentUserData?.redirectUrl) {
+            window.location.href = currentUserData.redirectUrl;
+        }
+    }
+</script>
 </body>
 </html>
