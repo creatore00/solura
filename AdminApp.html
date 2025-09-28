@@ -472,15 +472,15 @@
         <div class="mobile-nav">
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">Management</div>
-                <a href="index.html" class="mobile-nav-link active">
+                <a href="#" class="mobile-nav-link active" onclick="navigateTo('AdminApp.html')">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="/updateinfo" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/updateinfo')">
                     <i class="fas fa-users"></i>
                     <span>Employees</span>
                 </a>
-                <a href="rota.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('rota.html')">
                     <i class="fas fa-calendar-alt"></i>
                     <span>Rotas</span>
                 </a>
@@ -488,15 +488,15 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">Daily</div>
-                <a href="endday.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('endday.html')">
                     <i class="fas fa-clock"></i>
                     <span>End Of Day</span>
                 </a>
-                <a href="confirmrota.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('confirmrota.html')">
                     <i class="fas fa-check-double"></i>
                     <span>Approve Rota</span>
                 </a>
-                <a href="tip.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('tip.html')">
                     <i class="fas fa-hand-holding-usd"></i>
                     <span>Tips</span>
                 </a>
@@ -504,16 +504,16 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">Holidays</div>
-                <a href="TotalHolidays.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('TotalHolidays.html')">
                     <i class="fas fa-calendar-check"></i>
                     <span>Holidays Management</span>
                 </a>
-                <a href="/request" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/request')">
                     <i class="fas fa-check-circle"></i>
                     <span>Approve/Reject Holidays</span>
                     <span class="notification-badge" id="holidayNotification" style="display: none;"></span>
                 </a>
-                <a href="userholidays.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('userholidays.html')">
                     <i class="fas fa-umbrella-beach"></i>
                     <span>Request Holidays</span>
                 </a>
@@ -521,15 +521,15 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">Finance</div>
-                <a href="timetracking.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('timetracking.html')">
                     <i class="fas fa-clock"></i>
                     <span>Time Tracking</span>
                 </a>
-                <a href="insertpayslip.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('insertpayslip.html')">
                     <i class="fas fa-file-invoice-dollar"></i>
                     <span>Insert Payslips</span>
                 </a>
-                <a href="pastpayslips.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('pastpayslips.html')">
                     <i class="fas fa-receipt"></i>
                     <span>Past Payslips</span>
                 </a>
@@ -541,15 +541,15 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">System</div>
-                <a href="profile.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('profile.html')">
                     <i class="fas fa-user-circle"></i>
                     <span>Account</span>
                 </a>
-                <a href="generate.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('generate.html')">
                     <i class="fas fa-cog"></i>
                     <span>Manage Access</span>
                 </a>
-                <a href="logout.html" class="mobile-nav-link">
+                <a href="#" class="mobile-nav-link" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
                 </a>
@@ -558,7 +558,7 @@
     </nav>
     
     <!-- Main Content -->
-    <main class="mobile-content">
+    <main class="mobile-content" id="mainContent">
         <div class="content-header">
             <h1 class="content-title">Dashboard</h1>
             <div class="date-display">
@@ -588,7 +588,7 @@
                 <div class="widget-value" id="approve"></div>
                 <div class="widget-footer">
                     <span>Confirmations waiting</span>
-                    <a window.location.href = '/confirmrota' style="color: var(--secondary-color);">Review</a>
+                    <a href="#" onclick="navigateTo('confirmrota.html')" style="color: var(--secondary-color);">Review</a>
                 </div>
             </div>
 
@@ -600,7 +600,7 @@
                 <div class="widget-value" id="tip"></div>
                 <div class="widget-footer">
                     <span>Confirmations waiting</span>
-                    <a href="tip.html" style="color: var(--secondary-color);">Review</a>
+                    <a href="#" onclick="navigateTo('tip.html')" style="color: var(--secondary-color);">Review</a>
                 </div>
             </div>
             
@@ -612,7 +612,7 @@
                 <div class="widget-value" id="labor"></div>
                 <div class="widget-footer">
                     <span>This Week</span>
-                    <a href="labor.html" style="color: var(--secondary-color);">Details</a>
+                    <a href="#" onclick="navigateTo('labor.html')" style="color: var(--secondary-color);">Details</a>
                 </div>
             </div>
         </div>
@@ -620,42 +620,42 @@
         <!-- Quick Actions -->
         <h2 class="quick-actions-title">Quick Actions</h2>
         <div class="mobile-actions">
-            <a href="rota.html" class="mobile-action">
+            <a href="#" class="mobile-action" onclick="navigateTo('rota.html')">
                 <div class="action-icon">
                     <i class="fas fa-calendar-plus"></i>
                 </div>
                 <div class="action-label">Create Rota</div>
             </a>
             
-            <a href="confirmrota.html" class="mobile-action">
+            <a href="#" class="mobile-action" onclick="navigateTo('confirmrota.html')">
                 <div class="action-icon">
                     <i class="fas fa-check-double"></i>
                 </div>
                 <div class="action-label">Approve Rota</div>
             </a>
             
-            <a href="endday.html" class="mobile-action">
+            <a href="#" class="mobile-action" onclick="navigateTo('endday.html')">
                 <div class="action-icon">
                     <i class="fas fa-clock"></i>
                 </div>
                 <div class="action-label">End of Day</div>
             </a>
             
-            <a href="tip.html" class="mobile-action">
+            <a href="#" class="mobile-action" onclick="navigateTo('tip.html')">
                 <div class="action-icon">
                     <i class="fas fa-hand-holding-usd"></i>
                 </div>
                 <div class="action-label">Daily Tips</div>
             </a>
             
-            <a href="insertpayslip.html" class="mobile-action">
+            <a href="#" class="mobile-action" onclick="navigateTo('insertpayslip.html')">
                 <div class="action-icon">
                     <i class="fas fa-file-invoice-dollar"></i>
                 </div>
                 <div class="action-label">New Payslips</div>
             </a>
             
-            <a href="userholidays.html" class="mobile-action">
+            <a href="#" class="mobile-action" onclick="navigateTo('userholidays.html')">
                 <div class="action-icon">
                     <i class="fas fa-calendar-check"></i>
                 </div>
@@ -701,7 +701,7 @@
                         <div class="report-name">Payroll Report</div>
                         <div class="report-desc">Comprehensive Payroll Overview</div>
                     </div>
-                    <a href="hours.html" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('hours.html')" class="report-button">Open</a>
                 </div>
                 
                 <!-- Report Item 2 -->
@@ -710,7 +710,7 @@
                         <div class="report-name">Weekly Labor Cost Report</div>
                         <div class="report-desc">Weekly Performance Metrics</div>
                     </div>
-                    <a href="labor.html" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('labor.html')" class="report-button">Open</a>
                 </div>
                 
                 <!-- Report Item 3 -->
@@ -719,7 +719,7 @@
                         <div class="report-name">Financial Summary</div>
                         <div class="report-desc">Revenue & Cost Overview</div>
                     </div>
-                    <a href="financialsummary.html" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('financialsummary.html')" class="report-button">Open</a>
                 </div>
                 
                 <!-- Report Item 4 -->
@@ -728,7 +728,7 @@
                         <div class="report-name">Coming Soon...</div>
                         <div class="report-desc">N/A</div>
                     </div>
-                    <a href="payroll-analysis.html" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('payroll-analysis.html')" class="report-button">Open</a>
                 </div>
 
                 <!-- Report Item 5 -->
@@ -737,12 +737,16 @@
                         <div class="report-name">Coming Soon...</div>
                         <div class="report-desc">N/A</div>
                     </div>
-                    <a href="employee-hours.html" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('employee-hours.html')" class="report-button">Open</a>
                 </div>
             </div>
         </div>
     </div>
+
 <script>
+    // Global variables
+    let currentUser = null;
+
     // Enhanced session validation that works with iOS
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Page loaded, checking session...');
@@ -765,6 +769,7 @@
             };
             localStorage.setItem('userInfo', JSON.stringify(userInfo));
             localStorage.setItem('lastDb', dbName);
+            currentUser = userInfo;
             
             // Immediately restore session with URL params
             await restoreSessionFromParams(userInfo);
@@ -806,6 +811,7 @@
                 
                 if (data.valid && data.user) {
                     console.log('✅ Session valid, user:', data.user.email);
+                    currentUser = data.user;
                     
                     // Store user info for recovery
                     localStorage.setItem('userInfo', JSON.stringify(data.user));
@@ -866,6 +872,7 @@
                 name: urlParams.get('name'),
                 lastName: urlParams.get('lastName')
             };
+            currentUser = userInfo;
             const recovered = await restoreSessionFromParams(userInfo);
             if (recovered) {
                 return true;
@@ -898,6 +905,7 @@
             }
             
             const userInfo = JSON.parse(storedUser);
+            currentUser = userInfo;
             const recoveryData = {
                 email: userInfo.email,
                 dbName: userInfo.dbName || lastDb,
@@ -925,6 +933,7 @@
             if (response.ok) {
                 const data = await response.json();
                 console.log('✅ Session recovered successfully:', data);
+                currentUser = data.user;
                 
                 // Update stored session info
                 if (data.sessionId) {
@@ -1040,8 +1049,36 @@
         }
     }
 
+    // NEW: Navigation function that preserves session
+    function navigateTo(url) {
+        if (!currentUser) {
+            console.log('No user data available, cannot navigate');
+            redirectToLogin();
+            return;
+        }
+
+        // Build URL with user parameters
+        let targetUrl = url;
+        if (url.startsWith('/')) {
+            targetUrl = url.substring(1);
+        }
+
+        const params = new URLSearchParams({
+            name: currentUser.name,
+            lastName: currentUser.lastName,
+            email: currentUser.email,
+            dbName: currentUser.dbName
+        });
+
+        const fullUrl = `${targetUrl}?${params.toString()}`;
+        console.log(`🔄 Navigating to: ${fullUrl}`);
+        
+        // Use replace to avoid adding to browser history
+        window.location.replace(fullUrl);
+    }
+
     function showSessionError() {
-        const mainContent = document.querySelector('.main-content');
+        const mainContent = document.getElementById('mainContent');
         if (mainContent) {
             mainContent.innerHTML = `
                 <div class="session-error">
@@ -1263,17 +1300,6 @@
         });
     }
     
-    // Function to manually set session cookie (for iOS)
-    function setSessionCookie(sessionId) {
-        document.cookie = `solura_sid=${sessionId}; path=/; domain=.solura.uk; secure; samesite=none`;
-    }
-     if (data.valid && data.user) {
-        console.log('✅ Session valid, user:', data.user.email);
-        
-        // Manually set cookie for iOS
-        if (data.sessionId) {
-            setSessionCookie(data.sessionId);
-        }    }
     // Function to update employees on shift widget
     function updateEmployeesOnShift(count) {
         const widgetValue = document.getElementById('employees');
@@ -1435,6 +1461,7 @@
     // Export functions for global access
     window.logout = logout;
     window.redirectToLogin = redirectToLogin;
+    window.navigateTo = navigateTo;
 </script>
 </body>
 </html>
