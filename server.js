@@ -92,6 +92,22 @@ app.use((req, res, next) => {
     next();
 });
 
+// Add this middleware right after your session configuration
+app.use((req, res, next) => {
+    // Set CORS headers for all responses
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+    
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+    } else {
+        next();
+    }
+});
+
 // Authentication middleware (replaces the imported one)
 function isAuthenticated(req, res, next) {
     console.log('Auth Check - Session User:', req.session?.user);
@@ -349,8 +365,9 @@ function generateToken(user) {
     );
 }
 
-// Login route - FIXED SESSION CREATION
-// Login route - FIXED to set cookies properly
+// In your login route, replace the redirect logic with this:
+
+// Login route - FIXED REDIRECT LOGIC
 app.post('/submit', (req, res) => {
     console.log('Received /submit request:', { ...req.body, password: '***' });
     const { email, password, dbName } = req.body;
@@ -466,22 +483,6 @@ app.post('/submit', (req, res) => {
                         { expiresIn: '30d' }
                     );
 
-                    const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
-                    const userAgent = req.headers['user-agent'] || '';
-                    const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
-
-                    let redirectUrl = '';
-
-                    if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                        redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
-                    } else if (userDetails.access === 'user') {
-                        redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
-                    } else if (userDetails.access === 'supervisor') {
-                        redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
-                    } else {
-                        return res.status(401).json({ message: 'Incorrect email or password' });
-                    }
-
                     // Set cookie manually to ensure it's sent
                     res.cookie('connect.sid', req.sessionID, {
                         secure: true,
@@ -490,13 +491,14 @@ app.post('/submit', (req, res) => {
                         maxAge: 24 * 60 * 60 * 1000
                     });
 
+                    // Return success without redirect - let client handle redirect
                     return res.json({
                         success: true,
-                        redirectUrl,
+                        message: 'Login successful',
+                        user: userInfo,
                         accessToken: authToken,
                         refreshToken: refreshToken,
-                        sessionId: req.sessionID,
-                        user: userInfo
+                        sessionId: req.sessionID
                     });
                 });
             });

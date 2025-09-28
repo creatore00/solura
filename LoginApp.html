@@ -155,24 +155,6 @@
         }
     }
 
-    // Redirect to dashboard based on user role
-    function redirectToDashboard(user) {
-        const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}&dbName=${encodeURIComponent(user.dbName)}`;
-        let redirectUrl = '';
-
-        if (user.role === 'admin' || user.role === 'AM') {
-            redirectUrl = `/AdminApp.html${queryString}`;
-        } else if (user.role === 'user') {
-            redirectUrl = `/UserApp.html${queryString}`;
-        } else if (user.role === 'supervisor') {
-            redirectUrl = `/SupervisorApp.html${queryString}`;
-        }
-
-        if (redirectUrl) {
-            window.location.href = redirectUrl;
-        }
-    }
-
     async function savePushToken(token) {
         try {
             await fetch('/savePushToken', {
@@ -186,85 +168,94 @@
         }
     }
 
-    // --- LOGIN FORM - UPDATED WITH BETTER SESSION HANDLING ---
-    async function submitForm(event) {
-        event.preventDefault();
-        const email = document.getElementById('email').value;
-        const password = document.getElementById('password').value;
-        const submitBtn = event.target.querySelector('button[type="submit"]');
-        
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Authenticating...';
+// --- LOGIN FORM - UPDATED WITH CLIENT-SIDE REDIRECT ---
+async function submitForm(event) {
+    event.preventDefault();
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Authenticating...';
 
-        try {
-            const res = await fetch('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', // CRITICAL: Include cookies
-                body: JSON.stringify({ email, password })
-            });
+    try {
+        const res = await fetch('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include', // CRITICAL: Include cookies
+            body: JSON.stringify({ email, password })
+        });
 
-            if (!res.ok) {
-                const errorText = await res.text();
-                throw new Error(errorText || 'Login failed');
-            }
-            
-            const data = await res.json();
-
-            if (data.message === 'Multiple databases found') {
-                databases = data.databases;
-                showDatabasePopup(databases);
-                currentUserData = { email, password };
-            } else if (data.redirectUrl) {
-                // Store user info for session recovery
-                localStorage.setItem('userInfo', JSON.stringify({
-                    email: email,
-                    dbName: data.user?.dbName,
-                    name: data.user?.name,
-                    lastName: data.user?.lastName
-                }));
-
-                // Store tokens
-                if (data.accessToken) {
-                    localStorage.setItem("accessToken", data.accessToken);
-                    localStorage.setItem("refreshToken", data.refreshToken);
-                }
-
-                currentUserData = {
-                    email,
-                    accessToken: data.accessToken,
-                    refreshToken: data.refreshToken,
-                    redirectUrl: data.redirectUrl,
-                    user: data.user
-                };
-
-                console.log('Login successful, session created');
-
-                // For mobile: show biometric prompt
-                if (isCapacitor) {
-                    document.getElementById('biometricPrompt').style.display = 'block';
-                } else {
-                    // For desktop: redirect immediately
-                    window.location.href = data.redirectUrl;
-                }
-            } else {
-                alert('Unexpected response from server. Please try again.');
-            }
-        } catch (error) {
-            console.error('Login error:', error);
-            let errorMessage = 'Login failed. Please try again.';
-            try {
-                const errorData = JSON.parse(error.message);
-                errorMessage = errorData.message || errorMessage;
-            } catch (e) {
-                errorMessage = error.message || errorMessage;
-            }
-            alert(errorMessage);
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Sign In';
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(errorText || 'Login failed');
         }
+        
+        const data = await res.json();
+
+        if (data.message === 'Multiple databases found') {
+            databases = data.databases;
+            showDatabasePopup(databases);
+            currentUserData = { email, password };
+        } else if (data.success) {
+            // Store user info for session recovery
+            localStorage.setItem('userInfo', JSON.stringify({
+                email: data.user.email,
+                dbName: data.user.dbName,
+                name: data.user.name,
+                lastName: data.user.lastName
+            }));
+
+            // Store tokens
+            if (data.accessToken) {
+                localStorage.setItem("accessToken", data.accessToken);
+                localStorage.setItem("refreshToken", data.refreshToken);
+            }
+
+            console.log('Login successful, session created:', data.user);
+
+            // Wait a moment for cookies to be set, then redirect
+            setTimeout(() => {
+                redirectToDashboard(data.user);
+            }, 100);
+            
+        } else {
+            alert('Unexpected response from server. Please try again.');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        let errorMessage = 'Login failed. Please try again.';
+        try {
+            const errorData = JSON.parse(error.message);
+            errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+            errorMessage = error.message || errorMessage;
+        }
+        alert(errorMessage);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
     }
+}
+
+// Redirect to dashboard based on user role
+function redirectToDashboard(user) {
+    const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}&dbName=${encodeURIComponent(user.dbName)}`;
+    let redirectUrl = '';
+
+    if (user.role === 'admin' || user.role === 'AM') {
+        redirectUrl = `/AdminApp.html${queryString}`;
+    } else if (user.role === 'user') {
+        redirectUrl = `/UserApp.html${queryString}`;
+    } else if (user.role === 'supervisor') {
+        redirectUrl = `/SupervisorApp.html${queryString}`;
+    }
+
+    if (redirectUrl) {
+        console.log('Redirecting to:', redirectUrl);
+        window.location.href = redirectUrl;
+    }
+}
 
     // --- DATABASE POPUP ---
     function showDatabasePopup(databases) {

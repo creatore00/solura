@@ -744,6 +744,120 @@
     </div>
 
 <script>
+    // Initialize everything when DOM is loaded
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('AdminApp page loaded, initializing...');
+    
+    // Check if we have URL parameters (from login redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const name = urlParams.get('name');
+    const lastName = urlParams.get('lastName');
+    const email = urlParams.get('email');
+    const dbName = urlParams.get('dbName');
+    
+    if (name && lastName && email && dbName) {
+        // Store user info for potential recovery
+        const userInfo = {
+            email: email,
+            name: name,
+            lastName: lastName,
+            dbName: dbName
+        };
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        console.log('Logged in via redirect with:', userInfo);
+    }
+    
+    // Validate session with recovery capability
+    console.log('Validating session...');
+    const isValid = await validateSessionWithRecovery();
+    
+    if (!isValid) {
+        console.log('Session validation failed, redirecting to login');
+        window.location.href = '/';
+        return;
+    }
+    
+    console.log('Session valid, loading dashboard data...');
+    
+    // Initialize UI components
+    initializeUI();
+    
+    // Load data
+    loadDashboardData();
+});
+
+function initializeUI() {
+    // Initialize mobile menu
+    menuToggle.addEventListener('click', () => {
+        mobileMenu.classList.add('active');
+        menuOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    });
+    
+    closeMenu.addEventListener('click', () => {
+        mobileMenu.classList.remove('active');
+        menuOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    });
+    
+    menuOverlay.addEventListener('click', () => {
+        mobileMenu.classList.remove('active');
+        menuOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    });
+    
+    // Initialize reports modal
+    reportsLinkMobile.addEventListener('click', (e) => {
+        e.preventDefault();
+        reportsModalMobile.style.display = 'flex';
+    });
+    
+    closeReportsModalMobile.addEventListener('click', () => {
+        reportsModalMobile.style.display = 'none';
+    });
+    
+    reportsModalMobile.addEventListener('click', (e) => {
+        if (e.target === reportsModalMobile) {
+            reportsModalMobile.style.display = 'none';
+        }
+    });
+    
+    // Update date display
+    updateLiveDateTime();
+    setInterval(updateLiveDateTime, 1000);
+}
+
+function loadDashboardData() {
+    // Load initial data
+    fetchEmployeesOnShift();
+    fetchPendingApprovals();
+    fetchTipApprovals();
+    checkPendingRequests();
+    
+    // Fetch labor cost
+    fetchLaborCost(function(error, cost) {
+        if (error) {
+            console.error('Error fetching labor cost:', error);
+            return;
+        }
+        updateLaborCostWidget(cost);
+    });
+    
+    // Set up periodic refreshes
+    setInterval(fetchEmployeesOnShift, 10000);
+    setInterval(checkPendingRequests, 300000);
+    setInterval(validateSessionWithRecovery, 60000);
+    
+    // Initialize inactivity timer
+    resetInactivityTimer();
+    
+    // Add activity listeners for all user interactions
+    document.addEventListener('click', resetInactivityTimer);
+    document.addEventListener('scroll', resetInactivityTimer);
+    document.addEventListener('touchstart', resetInactivityTimer);
+    document.addEventListener('mousemove', resetInactivityTimer);
+    document.addEventListener('keypress', resetInactivityTimer);
+}
     // Mobile menu functionality
     const menuToggle = document.getElementById('menuToggle');
     const closeMenu = document.getElementById('closeMenu');
