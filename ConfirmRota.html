@@ -429,1010 +429,1321 @@
             <p>&copy; Solura Ltd 2024, All rights reserved</p>
         </div>
     </footer>
-    <script>
-        // Session monitor - add this to all pages
-let sessionCheckInterval;
+<script>
+    // Session validation functions
+    let currentUser = null;
 
-function startSessionMonitor() {
-    sessionCheckInterval = setInterval(() => {
-        fetch('/api/validate-session')
-            .then(response => response.json())
-            .then(data => {
-                if (!data.valid) {
-                    console.log('Session expired, redirecting to login');
-                    clearInterval(sessionCheckInterval);
-                    window.location.href = '/';
-                }
-            })
-            .catch(error => {
-                console.error('Session check failed:', error);
-            });
-    }, 30000); // Check every 30 seconds
-}
-
-// Check session on page load
-document.addEventListener('DOMContentLoaded', () => {
-    fetch('/api/validate-session')
-        .then(response => response.json())
-        .then(data => {
-            if (!data.valid) {
-                window.location.href = '/';
-            } else {
-                startSessionMonitor();
-            }
-        })
-        .catch(error => {
-            console.error('Initial session check failed:', error);
-            window.location.href = '/';
-        });
-});
-        // Function to get Rota Data by Date
-        async function getRotaByDate(date) {
-            showLoading(true);
-            try {
-                const response = await fetch(`/confirmrota/api/rota?day=${encodeURIComponent(date)}`);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return await response.json();
-            } catch (error) {
-                showMessage(`Error fetching rota data: ${error.message}`, 'error');
-                return [];
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // Function to Format the Date to Display
-        function formatDateForDisplay(date) {
-            if (!(date instanceof Date)) {
-                date = new Date(date);
-            }
-
-            if (isNaN(date.getTime())) {
-                console.error('Invalid date:', date);
-                return '';
-            }
-
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-
-            const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-            const dayOfWeek = daysOfWeek[date.getDay()];
-
-            return `${day}/${month}/${year} (${dayOfWeek})`;
-        }
-
-        // Frontend checkConfirmedRota2 function with enhanced logging
-        async function checkConfirmedRota2(date) {
-    console.log(`[checkConfirmedRota2] Checking confirmation for date: ${date}`);
-    showLoading(true);
-    try {
-        const url = `/confirmrota/api/check-confirmed-rota2?day=${encodeURIComponent(date)}`;
-        console.log(`[checkConfirmedRota2] Fetching from: ${url}`);
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-            console.error(`[checkConfirmedRota2] HTTP error! Status: ${response.status}`);
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`[checkConfirmedRota2] Response data:`, data);
-        
-        return data; // Return the full response data
-    } catch (error) {
-        console.error(`[checkConfirmedRota2] Error:`, error);
-        showMessage(`Error checking confirmed rota: ${error.message}`, 'error');
-        return { exists: false, confirmers: [] };
-    } finally {
-        showLoading(false);
-    }
-}
-
-// Updated populateTable function with proper data handling
-async function populateTable(date) {
-    console.log(`[populateTable] Starting for date: ${date}`);
-    showLoading(true);
-    try {
-        const formattedDate = formatDateForDisplay(date);
-        console.log(`[populateTable] Formatted date: ${formattedDate}`);
-        
-        // Get confirmation data
-        const confirmationData = await checkConfirmedRota2(formattedDate);
-        console.log(`[populateTable] Confirmation data:`, confirmationData);
-        
-        // Display status message
-        const statusMessage = document.getElementById('statusMessage');
-        if (confirmationData.exists) {
-            if (confirmationData.confirmers && confirmationData.confirmers.length > 0) {
-                let namesText;
-                if (confirmationData.confirmers.length === 1) {
-                    namesText = confirmationData.confirmers[0];
-                } else if (confirmationData.confirmers.length === 2) {
-                    namesText = confirmationData.confirmers.join(' and ');
-                } else {
-                    namesText = confirmationData.confirmers.slice(0, -1).join(', ') + 
-                               ' and ' + confirmationData.confirmers[confirmationData.confirmers.length - 1];
-                }
-                statusMessage.textContent = `This rota has already been confirmed by ${namesText}.`;
-            } else {
-                statusMessage.textContent = 'This rota has already been confirmed.';
-            }
-            statusMessage.className = 'message message-success';
-        } else {
-            statusMessage.textContent = 'This rota is pending confirmation.';
-            statusMessage.className = 'message message-error';
-        }
-        statusMessage.style.display = 'block';
-        console.log(`[populateTable] Status message set to: ${statusMessage.textContent}`);
-
-        // Rest of your table population logic...
-        const [rotaData, confirmedRotaData] = await Promise.all([
-            getRotaByDate(formattedDate), 
-            getConfirmedRota(formattedDate)
-        ]);
-        
-        console.log(`[populateTable] Rota data:`, rotaData);
-        console.log(`[populateTable] Confirmed rota data:`, confirmedRotaData);
-                const tableBody = document.querySelector('#rotaTable tbody');
-                tableBody.innerHTML = '';
-
-                if (rotaData.length === 0 && confirmedRotaData.length === 0) {
-                    const row = document.createElement('tr');
-                    const cell = document.createElement('td');
-                    cell.colSpan = 7;
-                    cell.textContent = "No rota data found for the selected date.";
-                    cell.style.textAlign = 'center';
-                    cell.style.padding = '2rem';
-                    row.appendChild(cell);
-                    tableBody.appendChild(row);
-                } else {
-                    const allRotaData = [...rotaData, ...confirmedRotaData];
-                    
-                    // Sort rotaData by designation (FOH first, then BOH)
-                    allRotaData.sort((a, b) => {
-                        if (a.designation === 'FOH' && b.designation === 'BOH') return -1;
-                        if (a.designation === 'BOH' && b.designation === 'FOH') return 1;
-                        return 0;
-                    });
-
-                    // Group rotaData by name, designation, and day
-                    const groupedData = allRotaData.reduce((acc, entry) => {
-                        const key = `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`;
-                        if (!acc[key]) {
-                            acc[key] = {
-                                day: entry.day,
-                                name: entry.name,
-                                lastName: entry.lastName,
-                                wage: entry.wage,
-                                designation: entry.designation,
-                                times: []
-                            };
-                        }
-                        acc[key].times.push({ startTime: entry.startTime, endTime: entry.endTime });
-                        return acc;
-                    }, {});
-
-                    // Loop through each entry in groupedData
-                    Object.values(groupedData).forEach(entry => {
-                        const row = document.createElement('tr');
-                        row.className = 'fade-in';
-
-                        // Day cell
-                        const dayCell = document.createElement('td');
-                        dayCell.textContent = entry.day;
-                        row.appendChild(dayCell);
-
-                        // Name cell
-                        const nameCell = document.createElement('td');
-                        nameCell.textContent = entry.name;
-                        row.appendChild(nameCell);
-
-                        // Last name cell
-                        const lastNameCell = document.createElement('td');
-                        lastNameCell.textContent = entry.lastName;
-                        row.appendChild(lastNameCell);
-
-                        // Designation cell
-                        const designationCell = document.createElement('td');
-                        designationCell.textContent = entry.designation;
-                        row.appendChild(designationCell);
-
-                        // Times cell
-                        const timesCell = document.createElement('td');
-                        
-                        // Create time input groups
-                        for (let i = 0; i < 2; i++) {
-                            const timeGroup = document.createElement('div');
-                            timeGroup.className = 'time-input-group';
-                            
-                            const { startTime = '', endTime = '' } = entry.times[i] || {};
-                            
-                            const startTimeInput = createTimeInput('start', i, entry, startTime);
-                            const separator = document.createElement('span');
-                            separator.className = 'time-separator';
-                            separator.textContent = '-';
-                            const endTimeInput = createTimeInput('end', i, entry, endTime);
-                            
-                            timeGroup.appendChild(startTimeInput);
-                            timeGroup.appendChild(separator);
-                            timeGroup.appendChild(endTimeInput);
-                            
-                            timesCell.appendChild(timeGroup);
-                        }
-                        
-                        row.appendChild(timesCell);
-
-                        // Remove button cell
-                        const removeCell = document.createElement('td');
-                        const removeButton = document.createElement('button');
-                        removeButton.textContent = "Remove";
-                        removeButton.className = 'btn btn-remove';
-                        removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-                        
-                        removeButton.addEventListener('click', () => removeEmployee(entry, row));
-                        removeCell.appendChild(removeButton);
-                        row.appendChild(removeCell);
-
-                        // Status cell
-                        const statusCell = document.createElement('td');
-                        const isConfirmed = confirmedRotaData.some(confirmedEntry =>
-                            `${confirmedEntry.day} ${confirmedEntry.name} ${confirmedEntry.lastName} ${confirmedEntry.designation}` === 
-                            `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`
-                        );
-                        
-                        statusCell.innerHTML = isConfirmed 
-                            ? '<span class="status-confirmed1"><i class="fas fa-check-circle"></i> Confirmed</span>' 
-                            : '<span class="status-pending1"><i class="fas fa-clock"></i> Pending</span>';
-                        row.appendChild(statusCell);
-                        
-                        tableBody.appendChild(row);
-                    });
-                }
-            } catch (error) {
-                showMessage(`Error populating table: ${error.message}`, 'error');
-            } finally {
-                showLoading(false);
-                checkAndUpdateRotaButton();
-            }
-        }
-
-        // Helper function to create time inputs
-        function createTimeInput(timeType, index, entry, value) {
-            const input = document.createElement('input');
-            input.type = 'time';
-            input.value = value;
-            input.dataset.timeIndex = index;
-            input.dataset.name = entry.name;
-            input.dataset.lastName = entry.lastName;
-            input.dataset.designation = entry.designation;
-            input.dataset.timeType = timeType;
-            input.className = 'time-input';
+    // Enhanced session validation for iOS
+    async function validateSessionWithRecovery() {
+        try {
+            console.log('🔐 Validating session...');
             
-            input.addEventListener('change', () => {
-                updateStatusToPending(input.closest('tr'));
+            const response = await fetch('/api/validate-session', {
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Accept': 'application/json'
+                }
             });
             
-            return input;
-        }
-
-        // Helper function to update the status to 'Pending' when time is changed
-        function updateStatusToPending(row) {
-            const statusCell = row.querySelector('td:last-child');
-            if (statusCell) {
-                statusCell.innerHTML = '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
-            }
-        }
-
-        // Function to Modify the Button Accordingly
-        async function checkAndUpdateRotaButton() {
-            try {
-                const statusCells = document.querySelectorAll('#rotaTable tbody tr td:last-child');
-                let allConfirmed = true;
-                let allPending = true;
-
-                statusCells.forEach(cell => {
-                    const statusText = cell.textContent.trim().toLowerCase();
-                    if (statusText !== 'confirmed') allConfirmed = false;
-                    if (statusText !== 'pending') allPending = false;
-                });
-
-                const confirmButton = document.getElementById('confirmButton');
-                const updateButton = document.getElementById('updateButton');
-
-                if (statusCells.length === 0) {
-                    confirmButton.style.display = 'none';
-                    updateButton.style.display = 'none';
-                    return;
-                }
-
-                if (allConfirmed) {
-                    confirmButton.style.display = 'none';
-                    updateButton.style.display = 'inline-block';
-                } else if (allPending) {
-                    confirmButton.style.display = 'inline-block';
-                    updateButton.style.display = 'none';
-                } else {
-                    confirmButton.style.display = 'none';
-                    updateButton.style.display = 'inline-block';
-                }
-            } catch (error) {
-                console.error('Error checking and updating rota button:', error);
-            }
-        }
-
-        // Function to get Employees 
-        async function fetchEmployees() {
-            showLoading(true);
-            try {
-                const response = await fetch('/confirmrota/api/employees');
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                const employees = await response.json();
-                const employeeDropdown = document.getElementById('employeeDropdown');
-                employeeDropdown.innerHTML = '<option value="">Select Employee</option>';
-
-                employees.forEach(employee => {
-                    const option = document.createElement('option');
-                    option.value = `${employee.name} ${employee.lastName} ${employee.designation}`;
-                    option.textContent = `${employee.name} ${employee.lastName} (${employee.designation})`;
-                    option.dataset.name = employee.name;
-                    option.dataset.lastName = employee.lastName;
-                    option.dataset.designation = employee.designation;
-                    employeeDropdown.appendChild(option);
-                });
-            } catch (error) {
-                showMessage(`Error fetching employees: ${error.message}`, 'error');
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // Function to Confirm the Rota
-        async function confirmRota() {
-            showLoading(true, 'confirmButton');
-            try {
-                const tableRows = document.querySelectorAll('#rotaTable tbody tr');
-                const formattedData = Array.from(tableRows).map(row => {
-                    const day = row.querySelector('td:nth-child(1)').textContent;
-                    const name = row.querySelector('td:nth-child(2)').textContent;
-                    const lastName = row.querySelector('td:nth-child(3)').textContent;
-                    const designation = row.querySelector('td:nth-child(4)').textContent;
-
-                    const timeInputs = row.querySelectorAll('input[type="time"]');
-                    const times = [];
-
-                    for (let i = 0; i < timeInputs.length; i += 2) {
-                        const startTimeInput = timeInputs[i];
-                        const endTimeInput = timeInputs[i + 1];
-
-                        if (startTimeInput && endTimeInput && startTimeInput.value && endTimeInput.value) {
-                            times.push({
-                                startTime: startTimeInput.value,
-                                endTime: endTimeInput.value
-                            });
-                        }
-                    }
-
-                    return {
-                        name,
-                        lastName,
-                        day,
-                        designation,
-                        times
-                    };
-                });
-
-                const filteredData = formattedData.filter(data => data.times.length > 0);
-
-                const response = await fetch('/confirmrota/confirm-rota', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(filteredData)
-                });
-
-                if (response.ok) {
-                    showMessage('Rota confirmed successfully!', 'success');
-                    setTimeout(() => window.location.reload(), 1500);
-                } else {
-                    const errorText = await response.text();
-                    throw new Error(errorText || 'Failed to confirm rota');
-                }
-            } catch (error) {
-                showMessage(`Error confirming rota: ${error.message}`, 'error');
-            } finally {
-                showLoading(false, 'confirmButton');
-            }
-        }
-
-        // Function to get the Confirmed Rota by date
-        async function getConfirmedRota(dateString) {
-            showLoading(true);
-            try {
-                const dateParts = dateString.split(' ')[0];
-                const [day, month, year] = dateParts.split('/');
-                const date = new Date(`${month}/${day}/${year}`);
-
-                if (isNaN(date.getTime())) {
-                    console.error('Invalid date:', date);
-                    return [];
-                }
-
-                const formattedDate = formatDateForDisplay(date);
-                const response = await fetch(`/confirmrota/api/confirmed-rota?day=${encodeURIComponent(formattedDate)}`);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-
-                return await response.json();
-            } catch (error) {
-                showMessage(`Error fetching confirmed rota: ${error.message}`, 'error');
-                return [];
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // Function to Update Rota with All Data for the Day
-        async function updateRotaData() {
-            showLoading(true, 'updateButton');
-            try {
-                const table = document.querySelector('#rotaTable tbody');
-                const rows = table.querySelectorAll('tr');
-                const updatedData = [];
-
-                rows.forEach(row => {
-                    const day = row.querySelector('td:nth-child(1)').textContent.trim();
-                    const name = row.querySelector('td:nth-child(2)').textContent.trim();
-                    const lastName = row.querySelector('td:nth-child(3)').textContent.trim();
-                    const designation = row.querySelector('td:nth-child(4)').textContent.trim();
-
-                    if (!day || !name || !lastName || !designation) {
-                        console.warn(`Skipping row with missing data: ${row}`);
-                        return;
-                    }
-
-                    const timeInputs = row.querySelectorAll('.time-input');
-
-                    for (let i = 0; i < timeInputs.length; i += 2) {
-                        const startTime = timeInputs[i]?.value.trim();
-                        const endTime = timeInputs[i + 1]?.value.trim();
-
-                        const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
-                        if (startTime && endTime && timeRegex.test(startTime) && timeRegex.test(endTime)) {
-                            updatedData.push({
-                                day,
-                                name,
-                                lastName,
-                                designation,
-                                startTime,
-                                endTime,
-                                source: 'client'
-                            });
-                        } else if (startTime || endTime) {
-                            console.warn(`Invalid time input for row: StartTime="${startTime}", EndTime="${endTime}"`);
-                        }
-                    }
-                });
-
-                if (updatedData.length === 0) {
-                    showMessage('No valid data to update.', 'error');
-                    return;
-                }
-
-                const response = await fetch('/confirmrota/updateRotaData', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(updatedData)
-                });
-
+            console.log('Session validation response status:', response.status);
+            
+            if (response.ok) {
                 const data = await response.json();
-                if (data.success) {
-                    showMessage('Rota data updated successfully!', 'success');
-                    setTimeout(() => window.location.reload(), 1500);
+                console.log('Session validation response:', data);
+                
+                if (data.valid && data.user) {
+                    console.log('✅ Session valid, user:', data.user.email);
+                    currentUser = data.user;
+                    
+                    // Store user info for recovery
+                    localStorage.setItem('userInfo', JSON.stringify(data.user));
+                    if (data.user.dbName) {
+                        localStorage.setItem('lastDb', data.user.dbName);
+                    }
+                    if (data.sessionId) {
+                        localStorage.setItem('sessionId', data.sessionId);
+                    }
+                    
+                    return true;
                 } else {
-                    throw new Error(data.message || 'Failed to update rota data');
+                    console.log('❌ Session invalid or user data missing');
+                    return await attemptSessionRecovery();
                 }
-            } catch (error) {
-                showMessage(`Error updating rota: ${error.message}`, 'error');
-            } finally {
-                showLoading(false, 'updateButton');
+            } else if (response.status === 401) {
+                console.log('🔄 Session expired, attempting recovery...');
+                return await attemptSessionRecovery();
+            } else {
+                console.log('❌ Session validation failed with status:', response.status);
+                return await attemptSessionRecovery();
+            }
+            
+        } catch (error) {
+            console.error('🚨 Session validation error:', error);
+            return await attemptSessionRecovery();
+        }
+    }
+
+    // Enhanced session recovery for iOS
+    async function attemptSessionRecovery() {
+        console.log('🔄 Attempting session recovery...');
+        
+        // Try multiple recovery methods
+        
+        // Method 1: Try with stored session ID and user info
+        const sessionId = localStorage.getItem('sessionId');
+        const storedUser = localStorage.getItem('userInfo');
+        
+        if (sessionId && storedUser) {
+            console.log('Found stored session ID, attempting recovery...');
+            const recovered = await recoverSessionWithCredentials();
+            if (recovered) {
+                return true;
             }
         }
+        
+        // Method 2: Try with URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        
+        if (email && dbName) {
+            console.log('Attempting recovery with URL parameters...');
+            const userInfo = {
+                email: email,
+                dbName: dbName,
+                name: urlParams.get('name'),
+                lastName: urlParams.get('lastName')
+            };
+            currentUser = userInfo;
+            const recovered = await restoreSessionFromParams(userInfo);
+            if (recovered) {
+                return true;
+            }
+        }
+        
+        // Method 3: Try with stored user info only
+        if (storedUser) {
+            console.log('Attempting recovery with stored user info only...');
+            const recovered = await recoverSessionWithCredentials();
+            if (recovered) {
+                return true;
+            }
+        }
+        
+        console.log('❌ All recovery attempts failed, redirecting to login');
+        redirectToLogin();
+        return false;
+    }
 
-        // Function to Add the Employees to Add into the Table
-        async function addEmployeeToTable() {
-            showLoading(true, 'addEmployeeButton');
-            try {
-                const dropdown = document.getElementById('employeeDropdown');
-                const selectedOption = dropdown.options[dropdown.selectedIndex];
-
-                if (!selectedOption || selectedOption.value === "") {
-                    showMessage('Please select an employee from the dropdown.', 'error');
-                    return;
+    // Recover session with stored credentials
+    async function recoverSessionWithCredentials() {
+        try {
+            const storedUser = localStorage.getItem('userInfo');
+            const lastDb = localStorage.getItem('lastDb');
+            const sessionId = localStorage.getItem('sessionId');
+            
+            if (!storedUser) {
+                return false;
+            }
+            
+            const userInfo = JSON.parse(storedUser);
+            currentUser = userInfo;
+            const recoveryData = {
+                email: userInfo.email,
+                dbName: userInfo.dbName || lastDb,
+                sessionId: sessionId
+            };
+            
+            console.log('Recovery data:', recoveryData);
+            
+            if (!recoveryData.email || !recoveryData.dbName) {
+                return false;
+            }
+            
+            const response = await fetch('/api/recover-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(recoveryData)
+            });
+            
+            console.log('Recovery response status:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Session recovered successfully:', data);
+                currentUser = data.user;
+                
+                // Update stored session info
+                if (data.sessionId) {
+                    localStorage.setItem('sessionId', data.sessionId);
                 }
-
-                const name = selectedOption.dataset.name;
-                const lastName = selectedOption.dataset.lastName;
-                const designation = selectedOption.dataset.designation;
-
-                const rows = document.querySelectorAll('#rotaTable tbody tr');
-                const dayInput = rows[0]?.querySelector('td:nth-child(1)').textContent.trim();
-                const dateMatch = dayInput.match(/^(\d{2}\/\d{2}\/\d{4}) \((\w+)\)$/);
-
-                if (!dateMatch) {
-                    showMessage('Invalid date format in table.', 'error');
-                    return;
+                if (data.user) {
+                    localStorage.setItem('userInfo', JSON.stringify(data.user));
                 }
+                
+                return true;
+            } else {
+                console.log('❌ Session recovery failed with status:', response.status);
+                return false;
+            }
+        } catch (error) {
+            console.error('🚨 Session recovery error:', error);
+            return false;
+        }
+    }
 
-                const dayDate = dateMatch[1];
-                const weekday = dateMatch[2];
-                const day = `${dayDate} (${weekday})`;
+    // Restore session from URL parameters
+    async function restoreSessionFromParams(userInfo) {
+        try {
+            console.log('Restoring session from parameters...');
+            
+            const response = await fetch('/api/restore-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(userInfo)
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ Session restored successfully from params');
+                
+                if (data.sessionId) {
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+                
+                return true;
+            } else {
+                console.log('❌ Session restoration from params failed');
+                return false;
+            }
+        } catch (error) {
+            console.error('Session restoration error:', error);
+            return false;
+        }
+    }
 
-                // Check if employee already exists
-                let employeeExists = false;
-                rows.forEach(row => {
-                    const rowName = row.querySelector('td:nth-child(2)').textContent.trim();
-                    const rowLastName = row.querySelector('td:nth-child(3)').textContent.trim();
-
-                    if (rowName === name && rowLastName === lastName) {
-                        employeeExists = true;
+    // Enhanced fetch with session recovery for iOS
+    async function fetchWithRecovery(url, options = {}) {
+        try {
+            const config = {
+                ...options,
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    ...options.headers
+                }
+            };
+            
+            // Add session ID if available
+            const sessionId = localStorage.getItem('sessionId');
+            if (sessionId) {
+                config.headers['X-Session-ID'] = sessionId;
+            }
+            
+            console.log(`🔍 Fetching: ${url}`);
+            let response = await fetch(url, config);
+            console.log(`📨 Response status: ${response.status} for ${url}`);
+            
+            // If unauthorized, try to recover session and retry
+            if (response.status === 401) {
+                console.log('🔄 Request unauthorized, attempting session recovery...');
+                const recovered = await recoverSessionWithCredentials();
+                
+                if (recovered) {
+                    console.log('🔄 Session recovered, retrying request...');
+                    
+                    // Update session ID in headers for retry
+                    const newSessionId = localStorage.getItem('sessionId');
+                    if (newSessionId) {
+                        config.headers['X-Session-ID'] = newSessionId;
                     }
+                    
+                    response = await fetch(url, config);
+                    console.log(`📨 Retry response status: ${response.status} for ${url}`);
+                } else {
+                    console.log('❌ Session recovery failed, redirecting to login');
+                    redirectToLogin();
+                    throw new Error('Unauthorized');
+                }
+            }
+            
+            return response;
+        } catch (error) {
+            console.error(`🚨 Fetch error for ${url}:`, error);
+            
+            // If it's an auth error, redirect to login
+            if (error.message === 'Unauthorized') {
+                redirectToLogin();
+            }
+            
+            throw error;
+        }
+    }
+
+    function showSessionError() {
+        const mainContent = document.querySelector('main');
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div class="session-error" style="text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                    <h2>Session Expired</h2>
+                    <p>Your session has expired. Please log in again.</p>
+                    <button onclick="redirectToLogin()" class="btn-primary" style="background: #004f9e; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-size: 1rem; cursor: pointer; margin-top: 1rem;">Return to Login</button>
+                </div>
+            `;
+        }
+    }
+
+    function redirectToLogin() {
+        // Clear all stored data
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('lastDb');
+        localStorage.removeItem('sessionId');
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        
+        window.location.href = '/';
+    }
+
+    // Session monitor - add this to all pages
+    let sessionCheckInterval;
+
+    function startSessionMonitor() {
+        sessionCheckInterval = setInterval(async () => {
+            const isValid = await validateSessionWithRecovery();
+            if (!isValid) {
+                console.log('Session expired, redirecting to login');
+                clearInterval(sessionCheckInterval);
+                redirectToLogin();
+            }
+        }, 30000); // Check every 30 seconds
+    }
+
+    // Check session on page load
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('Page loaded, checking session...');
+        
+        // Check if we have URL parameters (from login redirect)
+        const urlParams = new URLSearchParams(window.location.search);
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        
+        if (name && lastName && email && dbName) {
+            console.log('Found URL parameters, storing user info...');
+            // Store user info for recovery
+            const userInfo = {
+                email: email,
+                name: name,
+                lastName: lastName,
+                dbName: dbName
+            };
+            localStorage.setItem('userInfo', JSON.stringify(userInfo));
+            localStorage.setItem('lastDb', dbName);
+            currentUser = userInfo;
+            
+            // Immediately restore session with URL params
+            await restoreSessionFromParams(userInfo);
+        }
+        
+        // Validate session with enhanced recovery for iOS
+        console.log('Validating session...');
+        const isValid = await validateSessionWithRecovery();
+        
+        if (!isValid) {
+            console.log('Session validation failed, not loading data');
+            showSessionError();
+            return;
+        }
+        
+        console.log('Session valid, initializing page...');
+        startSessionMonitor();
+        initializePage();
+    });
+
+    // Function to get Rota Data by Date
+    async function getRotaByDate(date) {
+        showLoading(true);
+        try {
+            const response = await fetchWithRecovery(`/confirmrota/api/rota?day=${encodeURIComponent(date)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            showMessage(`Error fetching rota data: ${error.message}`, 'error');
+            return [];
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Function to Format the Date to Display
+    function formatDateForDisplay(date) {
+        if (!(date instanceof Date)) {
+            date = new Date(date);
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid date:', date);
+            return '';
+        }
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const dayOfWeek = daysOfWeek[date.getDay()];
+
+        return `${day}/${month}/${year} (${dayOfWeek})`;
+    }
+
+    // Frontend checkConfirmedRota2 function with enhanced logging
+    async function checkConfirmedRota2(date) {
+        console.log(`[checkConfirmedRota2] Checking confirmation for date: ${date}`);
+        showLoading(true);
+        try {
+            const url = `/confirmrota/api/check-confirmed-rota2?day=${encodeURIComponent(date)}`;
+            console.log(`[checkConfirmedRota2] Fetching from: ${url}`);
+            
+            const response = await fetchWithRecovery(url);
+            if (!response.ok) {
+                console.error(`[checkConfirmedRota2] HTTP error! Status: ${response.status}`);
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log(`[checkConfirmedRota2] Response data:`, data);
+            
+            return data; // Return the full response data
+        } catch (error) {
+            console.error(`[checkConfirmedRota2] Error:`, error);
+            showMessage(`Error checking confirmed rota: ${error.message}`, 'error');
+            return { exists: false, confirmers: [] };
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Updated populateTable function with proper data handling
+    async function populateTable(date) {
+        console.log(`[populateTable] Starting for date: ${date}`);
+        showLoading(true);
+        try {
+            const formattedDate = formatDateForDisplay(date);
+            console.log(`[populateTable] Formatted date: ${formattedDate}`);
+            
+            // Get confirmation data
+            const confirmationData = await checkConfirmedRota2(formattedDate);
+            console.log(`[populateTable] Confirmation data:`, confirmationData);
+            
+            // Display status message
+            const statusMessage = document.getElementById('statusMessage');
+            if (confirmationData.exists) {
+                if (confirmationData.confirmers && confirmationData.confirmers.length > 0) {
+                    let namesText;
+                    if (confirmationData.confirmers.length === 1) {
+                        namesText = confirmationData.confirmers[0];
+                    } else if (confirmationData.confirmers.length === 2) {
+                        namesText = confirmationData.confirmers.join(' and ');
+                    } else {
+                        namesText = confirmationData.confirmers.slice(0, -1).join(', ') + 
+                                   ' and ' + confirmationData.confirmers[confirmationData.confirmers.length - 1];
+                    }
+                    statusMessage.textContent = `This rota has already been confirmed by ${namesText}.`;
+                } else {
+                    statusMessage.textContent = 'This rota has already been confirmed.';
+                }
+                statusMessage.className = 'message message-success';
+            } else {
+                statusMessage.textContent = 'This rota is pending confirmation.';
+                statusMessage.className = 'message message-error';
+            }
+            statusMessage.style.display = 'block';
+            console.log(`[populateTable] Status message set to: ${statusMessage.textContent}`);
+
+            // Rest of your table population logic...
+            const [rotaData, confirmedRotaData] = await Promise.all([
+                getRotaByDate(formattedDate), 
+                getConfirmedRota(formattedDate)
+            ]);
+            
+            console.log(`[populateTable] Rota data:`, rotaData);
+            console.log(`[populateTable] Confirmed rota data:`, confirmedRotaData);
+            const tableBody = document.querySelector('#rotaTable tbody');
+            tableBody.innerHTML = '';
+
+            if (rotaData.length === 0 && confirmedRotaData.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 7;
+                cell.textContent = "No rota data found for the selected date.";
+                cell.style.textAlign = 'center';
+                cell.style.padding = '2rem';
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+            } else {
+                const allRotaData = [...rotaData, ...confirmedRotaData];
+                
+                // Sort rotaData by designation (FOH first, then BOH)
+                allRotaData.sort((a, b) => {
+                    if (a.designation === 'FOH' && b.designation === 'BOH') return -1;
+                    if (a.designation === 'BOH' && b.designation === 'FOH') return 1;
+                    return 0;
                 });
 
-                if (employeeExists) {
-                    const userConfirmed = confirm(`${name} ${lastName} is already in the Rota. Do you want to add them again?`);
-                    if (!userConfirmed) return;
-                }
+                // Group rotaData by name, designation, and day
+                const groupedData = allRotaData.reduce((acc, entry) => {
+                    const key = `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`;
+                    if (!acc[key]) {
+                        acc[key] = {
+                            day: entry.day,
+                            name: entry.name,
+                            lastName: entry.lastName,
+                            wage: entry.wage,
+                            designation: entry.designation,
+                            times: []
+                        };
+                    }
+                    acc[key].times.push({ startTime: entry.startTime, endTime: entry.endTime });
+                    return acc;
+                }, {});
 
-                const tableBody = document.querySelector('#rotaTable tbody');
-                if (!tableBody) {
-                    showMessage('Table body not found!', 'error');
-                    return;
-                }
+                // Loop through each entry in groupedData
+                Object.values(groupedData).forEach(entry => {
+                    const row = document.createElement('tr');
+                    row.className = 'fade-in';
 
-                const row = document.createElement('tr');
-                row.className = 'fade-in';
+                    // Day cell
+                    const dayCell = document.createElement('td');
+                    dayCell.textContent = entry.day;
+                    row.appendChild(dayCell);
 
-                // Day cell
-                const dayCell = document.createElement('td');
-                dayCell.textContent = day;
-                row.appendChild(dayCell);
+                    // Name cell
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = entry.name;
+                    row.appendChild(nameCell);
 
-                // Name cell
-                const nameCell = document.createElement('td');
-                nameCell.textContent = name;
-                row.appendChild(nameCell);
+                    // Last name cell
+                    const lastNameCell = document.createElement('td');
+                    lastNameCell.textContent = entry.lastName;
+                    row.appendChild(lastNameCell);
 
-                // Last name cell
-                const lastNameCell = document.createElement('td');
-                lastNameCell.textContent = lastName;
-                row.appendChild(lastNameCell);
+                    // Designation cell
+                    const designationCell = document.createElement('td');
+                    designationCell.textContent = entry.designation;
+                    row.appendChild(designationCell);
 
-                // Designation cell
-                const designationCell = document.createElement('td');
-                designationCell.textContent = designation;
-                row.appendChild(designationCell);
-
-                // Times cell with two pairs of time inputs
-                const timesCell = document.createElement('td');
-                for (let i = 0; i < 2; i++) {
-                    const timeGroup = document.createElement('div');
-                    timeGroup.className = 'time-input-group';
+                    // Times cell
+                    const timesCell = document.createElement('td');
                     
-                    const startTimeInput = createTimeInput('start', i, { name, lastName, designation }, '');
-                    const separator = document.createElement('span');
-                    separator.className = 'time-separator';
-                    separator.textContent = '-';
-                    const endTimeInput = createTimeInput('end', i, { name, lastName, designation }, '');
+                    // Create time input groups
+                    for (let i = 0; i < 2; i++) {
+                        const timeGroup = document.createElement('div');
+                        timeGroup.className = 'time-input-group';
+                        
+                        const { startTime = '', endTime = '' } = entry.times[i] || {};
+                        
+                        const startTimeInput = createTimeInput('start', i, entry, startTime);
+                        const separator = document.createElement('span');
+                        separator.className = 'time-separator';
+                        separator.textContent = '-';
+                        const endTimeInput = createTimeInput('end', i, entry, endTime);
+                        
+                        timeGroup.appendChild(startTimeInput);
+                        timeGroup.appendChild(separator);
+                        timeGroup.appendChild(endTimeInput);
+                        
+                        timesCell.appendChild(timeGroup);
+                    }
                     
-                    timeGroup.appendChild(startTimeInput);
-                    timeGroup.appendChild(separator);
-                    timeGroup.appendChild(endTimeInput);
+                    row.appendChild(timesCell);
+
+                    // Remove button cell
+                    const removeCell = document.createElement('td');
+                    const removeButton = document.createElement('button');
+                    removeButton.textContent = "Remove";
+                    removeButton.className = 'btn btn-remove';
+                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
                     
-                    timesCell.appendChild(timeGroup);
-                }
-                row.appendChild(timesCell);
+                    removeButton.addEventListener('click', () => removeEmployee(entry, row));
+                    removeCell.appendChild(removeButton);
+                    row.appendChild(removeCell);
 
-                // Remove button cell
-                const removeCell = document.createElement('td');
-                const removeButton = document.createElement('button');
-                removeButton.className = 'btn btn-remove';
-                removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
-                removeButton.addEventListener('click', () => removeEmployee({
-                    name,
-                    lastName,
-                    designation,
-                    day
-                }, row));
-                removeCell.appendChild(removeButton);
-                row.appendChild(removeCell);
-
-                // Status cell (default to pending)
-                const statusCell = document.createElement('td');
-                statusCell.innerHTML = '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
-                row.appendChild(statusCell);
-
-                tableBody.appendChild(row);
-                showMessage(`${name} ${lastName} added to rota.`, 'success');
-            } catch (error) {
-                showMessage(`Error adding employee: ${error.message}`, 'error');
-            } finally {
-                showLoading(false, 'addEmployeeButton');
-                checkAndUpdateRotaButton();
+                    // Status cell
+                    const statusCell = document.createElement('td');
+                    const isConfirmed = confirmedRotaData.some(confirmedEntry =>
+                        `${confirmedEntry.day} ${confirmedEntry.name} ${confirmedEntry.lastName} ${confirmedEntry.designation}` === 
+                        `${entry.day} ${entry.name} ${entry.lastName} ${entry.designation}`
+                    );
+                    
+                    statusCell.innerHTML = isConfirmed 
+                        ? '<span class="status-confirmed1"><i class="fas fa-check-circle"></i> Confirmed</span>' 
+                        : '<span class="status-pending1"><i class="fas fa-clock"></i> Pending</span>';
+                    row.appendChild(statusCell);
+                    
+                    tableBody.appendChild(row);
+                });
             }
+        } catch (error) {
+            showMessage(`Error populating table: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
+            checkAndUpdateRotaButton();
         }
+    }
 
-        // Function to remove an employee
-        async function removeEmployee(employee, row) {
-            if (!confirm(`Are you sure you want to remove ${employee.name} ${employee.lastName} from the rota?`)) {
+    // Helper function to create time inputs
+    function createTimeInput(timeType, index, entry, value) {
+        const input = document.createElement('input');
+        input.type = 'time';
+        input.value = value;
+        input.dataset.timeIndex = index;
+        input.dataset.name = entry.name;
+        input.dataset.lastName = entry.lastName;
+        input.dataset.designation = entry.designation;
+        input.dataset.timeType = timeType;
+        input.className = 'time-input';
+        
+        input.addEventListener('change', () => {
+            updateStatusToPending(input.closest('tr'));
+        });
+        
+        return input;
+    }
+
+    // Helper function to update the status to 'Pending' when time is changed
+    function updateStatusToPending(row) {
+        const statusCell = row.querySelector('td:last-child');
+        if (statusCell) {
+            statusCell.innerHTML = '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
+        }
+    }
+
+    // Function to Modify the Button Accordingly
+    async function checkAndUpdateRotaButton() {
+        try {
+            const statusCells = document.querySelectorAll('#rotaTable tbody tr td:last-child');
+            let allConfirmed = true;
+            let allPending = true;
+
+            statusCells.forEach(cell => {
+                const statusText = cell.textContent.trim().toLowerCase();
+                if (statusText !== 'confirmed') allConfirmed = false;
+                if (statusText !== 'pending') allPending = false;
+            });
+
+            const confirmButton = document.getElementById('confirmButton');
+            const updateButton = document.getElementById('updateButton');
+
+            if (statusCells.length === 0) {
+                confirmButton.style.display = 'none';
+                updateButton.style.display = 'none';
                 return;
             }
 
-            showLoading(true);
-            try {
-                row.remove();
-                
-                const data = {
-                    name: employee.name,
-                    lastName: employee.lastName,
-                    designation: employee.designation,
-                    day: employee.day,
-                };
-
-                const response = await fetch('/confirmrota/delete-employee', {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    showMessage(`Successfully removed ${employee.name} ${employee.lastName} from the rota.`, 'success');
-                } else {
-                    const errorText = await response.text();
-                    throw new Error(errorText || 'Failed to remove employee');
-                }
-            } catch (error) {
-                showMessage(`Error removing employee: ${error.message}`, 'error');
-            } finally {
-                showLoading(false);
-                checkAndUpdateRotaButton();
-            }
-        }
-
-        // Function to create the calendar visualization
-        async function createRotaCalendar() {
-    // Create calendar container if it doesn't exist
-    let calendarContainer = document.querySelector('.calendar-container');
-    if (!calendarContainer) {
-        calendarContainer = document.createElement('div');
-        calendarContainer.className = 'calendar-container';
-        
-        // Insert before the main content
-        const main = document.querySelector('main');
-        main.insertBefore(calendarContainer, main.firstChild);
-    }
-    
-    calendarContainer.innerHTML = `
-        <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Rota Status Calendar</h2>
-        <div class="calendar-controls">
-            <button id="prevMonth" class="btn calendar-nav" style="padding: 0.3rem 0.8rem;"><i class="fas fa-chevron-left"></i></button>
-            <h3 id="currentMonthYear" style="margin: 0 0.5rem; font-size: 1rem;"></h3>
-            <button id="nextMonth" class="btn calendar-nav" style="padding: 0.3rem 0.8rem;"><i class="fas fa-chevron-right"></i></button>
-        </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
-        <div class="calendar-legend" style="margin-top: 0.5rem; font-size: 0.8rem;">
-            <div><span class="legend-confirmed"></span> Confirmed</div>
-            <div><span class="legend-pending"></span> Pending</div>
-            <div><span class="legend-no-data"></span> No Data</div>
-        </div>
-    `;
-    
-    // Add compact styles
-    const style = document.createElement('style');
-    style.textContent = `
-        .calendar-container {
-            margin-bottom: 1rem;
-            padding: 0.8rem;
-            background: #f8f9fa;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            font-size: 0.9rem;
-        }
-        .calendar-controls {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 5px;
-        }
-        .calendar-day {
-            padding: 4px 2px;
-            text-align: center;
-            border-radius: 3px;
-            cursor: pointer;
-            transition: all 0.2s;
-            min-height: 30px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .calendar-day:hover {
-            transform: scale(1.03);
-            background: rgba(0,0,0,0.05);
-        }
-        .calendar-day-header {
-            font-weight: bold;
-            text-align: center;
-            padding: 2px;
-            font-size: 0.8rem;
-        }
-        .day-number {
-            font-weight: bold;
-            margin-bottom: 2px;
-            font-size: 0.85rem;
-        }
-        .day-status {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin: 0 auto;
-        }
-        .status-confirmed {
-            background-color: #28a745;
-        }
-        .status-pending {
-            background-color: #dc3545;
-        }
-        .status-no-data {
-            background-color: #6c757d;
-        }
-        .calendar-legend {
-            display: flex;
-            justify-content: center;
-            gap: 0.8rem;
-            margin-top: 0.5rem;
-            font-size: 0.8rem;
-        }
-        .calendar-legend span {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 3px;
-        }
-        .legend-confirmed {
-            background-color: #28a745;
-        }
-        .legend-pending {
-            background-color: #dc3545;
-        }
-        .legend-no-data {
-            background-color: #6c757d;
-        }
-        .calendar-nav {
-            min-width: 30px;
-        }
-    `;
-    document.head.appendChild(style);
-    
-    // Initialize calendar with current month
-    const currentDate = new Date();
-    let currentMonth = currentDate.getMonth();
-    let currentYear = currentDate.getFullYear();
-    
-    // Render the calendar
-    renderCalendar(currentMonth, currentYear);
-    
-    // Event listeners for navigation
-    document.getElementById('prevMonth').addEventListener('click', () => {
-        currentMonth--;
-        if (currentMonth < 0) {
-            currentMonth = 11;
-            currentYear--;
-        }
-        renderCalendar(currentMonth, currentYear);
-    });
-    
-    document.getElementById('nextMonth').addEventListener('click', () => {
-        currentMonth++;
-        if (currentMonth > 11) {
-            currentMonth = 0;
-            currentYear++;
-        }
-        renderCalendar(currentMonth, currentYear);
-    });
-
-    // Modified renderCalendar function with Monday as first day
-    async function renderCalendar(month, year) {
-        const monthNames = ["January", "February", "March", "April", "May", "June",
-                           "July", "August", "September", "October", "November", "December"];
-        
-        document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
-        
-        const firstDay = new Date(year, month, 1);
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
-        // Adjust to make Monday the first day (0 = Sunday, 1 = Monday, etc.)
-        let firstDayOfWeek = firstDay.getDay();
-        if (firstDayOfWeek === 0) firstDayOfWeek = 6; // Sunday becomes 6
-        else firstDayOfWeek--; // Other days shift down by 1
-        
-        const calendarGrid = document.getElementById('calendarGrid');
-        calendarGrid.innerHTML = '';
-        
-        // Day headers starting with Monday
-        const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        dayNames.forEach(day => {
-            const dayHeader = document.createElement('div');
-            dayHeader.className = 'calendar-day-header';
-            dayHeader.textContent = day;
-            calendarGrid.appendChild(dayHeader);
-        });
-        
-        // Add empty cells for days before the first day of the month
-        for (let i = 0; i < firstDayOfWeek; i++) {
-            const emptyDay = document.createElement('div');
-            emptyDay.className = 'calendar-day empty-day';
-            calendarGrid.appendChild(emptyDay);
-        }
-        
-        // Add days of the current month
-        for (let day = 1; day <= daysInMonth; day++) {
-            const date = new Date(year, month, day);
-            const dayElement = document.createElement('div');
-            dayElement.className = 'calendar-day';
-            dayElement.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            
-            const dayNumber = document.createElement('div');
-            dayNumber.className = 'day-number';
-            dayNumber.textContent = day;
-            dayElement.appendChild(dayNumber);
-            
-            const statusIndicator = document.createElement('div');
-            statusIndicator.className = 'day-status status-no-data';
-            dayElement.appendChild(statusIndicator);
-            
-            calendarGrid.appendChild(dayElement);
-            
-            dayElement.addEventListener('click', () => {
-    // Use the dataset.date directly (it's already in yyyy-mm-dd format)
-    document.getElementById('rotaDate').value = dayElement.dataset.date;
-    populateTable(dayElement.dataset.date);
-});
-        }
-        
-        await updateCalendarStatuses(month, year);
-    }
-}
-
-        // Helper function to format date for calendar
-        function formatDateForCalendar(dateString) {
-    // Parse the yyyy-mm-dd format
-    const [year, month, day] = dateString.split('-');
-    const date = new Date(year, month - 1, day);
-    
-    const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-    const dayOfWeek = daysOfWeek[date.getDay()];
-    
-    return `${day}/${month}/${year} (${dayOfWeek})`;
-}
-        
-        // Function to Update Calendar Status
-        async function updateCalendarStatuses(month, year) {
-    try {
-        // Fetch confirmed rotas for this month using updated endpoint
-        const response = await fetch(`/confirmrota/api/confirmed-rota-month?year=${year}&month=${month + 1}`);
-        if (!response.ok) throw new Error('Failed to fetch confirmed rotas');
-
-        const { data } = await response.json(); // 'data' is a grouped object
-
-        // Create a Set of confirmed dates (in dd/mm/yyyy format)
-        const confirmedSet = new Set(Object.keys(data));
-
-        // Process each calendar day
-        const calendarDays = document.querySelectorAll('.calendar-day:not(.empty-day)');
-
-        const dayProcessing = Array.from(calendarDays).map(async (dayElement) => {
-            const date = new Date(dayElement.dataset.date);
-            if (isNaN(date.getTime())) return;
-
-            const day = String(date.getDate()).padStart(2, '0');
-            const monthFormatted = String(date.getMonth() + 1).padStart(2, '0');
-            const formattedDate = `${day}/${monthFormatted}/${date.getFullYear()}`;
-
-            const statusIndicator = dayElement.querySelector('.day-status');
-            if (!statusIndicator) return;
-
-            // Confirmed
-            if (confirmedSet.has(formattedDate)) {
-                statusIndicator.className = 'day-status status-confirmed';
+            if (allConfirmed) {
+                confirmButton.style.display = 'none';
+                updateButton.style.display = 'inline-block';
+            } else if (allPending) {
+                confirmButton.style.display = 'inline-block';
+                updateButton.style.display = 'none';
             } else {
-                // Pending or No Data
-                const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
-                const fullFormattedDate = `${formattedDate} (${weekday})`;
-
-                const rotaData = await getRotaByDate(fullFormattedDate);
-                statusIndicator.className = rotaData?.length > 0
-                    ? 'day-status status-pending'
-                    : 'day-status status-no-data';
+                confirmButton.style.display = 'none';
+                updateButton.style.display = 'inline-block';
             }
+        } catch (error) {
+            console.error('Error checking and updating rota button:', error);
+        }
+    }
+
+    // Function to get Employees 
+    async function fetchEmployees() {
+        showLoading(true);
+        try {
+            const response = await fetchWithRecovery('/confirmrota/api/employees');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const employees = await response.json();
+            const employeeDropdown = document.getElementById('employeeDropdown');
+            employeeDropdown.innerHTML = '<option value="">Select Employee</option>';
+
+            employees.forEach(employee => {
+                const option = document.createElement('option');
+                option.value = `${employee.name} ${employee.lastName} ${employee.designation}`;
+                option.textContent = `${employee.name} ${employee.lastName} (${employee.designation})`;
+                option.dataset.name = employee.name;
+                option.dataset.lastName = employee.lastName;
+                option.dataset.designation = employee.designation;
+                employeeDropdown.appendChild(option);
+            });
+        } catch (error) {
+            showMessage(`Error fetching employees: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Function to Confirm the Rota
+    async function confirmRota() {
+        showLoading(true, 'confirmButton');
+        try {
+            const tableRows = document.querySelectorAll('#rotaTable tbody tr');
+            const formattedData = Array.from(tableRows).map(row => {
+                const day = row.querySelector('td:nth-child(1)').textContent;
+                const name = row.querySelector('td:nth-child(2)').textContent;
+                const lastName = row.querySelector('td:nth-child(3)').textContent;
+                const designation = row.querySelector('td:nth-child(4)').textContent;
+
+                const timeInputs = row.querySelectorAll('input[type="time"]');
+                const times = [];
+
+                for (let i = 0; i < timeInputs.length; i += 2) {
+                    const startTimeInput = timeInputs[i];
+                    const endTimeInput = timeInputs[i + 1];
+
+                    if (startTimeInput && endTimeInput && startTimeInput.value && endTimeInput.value) {
+                        times.push({
+                            startTime: startTimeInput.value,
+                            endTime: endTimeInput.value
+                        });
+                    }
+                }
+
+                return {
+                    name,
+                    lastName,
+                    day,
+                    designation,
+                    times
+                };
+            });
+
+            const filteredData = formattedData.filter(data => data.times.length > 0);
+
+            const response = await fetchWithRecovery('/confirmrota/confirm-rota', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(filteredData)
+            });
+
+            if (response.ok) {
+                showMessage('Rota confirmed successfully!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to confirm rota');
+            }
+        } catch (error) {
+            showMessage(`Error confirming rota: ${error.message}`, 'error');
+        } finally {
+            showLoading(false, 'confirmButton');
+        }
+    }
+
+    // Function to get the Confirmed Rota by date
+    async function getConfirmedRota(dateString) {
+        showLoading(true);
+        try {
+            const dateParts = dateString.split(' ')[0];
+            const [day, month, year] = dateParts.split('/');
+            const date = new Date(`${month}/${day}/${year}`);
+
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', date);
+                return [];
+            }
+
+            const formattedDate = formatDateForDisplay(date);
+            const response = await fetchWithRecovery(`/confirmrota/api/confirmed-rota?day=${encodeURIComponent(formattedDate)}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            showMessage(`Error fetching confirmed rota: ${error.message}`, 'error');
+            return [];
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Function to Update Rota with All Data for the Day
+    async function updateRotaData() {
+        showLoading(true, 'updateButton');
+        try {
+            const table = document.querySelector('#rotaTable tbody');
+            const rows = table.querySelectorAll('tr');
+            const updatedData = [];
+
+            rows.forEach(row => {
+                const day = row.querySelector('td:nth-child(1)').textContent.trim();
+                const name = row.querySelector('td:nth-child(2)').textContent.trim();
+                const lastName = row.querySelector('td:nth-child(3)').textContent.trim();
+                const designation = row.querySelector('td:nth-child(4)').textContent.trim();
+
+                if (!day || !name || !lastName || !designation) {
+                    console.warn(`Skipping row with missing data: ${row}`);
+                    return;
+                }
+
+                const timeInputs = row.querySelectorAll('.time-input');
+
+                for (let i = 0; i < timeInputs.length; i += 2) {
+                    const startTime = timeInputs[i]?.value.trim();
+                    const endTime = timeInputs[i + 1]?.value.trim();
+
+                    const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+                    if (startTime && endTime && timeRegex.test(startTime) && timeRegex.test(endTime)) {
+                        updatedData.push({
+                            day,
+                            name,
+                            lastName,
+                            designation,
+                            startTime,
+                            endTime,
+                            source: 'client'
+                        });
+                    } else if (startTime || endTime) {
+                        console.warn(`Invalid time input for row: StartTime="${startTime}", EndTime="${endTime}"`);
+                    }
+                }
+            });
+
+            if (updatedData.length === 0) {
+                showMessage('No valid data to update.', 'error');
+                return;
+            }
+
+            const response = await fetchWithRecovery('/confirmrota/updateRotaData', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedData)
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showMessage('Rota data updated successfully!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                throw new Error(data.message || 'Failed to update rota data');
+            }
+        } catch (error) {
+            showMessage(`Error updating rota: ${error.message}`, 'error');
+        } finally {
+            showLoading(false, 'updateButton');
+        }
+    }
+
+    // Function to Add the Employees to Add into the Table
+    async function addEmployeeToTable() {
+        showLoading(true, 'addEmployeeButton');
+        try {
+            const dropdown = document.getElementById('employeeDropdown');
+            const selectedOption = dropdown.options[dropdown.selectedIndex];
+
+            if (!selectedOption || selectedOption.value === "") {
+                showMessage('Please select an employee from the dropdown.', 'error');
+                return;
+            }
+
+            const name = selectedOption.dataset.name;
+            const lastName = selectedOption.dataset.lastName;
+            const designation = selectedOption.dataset.designation;
+
+            const rows = document.querySelectorAll('#rotaTable tbody tr');
+            const dayInput = rows[0]?.querySelector('td:nth-child(1)').textContent.trim();
+            const dateMatch = dayInput.match(/^(\d{2}\/\d{2}\/\d{4}) \((\w+)\)$/);
+
+            if (!dateMatch) {
+                showMessage('Invalid date format in table.', 'error');
+                return;
+            }
+
+            const dayDate = dateMatch[1];
+            const weekday = dateMatch[2];
+            const day = `${dayDate} (${weekday})`;
+
+            // Check if employee already exists
+            let employeeExists = false;
+            rows.forEach(row => {
+                const rowName = row.querySelector('td:nth-child(2)').textContent.trim();
+                const rowLastName = row.querySelector('td:nth-child(3)').textContent.trim();
+
+                if (rowName === name && rowLastName === lastName) {
+                    employeeExists = true;
+                }
+            });
+
+            if (employeeExists) {
+                const userConfirmed = confirm(`${name} ${lastName} is already in the Rota. Do you want to add them again?`);
+                if (!userConfirmed) return;
+            }
+
+            const tableBody = document.querySelector('#rotaTable tbody');
+            if (!tableBody) {
+                showMessage('Table body not found!', 'error');
+                return;
+            }
+
+            const row = document.createElement('tr');
+            row.className = 'fade-in';
+
+            // Day cell
+            const dayCell = document.createElement('td');
+            dayCell.textContent = day;
+            row.appendChild(dayCell);
+
+            // Name cell
+            const nameCell = document.createElement('td');
+            nameCell.textContent = name;
+            row.appendChild(nameCell);
+
+            // Last name cell
+            const lastNameCell = document.createElement('td');
+            lastNameCell.textContent = lastName;
+            row.appendChild(lastNameCell);
+
+            // Designation cell
+            const designationCell = document.createElement('td');
+            designationCell.textContent = designation;
+            row.appendChild(designationCell);
+
+            // Times cell with two pairs of time inputs
+            const timesCell = document.createElement('td');
+            for (let i = 0; i < 2; i++) {
+                const timeGroup = document.createElement('div');
+                timeGroup.className = 'time-input-group';
+                
+                const startTimeInput = createTimeInput('start', i, { name, lastName, designation }, '');
+                const separator = document.createElement('span');
+                separator.className = 'time-separator';
+                separator.textContent = '-';
+                const endTimeInput = createTimeInput('end', i, { name, lastName, designation }, '');
+                
+                timeGroup.appendChild(startTimeInput);
+                timeGroup.appendChild(separator);
+                timeGroup.appendChild(endTimeInput);
+                
+                timesCell.appendChild(timeGroup);
+            }
+            row.appendChild(timesCell);
+
+            // Remove button cell
+            const removeCell = document.createElement('td');
+            const removeButton = document.createElement('button');
+            removeButton.className = 'btn btn-remove';
+            removeButton.innerHTML = '<i class="fas fa-trash-alt"></i> Remove';
+            removeButton.addEventListener('click', () => removeEmployee({
+                name,
+                lastName,
+                designation,
+                day
+            }, row));
+            removeCell.appendChild(removeButton);
+            row.appendChild(removeCell);
+
+            // Status cell (default to pending)
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
+            row.appendChild(statusCell);
+
+            tableBody.appendChild(row);
+            showMessage(`${name} ${lastName} added to rota.`, 'success');
+        } catch (error) {
+            showMessage(`Error adding employee: ${error.message}`, 'error');
+        } finally {
+            showLoading(false, 'addEmployeeButton');
+            checkAndUpdateRotaButton();
+        }
+    }
+
+    // Function to remove an employee
+    async function removeEmployee(employee, row) {
+        if (!confirm(`Are you sure you want to remove ${employee.name} ${employee.lastName} from the rota?`)) {
+            return;
+        }
+
+        showLoading(true);
+        try {
+            row.remove();
+            
+            const data = {
+                name: employee.name,
+                lastName: employee.lastName,
+                designation: employee.designation,
+                day: employee.day,
+            };
+
+            const response = await fetchWithRecovery('/confirmrota/delete-employee', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showMessage(`Successfully removed ${employee.name} ${employee.lastName} from the rota.`, 'success');
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to remove employee');
+            }
+        } catch (error) {
+            showMessage(`Error removing employee: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
+            checkAndUpdateRotaButton();
+        }
+    }
+
+    // Function to create the calendar visualization
+    async function createRotaCalendar() {
+        // Create calendar container if it doesn't exist
+        let calendarContainer = document.querySelector('.calendar-container');
+        if (!calendarContainer) {
+            calendarContainer = document.createElement('div');
+            calendarContainer.className = 'calendar-container';
+            
+            // Insert before the main content
+            const main = document.querySelector('main');
+            main.insertBefore(calendarContainer, main.firstChild);
+        }
+        
+        calendarContainer.innerHTML = `
+            <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Rota Status Calendar</h2>
+            <div class="calendar-controls">
+                <button id="prevMonth" class="btn calendar-nav" style="padding: 0.3rem 0.8rem;"><i class="fas fa-chevron-left"></i></button>
+                <h3 id="currentMonthYear" style="margin: 0 0.5rem; font-size: 1rem;"></h3>
+                <button id="nextMonth" class="btn calendar-nav" style="padding: 0.3rem 0.8rem;"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+            <div class="calendar-legend" style="margin-top: 0.5rem; font-size: 0.8rem;">
+                <div><span class="legend-confirmed"></span> Confirmed</div>
+                <div><span class="legend-pending"></span> Pending</div>
+                <div><span class="legend-no-data"></span> No Data</div>
+            </div>
+        `;
+        
+        // Add compact styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .calendar-container {
+                margin-bottom: 1rem;
+                padding: 0.8rem;
+                background: #f8f9fa;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                font-size: 0.9rem;
+            }
+            .calendar-controls {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 5px;
+            }
+            .calendar-day {
+                padding: 4px 2px;
+                text-align: center;
+                border-radius: 3px;
+                cursor: pointer;
+                transition: all 0.2s;
+                min-height: 30px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+            }
+            .calendar-day:hover {
+                transform: scale(1.03);
+                background: rgba(0,0,0,0.05);
+            }
+            .calendar-day-header {
+                font-weight: bold;
+                text-align: center;
+                padding: 2px;
+                font-size: 0.8rem;
+            }
+            .day-number {
+                font-weight: bold;
+                margin-bottom: 2px;
+                font-size: 0.85rem;
+            }
+            .day-status {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                margin: 0 auto;
+            }
+            .status-confirmed {
+                background-color: #28a745;
+            }
+            .status-pending {
+                background-color: #dc3545;
+            }
+            .status-no-data {
+                background-color: #6c757d;
+            }
+            .calendar-legend {
+                display: flex;
+                justify-content: center;
+                gap: 0.8rem;
+                margin-top: 0.5rem;
+                font-size: 0.8rem;
+            }
+            .calendar-legend span {
+                display: inline-block;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                margin-right: 3px;
+            }
+            .legend-confirmed {
+                background-color: #28a745;
+            }
+            .legend-pending {
+                background-color: #dc3545;
+            }
+            .legend-no-data {
+                background-color: #6c757d;
+            }
+            .calendar-nav {
+                min-width: 30px;
+            }
+        `;
+        document.head.appendChild(style);
+        
+        // Initialize calendar with current month
+        const currentDate = new Date();
+        let currentMonth = currentDate.getMonth();
+        let currentYear = currentDate.getFullYear();
+        
+        // Render the calendar
+        renderCalendar(currentMonth, currentYear);
+        
+        // Event listeners for navigation
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentMonth, currentYear);
+        });
+        
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentMonth, currentYear);
         });
 
-        await Promise.all(dayProcessing);
-
-    } catch (error) {
-        console.error('Error updating calendar statuses:', error);
-        showMessage('Error loading calendar statuses', 'error');
+        // Modified renderCalendar function with Monday as first day
+        async function renderCalendar(month, year) {
+            const monthNames = ["January", "February", "March", "April", "May", "June",
+                               "July", "August", "September", "October", "November", "December"];
+            
+            document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+            
+            const firstDay = new Date(year, month, 1);
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            // Adjust to make Monday the first day (0 = Sunday, 1 = Monday, etc.)
+            let firstDayOfWeek = firstDay.getDay();
+            if (firstDayOfWeek === 0) firstDayOfWeek = 6; // Sunday becomes 6
+            else firstDayOfWeek--; // Other days shift down by 1
+            
+            const calendarGrid = document.getElementById('calendarGrid');
+            calendarGrid.innerHTML = '';
+            
+            // Day headers starting with Monday
+            const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            dayNames.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'calendar-day-header';
+                dayHeader.textContent = day;
+                calendarGrid.appendChild(dayHeader);
+            });
+            
+            // Add empty cells for days before the first day of the month
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day empty-day';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            // Add days of the current month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                
+                const dayNumber = document.createElement('div');
+                dayNumber.className = 'day-number';
+                dayNumber.textContent = day;
+                dayElement.appendChild(dayNumber);
+                
+                const statusIndicator = document.createElement('div');
+                statusIndicator.className = 'day-status status-no-data';
+                dayElement.appendChild(statusIndicator);
+                
+                calendarGrid.appendChild(dayElement);
+                
+                dayElement.addEventListener('click', () => {
+                    // Use the dataset.date directly (it's already in yyyy-mm-dd format)
+                    document.getElementById('rotaDate').value = dayElement.dataset.date;
+                    populateTable(dayElement.dataset.date);
+                });
+            }
+            
+            await updateCalendarStatuses(month, year);
+        }
     }
-}
 
-        // Helper function to show loading state
-        function showLoading(isLoading, elementId = null) {
-            if (elementId) {
-                const button = document.getElementById(elementId);
-                if (button) {
-                    if (isLoading) {
-                        button.disabled = true;
-                        button.innerHTML = `<span class="spinner"></span> Processing...`;
-                    } else {
-                        button.disabled = false;
-                        if (elementId === 'confirmButton') {
-                            button.innerHTML = `<i class="fas fa-check-circle"></i> Confirm Rota`;
-                        } else if (elementId === 'updateButton') {
-                            button.innerHTML = `<i class="fas fa-sync-alt"></i> Update Rota`;
-                        } else if (elementId === 'addEmployeeButton') {
-                            button.innerHTML = `<i class="fas fa-plus"></i> Add`;
-                        }
+    // Helper function to format date for calendar
+    function formatDateForCalendar(dateString) {
+        // Parse the yyyy-mm-dd format
+        const [year, month, day] = dateString.split('-');
+        const date = new Date(year, month - 1, day);
+        
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const dayOfWeek = daysOfWeek[date.getDay()];
+        
+        return `${day}/${month}/${year} (${dayOfWeek})`;
+    }
+    
+    // Function to Update Calendar Status
+    async function updateCalendarStatuses(month, year) {
+        try {
+            // Fetch confirmed rotas for this month using updated endpoint
+            const response = await fetchWithRecovery(`/confirmrota/api/confirmed-rota-month?year=${year}&month=${month + 1}`);
+            if (!response.ok) throw new Error('Failed to fetch confirmed rotas');
+
+            const { data } = await response.json(); // 'data' is a grouped object
+
+            // Create a Set of confirmed dates (in dd/mm/yyyy format)
+            const confirmedSet = new Set(Object.keys(data));
+
+            // Process each calendar day
+            const calendarDays = document.querySelectorAll('.calendar-day:not(.empty-day)');
+
+            const dayProcessing = Array.from(calendarDays).map(async (dayElement) => {
+                const date = new Date(dayElement.dataset.date);
+                if (isNaN(date.getTime())) return;
+
+                const day = String(date.getDate()).padStart(2, '0');
+                const monthFormatted = String(date.getMonth() + 1).padStart(2, '0');
+                const formattedDate = `${day}/${monthFormatted}/${date.getFullYear()}`;
+
+                const statusIndicator = dayElement.querySelector('.day-status');
+                if (!statusIndicator) return;
+
+                // Confirmed
+                if (confirmedSet.has(formattedDate)) {
+                    statusIndicator.className = 'day-status status-confirmed';
+                } else {
+                    // Pending or No Data
+                    const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+                    const fullFormattedDate = `${formattedDate} (${weekday})`;
+
+                    const rotaData = await getRotaByDate(fullFormattedDate);
+                    statusIndicator.className = rotaData?.length > 0
+                        ? 'day-status status-pending'
+                        : 'day-status status-no-data';
+                }
+            });
+
+            await Promise.all(dayProcessing);
+
+        } catch (error) {
+            console.error('Error updating calendar statuses:', error);
+            showMessage('Error loading calendar statuses', 'error');
+        }
+    }
+
+    // Helper function to show loading state
+    function showLoading(isLoading, elementId = null) {
+        if (elementId) {
+            const button = document.getElementById(elementId);
+            if (button) {
+                if (isLoading) {
+                    button.disabled = true;
+                    button.innerHTML = `<span class="spinner"></span> Processing...`;
+                } else {
+                    button.disabled = false;
+                    if (elementId === 'confirmButton') {
+                        button.innerHTML = `<i class="fas fa-check-circle"></i> Confirm Rota`;
+                    } else if (elementId === 'updateButton') {
+                        button.innerHTML = `<i class="fas fa-sync-alt"></i> Update Rota`;
+                    } else if (elementId === 'addEmployeeButton') {
+                        button.innerHTML = `<i class="fas fa-plus"></i> Add`;
                     }
                 }
             }
         }
+    }
 
-        // Helper function to show messages
-        function showMessage(message, type) {
-            const messageElement = document.getElementById('statusMessage');
-            messageElement.textContent = message;
-            messageElement.className = `message message-${type === 'error' ? 'error' : 'success'}`;
-            messageElement.style.display = 'block';
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-                messageElement.style.display = 'none';
-            }, 5000);
-        }
+    // Helper function to show messages
+    function showMessage(message, type) {
+        const messageElement = document.getElementById('statusMessage');
+        messageElement.textContent = message;
+        messageElement.className = `message message-${type === 'error' ? 'error' : 'success'}`;
+        messageElement.style.display = 'block';
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            messageElement.style.display = 'none';
+        }, 5000);
+    }
 
-        // Event Listeners
-        document.getElementById('rotaDate').addEventListener('change', function() {
-            populateTable(this.value);
-        });
+    // Initialize the page
+    function initializePage() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('rotaDate').value = today;
+        populateTable(today);
+        fetchEmployees();
+        createRotaCalendar();
+    }
 
-        document.getElementById('addEmployeeButton').addEventListener('click', addEmployeeToTable);
-        document.getElementById('confirmButton').addEventListener('click', confirmRota);
-        document.getElementById('updateButton').addEventListener('click', updateRotaData);
+    // Event Listeners
+    document.getElementById('rotaDate').addEventListener('change', function() {
+        populateTable(this.value);
+    });
 
-        // Initialize the page
-        window.onload = () => {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('rotaDate').value = today;
-            populateTable(today);
-            fetchEmployees();
-            createRotaCalendar(); // Add this line
-        };
-    </script>
+    document.getElementById('addEmployeeButton').addEventListener('click', addEmployeeToTable);
+    document.getElementById('confirmButton').addEventListener('click', confirmRota);
+    document.getElementById('updateButton').addEventListener('click', updateRotaData);
+
+    // Export functions for global access
+    window.redirectToLogin = redirectToLogin;
+</script>
 </body>
 </html>
