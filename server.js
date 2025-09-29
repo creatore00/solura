@@ -98,12 +98,12 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// Enhanced CORS configuration
+// Enhanced CORS configuration for iOS
 app.use(cors({
     origin: ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'X-Session-ID'],
     exposedHeaders: ['Set-Cookie']
 }));
 
@@ -111,24 +111,25 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// FIXED: Simplified session configuration
+// FIXED session configuration for iOS Safari
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret-heroku-production-2024',
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: true,
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000
+        sameSite: 'none', // Must be 'none' for cross-site
+        maxAge: 24 * 60 * 60 * 1000,
+        domain: '.solura.uk'
     },
     proxy: true,
     name: 'connect.sid',
-    rolling: true
+    rolling: true // Reset maxAge on every request
 }));
 
-// Session debugging middleware
+// Enhanced session debugging middleware
 app.use((req, res, next) => {
     console.log('=== SESSION DEBUG ===');
     console.log('URL:', req.url);
@@ -136,18 +137,22 @@ app.use((req, res, next) => {
     console.log('Session ID:', req.sessionID);
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
+    console.log('Cookies Header:', req.headers.cookie);
+    console.log('User-Agent:', req.headers['user-agent']);
+    console.log('Origin:', req.headers.origin);
     console.log('=== END DEBUG ===');
     next();
 });
 
-// Add CORS headers manually
+// Add CORS headers manually for Safari
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     if (origin && (origin.includes('solura.uk') || origin.includes('localhost'))) {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Credentials', 'true');
         res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID');
+        res.header('Access-Control-Expose-Headers', 'Set-Cookie');
     }
     
     if (req.method === 'OPTIONS') {
@@ -173,6 +178,7 @@ app.get('/api/validate-session', (req, res) => {
     console.log('Session User:', req.session?.user);
     
     if (req.session?.user) {
+        // Update session to extend expiration
         req.session.touch();
         res.json({ 
             valid: true, 
@@ -188,20 +194,115 @@ app.get('/api/validate-session', (req, res) => {
     }
 });
 
+// NEW: Enhanced session recovery endpoint for iOS
+app.post('/api/recover-session', async (req, res) => {
+    try {
+        const { email, dbName, sessionId } = req.body;
+        
+        console.log('🔄 Attempting session recovery for:', { email, dbName, sessionId });
+        
+        if (!email || !dbName) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing email or dbName' 
+            });
+        }
+
+        // Verify user has access to this database
+        const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
+        
+        mainPool.query(verifySql, [email, dbName], (err, results) => {
+            if (err) {
+                console.error('Error verifying user access:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Internal Server Error' 
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: 'User not authorized for this database' 
+                });
+            }
+
+            const userDetails = results[0];
+            
+            // Get user info from company database
+            const companyPool = getPool(dbName);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+            
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Internal Server Error' 
+                    });
+                }
+
+                if (companyResults.length === 0) {
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'User not found in company database' 
+                    });
+                }
+
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                const userInfo = {
+                    email: email,
+                    role: userDetails.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+
+                console.log('✅ Session recovery successful for user:', userInfo);
+
+                // Restore session - create new session with user data
+                req.session.user = userInfo;
+                
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving recovered session:', err);
+                        return res.status(500).json({ 
+                            success: false, 
+                            error: 'Failed to restore session' 
+                        });
+                    }
+
+                    console.log('✅ Recovered session saved with ID:', req.sessionID);
+
+                    res.json({ 
+                        success: true, 
+                        user: userInfo,
+                        sessionId: req.sessionID 
+                    });
+                });
+            });
+        });
+        
+    } catch (error) {
+        console.error('Session recovery error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
+});
+
 // Authentication middleware
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session User:', req.session?.user);
     
-    // Skip auth for public routes
-    const publicRoutes = ['/', '/submit', '/login', '/api/validate-session', '/logout'];
-    if (publicRoutes.includes(req.path) || req.path.endsWith('.css') || req.path.endsWith('.js') || req.path.endsWith('.html')) {
-        return next();
-    }
-    
     if (req.session?.user) {
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
+        // Update session to extend expiration
         req.session.touch();
         return next();
     }
@@ -219,10 +320,7 @@ function isAuthenticated(req, res, next) {
     res.redirect('/');
 }
 
-// Apply authentication middleware to all routes except public ones
-app.use(isAuthenticated);
-
-// Login route
+// Login route - COMPLETELY REWRITTEN for iOS compatibility
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     const { email, password, dbName } = req.body;
@@ -336,6 +434,17 @@ app.post('/submit', async (req, res) => {
                 
                 // Generate tokens
                 const authToken = generateToken(userInfo);
+                const refreshToken = jwt.sign(
+                    {
+                        email: userInfo.email,
+                        role: userInfo.role,
+                        name: userInfo.name,
+                        lastName: userInfo.lastName,
+                        dbName: userInfo.dbName
+                    },
+                    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                    { expiresIn: '30d' }
+                );
 
                 const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
                 const userAgent = req.headers['user-agent'] || '';
@@ -368,13 +477,25 @@ app.post('/submit', async (req, res) => {
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
+                    // MANUALLY SET COOKIE for Safari compatibility
+                    res.cookie('connect.sid', req.sessionID, {
+                        secure: true,
+                        httpOnly: true,
+                        sameSite: 'none',
+                        maxAge: 24 * 60 * 60 * 1000,
+                        domain: '.solura.uk',
+                        path: '/'
+                    });
+
                     res.json({
                         success: true,
                         message: 'Login successful',
                         redirectUrl: redirectUrl,
                         user: userInfo,
                         accessToken: authToken,
-                        sessionId: req.sessionID
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID,
+                        localStorageUser: userInfo
                     });
                 });
             });
@@ -437,6 +558,39 @@ function isUser(req, res, next) {
     res.redirect('/');
 }
 
+// Add these to your server
+app.post('/api/restore-session', async (req, res) => {
+    try {
+        const { email, dbName } = req.body;
+        
+        if (!email || !dbName) {
+            return res.status(400).json({ success: false, error: 'Missing email or dbName' });
+        }
+        
+        // Restore user data to session
+        req.session.user = {
+            email: email,
+            dbName: dbName
+        };
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('Session save error:', err);
+                return res.status(500).json({ success: false, error: 'Failed to restore session' });
+            }
+            res.json({ 
+                success: true, 
+                user: req.session.user,
+                sessionId: req.session.id 
+            });
+        });
+        
+    } catch (error) {
+        console.error('Restore session error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // Function to detect mobile devices
 function isMobile(userAgent) {
     return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
@@ -487,7 +641,7 @@ function generateToken(user) {
 }
 
 // Route to save notification token
-app.post('/savePushToken', async (req, res) => {
+app.post('/savePushToken', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName;
     const pool = getPool(dbName);
     const { pushToken } = req.body;
@@ -506,7 +660,7 @@ app.post('/savePushToken', async (req, res) => {
 });
 
 // Route to get user's accessible databases
-app.post('/getUserDatabases', (req, res) => {
+app.post('/getUserDatabases', isAuthenticated, (req, res) => {
     const { email } = req.body;
     
     if (!req.session.user || req.session.user.email !== email) {
@@ -533,7 +687,7 @@ app.post('/getUserDatabases', (req, res) => {
 });
 
 // Route to switch databases
-app.post('/switchDatabase', (req, res) => {
+app.post('/switchDatabase', isAuthenticated, (req, res) => {
     const { email, dbName } = req.body;
     
     if (!req.session.user || req.session.user.email !== email) {
@@ -566,24 +720,24 @@ app.post('/switchDatabase', (req, res) => {
 });
 
 // Protected routes
-app.get('/Admin.html', isAdmin, (req, res) => {
+app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
 
-app.get('/AdminApp.html', isAdmin, (req, res) => {
+app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'AdminApp.html'));
 });
 
-app.get('/User.html', isUser, (req, res) => {
+app.get('/User.html', isAuthenticated, isUser, (req, res) => {
     res.sendFile(path.join(__dirname, 'User.html'));
 });
 
-app.get('/Supervisor.html', isSupervisor, (req, res) => {
+app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
     res.sendFile(path.join(__dirname, 'Supervisor.html'));
 });
 
 // API routes
-app.get('/api/pending-approvals', async (req, res) => {
+app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -634,7 +788,7 @@ app.get('/api/pending-approvals', async (req, res) => {
     }
 });
 
-app.get('/api/tip-approvals', async (req, res) => {
+app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -693,8 +847,79 @@ function getCurrentMonday() {
     return monday.toISOString().split('T')[0];
 }
 
+// Auto Login Function
+app.post('/auto-login', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
+
+    const accessToken = authHeader.split(' ')[1];
+    if (!accessToken) return res.status(401).json({ message: 'No token provided' });
+
+    try {
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+        
+        // Set session data
+        req.session.user = decoded;
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving auto-login session:', err);
+                return res.status(500).json({ error: 'Failed to save session' });
+            }
+
+            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}&dbName=${encodeURIComponent(decoded.dbName)}`;
+            let redirectUrl;
+            
+            if (decoded.role === 'admin' || decoded.role === 'AM') {
+                redirectUrl = `/Admin.html${queryString}`;
+            } else if (decoded.role === 'user') {
+                redirectUrl = `/User.html${queryString}`;
+            } else if (decoded.role === 'supervisor') {
+                redirectUrl = `/Supervisor.html${queryString}`;
+            } else {
+                return res.status(401).json({ message: 'Invalid role' });
+            }
+
+            res.json({ 
+                success: true, 
+                redirectUrl, 
+                user: decoded,
+                accessToken: accessToken
+            });
+        });
+    } catch (err) {
+        console.error('Auto-login token error:', err);
+        res.status(401).json({ message: 'Token expired or invalid' });
+    }
+});
+
+// Function to Refresh Token
+app.post('/refresh-token', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ message: 'No refresh token provided' });
+
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
+        const newAccessToken = jwt.sign(
+            {
+                email: decoded.email,
+                role: decoded.role,
+                name: decoded.name,
+                lastName: decoded.lastName,
+                dbName: decoded.dbName
+            },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '7d' }
+        );
+        res.json({ accessToken: newAccessToken });
+    } catch (err) {
+        console.error('Refresh token error:', err);
+        res.status(401).json({ message: 'Refresh token invalid or expired' });
+    }
+});
+
 // Endpoint to get employees on shift today
-app.get('/api/employees-on-shift', (req, res) => {
+app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
@@ -803,7 +1028,7 @@ app.get('/api/employees-on-shift', (req, res) => {
 });
 
 // Function to get labor cost
-app.get('/api/labor-cost', (req, res) => {
+app.get('/api/labor-cost', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });

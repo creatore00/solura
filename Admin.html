@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Solura | Workforce Management</title>
@@ -18,34 +18,33 @@
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
         .boh-cell {
-            background-color: #ffebee;
-            color: #c62828;
-            font-weight: bold;
-        }
+    background-color: #ffebee;
+    color: #c62828;
+    font-weight: bold;
+}
 
-        .foh-cell {
-            background-color: #e8f5e9;
-            color: #2e7d32;
-            font-weight: bold;
-        }
+.foh-cell {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    font-weight: bold;
+}
 
-        .status-indicator {
-            padding: 4px 8px;
-            border-radius: 12px;
-            display: inline-block;
-            font-size: 0.9em;
-        }
+.status-indicator {
+    padding: 4px 8px;
+    border-radius: 12px;
+    display: inline-block;
+    font-size: 0.9em;
+}
 
-        .status-indicator.working {
-            background-color: #e3f2fd;
-            color: #1565c0;
-        }
+.status-indicator.working {
+    background-color: #e3f2fd;
+    color: #1565c0;
+}
 
-        .status-indicator.inactive {
-            background-color: #f5f5f5;
-            color: #616161;
-        }
-        
+.status-indicator.inactive {
+    background-color: #f5f5f5;
+    color: #616161;
+}
         * {
             box-sizing: border-box;
             margin: 0;
@@ -158,7 +157,6 @@
         }
         
         .nav-link {
-            position: relative;
             display: flex;
             align-items: center;
             padding: 0.75rem 1.5rem;
@@ -214,26 +212,31 @@
             padding: 1.5rem;
             box-shadow: var(--shadow);
         }
-        
-        .notification-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            width: 10px;
-            height: 10px;
-            background-color: #ff0000;
-            border-radius: 50%;
-            border: 2px solid #ffffff;
-            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
-            animation: pulse 1.5s infinite;
-        }
+        .nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
-        }
-        
+.notification-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    width: 10px;
+    height: 10px;
+    background-color: #ff0000;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
         .widget-header {
             display: flex;
             justify-content: space-between;
@@ -404,7 +407,7 @@
         <nav class="app-sidebar">
             <div class="nav-section">
                 <div class="nav-section-title">Management</div>
-                <a href="/Admin.html" class="nav-link active">
+                <a href="#" class="nav-link active">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
@@ -452,7 +455,7 @@
             
             <div class="nav-section">
                 <div class="nav-section-title">Finance</div>
-                <a href="/timetracking" class="nav-link">
+                <a href="#" class="nav-link">
                     <i class="fas fa-clock"></i>
                     <span>Time Tracking</span>
                 </a>
@@ -468,8 +471,64 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Reports</span>
                 </a>
+
+        <!-- Reports Popup Window (Modal) -->
+        <div id="reportsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; border-radius: 8px; width: 80%; max-width: 500px; max-height: 80vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; background: #f8f9fa;">
+            <h3 style="margin: 0; font-size: 1.2rem; color: #004f9e;">Available Reports</h3>
+            <button id="closeReportsModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+        </div>
+        
+        <div style="padding: 20px;">
+            <!-- Report Item 1 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Payroll Report</div>
+                    <div style="font-size: 0.85rem; color: #666;">Comprehensive Payroll Overview</div>
+                </div>
+                <a href="/hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+            
+            <!-- Report Item 2 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Weekly Labor Cost Report</div>
+                    <div style="font-size: 0.85rem; color: #666;">Weekly Performance Metrics</div>
+                </div>
+                <a href="/labor" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+            
+            <!-- Report Item 3 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Financial Summary</div>
+                    <div style="font-size: 0.85rem; color: #666;">Revenue & Cost Overview</div>
+                </div>
+                <a href="/financialsummary" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+            
+            <!-- Report Item 4 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Coming Soon...</div>
+                    <div style="font-size: 0.85rem; color: #666;">N/A</div>
+                </div>
+                <a href="/payroll-analysis" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
             </div>
 
+            <!-- Report Item 5 -->
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                <div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">Coming Soon...</div>
+                    <div style="font-size: 0.85rem; color: #666;">N/A</div>
+                </div>
+                <a href="/employee-hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+            </div>
+        </div>
+    </div>
+    </div>
+</div>
             <div class="nav-section">
                 <div class="nav-section-title">System</div>
                 <a href="/profile" class="nav-link">
@@ -480,7 +539,7 @@
                     <i class="fas fa-cog"></i>
                     <span>Manage Access</span>
                 </a>
-                <a href="#" class="nav-link" onclick="logout()">
+                <a href="/logout" class="nav-link">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
                 </a>
@@ -534,6 +593,18 @@
                     </div>
                 </div>
                 
+                <!--<div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Holiday Requests</h3>
+                        <i class="fas fa-umbrella-beach" style="color: #4caf50;"></i>
+                    </div>
+                    <div class="widget-value">5</div>
+                    <div class="widget-footer">
+                        <span>This week</span>
+                        <a href="#" style="color: var(--secondary-color);">Manage</a>
+                    </div>
+                </div>-->
+                
                 <div class="dashboard-widget">
                     <div class="widget-header">
                         <h3 class="widget-title">Labor Cost</h3>
@@ -564,21 +635,21 @@
                     <div class="action-label">Approve Rota</div>
                 </a>
                 
-                <a href="/endday" class="action-btn">
+                <a href="endday" class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-clock"></i>
                     </div>
                     <div class="action-label">End of Day</div>
                 </a>
                 
-                <a href="/tip" class="action-btn">
+                <a href="tip" class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-hand-holding-usd"></i>
                     </div>
                     <div class="action-label">Daily Tips</div>
                 </a>
                 
-                <a href="/insertpayslip" class="action-btn">
+                <a href="insertpayslip" class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-file-invoice-dollar"></i>
                     </div>
@@ -592,186 +663,267 @@
                     <div class="action-label">Holiday Booking</div>
                 </a>
             </div>
-            
-            <!-- Recent Activity -->
-            <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
-            <table class="data-table">
-                <thead>
-                    <tr>                                   
-                        <th>Employee</th>                                    
-                        <th>Designation</th>
-                        <th>Shift</th>
-                        <th>Activity</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Will be populated by JavaScript -->
-                </tbody>
-            </table>
-        </main>
-    </div>
-
+                        <!-- Recent Activity -->
+                        <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
+                        <table class="data-table">
+                            <thead>
+                                <tr>                                   
+                                    <th>Employee</th>                                    
+                                    <th>Designation</th>
+                                    <th>Shift</th>
+                                    <th>Activity</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+    
     <!-- App Footer -->
     <footer class="app-footer">
         <p>Solura Workforce Management System &copy; 2024</p>
     </footer>
 
-    <!-- Reports Modal -->
-    <div id="reportsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-        <div style="background: white; border-radius: 8px; width: 80%; max-width: 500px; max-height: 80vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; background: #f8f9fa;">
-                <h3 style="margin: 0; font-size: 1.2rem; color: #004f9e;">Available Reports</h3>
-                <button id="closeReportsModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
-            </div>
-            
-            <div style="padding: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Payroll Report</div>
-                        <div style="font-size: 0.85rem; color: #666;">Comprehensive Payroll Overview</div>
-                    </div>
-                    <a href="/hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Weekly Labor Cost Report</div>
-                        <div style="font-size: 0.85rem; color: #666;">Weekly Performance Metrics</div>
-                    </div>
-                    <a href="/labor" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
-                </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
-                    <div>
-                        <div style="font-weight: 600; margin-bottom: 4px;">Financial Summary</div>
-                        <div style="font-size: 0.85rem; color: #666;">Revenue & Cost Overview</div>
-                    </div>
-                    <a href="/financialsummary" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
 <script>
-// Enhanced session management
-let currentUser = null;
-
-// Improved session validation
-async function validateSession() {
-    try {
-        const response = await fetch('/api/validate-session', {
-            credentials: 'include',
-            headers: {
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+// Function to check for pending requests
+function checkPendingRequests() {
+    fetch('/request/holidays')
+        .then(response => response.json())
+        .then(data => {
+            const pendingRequests = data.filter(request => 
+                !(request.accepted === 'true' || request.accepted === 'unpaid')
+            );
+            
+            const notificationBadge = document.getElementById('holidayNotification');
+            if (pendingRequests.length > 0) {
+                notificationBadge.style.display = 'block';
+                // Optional: Update the count if you want a number instead of just a dot
+                // notificationBadge.textContent = pendingRequests.length;
+            } else {
+                notificationBadge.style.display = 'none';
             }
+        })
+        .catch(error => {
+            console.error('Error checking pending requests:', error);
         });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.valid && data.user) {
-                currentUser = data.user;
-                return true;
-            }
+}
+// Check initially when page loads
+document.addEventListener('DOMContentLoaded', checkPendingRequests);
+// Optional: Check periodically (every 5 minutes)
+setInterval(checkPendingRequests, 300000);
+// Opens Backend page  
+document.addEventListener('DOMContentLoaded', function() {
+    // Add keyboard event listener
+    document.addEventListener('keydown', function(event) {
+        // Check if Ctrl (or Cmd on Mac) and B are pressed together
+        if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+            // Prevent the default browser behavior (like opening bookmarks)
+            event.preventDefault();
+            
+            // Open the Backend page
+            window.location.href = '/Backend'; // or whatever your backend URL is
         }
-        return false;
-    } catch (error) {
-        console.error('Session validation error:', error);
-        return false;
-    }
-}
-
-// Enhanced fetch with session handling
-async function fetchWithSession(url, options = {}) {
-    try {
-        const response = await fetch(url, {
-            ...options,
-            credentials: 'include',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                ...options.headers
-            }
-        });
-        
-        if (response.status === 401) {
-            console.log('Session expired, redirecting to login');
-            redirectToLogin();
-            return null;
-        }
-        
-        return response;
-    } catch (error) {
-        console.error('Fetch error:', error);
-        return null;
-    }
-}
-
-function redirectToLogin() {
-    localStorage.removeItem('userInfo');
-    localStorage.removeItem('lastDb');
-    localStorage.removeItem('sessionId');
-    window.location.href = '/';
-}
-
-async function logout() {
-    try {
-        await fetch('/logout', { credentials: 'include' });
-    } catch (error) {
-        console.error('Logout error:', error);
-    } finally {
-        redirectToLogin();
-    }
-}
-
-// Initialize page with session check
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Page loaded, checking session...');
-    
-    const isValid = await validateSession();
-    
-    if (!isValid) {
-        console.log('Session invalid, redirecting to login');
-        redirectToLogin();
-        return;
-    }
-    
-    console.log('Session valid, initializing page...');
-    initializePage();
+    });
 });
-
-// Dashboard functions
-async function fetchEmployeesOnShift() {
-    try {
-        const response = await fetchWithSession('/api/employees-on-shift');
-        
-        if (!response) {
-            updateEmployeesOnShift('--');
-            return;
+// Opens Reports Window
+document.addEventListener('DOMContentLoaded', function() {
+    const reportsLink = document.getElementById('reportsLink');
+    const reportsModal = document.getElementById('reportsModal');
+    const closeReportsModal = document.getElementById('closeReportsModal');
+    
+    // Open modal when Reports is clicked
+    reportsLink.addEventListener('click', function(e) {
+        e.preventDefault();
+        reportsModal.style.display = 'flex';
+    });
+    
+    // Close modal when X button is clicked
+    closeReportsModal.addEventListener('click', function() {
+        reportsModal.style.display = 'none';
+    });
+    
+    // Close modal when clicking outside the content
+    reportsModal.addEventListener('click', function(e) {
+        if (e.target === reportsModal) {
+            reportsModal.style.display = 'none';
         }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            updateEmployeesOnShift(data.count);
-            populateShiftTable(data.employees);
-        } else {
-            console.error('Error:', data.error);
-            updateEmployeesOnShift('--');
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && reportsModal.style.display === 'flex') {
+            reportsModal.style.display = 'none';
         }
-    } catch (error) {
-        console.error('Fetch error:', error);
-        updateEmployeesOnShift('--');
+    });
+});
+// Set current date
+function updateLiveDateTime() {
+    const now = new Date();
+    document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(',', '');
+}
+// Then update every second (1000ms)
+setInterval(updateLiveDateTime, 1000);
+// Database switcher functionality
+document.addEventListener('DOMContentLoaded', function() {
+            // Get user session info (you may need to adjust this based on how you store session info)
+            const userEmail = new URLSearchParams(window.location.search).get('email');
+            
+            // Fetch the user's accessible databases
+            fetch('/getUserDatabases', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: userEmail })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.databases && data.databases.length > 1) {
+                    // User has multiple databases - show the switcher
+                    const dbSelector = document.getElementById('dbSelector');
+                    const switchBtn = document.getElementById('switchDbBtn');
+                    const currentDbDisplay = document.getElementById('currentDbDisplay');
+                    
+                    // Set current database display
+                    currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
+                    
+                    // Populate dropdown
+                    data.databases.forEach(db => {
+                        const option = document.createElement('option');
+                        option.value = db.db_name;
+                        option.textContent = db.db_name;
+                        if (db.db_name === data.currentDb) {
+                            option.selected = true;
+                        }
+                        dbSelector.appendChild(option);
+                    });
+                    
+                    // Show controls
+                    dbSelector.style.display = 'inline-block';
+                    switchBtn.style.display = 'inline-block';
+                    
+                    // Handle switch
+                    switchBtn.addEventListener('click', function() {
+                        const selectedDb = dbSelector.value;
+                        if (selectedDb !== data.currentDb) {
+                            // Switch database
+                            fetch('/switchDatabase', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ 
+                                    email: userEmail,
+                                    dbName: selectedDb
+                                })
+                            })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.success) {
+                                    // Reload the page with the new database
+                                    window.location.reload();
+                                } else {
+                                    alert('Failed to switch database: ' + (result.message || 'Unknown error'));
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error switching database:', error);
+                                alert('Error switching database');
+                            });
+                        }
+                    });
+                } else if (data.databases && data.databases.length === 1) {
+                    // User only has one database - just display it
+                    document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching user databases:', error);
+            });
+        });
+// Function for Labor
+function updateLaborCostWidget(cost) {
+    // Format the cost with thousands separator
+    const formattedCost = new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0
+    }).format(cost).replace('GBP', '').trim();
+    
+    // Update the widget value
+    const widgetValue = document.getElementById('labor');
+    if (widgetValue) {
+        widgetValue.textContent = formattedCost;
     }
 }
-
+// Function for Labor
+function fetchLaborCost(callback) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', '/api/labor-cost', true);
+    
+    xhr.onload = function() {
+        if (xhr.status === 200) {
+            try {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    callback(null, data.cost);
+                } else {
+                    callback(data.message || 'No data available');
+                }
+            } catch (e) {
+                callback('Error parsing response');
+            }
+        } else {
+            callback('Request failed with status: ' + xhr.status);
+        }
+    };
+    
+    xhr.onerror = function() {
+        callback('Network error');
+    };
+    
+    xhr.send();
+}
+// Function to update employees on shift widget
 function updateEmployeesOnShift(count) {
     const widgetValue = document.getElementById('employees');
     if (widgetValue) {
         widgetValue.textContent = count;
     }
 }
-
+// Helper to format time
+function formatTime(timeString) {
+    if (!timeString) return '';
+    return timeString.split(', ')
+        .map(time => {
+            const [hours, minutes] = time.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour % 12 || 12;
+            return `${displayHour}:${minutes} ${ampm}`;
+        })
+        .join(' & ');
+}
+// Helper to format time
+function formatTimeRange(start, end) {
+    const format = (time) => {
+        const [h, m] = time.split(':');
+        const hour = h % 12 || 12;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        return `${hour}:${m} ${ampm}`;
+    };
+    return `${format(start)} - ${format(end)}`;
+}
+// Function to Populate Shift Table
 function populateShiftTable(employees) {
     const tableBody = document.querySelector('.data-table tbody');
     if (!tableBody) return;
@@ -780,18 +932,22 @@ function populateShiftTable(employees) {
     employees.forEach(employee => {
         const row = document.createElement('tr');
         
+        // Employee column
         const nameCell = document.createElement('td');
         nameCell.textContent = employee.employeeName;
         
+        // Department column
         const deptCell = document.createElement('td');
         deptCell.textContent = employee.designation;
         deptCell.className = employee.designation === 'BOH' ? 'boh-cell' : 'foh-cell';
         
+        // Time Frames column
         const timeCell = document.createElement('td');
         timeCell.innerHTML = employee.timeFrames.map(frame => 
             `<div>${formatTimeRange(frame.start, frame.end)}</div>`
         ).join('');
         
+        // Status column
         const statusCell = document.createElement('td');
         statusCell.innerHTML = `
             <div class="status-indicator ${employee.status === 'Working now' ? 'working' : 'inactive'}">
@@ -807,32 +963,20 @@ function populateShiftTable(employees) {
         tableBody.appendChild(row);
     });
 }
-
-function formatTimeRange(start, end) {
-    const format = (time) => {
-        const [h, m] = time.split(':');
-        const hour = h % 12 || 12;
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        return `${hour}:${m} ${ampm}`;
-    };
-    return `${format(start)} - ${format(end)}`;
-}
-
+// Function to update pending approvals count
 function updatePendingApprovals(count) {
     const widget = document.getElementById('approve');
     if (widget) {
         widget.textContent = count;
     }
 }
-
+// Function to fetch pending approvals
 async function fetchPendingApprovals() {
     try {
-        const response = await fetchWithSession('/api/pending-approvals');
-        if (!response) {
-            updatePendingApprovals('--');
-            return;
+        const response = await fetch('/api/pending-approvals');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
         }
-        
         const data = await response.json();
         
         if (data.success) {
@@ -846,22 +990,20 @@ async function fetchPendingApprovals() {
         updatePendingApprovals('--');
     }
 }
-
+// Function to update pending approvals count
 function updateTipApprovals(count) {
     const widget = document.getElementById('tip');
     if (widget) {
         widget.textContent = count;
     }
 }
-
+// Function to fetch pending approvals
 async function fetchTipApprovals() {
     try {
-        const response = await fetchWithSession('/api/tip-approvals');
-        if (!response) {
-            updateTipApprovals('--');
-            return;
+        const response = await fetch('/api/tip-approvals');
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
         }
-        
         const data = await response.json();
         
         if (data.success) {
@@ -875,224 +1017,87 @@ async function fetchTipApprovals() {
         updateTipApprovals('--');
     }
 }
-
-function updateLaborCostWidget(cost) {
-    const formattedCost = new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0
-    }).format(cost).replace('GBP', '').trim();
-    
-    const widgetValue = document.getElementById('labor');
-    if (widgetValue) {
-        widgetValue.textContent = formattedCost;
+// Function to fetch Shift Data
+async function fetchEmployeesOnShift() {
+    try {
+        const response = await fetch('/api/employees-on-shift');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateEmployeesOnShift(data.count);
+            populateShiftTable(data.employees);
+        } else {
+            console.error('Error:', data.error || 'Unknown error');
+            updateEmployeesOnShift('--');
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        updateEmployeesOnShift('--');
     }
 }
-
-function fetchLaborCost(callback) {
-    fetchWithSession('/api/labor-cost')
-        .then(response => {
-            if (!response) {
-                callback('No response from server');
-                return;
-            }
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                callback(null, data.cost);
-            } else {
-                callback(data.message || 'No data available');
-            }
-        })
-        .catch(error => {
-            callback('Error: ' + error.message);
-        });
-}
-
-function checkPendingRequests() {
-    fetchWithSession('/request/holidays')
-        .then(response => {
-            if (!response) return;
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Response is not JSON');
-            }
-            return response.json();
-        })
-        .then(data => {
-            const pendingRequests = data.filter(request => 
-                !(request.accepted === 'true' || request.accepted === 'unpaid')
-            );
-            
-            const notificationBadge = document.getElementById('holidayNotification');
-            if (pendingRequests.length > 0) {
-                notificationBadge.style.display = 'block';
-            } else {
-                notificationBadge.style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error checking pending requests:', error);
-        });
-}
-
-function updateLiveDateTime() {
-    const now = new Date();
-    document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    }).replace(',', '');
-}
-
-function initializeDatabaseSwitcher() {
-    if (!currentUser) return;
-    
-    const userEmail = currentUser.email;
-    
-    fetchWithSession('/getUserDatabases', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email: userEmail })
-    })
-    .then(response => response ? response.json() : null)
-    .then(data => {
-        if (data && data.databases && data.databases.length > 1) {
-            const dbSelector = document.getElementById('dbSelector');
-            const switchBtn = document.getElementById('switchDbBtn');
-            const currentDbDisplay = document.getElementById('currentDbDisplay');
-            
-            currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
-            
-            data.databases.forEach(db => {
-                const option = document.createElement('option');
-                option.value = db.db_name;
-                option.textContent = db.db_name;
-                if (db.db_name === data.currentDb) {
-                    option.selected = true;
-                }
-                dbSelector.appendChild(option);
-            });
-            
-            dbSelector.style.display = 'inline-block';
-            switchBtn.style.display = 'inline-block';
-            
-            switchBtn.addEventListener('click', function() {
-                const selectedDb = dbSelector.value;
-                if (selectedDb !== data.currentDb) {
-                    fetchWithSession('/switchDatabase', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ 
-                            email: userEmail,
-                            dbName: selectedDb
-                        })
-                    })
-                    .then(response => response ? response.json() : null)
-                    .then(result => {
-                        if (result && result.success) {
-                            window.location.reload();
-                        } else {
-                            alert('Failed to switch database: ' + (result?.message || 'Unknown error'));
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error switching database:', error);
-                        alert('Error switching database');
-                    });
-                }
-            });
-        } else if (data && data.databases && data.databases.length === 1) {
-            document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
-        }
-    })
-    .catch(error => {
-        console.error('Error fetching user databases:', error);
-    });
-}
-
-function initializePage() {
-    updateLiveDateTime();
-    initializeDatabaseSwitcher();
-    checkPendingRequests();
-    setInterval(checkPendingRequests, 300000);
-    
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
     fetchEmployeesOnShift();
-    fetchPendingApprovals();
-    fetchTipApprovals();
+    // Optional: Refresh every second
     setInterval(fetchEmployeesOnShift, 10000);
-    
+    // Update immediately when page loads
+    updateLiveDateTime();
+    // Function to Call Approvals
+    fetchPendingApprovals();
+    // Function To Call Tip
+    fetchTipApprovals();
+});
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
     fetchLaborCost(function(error, cost) {
         if (error) {
             console.error('Error fetching labor cost:', error);
+            // Optionally show error message or keep default value
             return;
         }
         updateLaborCostWidget(cost);
     });
-    
-    const reportsLink = document.getElementById('reportsLink');
-    const reportsModal = document.getElementById('reportsModal');
-    const closeReportsModal = document.getElementById('closeReportsModal');
-    
-    if (reportsLink && reportsModal) {
-        reportsLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            reportsModal.style.display = 'flex';
-        });
-        
-        closeReportsModal.addEventListener('click', function() {
-            reportsModal.style.display = 'none';
-        });
-        
-        reportsModal.addEventListener('click', function(e) {
-            if (e.target === reportsModal) {
-                reportsModal.style.display = 'none';
-            }
-        });
-        
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && reportsModal.style.display === 'flex') {
-                reportsModal.style.display = 'none';
-            }
-        });
-    }
-    
-    document.addEventListener('keydown', function(event) {
-        if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
-            event.preventDefault();
-            window.location.href = '/Backend';
-        }
-    });
-    
-    resetInactivityTimer();
-    window.onmousemove = resetInactivityTimer;
-    window.onkeypress = resetInactivityTimer;
-}
-
+});
+// Inactivity timer
 let inactivityTimer;
 const resetInactivityTimer = () => {
-    clearTimeout(inactivityTimer);
-    inactivityTimer = setTimeout(() => {
-        alert('You have been logged out due to inactivity.');
-        logout();
-    }, 60 * 60 * 1000);
-};
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                alert('You have been logged out due to inactivity.');
+                window.location.href = '/logout';
+            }, 60 * 60 * 1000); // 60 minutes
+        };
+// Initialize timer and event listeners
+window.onload = function() {
+            resetInactivityTimer();
+        };
+window.onmousemove = resetInactivityTimer;
+window.onkeypress = resetInactivityTimer;
+// Logout functionality
+document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const response = await fetch('/logout', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
 
-window.logout = logout;
-window.redirectToLogin = redirectToLogin;
+                if (response.ok) {
+                    window.location.href = '/';
+                } else {
+                    console.error('Failed to logout:', response.statusText);
+                    alert('Failed to logout. Please try again.');
+                }
+            } catch (error) {
+                console.error('Failed to logout:', error.message);
+                alert('Failed to logout. Please try again.');
+            }
+        });
 </script>
 </body>
 </html>
