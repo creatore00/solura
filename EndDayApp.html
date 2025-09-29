@@ -5,398 +5,616 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Cash Report | Solura</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        :root {
-            --primary: #1a365d;
-            --secondary: #2b6cb0;
-            --accent: #4299e1;
-            --light: #f7fafc;
-            --dark: #2d3748;
-            --success: #38a169;
-            --warning: #dd6b20;
-            --danger: #e53e3e;
-            --text: #4a5568;
-            --border: #e2e8f0;
-            --safe-top: env(safe-area-inset-top);
-            --safe-bottom: env(safe-area-inset-bottom);
-        }
+<style>
+    :root {
+        --primary: #1a365d;
+        --secondary: #2b6cb0;
+        --accent: #4299e1;
+        --light: #f7fafc;
+        --dark: #2d3748;
+        --success: #38a169;
+        --warning: #dd6b20;
+        --danger: #e53e3e;
+        --text: #4a5568;
+        --border: #e2e8f0;
+        
+        /* Safe area variables for different devices */
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+        
+        /* Dynamic sizing based on screen */
+        --container-max-width: 500px;
+        --touch-target-min: 44px;
+    }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-        }
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+    }
 
-        html, body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background-color: #f8f9fa;
-            color: var(--text);
-            line-height: 1.5;
-            min-height: 100vh;
-            min-height: -webkit-fill-available;
-            overflow-x: hidden;
-        }
+    html, body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+        background-color: #f8f9fa;
+        color: var(--text);
+        line-height: 1.5;
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+        overflow-x: hidden;
+        
+        /* Prevent horizontal scroll */
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
 
-        body {
-            padding-top: var(--safe-top);
-            padding-bottom: var(--safe-bottom);
-            display: flex;
-            flex-direction: column;
-        }
+    body {
+        /* Safe area padding for notches and home indicators */
+        padding-top: calc(var(--safe-top) + 0.5rem);
+        padding-bottom: calc(var(--safe-bottom) + 0.5rem);
+        padding-left: calc(var(--safe-left) + 0.5rem);
+        padding-right: calc(var(--safe-right) + 0.5rem);
+        
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        
+        /* Ensure content doesn't get hidden behind notches */
+        min-height: 100vh;
+        min-height: -webkit-fill-available;
+    }
 
-        /* Mobile-optimized navbar */
-        .navbar {
-            background-color: var(--primary);
-            color: white;
-            padding: 0.75rem 1rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            min-height: 60px;
-        }
+    /* Mobile-optimized navbar with safe area support */
+    .navbar {
+        background-color: var(--primary);
+        color: white;
+        padding: 0.75rem 1rem;
+        padding-top: calc(0.75rem + var(--safe-top));
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        min-height: 60px;
+        height: calc(60px + var(--safe-top));
+        
+        /* Ensure navbar doesn't interfere with notch */
+        width: 100vw;
+    }
 
-        .navbar-brand {
-            font-size: 1.25rem;
-            font-weight: bold;
-            color: white;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+    .navbar-brand {
+        font-size: clamp(1.1rem, 4vw, 1.25rem);
+        font-weight: bold;
+        color: white;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: var(--touch-target-min);
+    }
 
-        .navbar-menu {
-            display: flex;
-            gap: 1rem;
-        }
+    .navbar-menu {
+        display: flex;
+        gap: 0.75rem;
+    }
 
-        .navbar-item {
-            color: white;
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem;
-            border-radius: 6px;
-            transition: background-color 0.3s;
-        }
+    .navbar-item {
+        color: white;
+        text-decoration: none;
+        font-weight: 500;
+        padding: 0.5rem;
+        border-radius: 6px;
+        transition: background-color 0.3s;
+        min-height: var(--touch-target-min);
+        min-width: var(--touch-target-min);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
 
-        .navbar-item:active {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
+    .navbar-item:active {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
 
-        /* Mobile container */
-        .container {
-            flex: 1;
-            padding: 1rem;
-            max-width: 100%;
-            margin: 0 auto;
-        }
+    /* Main container with device adaptability */
+    .container {
+        flex: 1;
+        padding: 1rem;
+        max-width: var(--container-max-width);
+        width: 100%;
+        margin: 0 auto;
+        margin-top: calc(60px + var(--safe-top) + 0.5rem);
+        
+        /* Ensure content is properly spaced */
+        padding-bottom: calc(1rem + var(--safe-bottom));
+    }
 
-        .card {
-            background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-            border: 1px solid var(--border);
-        }
+    .card {
+        background-color: white;
+        border-radius: clamp(8px, 2vw, 12px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        padding: clamp(1rem, 3vw, 1.25rem);
+        margin-bottom: 1rem;
+        border: 1px solid var(--border);
+        width: 100%;
+    }
 
-        h1 {
-            color: var(--primary);
-            margin-bottom: 1rem;
-            font-size: 1.5rem;
-            text-align: center;
-            font-weight: 600;
-        }
+    h1 {
+        color: var(--primary);
+        margin-bottom: 1rem;
+        font-size: clamp(1.3rem, 5vw, 1.5rem);
+        text-align: center;
+        font-weight: 600;
+        line-height: 1.3;
+    }
 
-        /* Mobile date controls */
-        .date-controls {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
+    /* Mobile date controls with responsive sizing */
+    .date-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
 
-        .date-input-group {
-            display: flex;
-            gap: 0.5rem;
-        }
+    .date-input-group {
+        display: flex;
+        gap: 0.5rem;
+    }
 
-        .date-input {
-            padding: 0.75rem;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 1rem;
-            text-align: center;
-            flex: 1;
-            background: white;
-        }
+    .date-input {
+        padding: 0.75rem;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        font-size: clamp(0.9rem, 3.5vw, 1rem);
+        text-align: center;
+        flex: 1;
+        background: white;
+        min-height: var(--touch-target-min);
+    }
 
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            font-size: 1rem;
-            touch-action: manipulation;
-        }
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: clamp(0.9rem, 3.5vw, 1rem);
+        touch-action: manipulation;
+        min-height: var(--touch-target-min);
+        min-width: var(--touch-target-min);
+    }
 
-        .btn:active {
-            transform: scale(0.98);
-        }
+    .btn:active {
+        transform: scale(0.98);
+    }
 
-        .btn-primary {
-            background-color: var(--secondary);
-            color: white;
-        }
+    .btn-primary {
+        background-color: var(--secondary);
+        color: white;
+    }
 
-        .btn-primary:active {
-            background-color: var(--primary);
-        }
+    .btn-primary:active {
+        background-color: var(--primary);
+    }
 
-        .btn-success {
-            background-color: var(--success);
-            color: white;
-        }
+    .btn-success {
+        background-color: var(--success);
+        color: white;
+    }
 
-        .btn-success:active {
-            background-color: #2f855a;
-        }
+    .btn-success:active {
+        background-color: #2f855a;
+    }
 
-        /* Day selector for mobile */
+    /* Day selector for mobile with safe horizontal scrolling */
+    .day-selector {
+        display: flex;
+        overflow-x: auto;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE and Edge */
+        
+        /* Safe horizontal padding */
+        padding-left: var(--safe-left);
+        padding-right: var(--safe-right);
+        margin-left: calc(-1 * var(--safe-left));
+        margin-right: calc(-1 * var(--safe-right));
+    }
+
+    .day-selector::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
+
+    .day-tab {
+        padding: 0.75rem 1rem;
+        background: var(--light);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        font-weight: 600;
+        white-space: nowrap;
+        cursor: pointer;
+        transition: all 0.2s;
+        min-height: var(--touch-target-min);
+        font-size: clamp(0.8rem, 3vw, 0.9rem);
+        flex-shrink: 0;
+    }
+
+    .day-tab.active {
+        background: var(--secondary);
+        color: white;
+        border-color: var(--secondary);
+    }
+
+    /* Mobile table with responsive design */
+    .mobile-table {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+        width: 100%;
+    }
+
+    .table-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: clamp(0.75rem, 2.5vw, 1rem);
+        border-bottom: 1px solid var(--border);
+        min-height: var(--touch-target-min);
+    }
+
+    .table-row:last-child {
+        border-bottom: none;
+    }
+
+    .table-header {
+        background: var(--primary);
+        color: white;
+        font-weight: 600;
+    }
+
+    .table-total {
+        background: var(--light);
+        font-weight: 600;
+    }
+
+    .denomination-label {
+        font-weight: 600;
+        color: var(--dark);
+        flex: 1;
+        font-size: clamp(0.8rem, 3vw, 0.9rem);
+        line-height: 1.3;
+    }
+
+    .input-container {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .currency-input {
+        width: clamp(70px, 20vw, 80px);
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        text-align: center;
+        font-size: clamp(0.8rem, 3vw, 0.9rem);
+        background: white;
+        min-height: calc(var(--touch-target-min) - 0.5rem);
+    }
+
+    .currency-input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+
+    .currency-symbol {
+        color: var(--dark);
+        font-weight: 600;
+        min-width: 20px;
+        font-size: clamp(0.8rem, 3vw, 0.9rem);
+    }
+
+    .result-value {
+        font-weight: 600;
+        min-width: clamp(70px, 20vw, 80px);
+        text-align: right;
+        font-size: clamp(0.8rem, 3vw, 0.9rem);
+    }
+
+    /* Status indicators */
+    .status-missing {
+        color: var(--danger);
+        font-weight: 600;
+    }
+
+    .status-excess {
+        color: var(--success);
+        font-weight: 600;
+    }
+
+    .status-even {
+        color: var(--dark);
+        font-weight: 600;
+    }
+
+    /* Action buttons with safe bottom area */
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+        padding-bottom: var(--safe-bottom);
+    }
+
+    /* Summary card */
+    .summary-card {
+        background: var(--light);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--border);
+        font-size: clamp(0.9rem, 3.5vw, 1rem);
+    }
+
+    .summary-item:last-child {
+        border-bottom: none;
+    }
+
+    .summary-label {
+        font-weight: 600;
+        color: var(--dark);
+    }
+
+    .summary-value {
+        font-weight: 600;
+        color: var(--primary);
+    }
+
+    /* Mobile notification with safe area positioning */
+    .notification {
+        position: fixed;
+        top: calc(80px + var(--safe-top));
+        left: calc(1rem + var(--safe-left));
+        right: calc(1rem + var(--safe-right));
+        padding: 1rem;
+        border-radius: 12px;
+        color: white;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.3s, transform 0.3s;
+        transform: translateY(-20px);
+        text-align: center;
+        font-size: clamp(0.9rem, 3.5vw, 1rem);
+    }
+
+    .notification.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .notification.success {
+        background-color: var(--success);
+    }
+
+    .notification.error {
+        background-color: var(--danger);
+    }
+
+    .hidden {
+        display: none !important;
+    }
+
+    /* Loading states */
+    .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 2px solid rgba(255,255,255,.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* iOS specific fixes */
+    @supports (-webkit-touch-callout: none) {
+        .btn, .day-tab {
+            cursor: default;
+        }
+        
+        /* iOS specific optimizations */
         .day-selector {
-            display: flex;
-            overflow-x: auto;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            -webkit-overflow-scrolling: touch;
+            padding-left: max(1rem, var(--safe-left));
+            padding-right: max(1rem, var(--safe-right));
         }
+    }
 
-        .day-tab {
-            padding: 0.75rem 1rem;
-            background: var(--light);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-weight: 600;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s;
+    /* Android specific optimizations */
+    @supports not (-webkit-touch-callout: none) {
+        /* Android devices typically don't have notches */
+        .navbar {
+            padding-top: 0.75rem;
+            height: 60px;
         }
-
-        .day-tab.active {
-            background: var(--secondary);
-            color: white;
-            border-color: var(--secondary);
+        
+        .container {
+            margin-top: 60px;
         }
-
-        /* Mobile table */
-        .mobile-table {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            margin-bottom: 1rem;
-        }
-
-        .table-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .table-row:last-child {
-            border-bottom: none;
-        }
-
-        .table-header {
-            background: var(--primary);
-            color: white;
-            font-weight: 600;
-        }
-
-        .table-total {
-            background: var(--light);
-            font-weight: 600;
-        }
-
-        .denomination-label {
-            font-weight: 600;
-            color: var(--dark);
-            flex: 1;
-        }
-
-        .input-container {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .currency-input {
-            width: 80px;
-            padding: 0.5rem;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            text-align: center;
-            font-size: 0.9rem;
-            background: white;
-        }
-
-        .currency-input:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        .currency-symbol {
-            color: var(--dark);
-            font-weight: 600;
-            min-width: 20px;
-        }
-
-        .result-value {
-            font-weight: 600;
-            min-width: 80px;
-            text-align: right;
-        }
-
-        /* Status indicators */
-        .status-missing {
-            color: var(--danger);
-            font-weight: 600;
-        }
-
-        .status-excess {
-            color: var(--success);
-            font-weight: 600;
-        }
-
-        .status-even {
-            color: var(--dark);
-            font-weight: 600;
-        }
-
-        /* Action buttons */
-        .action-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            margin-top: 1.5rem;
-        }
-
-        /* Summary card */
-        .summary-card {
-            background: var(--light);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-top: 1rem;
-        }
-
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .summary-item:last-child {
-            border-bottom: none;
-        }
-
-        .summary-label {
-            font-weight: 600;
-            color: var(--dark);
-        }
-
-        .summary-value {
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        /* Mobile notification */
+        
         .notification {
-            position: fixed;
             top: 80px;
             left: 1rem;
             right: 1rem;
-            padding: 1rem;
-            border-radius: 12px;
+        }
+    }
+
+    /* Device-specific media queries */
+    
+    /* Small phones (iPhone SE, etc.) */
+    @media (max-width: 320px) {
+        .container {
+            padding: 0.5rem;
+        }
+        
+        .card {
+            padding: 0.75rem;
+        }
+        
+        .currency-input {
+            width: 60px;
+            padding: 0.4rem;
+        }
+        
+        .btn {
+            padding: 0.6rem 1rem;
+        }
+    }
+
+    /* Phones with notches (iPhone X, 11, 12, 13, 14, 15) */
+    @media (min-width: 375px) and (max-height: 812px) {
+        /* These typically have notches */
+        .navbar {
+            padding-left: max(1rem, var(--safe-left));
+            padding-right: max(1rem, var(--safe-right));
+        }
+    }
+
+    /* Large phones and small tablets */
+    @media (min-width: 414px) and (max-width: 768px) {
+        .container {
+            max-width: 95%;
+        }
+        
+        .date-controls {
+            flex-direction: row;
+        }
+        
+        .date-input-group {
+            flex: 2;
+        }
+        
+        .btn {
+            flex: 1;
+        }
+    }
+
+    /* Tablets and larger devices */
+    @media (min-width: 769px) {
+        .container {
+            max-width: 600px;
+        }
+        
+        .mobile-table {
+            font-size: 1rem;
+        }
+        
+        .currency-input {
+            width: 90px;
+        }
+    }
+
+    /* Landscape orientation */
+    @media (max-height: 500px) and (orientation: landscape) {
+        .navbar {
+            position: relative;
+            height: auto;
+            padding-top: 0.75rem;
+        }
+        
+        .container {
+            margin-top: 0;
+            padding-top: 0.5rem;
+        }
+        
+        .card {
+            padding: 0.75rem;
+        }
+        
+        .table-row {
+            padding: 0.5rem;
+            min-height: 40px;
+        }
+    }
+
+    /* High DPI displays */
+    @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        .currency-input, .btn, .day-tab {
+            border-width: 0.5px;
+        }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --light: #2d3748;
+            --dark: #f7fafc;
+            --text: #e2e8f0;
+            --border: #4a5568;
+        }
+        
+        body {
+            background-color: #1a202c;
+            color: var(--text);
+        }
+        
+        .card, .mobile-table {
+            background-color: #2d3748;
+            border-color: var(--border);
+        }
+        
+        .currency-input {
+            background-color: #4a5568;
             color: white;
-            font-weight: 600;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            opacity: 0;
-            transition: opacity 0.3s, transform 0.3s;
-            transform: translateY(-20px);
-            text-align: center;
+            border-color: var(--border);
         }
-
-        .notification.show {
-            opacity: 1;
-            transform: translateY(0);
+        
+        .summary-card {
+            background-color: #4a5568;
         }
+    }
 
-        .notification.success {
-            background-color: var(--success);
+    /* Reduced motion for accessibility */
+    @media (prefers-reduced-motion: reduce) {
+        .btn, .day-tab, .notification {
+            transition: none;
         }
-
-        .notification.error {
-            background-color: var(--danger);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        /* Loading states */
+        
         .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+            animation: none;
         }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* iOS specific fixes */
-        @supports (-webkit-touch-callout: none) {
-            .btn, .day-tab {
-                cursor: default;
-            }
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 360px) {
-            .container {
-                padding: 0.75rem;
-            }
-            .card {
-                padding: 1rem;
-            }
-            .currency-input {
-                width: 70px;
-            }
-        }
-    </style>
+    }
+</style>
 </head>
 <body>
     <nav class="navbar">
