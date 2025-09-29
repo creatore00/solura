@@ -105,32 +105,54 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(__dirname));
 
-// CRITICAL FIX: iOS Safari Cookie Workaround Middleware
+// Session debugging middleware
 app.use((req, res, next) => {
-    // iOS Safari workaround - handle cookie-less requests
-    if (!req.headers.cookie && req.headers['user-agent'] && 
-        (req.headers['user-agent'].includes('iPhone') || 
-         req.headers['user-agent'].includes('iPad') || 
-         req.headers['user-agent'].includes('Macintosh'))) {
+    console.log('=== SESSION DEBUG ===');
+    console.log('URL:', req.url);
+    console.log('Method:', req.method);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    console.log('Cookies:', req.headers.cookie);
+    console.log('=== END DEBUG ===');
+    next();
+});
+
+// CRITICAL FIX: iOS App Cookie Workaround Middleware
+app.use((req, res, next) => {
+    // iOS App/Safari workaround - handle cookie-less requests
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad') || userAgent.includes('Macintosh');
+    
+    if ((!req.headers.cookie || req.headers.cookie === 'undefined') && isIOS) {
+        console.log('📱 iOS detected without cookies, using workaround');
         
-        console.log('📱 iOS Safari detected without cookies, using workaround');
-        
-        // Check for session ID in URL or headers
+        // Check for session ID in multiple sources
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
+        const authToken = req.headers['authorization']?.replace('Bearer ', '');
         
-        if (sessionIdFromUrl || sessionIdFromHeader) {
-            const sessionId = sessionIdFromUrl || sessionIdFromHeader;
-            console.log('🔄 Using session ID from alternative source:', sessionId);
-            
-            // Manually set the cookie header for express-session
-            req.headers.cookie = `solura.session=${sessionId}`;
+        if (sessionIdFromUrl) {
+            console.log('🔄 Using session ID from URL:', sessionIdFromUrl);
+            req.headers.cookie = `solura.session=${sessionIdFromUrl}`;
+        } else if (sessionIdFromHeader) {
+            console.log('🔄 Using session ID from header:', sessionIdFromHeader);
+            req.headers.cookie = `solura.session=${sessionIdFromHeader}`;
+        } else if (authToken) {
+            console.log('🔄 Using JWT token for session recovery');
+            // Decode JWT to get user info and create session
+            try {
+                const decoded = jwt.verify(authToken, process.env.JWT_SECRET || 'your-secret-key');
+                req.headers['x-ios-user-data'] = JSON.stringify(decoded);
+            } catch (err) {
+                console.log('❌ Invalid JWT token');
+            }
         }
     }
     next();
 });
 
-// Enhanced session configuration for iOS
+// Enhanced session configuration for iOS Apps
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
     resave: true,
@@ -146,7 +168,7 @@ app.use(session({
     },
     rolling: true,
     proxy: true,
-    // Add this for better iOS compatibility
+    // Enhanced genid for iOS apps
     genid: (req) => {
         // Allow session ID from URL for iOS
         const sessionIdFromUrl = req.query.sessionId;
@@ -154,21 +176,123 @@ app.use(session({
             console.log('🔄 Using session ID from URL:', sessionIdFromUrl);
             return sessionIdFromUrl;
         }
+        
+        // Check for iOS user data in headers
+        const iosUserData = req.headers['x-ios-user-data'];
+        if (iosUserData) {
+            try {
+                const userData = JSON.parse(iosUserData);
+                console.log('🔄 Creating session from iOS user data:', userData.email);
+                // You can create a custom session ID based on user data
+                return `ios_${userData.email}_${Date.now()}`;
+            } catch (err) {
+                console.log('❌ Invalid iOS user data');
+            }
+        }
+        
         return require('crypto').randomBytes(16).toString('hex');
     }
 }));
 
-// Session debugging middleware
-app.use((req, res, next) => {
-    console.log('=== SESSION DEBUG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    console.log('Cookies:', req.headers.cookie);
-    console.log('=== END DEBUG ===');
-    next();
+// NEW: iOS-specific session restoration endpoint
+app.post('/api/ios-restore-session', async (req, res) => {
+    try {
+        const { email, dbName, accessToken } = req.body;
+        
+        console.log('📱 iOS App session restoration for:', { email, dbName });
+        
+        if (!email || !dbName) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Missing email or dbName' 
+            });
+        }
+
+        // Verify user access
+        const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
+        
+        mainPool.query(verifySql, [email, dbName], (err, results) => {
+            if (err) {
+                console.error('Error verifying user access:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Internal Server Error' 
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: 'User not authorized for this database' 
+                });
+            }
+
+            const userDetails = results[0];
+            
+            // Get user info from company database
+            const companyPool = getPool(dbName);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+            
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Internal Server Error' 
+                    });
+                }
+
+                if (companyResults.length === 0) {
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'User not found in company database' 
+                    });
+                }
+
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                const userInfo = {
+                    email: email,
+                    role: userDetails.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+
+                console.log('✅ iOS session restoration successful for user:', userInfo);
+
+                // Set session data
+                req.session.user = userInfo;
+                
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving iOS session:', err);
+                        return res.status(500).json({ 
+                            success: false, 
+                            error: 'Failed to restore session' 
+                        });
+                    }
+
+                    console.log('✅ iOS session saved with ID:', req.sessionID);
+
+                    res.json({ 
+                        success: true, 
+                        user: userInfo,
+                        sessionId: req.sessionID,
+                        accessToken: accessToken || generateToken(userInfo)
+                    });
+                });
+            });
+        });
+        
+    } catch (error) {
+        console.error('iOS session restoration error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: error.message 
+        });
+    }
 });
 
 // Add CORS headers manually

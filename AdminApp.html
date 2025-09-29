@@ -755,19 +755,53 @@
             </div>
         </div>
     </div>
-    <script>
+ <script>
     // Global variables
     let currentUser = null;
     let inactivityTimer;
     let sessionId = null;
+    let accessToken = null;
+    let isIOSApp = false;
 
     // Initialize the application
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Mobile App: Initializing...');
         
-        // Get session ID from URL or localStorage
+        // Detect if this is an iOS app (added to home screen)
+        isIOSApp = window.navigator.standalone || 
+                  (window.matchMedia('(display-mode: standalone)').matches) ||
+                  (navigator.userAgent.includes('iPhone') && !navigator.userAgent.includes('Safari'));
+        
+        console.log('📱 iOS App detected:', isIOSApp);
+        
+        // Get session data from multiple sources
         const urlParams = new URLSearchParams(window.location.search);
         sessionId = urlParams.get('sessionId') || localStorage.getItem('sessionId');
+        accessToken = localStorage.getItem('accessToken');
+        
+        // Get user info from URL or localStorage
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        
+        if (name && lastName && email && dbName) {
+            console.log('Found URL parameters, storing user info...');
+            currentUser = {
+                email: email,
+                name: name,
+                lastName: lastName,
+                dbName: dbName
+            };
+            localStorage.setItem('userInfo', JSON.stringify(currentUser));
+            localStorage.setItem('lastDb', dbName);
+        } else {
+            // Try to get from localStorage
+            const storedUser = localStorage.getItem('userInfo');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+            }
+        }
         
         // Setup UI components first
         initializeUI();
@@ -842,41 +876,133 @@
     async function initializeSession() {
         console.log('Mobile App: Checking session...');
         
-        // Check if we have URL parameters (from login redirect)
-        const urlParams = new URLSearchParams(window.location.search);
-        const name = urlParams.get('name');
-        const lastName = urlParams.get('lastName');
-        const email = urlParams.get('email');
-        const dbName = urlParams.get('dbName');
-        
-        if (name && lastName && email && dbName) {
-            console.log('Found URL parameters, storing user info...');
-            // Store user info for recovery
-            const userInfo = {
-                email: email,
-                name: name,
-                lastName: lastName,
-                dbName: dbName
-            };
-            localStorage.setItem('userInfo', JSON.stringify(userInfo));
-            localStorage.setItem('lastDb', dbName);
-            currentUser = userInfo;
-        }
-        
-        // Validate session with enhanced recovery for iOS
-        const isValid = await validateSessionWithRecovery();
-        
-        if (!isValid) {
-            console.log('Session validation failed');
-            showSessionError();
-            return;
+        // For iOS Apps, use enhanced session validation
+        if (isIOSApp) {
+            console.log('📱 Using iOS App session validation');
+            const isValid = await validateIOSSession();
+            if (!isValid) {
+                showSessionError();
+                return;
+            }
+        } else {
+            // Regular session validation for Safari
+            const isValid = await validateSessionWithRecovery();
+            if (!isValid) {
+                showSessionError();
+                return;
+            }
         }
         
         console.log('Session valid, loading dashboard data...');
         loadDashboardData();
     }
 
-    // Enhanced session validation for iOS
+    // iOS App specific session validation
+    async function validateIOSSession() {
+        try {
+            console.log('📱 Validating iOS App session...');
+            
+            // Try multiple authentication methods for iOS App
+            
+            // Method 1: Try with access token
+            if (accessToken) {
+                console.log('🔄 Trying access token authentication');
+                const response = await fetch('/api/validate-session', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.valid) {
+                        console.log('✅ iOS App session valid with access token');
+                        currentUser = data.user;
+                        updateStoredUserData(data.user, data.sessionId);
+                        return true;
+                    }
+                }
+            }
+            
+            // Method 2: Try iOS-specific session restoration
+            if (currentUser) {
+                console.log('🔄 Trying iOS-specific session restoration');
+                const restored = await restoreIOSSession();
+                if (restored) {
+                    return true;
+                }
+            }
+            
+            // Method 3: Try regular session recovery as fallback
+            console.log('🔄 Falling back to regular session recovery');
+            return await attemptSessionRecovery();
+            
+        } catch (error) {
+            console.error('🚨 iOS App session validation error:', error);
+            return await attemptSessionRecovery();
+        }
+    }
+
+    // iOS-specific session restoration
+    async function restoreIOSSession() {
+        try {
+            const storedUser = localStorage.getItem('userInfo');
+            const lastDb = localStorage.getItem('lastDb');
+            
+            if (!storedUser) return false;
+            
+            const userInfo = JSON.parse(storedUser);
+            const restorationData = {
+                email: userInfo.email,
+                dbName: userInfo.dbName || lastDb,
+                accessToken: accessToken
+            };
+            
+            console.log('📱 iOS App restoration data:', restorationData);
+            
+            const response = await fetch('/api/ios-restore-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Session-ID': sessionId || '',
+                    'Authorization': accessToken ? `Bearer ${accessToken}` : ''
+                },
+                credentials: 'include',
+                body: JSON.stringify(restorationData)
+            });
+            
+            console.log('📱 iOS App restoration response status:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ iOS App session restored successfully:', data);
+                
+                currentUser = data.user;
+                if (data.sessionId) {
+                    sessionId = data.sessionId;
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+                if (data.accessToken) {
+                    accessToken = data.accessToken;
+                    localStorage.setItem('accessToken', data.accessToken);
+                }
+                localStorage.setItem('userInfo', JSON.stringify(data.user));
+                
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('🚨 iOS App session restoration error:', error);
+            return false;
+        }
+    }
+
+    // Enhanced session validation for regular browsers
     async function validateSessionWithRecovery() {
         try {
             console.log('🔐 Validating session...');
@@ -887,22 +1013,11 @@
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('Session validation response:', data);
                 
                 if (data.valid && data.user) {
                     console.log('✅ Session valid, user:', data.user.email);
                     currentUser = data.user;
-                    
-                    // Store user info for recovery
-                    localStorage.setItem('userInfo', JSON.stringify(data.user));
-                    if (data.user.dbName) {
-                        localStorage.setItem('lastDb', data.user.dbName);
-                    }
-                    if (data.sessionId) {
-                        sessionId = data.sessionId;
-                        localStorage.setItem('sessionId', data.sessionId);
-                    }
-                    
+                    updateStoredUserData(data.user, data.sessionId);
                     return true;
                 } else {
                     console.log('❌ Session invalid or user data missing');
@@ -922,80 +1037,41 @@
         }
     }
 
-    // Enhanced session recovery for iOS
+    // Update stored user data
+    function updateStoredUserData(user, newSessionId) {
+        localStorage.setItem('userInfo', JSON.stringify(user));
+        if (user.dbName) {
+            localStorage.setItem('lastDb', user.dbName);
+        }
+        if (newSessionId) {
+            sessionId = newSessionId;
+            localStorage.setItem('sessionId', newSessionId);
+        }
+    }
+
+    // Enhanced session recovery for all platforms
     async function attemptSessionRecovery() {
         console.log('🔄 Attempting session recovery...');
         
-        // Try multiple recovery methods
-        
-        // Method 1: Try with stored session ID and user info
+        // Try with stored user info
         const storedUser = localStorage.getItem('userInfo');
+        const lastDb = localStorage.getItem('lastDb');
         
-        if (sessionId && storedUser) {
-            console.log('Found stored session ID, attempting recovery...');
-            const recovered = await recoverSessionWithCredentials();
-            if (recovered) {
-                return true;
-            }
-        }
-        
-        // Method 2: Try with URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const email = urlParams.get('email');
-        const dbName = urlParams.get('dbName');
-        
-        if (email && dbName) {
-            console.log('Attempting recovery with URL parameters...');
-            const userInfo = {
-                email: email,
-                dbName: dbName,
-                name: urlParams.get('name'),
-                lastName: urlParams.get('lastName')
-            };
-            currentUser = userInfo;
-            const recovered = await restoreSessionFromParams(userInfo);
-            if (recovered) {
-                return true;
-            }
-        }
-        
-        // Method 3: Try with stored user info only
         if (storedUser) {
-            console.log('Attempting recovery with stored user info only...');
-            const recovered = await recoverSessionWithCredentials();
-            if (recovered) {
-                return true;
-            }
-        }
-        
-        console.log('❌ All recovery attempts failed, redirecting to login');
-        redirectToLogin();
-        return false;
-    }
-
-    // Recover session with stored credentials
-    async function recoverSessionWithCredentials() {
-        try {
-            const storedUser = localStorage.getItem('userInfo');
-            const lastDb = localStorage.getItem('lastDb');
-            
-            if (!storedUser) {
-                return false;
-            }
-            
+            console.log('Found stored user info, attempting recovery...');
             const userInfo = JSON.parse(storedUser);
-            currentUser = userInfo;
+            
+            // Use iOS-specific recovery for iOS apps
+            if (isIOSApp) {
+                return await restoreIOSSession();
+            }
+            
+            // Regular recovery for others
             const recoveryData = {
                 email: userInfo.email,
                 dbName: userInfo.dbName || lastDb,
                 sessionId: sessionId
             };
-            
-            console.log('Recovery data:', recoveryData);
-            
-            if (!recoveryData.email || !recoveryData.dbName) {
-                return false;
-            }
             
             const response = await fetch('/api/recover-session', {
                 method: 'POST',
@@ -1008,70 +1084,21 @@
                 body: JSON.stringify(recoveryData)
             });
             
-            console.log('Recovery response status:', response.status);
-            
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ Session recovered successfully:', data);
+                console.log('✅ Session recovered successfully');
                 currentUser = data.user;
-                
-                // Update stored session info
-                if (data.sessionId) {
-                    sessionId = data.sessionId;
-                    localStorage.setItem('sessionId', data.sessionId);
-                }
-                if (data.user) {
-                    localStorage.setItem('userInfo', JSON.stringify(data.user));
-                }
-                
+                updateStoredUserData(data.user, data.sessionId);
                 return true;
-            } else {
-                console.log('❌ Session recovery failed with status:', response.status);
-                return false;
             }
-        } catch (error) {
-            console.error('🚨 Session recovery error:', error);
-            return false;
         }
+        
+        console.log('❌ All recovery attempts failed, redirecting to login');
+        redirectToLogin();
+        return false;
     }
 
-    // Restore session from URL parameters
-    async function restoreSessionFromParams(userInfo) {
-        try {
-            console.log('Restoring session from parameters...');
-            
-            const response = await fetch('/api/restore-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'X-Session-ID': sessionId || ''
-                },
-                credentials: 'include',
-                body: JSON.stringify(userInfo)
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log('✅ Session restored successfully from params');
-                
-                if (data.sessionId) {
-                    sessionId = data.sessionId;
-                    localStorage.setItem('sessionId', data.sessionId);
-                }
-                
-                return true;
-            } else {
-                console.log('❌ Session restoration from params failed');
-                return false;
-            }
-        } catch (error) {
-            console.error('Session restoration error:', error);
-            return false;
-        }
-    }
-
-    // Enhanced fetch with session recovery for iOS
+    // Enhanced fetch with platform-specific handling
     async function fetchWithRecovery(url, options = {}) {
         try {
             const config = {
@@ -1082,41 +1109,47 @@
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache',
-                    'X-Session-ID': sessionId || '', // CRITICAL for iOS
+                    'X-Session-ID': sessionId || '',
+                    ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
                     ...options.headers
                 }
             };
             
-            // Add session ID to URL for iOS Safari workaround
+            // iOS App specific handling
             let targetUrl = url;
-            if (sessionId && (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad'))) {
+            if (isIOSApp && sessionId) {
                 const separator = url.includes('?') ? '&' : '?';
                 targetUrl = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
+                console.log('📱 iOS App fetch URL with session ID:', targetUrl);
             }
             
             console.log(`🔍 Fetching: ${targetUrl}`);
             let response = await fetch(targetUrl, config);
             console.log(`📨 Response status: ${response.status} for ${targetUrl}`);
             
-            // If unauthorized, try to recover session and retry
+            // Handle unauthorized responses
             if (response.status === 401) {
-                console.log('🔄 Request unauthorized, attempting session recovery...');
-                const recovered = await recoverSessionWithCredentials();
+                console.log('🔄 Request unauthorized, attempting recovery...');
+                const recovered = isIOSApp ? await restoreIOSSession() : await attemptSessionRecovery();
                 
                 if (recovered) {
                     console.log('🔄 Session recovered, retrying request...');
                     
-                    // Update URL with new session ID
+                    // Update config with new session data
+                    config.headers['X-Session-ID'] = sessionId || '';
+                    if (accessToken) {
+                        config.headers['Authorization'] = `Bearer ${accessToken}`;
+                    }
+                    
+                    // Update URL for iOS App
                     let retryUrl = url;
-                    if (sessionId && (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad'))) {
+                    if (isIOSApp && sessionId) {
                         const separator = url.includes('?') ? '&' : '?';
                         retryUrl = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
                     }
                     
-                    config.headers['X-Session-ID'] = sessionId || '';
-                    
                     response = await fetch(retryUrl, config);
-                    console.log(`📨 Retry response status: ${response.status} for ${retryUrl}`);
+                    console.log(`📨 Retry response status: ${response.status}`);
                 } else {
                     console.log('❌ Session recovery failed, redirecting to login');
                     redirectToLogin();
@@ -1128,7 +1161,6 @@
         } catch (error) {
             console.error(`🚨 Fetch error for ${url}:`, error);
             
-            // If it's an auth error, redirect to login
             if (error.message === 'Unauthorized') {
                 redirectToLogin();
             }
@@ -1137,7 +1169,7 @@
         }
     }
 
-    // Navigation function that preserves session
+    // Navigation function with platform-specific handling
     function navigateTo(url) {
         if (!currentUser) {
             console.log('No user data available, cannot navigate');
@@ -1145,12 +1177,9 @@
             return;
         }
 
-        // Build URL with user parameters and session ID
-        let targetUrl = url;
-        if (url.startsWith('/')) {
-            targetUrl = url.substring(1);
-        }
-
+        // Build URL with user parameters
+        let targetUrl = url.startsWith('/') ? url.substring(1) : url;
+        
         const params = new URLSearchParams({
             name: currentUser.name,
             lastName: currentUser.lastName,
@@ -1158,8 +1187,8 @@
             dbName: currentUser.dbName
         });
 
-        // Add session ID for iOS
-        if (sessionId) {
+        // Add session ID for iOS Apps
+        if (isIOSApp && sessionId) {
             params.append('sessionId', sessionId);
         }
 
@@ -1172,7 +1201,6 @@
         if (mobileMenu) mobileMenu.classList.remove('active');
         if (menuOverlay) menuOverlay.classList.remove('active');
         
-        // Use replace to avoid adding to browser history
         window.location.href = fullUrl;
     }
 
@@ -1200,25 +1228,24 @@
         window.location.href = '/';
     }
 
-    // Dashboard data loading
+    // Dashboard data loading and other functions remain the same...
     function loadDashboardData() {
         console.log('Loading dashboard data...');
         
-        // Load initial data
         fetchEmployeesOnShift();
         fetchPendingApprovals();
         fetchTipApprovals();
         checkPendingRequests();
         loadLaborCost();
         
-        // Set up periodic refreshes
         setInterval(fetchEmployeesOnShift, 30000);
         setInterval(fetchPendingApprovals, 60000);
         setInterval(fetchTipApprovals, 60000);
         setInterval(checkPendingRequests, 300000);
-        setInterval(validateSessionWithRecovery, 120000);
+        setInterval(() => {
+            isIOSApp ? validateIOSSession() : validateSessionWithRecovery();
+        }, 120000);
         
-        // Initialize inactivity timer
         setupInactivityTimer();
     }
     
