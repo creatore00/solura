@@ -105,18 +105,33 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(__dirname));
 
-// Session middleware - SIMPLIFIED configuration
+// CRITICAL FIX: Clear existing session middleware with conflicting names
+app.use((req, res, next) => {
+    // Clear any existing session cookies with conflicting names
+    if (req.headers.cookie) {
+        const cookies = req.headers.cookie.split(';');
+        const filteredCookies = cookies.filter(cookie => 
+            !cookie.trim().startsWith('connect.sid=') && 
+            !cookie.trim().startsWith('sessionId=')
+        );
+        req.headers.cookie = filteredCookies.join(';');
+    }
+    next();
+});
+
+// Session middleware - FIXED configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
-    resave: false,
+    resave: true,
     saveUninitialized: false,
     store: sessionStore,
-    name: 'sessionId',
+    name: 'solura.session', // UNIQUE name to avoid conflicts
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
     },
     rolling: true,
     proxy: true
@@ -280,34 +295,24 @@ app.post('/api/recover-session', async (req, res) => {
 
                 console.log('✅ Session recovery successful for user:', userInfo);
 
-                // Restore session
-                req.session.regenerate((err) => {
+                // FIXED: Just assign user data to existing session
+                req.session.user = userInfo;
+                
+                req.session.save((err) => {
                     if (err) {
-                        console.error('Error regenerating session:', err);
+                        console.error('Error saving recovered session:', err);
                         return res.status(500).json({ 
                             success: false, 
                             error: 'Failed to restore session' 
                         });
                     }
 
-                    req.session.user = userInfo;
-                    
-                    req.session.save((err) => {
-                        if (err) {
-                            console.error('Error saving recovered session:', err);
-                            return res.status(500).json({ 
-                                success: false, 
-                                error: 'Failed to restore session' 
-                            });
-                        }
+                    console.log('✅ Recovered session saved with ID:', req.sessionID);
 
-                        console.log('✅ Recovered session saved with ID:', req.sessionID);
-
-                        res.json({ 
-                            success: true, 
-                            user: userInfo,
-                            sessionId: req.sessionID 
-                        });
+                    res.json({ 
+                        success: true, 
+                        user: userInfo,
+                        sessionId: req.sessionID 
                     });
                 });
             });
@@ -414,7 +419,7 @@ app.get('/', (req, res) => {
     }
 });
 
-// Login route - FIXED VERSION
+// Login route - COMPLETELY REWRITTEN with proper session handling
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     const { email, password, dbName } = req.body;
@@ -523,74 +528,64 @@ app.post('/submit', async (req, res) => {
 
                 console.log('✅ Login successful, creating session for user:', userInfo);
 
-                // Regenerate session to prevent fixation
-                req.session.regenerate((err) => {
+                // FIXED: Create new session without destroying first
+                // Just assign the user data to the existing session
+                req.session.user = userInfo;
+                
+                // Generate tokens
+                const authToken = generateToken(userInfo);
+                const refreshToken = jwt.sign(
+                    {
+                        email: userInfo.email,
+                        role: userInfo.role,
+                        name: userInfo.name,
+                        lastName: userInfo.lastName,
+                        dbName: userInfo.dbName
+                    },
+                    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                    { expiresIn: '30d' }
+                );
+
+                const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+
+                let redirectUrl = '';
+
+                if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+                    redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
+                } else if (userDetails.access === 'user') {
+                    redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
+                } else if (userDetails.access === 'supervisor') {
+                    redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
+                } else {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'Incorrect email or password' 
+                    });
+                }
+
+                // Save session and then respond
+                req.session.save((err) => {
                     if (err) {
-                        console.error('Error regenerating session:', err);
+                        console.error('Error saving session:', err);
                         return res.status(500).json({ 
                             success: false,
                             error: 'Failed to create session'
                         });
                     }
 
-                    // Set session data
-                    req.session.user = userInfo;
-                    
-                    // Generate tokens
-                    const authToken = generateToken(userInfo);
-                    const refreshToken = jwt.sign(
-                        {
-                            email: userInfo.email,
-                            role: userInfo.role,
-                            name: userInfo.name,
-                            lastName: userInfo.lastName,
-                            dbName: userInfo.dbName
-                        },
-                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                        { expiresIn: '30d' }
-                    );
+                    console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
-                    const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
-                    const userAgent = req.headers['user-agent'] || '';
-                    const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
-
-                    let redirectUrl = '';
-
-                    if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                        redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
-                    } else if (userDetails.access === 'user') {
-                        redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
-                    } else if (userDetails.access === 'supervisor') {
-                        redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
-                    } else {
-                        return res.status(401).json({ 
-                            success: false,
-                            message: 'Incorrect email or password' 
-                        });
-                    }
-
-                    // Save session and then respond
-                    req.session.save((err) => {
-                        if (err) {
-                            console.error('Error saving session:', err);
-                            return res.status(500).json({ 
-                                success: false,
-                                error: 'Failed to create session'
-                            });
-                        }
-
-                        console.log('✅ Session saved successfully. Session ID:', req.sessionID);
-
-                        res.json({
-                            success: true,
-                            message: 'Login successful',
-                            redirectUrl: redirectUrl,
-                            user: userInfo,
-                            accessToken: authToken,
-                            refreshToken: refreshToken,
-                            sessionId: req.sessionID,
-                            localStorageUser: userInfo
-                        });
+                    res.json({
+                        success: true,
+                        message: 'Login successful',
+                        redirectUrl: redirectUrl,
+                        user: userInfo,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID,
+                        localStorageUser: userInfo
                     });
                 });
             });
@@ -642,188 +637,6 @@ app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
 
 app.get('/SupervisorApp.html', isAuthenticated, isSupervisor, (req, res) => {
     res.sendFile(path.join(__dirname, 'SupervisorApp.html'));
-});
-
-// API routes
-app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
-
-    try {
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        const daysToCheck = yesterday.getDate();
-
-        let missingDaysCount = 0;
-
-        for (let day = 1; day <= daysToCheck; day++) {
-            const date = new Date(currentYear, currentMonth - 1, day);
-            const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-            const formattedDay = `${String(day).padStart(2, '0')}/${String(currentMonth).padStart(2, '0')}/${currentYear} (${dayName})`;
-
-            const dayExists = await new Promise((resolve, reject) => {
-                pool.query(
-                    `SELECT 1 FROM ConfirmedRota WHERE day = ? LIMIT 1`,
-                    [formattedDay],
-                    (error, results) => {
-                        if (error) return reject(error);
-                        resolve(results.length > 0);
-                    }
-                );
-            });
-
-            if (!dayExists) {
-                missingDaysCount++;
-            }
-        }
-
-        res.json({
-            success: true,
-            count: missingDaysCount,
-            checkedDays: daysToCheck
-        });
-
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ success: false, error: 'Server error' });
-    }
-});
-
-app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
-
-    try {
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        const daysToCheck = yesterday.getDate();
-
-        let missingDaysCount = 0;
-
-        for (let day = 1; day <= daysToCheck; day++) {
-            const date = new Date(currentYear, currentMonth - 1, day);
-            const formattedDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-            const dayExists = await new Promise((resolve, reject) => {
-                pool.query(
-                    `SELECT 1 FROM tip WHERE day = ? LIMIT 1`,
-                    [formattedDay],
-                    (error, results) => {
-                        if (error) return reject(error);
-                        resolve(results.length > 0);
-                    }
-                );
-            });
-
-            if (!dayExists) {
-                missingDaysCount++;
-            }
-        }
-
-        res.json({
-            success: true,
-            count: missingDaysCount,
-            checkedDays: daysToCheck
-        });
-
-    } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ success: false, error: 'Server error' });
-    }
-});
-
-// Helper function to get current Monday's date
-function getCurrentMonday() {
-    const today = new Date();
-    const day = today.getDay();
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(today.setDate(diff));
-    return monday.toISOString().split('T')[0];
-}
-
-// Auto Login Function
-app.post('/auto-login', async (req, res) => {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
-
-    const accessToken = authHeader.split(' ')[1];
-    if (!accessToken) return res.status(401).json({ message: 'No token provided' });
-
-    try {
-        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
-        
-        // Set session data
-        req.session.user = decoded;
-        
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving auto-login session:', err);
-                return res.status(500).json({ error: 'Failed to save session' });
-            }
-
-            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}&dbName=${encodeURIComponent(decoded.dbName)}`;
-            let redirectUrl;
-            
-            if (decoded.role === 'admin' || decoded.role === 'AM') {
-                redirectUrl = `/Admin.html${queryString}`;
-            } else if (decoded.role === 'user') {
-                redirectUrl = `/User.html${queryString}`;
-            } else if (decoded.role === 'supervisor') {
-                redirectUrl = `/Supervisor.html${queryString}`;
-            } else {
-                return res.status(401).json({ message: 'Invalid role' });
-            }
-
-            res.json({ 
-                success: true, 
-                redirectUrl, 
-                user: decoded,
-                accessToken: accessToken
-            });
-        });
-    } catch (err) {
-        console.error('Auto-login token error:', err);
-        res.status(401).json({ message: 'Token expired or invalid' });
-    }
-});
-
-// Function to Refresh Token
-app.post('/refresh-token', async (req, res) => {
-    const { refreshToken } = req.body;
-    if (!refreshToken) return res.status(401).json({ message: 'No refresh token provided' });
-
-    try {
-        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
-        const newAccessToken = jwt.sign(
-            {
-                email: decoded.email,
-                role: decoded.role,
-                name: decoded.name,
-                lastName: decoded.lastName,
-                dbName: decoded.dbName
-            },
-            process.env.JWT_SECRET || 'your-secret-key',
-            { expiresIn: '7d' }
-        );
-        res.json({ accessToken: newAccessToken });
-    } catch (err) {
-        console.error('Refresh token error:', err);
-        res.status(401).json({ message: 'Refresh token invalid or expired' });
-    }
 });
 
 // Endpoint to get employees on shift today
@@ -971,6 +784,108 @@ app.get('/api/labor-cost', isAuthenticated, (req, res) => {
     );
 });
 
+// API routes
+app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    try {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const daysToCheck = yesterday.getDate();
+
+        let missingDaysCount = 0;
+
+        for (let day = 1; day <= daysToCheck; day++) {
+            const date = new Date(currentYear, currentMonth - 1, day);
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+            const formattedDay = `${String(day).padStart(2, '0')}/${String(currentMonth).padStart(2, '0')}/${currentYear} (${dayName})`;
+
+            const dayExists = await new Promise((resolve, reject) => {
+                pool.query(
+                    `SELECT 1 FROM ConfirmedRota WHERE day = ? LIMIT 1`,
+                    [formattedDay],
+                    (error, results) => {
+                        if (error) return reject(error);
+                        resolve(results.length > 0);
+                    }
+                );
+            });
+
+            if (!dayExists) {
+                missingDaysCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            count: missingDaysCount,
+            checkedDays: daysToCheck
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
+app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    try {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const daysToCheck = yesterday.getDate();
+
+        let missingDaysCount = 0;
+
+        for (let day = 1; day <= daysToCheck; day++) {
+            const date = new Date(currentYear, currentMonth - 1, day);
+            const formattedDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+            const dayExists = await new Promise((resolve, reject) => {
+                pool.query(
+                    `SELECT 1 FROM tip WHERE day = ? LIMIT 1`,
+                    [formattedDay],
+                    (error, results) => {
+                        if (error) return reject(error);
+                        resolve(results.length > 0);
+                    }
+                );
+            });
+
+            if (!dayExists) {
+                missingDaysCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            count: missingDaysCount,
+            checkedDays: daysToCheck
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
+});
+
 // Route to handle logout
 app.get('/logout', (req, res) => {
     if (req.session) {
@@ -979,7 +894,7 @@ app.get('/logout', (req, res) => {
                 console.error('Failed to destroy session:', err);
                 return res.status(500).json({ error: 'Failed to logout' });
             }
-            res.clearCookie('sessionId');
+            res.clearCookie('solura.session');
             res.json({ success: true, message: 'Logged out successfully' });
         });
     } else {
