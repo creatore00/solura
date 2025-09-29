@@ -5,8 +5,8 @@ const nodemailer = require('nodemailer');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
-const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor } = require('./sessionConfig'); // Adjust the path as needed
+const { getPool, mainPool } = require('./db.js');
+const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor } = require('./sessionConfig');
 
 const app = express();
 
@@ -15,16 +15,178 @@ app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Enhanced session debugging middleware for this specific router
+// Enhanced mobile detection function
+function isMobile(userAgent) {
+    return /android|iphone|ipad|ipod|mobile/i.test(userAgent.toLowerCase());
+}
+
+// Enhanced mobile detection with tablet consideration
+function getDeviceType(userAgent) {
+    const ua = userAgent.toLowerCase();
+    
+    if (/mobile|android|iphone|ipod/.test(ua)) {
+        return 'mobile';
+    } else if (/ipad|tablet/.test(ua)) {
+        return 'tablet';
+    } else {
+        return 'desktop';
+    }
+}
+
+// CRITICAL FIX: Enhanced session restoration middleware for iOS
 app.use((req, res, next) => {
-    console.log('=== CONFIRMROTA ROUTER SESSION DEBUG ===');
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    console.log('=== CONFIRMROTA SESSION DEBUG ===');
     console.log('Path:', req.path);
     console.log('Session ID:', req.sessionID);
     console.log('Session User:', req.session?.user);
     console.log('User Role:', req.session?.user?.role);
     console.log('Database:', req.session?.user?.dbName);
+    console.log('Device Type:', getDeviceType(userAgent));
+    console.log('Is iOS:', isIOS);
     console.log('=== END DEBUG ===');
-    next();
+    
+    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
+        console.log('📱 iOS Session Restoration Needed - ConfirmRota');
+        
+        // Try multiple methods to restore session
+        const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+        const sessionId = urlParams.get('sessionId');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        
+        console.log('🔄 Attempting session restoration with:', { sessionId, email, dbName });
+        
+        if (email && dbName) {
+            console.log('✅ Restoring session from URL parameters');
+            req.session.user = {
+                email: email,
+                dbName: dbName,
+                name: name || '',
+                lastName: lastName || '',
+                role: 'admin' // Default to admin for confirmrota access
+            };
+            
+            // If sessionId is provided, sync the session ID
+            if (sessionId && req.sessionID !== sessionId) {
+                console.log('🔄 Syncing session ID to:', sessionId);
+                req.sessionID = sessionId;
+            }
+            
+            // Save the restored session
+            req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Failed to save restored session:', err);
+                } else {
+                    console.log('✅ Session restored successfully for:', email);
+                }
+                next();
+            });
+        } else {
+            console.log('❌ No restoration parameters found');
+            next();
+        }
+    } else {
+        next();
+    }
+});
+
+// Route to serve the appropriate confirmrota app based on device
+app.get('/', isAuthenticated, (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceType = getDeviceType(userAgent);
+    
+    console.log('ConfirmRota route - Device Type:', deviceType, 'User-Agent:', userAgent);
+
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
+        // Add mobile-specific headers
+        res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.header('Pragma', 'no-cache');
+        res.header('Expires', '0');
+        
+        // For iOS, ensure session ID is preserved in response
+        if (deviceType === 'mobile' || deviceType === 'tablet') {
+            const sessionId = req.query.sessionId || req.sessionID;
+            console.log('📱 Serving mobile confirmrota app with session ID:', sessionId);
+            res.sendFile(path.join(__dirname, 'ConfirmRotaApp.html'));
+        } else {
+            console.log('💻 Serving desktop confirmrota app');
+            res.sendFile(path.join(__dirname, 'ConfirmRota.html'));
+        }
+    } else {
+        console.warn(`Access denied for user ${req.session.user.email} with role ${req.session.user.role}`);
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Route to serve mobile confirmrota app directly
+app.get('/mobile', isAuthenticated, (req, res) => {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
+        res.sendFile(path.join(__dirname, 'ConfirmRotaApp.html'));
+    } else {
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Route to serve desktop confirmrota app directly
+app.get('/desktop', isAuthenticated, (req, res) => {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
+        res.sendFile(path.join(__dirname, 'ConfirmRota.html'));
+    } else {
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Enhanced health endpoint for mobile
+app.get('/health', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    console.log('🏥 ConfirmRota Health check - iOS:', isIOS, 'Session User:', req.session?.user);
+    
+    // For iOS, be more lenient with health checks
+    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
+        console.log('📱 iOS health check - session incomplete but allowing');
+        return res.json({
+            status: 'degraded',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: !!req.session,
+            user: req.session.user ? {
+                email: req.session.user.email,
+                role: req.session.user.role,
+                name: req.session.user.name
+            } : null,
+            message: 'Session may need restoration'
+        });
+    }
+    
+    // Normal health check for authenticated sessions
+    if (req.session?.user) {
+        res.json({
+            status: 'healthy',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: true,
+            user: {
+                email: req.session.user.email,
+                role: req.session.user.role,
+                name: req.session.user.name
+            }
+        });
+    } else {
+        res.status(401).json({
+            status: 'unauthenticated',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: false,
+            message: 'No active session'
+        });
+    }
 });
 
 // Function to generate a unique ID
@@ -33,7 +195,7 @@ const generateUniqueId = async (pool) => {
     let isUnique = false;
 
     while (!isUnique) {
-        id = Math.floor(Math.random() * 1e16).toString().padStart(16, '0'); // Generate a 16-digit code
+        id = Math.floor(Math.random() * 1e16).toString().padStart(16, '0');
         const [rows] = await pool.promise().query(`SELECT id FROM rota WHERE id = ?`, [id]);
         if (rows.length === 0) {
             isUnique = true;
@@ -45,15 +207,14 @@ const generateUniqueId = async (pool) => {
 
 // API endpoint to get rota data for a specific day
 app.get('/api/rota', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         console.error('No dbName in session for /api/rota');
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const day = req.query.day;
     if (!day) {
         return res.status(400).json({ error: 'Day is required' });
@@ -61,20 +222,17 @@ app.get('/api/rota', isAuthenticated, (req, res) => {
 
     console.log(`Fetching rota data for day: ${day}, db: ${dbName}`);
 
-    // Query to get rota data for the specified day
     const rotaQuery = `
         SELECT name, lastName, wage, day, designation, startTime, endTime
         FROM rota
         WHERE day = ?
     `;
 
-    // Query to get confirmed rota data
     const confirmedRotaQuery = `
         SELECT name, lastName, designation, day, startTime, endTime
         FROM ConfirmedRota
     `;
 
-    // Fetch both rota and confirmed rota data
     pool.query(rotaQuery, [day], (err, rotaResults) => {
         if (err) {
             console.error('Error fetching rota data:', err);
@@ -87,12 +245,10 @@ app.get('/api/rota', isAuthenticated, (req, res) => {
                 return res.status(500).json({ error: err.message });
             }
 
-            // Convert confirmed rota data to a set for quick lookup
             const confirmedRotaSet = new Set(
                 confirmedRotaResults.map(entry => `${entry.name} ${entry.lastName} ${entry.designation} ${entry.day} ${entry.startTime} ${entry.endTime}`)
             );
 
-            // Filter out rota data that is already confirmed
             const filteredRotaResults = rotaResults.filter(entry => {
                 const key = `${entry.name} ${entry.lastName} ${entry.designation} ${entry.day} ${entry.startTime} ${entry.endTime}`;
                 return !confirmedRotaSet.has(key);
@@ -105,7 +261,6 @@ app.get('/api/rota', isAuthenticated, (req, res) => {
 });
 
 // Check if Rota has been confirmed by Supervisor
-// Backend API endpoint with enhanced logging
 app.get('/api/check-confirmed-rota2', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
     console.log(`[check-confirmed-rota2] Request received for db: ${dbName}, day: ${req.query.day}`);
@@ -171,16 +326,15 @@ app.get('/api/check-confirmed-rota2', isAuthenticated, (req, res) => {
 
 // API endpoint to get confirmed rota data by date
 app.get('/api/confirmed-rota', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         console.error('No dbName in session for /api/confirmed-rota');
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
-    const day = req.query.day; // Get the day from query parameter
+    const pool = getPool(dbName);
+    const day = req.query.day;
 
     if (!day) {
         return res.status(400).json({ error: 'Day is required' });
@@ -188,7 +342,6 @@ app.get('/api/confirmed-rota', isAuthenticated, (req, res) => {
 
     console.log(`Fetching confirmed rota for day: ${day}, db: ${dbName}`);
 
-    // Query the ConfirmedRota table using the provided day
     const sql = `SELECT * FROM ConfirmedRota WHERE day = ?`;
     pool.query(sql, [day], (err, results) => {
         if (err) {
@@ -197,32 +350,28 @@ app.get('/api/confirmed-rota', isAuthenticated, (req, res) => {
         }
 
         console.log(`Found ${results.length} confirmed rota entries for ${day}`);
-        // Return the results as JSON
         res.json(results);
     });
 });
 
 // Function to remove Employee from Rota
 app.delete('/delete-employee', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         console.error('No dbName in session for /delete-employee');
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const { name, lastName, designation, day } = req.body;
 
-    // Validate the incoming data
     if (!name || !lastName || !designation || !day) {
         return res.status(400).send('Missing required parameters.');
     }
 
     console.log(`Deleting employee: ${name} ${lastName} (${designation}) from ${day}, db: ${dbName}`);
 
-    // Prepare the queries to delete the employee's rota entry from the databases
     const deleteRotaQuery = `
         DELETE FROM rota
         WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
@@ -236,38 +385,32 @@ app.delete('/delete-employee', isAuthenticated, (req, res) => {
         WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
     `;
 
-    // Execute the first delete query (from rota)
     pool.query(deleteRotaQuery, [name, lastName, designation, day], (err, results) => {
         if (err) {
             console.error('Error deleting from rota:', err);
             return res.status(500).send('Internal Server Error');
         }
 
-        // Check if any rows were deleted from rota
         if (results.affectedRows === 0) {
             console.log(`No matching entry found in rota for ${name} ${lastName} (${designation}) on ${day}`);
         }
 
-        // Execute the second delete query (from ConfirmedRota)
         pool.query(deleteConfirmedRotaQuery, [name, lastName, designation, day], (err, results) => {
             if (err) {
                 console.error('Error deleting from ConfirmedRota:', err);
                 return res.status(500).send('Internal Server Error');
             }
 
-            // Check if any rows were deleted from ConfirmedRota
             if (results.affectedRows === 0) {
                 console.log(`No matching entry found in ConfirmedRota for ${name} ${lastName} (${designation}) on ${day}`);
             }
 
-            // Execute the third delete query (from ConfirmedRota2)
             pool.query(deleteConfirmedRota2Query, [name, lastName, designation, day], (err, results) => {
                 if (err) {
                     console.error('Error deleting from ConfirmedRota2:', err);
                     return res.status(500).send('Internal Server Error');
                 }
 
-                // Check if any rows were deleted from ConfirmedRota2
                 if (results.affectedRows === 0) {
                     console.log(`No matching entry found in ConfirmedRota2 for ${name} ${lastName} (${designation}) on ${day}`);
                 }
@@ -299,7 +442,6 @@ app.post('/confirm-rota', isAuthenticated, async (req, res) => {
 
     const day = rotaData[0].day;
 
-    // Queries
     const deleteConfirmedRotaQuery = 'DELETE FROM ConfirmedRota WHERE day = ?';
     const insertConfirmedRotaQuery = `
         INSERT INTO ConfirmedRota (name, lastName, wage, day, startTime, endTime, designation, who) 
@@ -309,7 +451,6 @@ app.post('/confirm-rota', isAuthenticated, async (req, res) => {
         INSERT INTO rota (id, name, lastName, designation, day, startTime, endTime)
         VALUES ?`;
 
-    // Prepare ConfirmedRota values
     const confirmedRotaValues = rotaData.flatMap(entry => {
         const { name, lastName, wage, day, designation, times } = entry;
         return times.map(time => [name, lastName, wage, day, time.startTime, time.endTime, designation, userEmail]);
@@ -317,14 +458,12 @@ app.post('/confirm-rota', isAuthenticated, async (req, res) => {
 
     console.log(`Preparing to insert ${confirmedRotaValues.length} confirmed rota entries`);
 
-    // Delete old ConfirmedRota entries
     pool.query(deleteConfirmedRotaQuery, [day], async (err) => {
         if (err) {
             console.error('Error deleting old confirmed rota:', err);
             return res.status(500).send('Internal Server Error');
         }
 
-        // Insert ConfirmedRota values
         pool.query(insertConfirmedRotaQuery, [confirmedRotaValues], async (err) => {
             if (err) {
                 console.error('Error inserting confirmed rota:', err);
@@ -332,7 +471,6 @@ app.post('/confirm-rota', isAuthenticated, async (req, res) => {
             }
 
             try {
-                // Prepare all Rota values with unique IDs
                 const rotaValues = await Promise.all(
                     rotaData.flatMap(async entry => {
                         const { name, lastName, day, designation, times } = entry;
@@ -343,19 +481,16 @@ app.post('/confirm-rota', isAuthenticated, async (req, res) => {
                     })
                 );
 
-                // Flatten the array (since we have nested arrays)
                 const flattenedRotaValues = rotaValues.flat();
 
                 console.log(`Preparing to insert ${flattenedRotaValues.length} rota entries`);
 
-                // Delete old rota entries for the day
                 pool.query(deleteRotaQuery, [day], (err) => {
                     if (err) {
                         console.error('Error deleting old rota:', err);
                         return res.status(500).send('Internal Server Error');
                     }
 
-                    // Insert all rota entries at once
                     pool.query(insertRotaQuery, [flattenedRotaValues], (err) => {
                         if (err) {
                             console.error('Error inserting new rota:', err);
@@ -377,15 +512,14 @@ app.post('/confirm-rota', isAuthenticated, async (req, res) => {
 
 // Function to Update Values in Rota table and ConfirmedRota table
 app.post('/updateRotaData', isAuthenticated, async (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         console.error('No dbName in session for /updateRotaData');
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const updatedData = req.body;
 
     console.log(`Updating rota data for ${updatedData.length} entries, db: ${dbName}`);
@@ -395,44 +529,35 @@ app.post('/updateRotaData', isAuthenticated, async (req, res) => {
             return res.status(400).send({ success: false, message: 'Invalid input data.' });
         }
 
-        // Start a transaction
         const connection = await pool.promise().getConnection();
         await connection.beginTransaction();
 
-        // Extract unique days from the data
         const uniqueDays = [...new Set(updatedData.map(entry => entry.day))];
 
         console.log(`Processing days: ${uniqueDays.join(', ')}`);
 
-        // For each day, remove all existing records and insert the new data
         for (const day of uniqueDays) {
-            // Delete all records for the day from both tables
             await connection.query(`DELETE FROM rota WHERE day = ?`, [day]);
             await connection.query(`DELETE FROM ConfirmedRota WHERE day = ?`, [day]);
 
-            // Get all entries for this day from the client data
             const clientDataForDay = updatedData.filter(entry => entry.day === day);
 
             console.log(`Processing ${clientDataForDay.length} entries for ${day}`);
 
-            // Insert the updated records for the day into both tables
             for (const entry of clientDataForDay) {
                 const { name, lastName, designation, startTime, endTime } = entry;
 
-                // Validate required fields
                 if (!day || !name || !lastName || !designation || !startTime || !endTime) {
                     console.warn(`Skipping invalid entry for ${day}:`, entry);
                     continue;
                 }
 
-                // Insert into `rota`
                 const id = await generateUniqueId(pool);
                 await connection.query(
                     `INSERT INTO rota (id, day, name, lastName, designation, startTime, endTime) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [id, day, name, lastName, designation, startTime, endTime]
                 );
 
-                // Insert into `ConfirmedRota`
                 await connection.query(
                     `INSERT INTO ConfirmedRota (day, name, lastName, designation, startTime, endTime, who) VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [day, name, lastName, designation, startTime, endTime, req.session.user.email]
@@ -440,7 +565,6 @@ app.post('/updateRotaData', isAuthenticated, async (req, res) => {
             }
         }
 
-        // Commit the transaction
         await connection.commit();
         connection.release();
 
@@ -449,7 +573,6 @@ app.post('/updateRotaData', isAuthenticated, async (req, res) => {
     } catch (err) {
         console.error('Error updating rota data:', err);
 
-        // Rollback the transaction in case of errors
         if (connection) {
             await connection.rollback();
             connection.release();
@@ -461,14 +584,14 @@ app.post('/updateRotaData', isAuthenticated, async (req, res) => {
 
 // Route to fetch employees' name, last name, and designation
 app.get('/api/employees', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         console.error('No dbName in session for /api/employees');
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
+    const pool = getPool(dbName);
 
     console.log(`Fetching employees for db: ${dbName}`);
 
@@ -541,32 +664,18 @@ app.get('/api/confirmed-rota-month', isAuthenticated, (req, res) => {
 
 // Route to handle logout
 app.get('/logout', (req, res) => {
-    // Check if there is an active session
     if (req.session && req.session.user) {
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to logout:', err);
                 return res.status(500).json({ error: 'Failed to logout' });
             }
-            res.clearCookie('connect.sid'); // Clear the session cookie
+            res.clearCookie('connect.sid');
             res.redirect('/');
         });
     } else {
-        // If no active session, just redirect to the login page
         res.redirect('/');
     }
 });
 
-// Route to serve the ConfirmRota.html file
-app.get('/', isAuthenticated, (req, res) => {
-    console.log(`Serving ConfirmRota.html for user: ${req.session.user.email}, role: ${req.session.user.role}`);
-    
-    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
-        res.sendFile(path.join(__dirname, 'ConfirmRota.html'));
-    } else {
-        console.warn(`Access denied for user ${req.session.user.email} with role ${req.session.user.role}`);
-        res.status(403).json({ error: 'Access denied' });
-    }
-});
-
-module.exports = app; // Export the entire Express application
+module.exports = app;
