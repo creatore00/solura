@@ -385,6 +385,7 @@
     </style>
 </head>
 <body>
+    <!-- Your existing HTML structure remains the same -->
     <!-- App Header -->
     <header class="app-header">
         <div class="app-title">
@@ -407,30 +408,30 @@
         <nav class="app-sidebar">
             <div class="nav-section">
                 <div class="nav-section-title">Management</div>
-                <a href="#" class="nav-link active">
+                <a href="#" class="nav-link active" onclick="navigateTo('/Admin.html')">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
-                <a href="/updateinfo" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/updateinfo')">
                     <i class="fas fa-users"></i>
                     <span>Employees</span>
                 </a>
-                <a href="/rota" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/rota')">
                     <i class="fas fa-calendar-alt"></i>
                     <span>Rotas</span>
                 </a>
             </div>
             <div class="nav-section">
                 <div class="nav-section-title">Daily</div>
-                <a href="/endday" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/endday')">
                     <i class="fas fa-clock"></i>
                     <span>End Of Day</span>
                 </a>
-                <a href="/confirmrota" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/confirmrota')">
                     <i class="fas fa-check-double"></i>
                     <span>Approve Rota</span>
                 </a>
-                <a href="/tip" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/tip')">
                     <i class="fas fa-hand-holding-usd"></i>
                     <span>Tips</span>
                 </a>
@@ -438,16 +439,16 @@
 
             <div class="nav-section">
                 <div class="nav-section-title">Holidays</div>
-                <a href="/TotalHolidays" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/TotalHolidays')">
                     <i class="fas fa-calendar-check"></i>
                     <span>Holidays Management</span>
                 </a>
-                <a href="/request" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/request')">
                     <i class="fas fa-check-circle"></i>
                     <span>Approve/Reject Holidays</span>
                     <span class="notification-badge" id="holidayNotification" style="display: none;"></span>
                 </a>
-                <a href="/userholidays" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/userholidays')">
                     <i class="fas fa-umbrella-beach"></i>
                     <span>Request Holidays</span>
                 </a>
@@ -455,15 +456,15 @@
             
             <div class="nav-section">
                 <div class="nav-section-title">Finance</div>
-                <a href="#" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/timetracking')">
                     <i class="fas fa-clock"></i>
                     <span>Time Tracking</span>
                 </a>
-                <a href="/insertpayslip" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/insertpayslip')">
                     <i class="fas fa-file-invoice-dollar"></i>
                     <span>Insert Payslips</span>
                 </a>
-                <a href="/pastpayslips" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/pastpayslips')">
                     <i class="fas fa-receipt"></i>
                     <span>Past Payslips</span>
                 </a>
@@ -471,75 +472,19 @@
                     <i class="fas fa-chart-line"></i>
                     <span>Reports</span>
                 </a>
-
-        <!-- Reports Popup Window (Modal) -->
-        <div id="reportsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
-    <div style="background: white; border-radius: 8px; width: 80%; max-width: 500px; max-height: 80vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; background: #f8f9fa;">
-            <h3 style="margin: 0; font-size: 1.2rem; color: #004f9e;">Available Reports</h3>
-            <button id="closeReportsModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
-        </div>
-        
-        <div style="padding: 20px;">
-            <!-- Report Item 1 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
-                <div>
-                    <div style="font-weight: 600; margin-bottom: 4px;">Payroll Report</div>
-                    <div style="font-size: 0.85rem; color: #666;">Comprehensive Payroll Overview</div>
-                </div>
-                <a href="/hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
-            </div>
-            
-            <!-- Report Item 2 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
-                <div>
-                    <div style="font-weight: 600; margin-bottom: 4px;">Weekly Labor Cost Report</div>
-                    <div style="font-size: 0.85rem; color: #666;">Weekly Performance Metrics</div>
-                </div>
-                <a href="/labor" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
-            </div>
-            
-            <!-- Report Item 3 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
-                <div>
-                    <div style="font-weight: 600; margin-bottom: 4px;">Financial Summary</div>
-                    <div style="font-size: 0.85rem; color: #666;">Revenue & Cost Overview</div>
-                </div>
-                <a href="/financialsummary" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
-            </div>
-            
-            <!-- Report Item 4 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #f8f9fa; border-radius: 4px;">
-                <div>
-                    <div style="font-weight: 600; margin-bottom: 4px;">Coming Soon...</div>
-                    <div style="font-size: 0.85rem; color: #666;">N/A</div>
-                </div>
-                <a href="/payroll-analysis" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
             </div>
 
-            <!-- Report Item 5 -->
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
-                <div>
-                    <div style="font-weight: 600; margin-bottom: 4px;">Coming Soon...</div>
-                    <div style="font-size: 0.85rem; color: #666;">N/A</div>
-                </div>
-                <a href="/employee-hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
-            </div>
-        </div>
-    </div>
-    </div>
-</div>
             <div class="nav-section">
                 <div class="nav-section-title">System</div>
-                <a href="/profile" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/profile')">
                     <i class="fas fa-user-circle"></i>
                     <span>Account</span>
                 </a>
-                <a href="/generate" class="nav-link">
+                <a href="#" class="nav-link" onclick="navigateTo('/generate')">
                     <i class="fas fa-cog"></i>
                     <span>Manage Access</span>
                 </a>
-                <a href="/logout" class="nav-link">
+                <a href="#" class="nav-link" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
                     <span>Logout</span>
                 </a>
@@ -548,6 +493,7 @@
         
         <!-- Main Content -->
         <main class="app-content">
+            <!-- Your existing main content remains the same -->
             <div class="content-header">
                 <h1 class="content-title">Dashboard</h1>
                 <div class="date">
@@ -577,7 +523,7 @@
                     <div class="widget-value" id="approve"></div>
                     <div class="widget-footer">
                         <span>Rota Confirmations waiting</span>
-                        <a href="/confirmrota" style="color: var(--secondary-color);">Review</a>
+                        <a href="#" onclick="navigateTo('/confirmrota')" style="color: var(--secondary-color);">Review</a>
                     </div>
                 </div>
 
@@ -589,21 +535,9 @@
                     <div class="widget-value" id="tip"></div>
                     <div class="widget-footer">
                         <span>Tips Confirmations waiting</span>
-                        <a href="/tip" style="color: var(--secondary-color);">Review</a>
+                        <a href="#" onclick="navigateTo('/tip')" style="color: var(--secondary-color);">Review</a>
                     </div>
                 </div>
-                
-                <!--<div class="dashboard-widget">
-                    <div class="widget-header">
-                        <h3 class="widget-title">Holiday Requests</h3>
-                        <i class="fas fa-umbrella-beach" style="color: #4caf50;"></i>
-                    </div>
-                    <div class="widget-value">5</div>
-                    <div class="widget-footer">
-                        <span>This week</span>
-                        <a href="#" style="color: var(--secondary-color);">Manage</a>
-                    </div>
-                </div>-->
                 
                 <div class="dashboard-widget">
                     <div class="widget-header">
@@ -613,7 +547,7 @@
                     <div class="widget-value" id="labor"></div>
                     <div class="widget-footer">
                         <span>This Week</span>
-                        <a href="/labor" style="color: var(--secondary-color);">Details</a>
+                        <a href="#" onclick="navigateTo('/labor')" style="color: var(--secondary-color);">Details</a>
                     </div>
                 </div>
             </div>
@@ -621,278 +555,493 @@
             <!-- Quick Actions -->
             <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Quick Actions</h2>
             <div class="quick-actions">
-                <a href="/rota" class="action-btn">
+                <a href="#" class="action-btn" onclick="navigateTo('/rota')">
                     <div class="action-icon">
                         <i class="fas fa-calendar-plus"></i>
                     </div>
                     <div class="action-label">Create Rota</div>
                 </a>
                 
-                <a href="/confirmrota" class="action-btn">
+                <a href="#" class="action-btn" onclick="navigateTo('/confirmrota')">
                     <div class="action-icon">
                         <i class="fas fa-check-double"></i>
                     </div>
                     <div class="action-label">Approve Rota</div>
                 </a>
                 
-                <a href="endday" class="action-btn">
+                <a href="#" class="action-btn" onclick="navigateTo('/endday')">
                     <div class="action-icon">
                         <i class="fas fa-clock"></i>
                     </div>
                     <div class="action-label">End of Day</div>
                 </a>
                 
-                <a href="tip" class="action-btn">
+                <a href="#" class="action-btn" onclick="navigateTo('/tip')">
                     <div class="action-icon">
                         <i class="fas fa-hand-holding-usd"></i>
                     </div>
                     <div class="action-label">Daily Tips</div>
                 </a>
                 
-                <a href="insertpayslip" class="action-btn">
+                <a href="#" class="action-btn" onclick="navigateTo('/insertpayslip')">
                     <div class="action-icon">
                         <i class="fas fa-file-invoice-dollar"></i>
                     </div>
                     <div class="action-label">New Payslips</div>
                 </a>
                 
-                <a href="/userholidays" class="action-btn">
+                <a href="#" class="action-btn" onclick="navigateTo('/userholidays')">
                     <div class="action-icon">
                         <i class="fas fa-calendar-check"></i>
                     </div>
                     <div class="action-label">Holiday Booking</div>
                 </a>
             </div>
-                        <!-- Recent Activity -->
-                        <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
-                        <table class="data-table">
-                            <thead>
-                                <tr>                                   
-                                    <th>Employee</th>                                    
-                                    <th>Designation</th>
-                                    <th>Shift</th>
-                                    <th>Activity</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Will be populated by JavaScript -->
-                            </tbody>
-                        </table>
-    
+            
+            <!-- Recent Activity -->
+            <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>                                   
+                        <th>Employee</th>                                    
+                        <th>Designation</th>
+                        <th>Shift</th>
+                        <th>Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </main>
+    </div>
+
     <!-- App Footer -->
     <footer class="app-footer">
         <p>Solura Workforce Management System &copy; 2024</p>
     </footer>
 
+    <!-- Reports Modal (keep your existing modal structure) -->
+    <div id="reportsModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <!-- Your existing modal content -->
+        <div style="background: white; border-radius: 8px; width: 80%; max-width: 500px; max-height: 80vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; background: #f8f9fa;">
+                <h3 style="margin: 0; font-size: 1.2rem; color: #004f9e;">Available Reports</h3>
+                <button id="closeReportsModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+            </div>
+            
+            <div style="padding: 20px;">
+                <!-- Report Items with navigation -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Payroll Report</div>
+                        <div style="font-size: 0.85rem; color: #666;">Comprehensive Payroll Overview</div>
+                    </div>
+                    <a href="#" onclick="navigateTo('/hours')" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Weekly Labor Cost Report</div>
+                        <div style="font-size: 0.85rem; color: #666;">Weekly Performance Metrics</div>
+                    </div>
+                    <a href="#" onclick="navigateTo('/labor')" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Financial Summary</div>
+                        <div style="font-size: 0.85rem; color: #666;">Revenue & Cost Overview</div>
+                    </div>
+                    <a href="#" onclick="navigateTo('/financialsummary')" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+                
+                <!-- Add more report items as needed -->
+            </div>
+        </div>
+    </div>
 <script>
-// Function to check for pending requests
-function checkPendingRequests() {
-    fetch('/request/holidays')
-        .then(response => response.json())
-        .then(data => {
-            const pendingRequests = data.filter(request => 
-                !(request.accepted === 'true' || request.accepted === 'unpaid')
-            );
-            
-            const notificationBadge = document.getElementById('holidayNotification');
-            if (pendingRequests.length > 0) {
-                notificationBadge.style.display = 'block';
-                // Optional: Update the count if you want a number instead of just a dot
-                // notificationBadge.textContent = pendingRequests.length;
-            } else {
-                notificationBadge.style.display = 'none';
+// Global variables
+let currentUser = null;
+
+// Session validation functions (your existing code remains the same)
+async function validateSessionWithRecovery() {
+    try {
+        console.log('🔐 Validating session...');
+        
+        const response = await fetch('/api/validate-session', {
+            credentials: 'include',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Accept': 'application/json'
             }
-        })
-        .catch(error => {
-            console.error('Error checking pending requests:', error);
         });
-}
-// Check initially when page loads
-document.addEventListener('DOMContentLoaded', checkPendingRequests);
-// Optional: Check periodically (every 5 minutes)
-setInterval(checkPendingRequests, 300000);
-// Opens Backend page  
-document.addEventListener('DOMContentLoaded', function() {
-    // Add keyboard event listener
-    document.addEventListener('keydown', function(event) {
-        // Check if Ctrl (or Cmd on Mac) and B are pressed together
-        if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
-            // Prevent the default browser behavior (like opening bookmarks)
-            event.preventDefault();
+        
+        console.log('Session validation response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Session validation response:', data);
             
-            // Open the Backend page
-            window.location.href = '/Backend'; // or whatever your backend URL is
-        }
-    });
-});
-// Opens Reports Window
-document.addEventListener('DOMContentLoaded', function() {
-    const reportsLink = document.getElementById('reportsLink');
-    const reportsModal = document.getElementById('reportsModal');
-    const closeReportsModal = document.getElementById('closeReportsModal');
-    
-    // Open modal when Reports is clicked
-    reportsLink.addEventListener('click', function(e) {
-        e.preventDefault();
-        reportsModal.style.display = 'flex';
-    });
-    
-    // Close modal when X button is clicked
-    closeReportsModal.addEventListener('click', function() {
-        reportsModal.style.display = 'none';
-    });
-    
-    // Close modal when clicking outside the content
-    reportsModal.addEventListener('click', function(e) {
-        if (e.target === reportsModal) {
-            reportsModal.style.display = 'none';
-        }
-    });
-    
-    // Close modal with Escape key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && reportsModal.style.display === 'flex') {
-            reportsModal.style.display = 'none';
-        }
-    });
-});
-// Set current date
-function updateLiveDateTime() {
-    const now = new Date();
-    document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    }).replace(',', '');
-}
-// Then update every second (1000ms)
-setInterval(updateLiveDateTime, 1000);
-// Database switcher functionality
-document.addEventListener('DOMContentLoaded', function() {
-            // Get user session info (you may need to adjust this based on how you store session info)
-            const userEmail = new URLSearchParams(window.location.search).get('email');
-            
-            // Fetch the user's accessible databases
-            fetch('/getUserDatabases', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email: userEmail })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.databases && data.databases.length > 1) {
-                    // User has multiple databases - show the switcher
-                    const dbSelector = document.getElementById('dbSelector');
-                    const switchBtn = document.getElementById('switchDbBtn');
-                    const currentDbDisplay = document.getElementById('currentDbDisplay');
-                    
-                    // Set current database display
-                    currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
-                    
-                    // Populate dropdown
-                    data.databases.forEach(db => {
-                        const option = document.createElement('option');
-                        option.value = db.db_name;
-                        option.textContent = db.db_name;
-                        if (db.db_name === data.currentDb) {
-                            option.selected = true;
-                        }
-                        dbSelector.appendChild(option);
-                    });
-                    
-                    // Show controls
-                    dbSelector.style.display = 'inline-block';
-                    switchBtn.style.display = 'inline-block';
-                    
-                    // Handle switch
-                    switchBtn.addEventListener('click', function() {
-                        const selectedDb = dbSelector.value;
-                        if (selectedDb !== data.currentDb) {
-                            // Switch database
-                            fetch('/switchDatabase', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ 
-                                    email: userEmail,
-                                    dbName: selectedDb
-                                })
-                            })
-                            .then(response => response.json())
-                            .then(result => {
-                                if (result.success) {
-                                    // Reload the page with the new database
-                                    window.location.reload();
-                                } else {
-                                    alert('Failed to switch database: ' + (result.message || 'Unknown error'));
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error switching database:', error);
-                                alert('Error switching database');
-                            });
-                        }
-                    });
-                } else if (data.databases && data.databases.length === 1) {
-                    // User only has one database - just display it
-                    document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
+            if (data.valid && data.user) {
+                console.log('✅ Session valid, user:', data.user.email);
+                currentUser = data.user;
+                
+                // Store user info for recovery
+                localStorage.setItem('userInfo', JSON.stringify(data.user));
+                if (data.user.dbName) {
+                    localStorage.setItem('lastDb', data.user.dbName);
                 }
-            })
-            .catch(error => {
-                console.error('Error fetching user databases:', error);
-            });
-        });
-// Function for Labor
-function updateLaborCostWidget(cost) {
-    // Format the cost with thousands separator
-    const formattedCost = new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0
-    }).format(cost).replace('GBP', '').trim();
-    
-    // Update the widget value
-    const widgetValue = document.getElementById('labor');
-    if (widgetValue) {
-        widgetValue.textContent = formattedCost;
+                if (data.sessionId) {
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+                
+                return true;
+            } else {
+                console.log('❌ Session invalid or user data missing');
+                return await attemptSessionRecovery();
+            }
+        } else if (response.status === 401) {
+            console.log('🔄 Session expired, attempting recovery...');
+            return await attemptSessionRecovery();
+        } else {
+            console.log('❌ Session validation failed with status:', response.status);
+            return await attemptSessionRecovery();
+        }
+        
+    } catch (error) {
+        console.error('🚨 Session validation error:', error);
+        return await attemptSessionRecovery();
     }
 }
-// Function for Labor
-function fetchLaborCost(callback) {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', '/api/labor-cost', true);
+
+async function attemptSessionRecovery() {
+    console.log('🔄 Attempting session recovery...');
     
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            try {
-                const data = JSON.parse(xhr.responseText);
-                if (data.success) {
-                    callback(null, data.cost);
-                } else {
-                    callback(data.message || 'No data available');
-                }
-            } catch (e) {
-                callback('Error parsing response');
-            }
-        } else {
-            callback('Request failed with status: ' + xhr.status);
+    // Try multiple recovery methods
+    
+    // Method 1: Try with stored session ID and user info
+    const sessionId = localStorage.getItem('sessionId');
+    const storedUser = localStorage.getItem('userInfo');
+    
+    if (sessionId && storedUser) {
+        console.log('Found stored session ID, attempting recovery...');
+        const recovered = await recoverSessionWithCredentials();
+        if (recovered) {
+            return true;
         }
-    };
+    }
     
-    xhr.onerror = function() {
-        callback('Network error');
-    };
+    // Method 2: Try with URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const email = urlParams.get('email');
+    const dbName = urlParams.get('dbName');
     
-    xhr.send();
+    if (email && dbName) {
+        console.log('Attempting recovery with URL parameters...');
+        const userInfo = {
+            email: email,
+            dbName: dbName,
+            name: urlParams.get('name'),
+            lastName: urlParams.get('lastName')
+        };
+        currentUser = userInfo;
+        const recovered = await restoreSessionFromParams(userInfo);
+        if (recovered) {
+            return true;
+        }
+    }
+    
+    // Method 3: Try with stored user info only
+    if (storedUser) {
+        console.log('Attempting recovery with stored user info only...');
+        const recovered = await recoverSessionWithCredentials();
+        if (recovered) {
+            return true;
+        }
+    }
+    
+    console.log('❌ All recovery attempts failed, redirecting to login');
+    redirectToLogin();
+    return false;
 }
+
+async function recoverSessionWithCredentials() {
+    try {
+        const storedUser = localStorage.getItem('userInfo');
+        const lastDb = localStorage.getItem('lastDb');
+        const sessionId = localStorage.getItem('sessionId');
+        
+        if (!storedUser) {
+            return false;
+        }
+        
+        const userInfo = JSON.parse(storedUser);
+        currentUser = userInfo;
+        const recoveryData = {
+            email: userInfo.email,
+            dbName: userInfo.dbName || lastDb,
+            sessionId: sessionId
+        };
+        
+        console.log('Recovery data:', recoveryData);
+        
+        if (!recoveryData.email || !recoveryData.dbName) {
+            return false;
+        }
+        
+        const response = await fetch('/api/recover-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(recoveryData)
+        });
+        
+        console.log('Recovery response status:', response.status);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Session recovered successfully:', data);
+            currentUser = data.user;
+            
+            // Update stored session info
+            if (data.sessionId) {
+                localStorage.setItem('sessionId', data.sessionId);
+            }
+            if (data.user) {
+                localStorage.setItem('userInfo', JSON.stringify(data.user));
+            }
+            
+            return true;
+        } else {
+            console.log('❌ Session recovery failed with status:', response.status);
+            return false;
+        }
+    } catch (error) {
+        console.error('🚨 Session recovery error:', error);
+        return false;
+    }
+}
+
+async function restoreSessionFromParams(userInfo) {
+    try {
+        console.log('Restoring session from parameters...');
+        
+        const response = await fetch('/api/restore-session', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(userInfo)
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Session restored successfully from params');
+            
+            if (data.sessionId) {
+                localStorage.setItem('sessionId', data.sessionId);
+            }
+            
+            return true;
+        } else {
+            console.log('❌ Session restoration from params failed');
+            return false;
+        }
+    } catch (error) {
+        console.error('Session restoration error:', error);
+        return false;
+    }
+}
+
+// Enhanced fetch with session recovery
+async function fetchWithRecovery(url, options = {}) {
+    try {
+        const config = {
+            ...options,
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                ...options.headers
+            }
+        };
+        
+        // Add session ID if available
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) {
+            config.headers['X-Session-ID'] = sessionId;
+        }
+        
+        console.log(`🔍 Fetching: ${url}`);
+        let response = await fetch(url, config);
+        console.log(`📨 Response status: ${response.status} for ${url}`);
+        
+        // If unauthorized, try to recover session and retry
+        if (response.status === 401) {
+            console.log('🔄 Request unauthorized, attempting session recovery...');
+            const recovered = await recoverSessionWithCredentials();
+            
+            if (recovered) {
+                console.log('🔄 Session recovered, retrying request...');
+                
+                // Update session ID in headers for retry
+                const newSessionId = localStorage.getItem('sessionId');
+                if (newSessionId) {
+                    config.headers['X-Session-ID'] = newSessionId;
+                }
+                
+                response = await fetch(url, config);
+                console.log(`📨 Retry response status: ${response.status} for ${url}`);
+            } else {
+                console.log('❌ Session recovery failed, redirecting to login');
+                redirectToLogin();
+                throw new Error('Unauthorized');
+            }
+        }
+        
+        return response;
+    } catch (error) {
+        console.error(`🚨 Fetch error for ${url}:`, error);
+        
+        // If it's an auth error, redirect to login
+        if (error.message === 'Unauthorized') {
+            redirectToLogin();
+        }
+        
+        throw error;
+    }
+}
+
+// NEW: Navigation function that preserves session
+function navigateTo(url) {
+    if (!currentUser) {
+        console.log('No user data available, cannot navigate');
+        redirectToLogin();
+        return;
+    }
+
+    // Build URL with user parameters
+    let targetUrl = url;
+    if (url.startsWith('/')) {
+        targetUrl = url.substring(1);
+    }
+
+    const params = new URLSearchParams({
+        name: currentUser.name,
+        lastName: currentUser.lastName,
+        email: currentUser.email,
+        dbName: currentUser.dbName
+    });
+
+    const fullUrl = `${targetUrl}?${params.toString()}`;
+    console.log(`🔄 Navigating to: ${fullUrl}`);
+    
+    // Use replace to avoid adding to browser history
+    window.location.replace(fullUrl);
+}
+
+function redirectToLogin() {
+    // Clear all stored data
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('lastDb');
+    localStorage.removeItem('sessionId');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    
+    window.location.href = '/';
+}
+
+async function logout() {
+    try {
+        await fetchWithRecovery('/logout');
+        redirectToLogin();
+    } catch (error) {
+        console.error('Logout error:', error);
+        redirectToLogin();
+    }
+}
+
+// Session monitor
+let sessionCheckInterval;
+
+function startSessionMonitor() {
+    sessionCheckInterval = setInterval(async () => {
+        const isValid = await validateSessionWithRecovery();
+        if (!isValid) {
+            console.log('Session expired, redirecting to login');
+            clearInterval(sessionCheckInterval);
+            redirectToLogin();
+        }
+    }, 30000); // Check every 30 seconds
+}
+
+// Check session on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Page loaded, checking session...');
+    
+    // Check if we have URL parameters (from login redirect)
+    const urlParams = new URLSearchParams(window.location.search);
+    const name = urlParams.get('name');
+    const lastName = urlParams.get('lastName');
+    const email = urlParams.get('email');
+    const dbName = urlParams.get('dbName');
+    
+    if (name && lastName && email && dbName) {
+        console.log('Found URL parameters, storing user info...');
+        // Store user info for recovery
+        const userInfo = {
+            email: email,
+            name: name,
+            lastName: lastName,
+            dbName: dbName
+        };
+        localStorage.setItem('userInfo', JSON.stringify(userInfo));
+        localStorage.setItem('lastDb', dbName);
+        currentUser = userInfo;
+        
+        // Immediately restore session with URL params
+        await restoreSessionFromParams(userInfo);
+    }
+    
+    // Validate session with enhanced recovery for iOS
+    console.log('Validating session...');
+    const isValid = await validateSessionWithRecovery();
+    
+    if (!isValid) {
+        console.log('Session validation failed, not loading data');
+        showSessionError();
+        return;
+    }
+    
+    console.log('Session valid, initializing page...');
+    startSessionMonitor();
+    initializePage();
+});
+
+function showSessionError() {
+    const mainContent = document.querySelector('.app-content');
+    if (mainContent) {
+        mainContent.innerHTML = `
+            <div class="session-error" style="text-align: center; padding: 2rem; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h2>Session Expired</h2>
+                <p>Your session has expired. Please log in again.</p>
+                <button onclick="redirectToLogin()" class="btn-primary" style="background: #004f9e; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; font-size: 1rem; cursor: pointer; margin-top: 1rem;">Return to Login</button>
+            </div>
+        `;
+    }
+}
+
+// ========== MISSING FUNCTIONS ADDED BELOW ==========
+
 // Function to update employees on shift widget
 function updateEmployeesOnShift(count) {
     const widgetValue = document.getElementById('employees');
@@ -900,29 +1049,31 @@ function updateEmployeesOnShift(count) {
         widgetValue.textContent = count;
     }
 }
-// Helper to format time
-function formatTime(timeString) {
-    if (!timeString) return '';
-    return timeString.split(', ')
-        .map(time => {
-            const [hours, minutes] = time.split(':');
-            const hour = parseInt(hours);
-            const ampm = hour >= 12 ? 'PM' : 'AM';
-            const displayHour = hour % 12 || 12;
-            return `${displayHour}:${minutes} ${ampm}`;
-        })
-        .join(' & ');
+
+// Function to fetch Shift Data
+async function fetchEmployeesOnShift() {
+    try {
+        const response = await fetchWithRecovery('/api/employees-on-shift');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            updateEmployeesOnShift(data.count);
+            populateShiftTable(data.employees);
+        } else {
+            console.error('Error:', data.error || 'Unknown error');
+            updateEmployeesOnShift('--');
+        }
+    } catch (error) {
+        console.error('Fetch error:', error);
+        updateEmployeesOnShift('--');
+    }
 }
-// Helper to format time
-function formatTimeRange(start, end) {
-    const format = (time) => {
-        const [h, m] = time.split(':');
-        const hour = h % 12 || 12;
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        return `${hour}:${m} ${ampm}`;
-    };
-    return `${format(start)} - ${format(end)}`;
-}
+
 // Function to Populate Shift Table
 function populateShiftTable(employees) {
     const tableBody = document.querySelector('.data-table tbody');
@@ -963,6 +1114,18 @@ function populateShiftTable(employees) {
         tableBody.appendChild(row);
     });
 }
+
+// Helper to format time
+function formatTimeRange(start, end) {
+    const format = (time) => {
+        const [h, m] = time.split(':');
+        const hour = h % 12 || 12;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        return `${hour}:${m} ${ampm}`;
+    };
+    return `${format(start)} - ${format(end)}`;
+}
+
 // Function to update pending approvals count
 function updatePendingApprovals(count) {
     const widget = document.getElementById('approve');
@@ -970,10 +1133,11 @@ function updatePendingApprovals(count) {
         widget.textContent = count;
     }
 }
+
 // Function to fetch pending approvals
 async function fetchPendingApprovals() {
     try {
-        const response = await fetch('/api/pending-approvals');
+        const response = await fetchWithRecovery('/api/pending-approvals');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -990,17 +1154,19 @@ async function fetchPendingApprovals() {
         updatePendingApprovals('--');
     }
 }
-// Function to update pending approvals count
+
+// Function to update tip approvals count
 function updateTipApprovals(count) {
     const widget = document.getElementById('tip');
     if (widget) {
         widget.textContent = count;
     }
 }
-// Function to fetch pending approvals
+
+// Function to fetch tip approvals
 async function fetchTipApprovals() {
     try {
-        const response = await fetch('/api/tip-approvals');
+        const response = await fetchWithRecovery('/api/tip-approvals');
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
@@ -1017,87 +1183,256 @@ async function fetchTipApprovals() {
         updateTipApprovals('--');
     }
 }
-// Function to fetch Shift Data
-async function fetchEmployeesOnShift() {
-    try {
-        const response = await fetch('/api/employees-on-shift');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            updateEmployeesOnShift(data.count);
-            populateShiftTable(data.employees);
-        } else {
-            console.error('Error:', data.error || 'Unknown error');
-            updateEmployeesOnShift('--');
-        }
-    } catch (error) {
-        console.error('Fetch error:', error);
-        updateEmployeesOnShift('--');
+
+// Function for Labor
+function updateLaborCostWidget(cost) {
+    // Format the cost with thousands separator
+    const formattedCost = new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0
+    }).format(cost).replace('GBP', '').trim();
+    
+    // Update the widget value
+    const widgetValue = document.getElementById('labor');
+    if (widgetValue) {
+        widgetValue.textContent = formattedCost;
     }
 }
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    fetchEmployeesOnShift();
-    // Optional: Refresh every second
-    setInterval(fetchEmployeesOnShift, 10000);
+
+// Function for Labor
+function fetchLaborCost(callback) {
+    fetchWithRecovery('/api/labor-cost')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                callback(null, data.cost);
+            } else {
+                callback(data.message || 'No data available');
+            }
+        })
+        .catch(error => {
+            callback('Error: ' + error.message);
+        });
+}
+
+// FIXED: Function to check for pending requests with better error handling
+function checkPendingRequests() {
+    fetchWithRecovery('/request/holidays')
+        .then(response => {
+            // Check if response is JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Response is not JSON');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const pendingRequests = data.filter(request => 
+                !(request.accepted === 'true' || request.accepted === 'unpaid')
+            );
+            
+            const notificationBadge = document.getElementById('holidayNotification');
+            if (pendingRequests.length > 0) {
+                notificationBadge.style.display = 'block';
+            } else {
+                notificationBadge.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Error checking pending requests:', error);
+            // Don't show error to user for this non-critical function
+        });
+}
+
+// Set current date
+function updateLiveDateTime() {
+    const now = new Date();
+    document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }).replace(',', '');
+}
+
+// Database switcher functionality
+function initializeDatabaseSwitcher() {
+    if (!currentUser) return;
+    
+    const userEmail = currentUser.email;
+    
+    // Fetch the user's accessible databases
+    fetchWithRecovery('/getUserDatabases', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email: userEmail })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.databases && data.databases.length > 1) {
+            // User has multiple databases - show the switcher
+            const dbSelector = document.getElementById('dbSelector');
+            const switchBtn = document.getElementById('switchDbBtn');
+            const currentDbDisplay = document.getElementById('currentDbDisplay');
+            
+            // Set current database display
+            currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
+            
+            // Populate dropdown
+            data.databases.forEach(db => {
+                const option = document.createElement('option');
+                option.value = db.db_name;
+                option.textContent = db.db_name;
+                if (db.db_name === data.currentDb) {
+                    option.selected = true;
+                }
+                dbSelector.appendChild(option);
+            });
+            
+            // Show controls
+            dbSelector.style.display = 'inline-block';
+            switchBtn.style.display = 'inline-block';
+            
+            // Handle switch
+            switchBtn.addEventListener('click', function() {
+                const selectedDb = dbSelector.value;
+                if (selectedDb !== data.currentDb) {
+                    // Switch database
+                    fetchWithRecovery('/switchDatabase', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ 
+                            email: userEmail,
+                            dbName: selectedDb
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.success) {
+                            // Reload the page with the new database
+                            window.location.reload();
+                        } else {
+                            alert('Failed to switch database: ' + (result.message || 'Unknown error'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error switching database:', error);
+                        alert('Error switching database');
+                    });
+                }
+            });
+        } else if (data.databases && data.databases.length === 1) {
+            // User only has one database - just display it
+            document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching user databases:', error);
+    });
+}
+
+// Initialize the page
+function initializePage() {
     // Update immediately when page loads
     updateLiveDateTime();
-    // Function to Call Approvals
+    
+    // Initialize database switcher
+    initializeDatabaseSwitcher();
+    
+    // Check initially when page loads
+    checkPendingRequests();
+    
+    // Optional: Check periodically (every 5 minutes)
+    setInterval(checkPendingRequests, 300000);
+    
+    // Initialize dashboard data
+    fetchEmployeesOnShift();
     fetchPendingApprovals();
-    // Function To Call Tip
     fetchTipApprovals();
-});
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+    
+    // Optional: Refresh every 10 seconds
+    setInterval(fetchEmployeesOnShift, 10000);
+    
+    // Initialize labor cost
     fetchLaborCost(function(error, cost) {
         if (error) {
             console.error('Error fetching labor cost:', error);
-            // Optionally show error message or keep default value
             return;
         }
         updateLaborCostWidget(cost);
     });
-});
+    
+    // Initialize reports modal
+    const reportsLink = document.getElementById('reportsLink');
+    const reportsModal = document.getElementById('reportsModal');
+    const closeReportsModal = document.getElementById('closeReportsModal');
+    
+    if (reportsLink && reportsModal) {
+        reportsLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            reportsModal.style.display = 'flex';
+        });
+        
+        closeReportsModal.addEventListener('click', function() {
+            reportsModal.style.display = 'none';
+        });
+        
+        reportsModal.addEventListener('click', function(e) {
+            if (e.target === reportsModal) {
+                reportsModal.style.display = 'none';
+            }
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && reportsModal.style.display === 'flex') {
+                reportsModal.style.display = 'none';
+            }
+        });
+    }
+    
+    // Add keyboard event listener for Backend
+    document.addEventListener('keydown', function(event) {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+            event.preventDefault();
+            navigateTo('/Backend');
+        }
+    });
+    
+    // Initialize inactivity timer
+    resetInactivityTimer();
+    window.onmousemove = resetInactivityTimer;
+    window.onkeypress = resetInactivityTimer;
+}
+
 // Inactivity timer
 let inactivityTimer;
 const resetInactivityTimer = () => {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = setTimeout(() => {
-                alert('You have been logged out due to inactivity.');
-                window.location.href = '/logout';
-            }, 60 * 60 * 1000); // 60 minutes
-        };
-// Initialize timer and event listeners
-window.onload = function() {
-            resetInactivityTimer();
-        };
-window.onmousemove = resetInactivityTimer;
-window.onkeypress = resetInactivityTimer;
-// Logout functionality
-document.getElementById('logoutBtn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            try {
-                const response = await fetch('/logout', {
-                    method: 'GET',
-                    credentials: 'same-origin'
-                });
+    clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(() => {
+        alert('You have been logged out due to inactivity.');
+        logout();
+    }, 60 * 60 * 1000); // 60 minutes
+};
 
-                if (response.ok) {
-                    window.location.href = '/';
-                } else {
-                    console.error('Failed to logout:', response.statusText);
-                    alert('Failed to logout. Please try again.');
-                }
-            } catch (error) {
-                console.error('Failed to logout:', error.message);
-                alert('Failed to logout. Please try again.');
-            }
-        });
+// Export functions for global access
+window.navigateTo = navigateTo;
+window.logout = logout;
+window.redirectToLogin = redirectToLogin;
 </script>
+
 </body>
 </html>
