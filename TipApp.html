@@ -560,12 +560,60 @@
     <div id="swipeIndicator" class="swipe-indicator">Swipe right to go back</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
 <script>
     // Global variables
     let currentData = [];
     let isEditable = false;
     let existingTips = false;
     let swipeStartX = 0;
+    let currentSessionParams = {};
+
+    // Initialize session parameters from URL
+    function initializeSessionParams() {
+        const urlParams = new URLSearchParams(window.location.search);
+        currentSessionParams = {
+            sessionId: urlParams.get('sessionId'),
+            email: urlParams.get('email'),
+            dbName: urlParams.get('dbName'),
+            name: urlParams.get('name'),
+            lastName: urlParams.get('lastName')
+        };
+        debugLog('Session parameters initialized', currentSessionParams);
+    }
+
+    // Enhanced fetch function that preserves session parameters
+    function fetchWithSession(url, options = {}) {
+        // Ensure URL includes session parameters
+        let finalUrl = url;
+        const urlObj = new URL(url, window.location.origin);
+        
+        // Add session parameters if they're not already in the URL
+        Object.keys(currentSessionParams).forEach(key => {
+            if (currentSessionParams[key] && !urlObj.searchParams.has(key)) {
+                urlObj.searchParams.set(key, currentSessionParams[key]);
+            }
+        });
+
+        // Add cache busting for iOS
+        if (!urlObj.searchParams.has('_')) {
+            urlObj.searchParams.set('_', Date.now());
+        }
+
+        finalUrl = urlObj.toString();
+        debugLog('Fetching with session', { original: url, final: finalUrl });
+
+        return fetch(finalUrl, {
+            credentials: 'include',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Accept': 'application/json',
+                ...options.headers
+            },
+            ...options
+        });
+    }
 
     // Debug function to log API calls
     function debugLog(message, data = null) {
@@ -638,7 +686,14 @@
         } else if (error.message.includes('401')) {
             userMessage = 'Session expired - please login again';
             setTimeout(() => {
-                window.location.href = '/';
+                // Redirect with current session parameters
+                const redirectUrl = new URL('/', window.location.origin);
+                Object.keys(currentSessionParams).forEach(key => {
+                    if (currentSessionParams[key]) {
+                        redirectUrl.searchParams.set(key, currentSessionParams[key]);
+                    }
+                });
+                window.location.href = redirectUrl.toString();
             }, 2000);
         } else if (error.message.includes('404')) {
             userMessage = 'Data not found';
@@ -653,10 +708,7 @@
     // Check app health before making API calls
     async function checkAppHealth() {
         try {
-            const healthResponse = await fetch('/tip/health', {
-                credentials: 'include',
-                headers: { 'Cache-Control': 'no-cache' }
-            });
+            const healthResponse = await fetchWithSession('/tip/health');
             
             if (!healthResponse.ok) {
                 throw new Error(`Health check failed: ${healthResponse.status}`);
@@ -664,6 +716,13 @@
             
             const healthData = await healthResponse.json();
             debugLog('App health check', healthData);
+            
+            if (healthData.status === 'degraded') {
+                debugLog('App health degraded - session may need restoration', healthData);
+                // Continue anyway, as degraded might mean session is being restored
+                return true;
+            }
+            
             return healthData.status === 'healthy';
         } catch (error) {
             debugLog('Health check failed', error);
@@ -696,34 +755,10 @@
                 throw new Error('Application is not healthy');
             }
 
-            // Get session ID from URL for mobile devices
-            const urlParams = new URLSearchParams(window.location.search);
-            const sessionId = urlParams.get('sessionId');
-            const email = urlParams.get('email');
-            const dbName = urlParams.get('dbName');
-            
-            debugLog('URL parameters', { sessionId, email, dbName });
-
-            // Build URLs with session ID and cache busting
-            let existingUrl = `/tip/existing?date=${monthStart}&_=${Date.now()}`;
-            let rotaUrl = `/tip/rota?startDate=${monthStart}&_=${Date.now()}`;
-            
-            // Add session ID if available
-            if (sessionId) {
-                existingUrl += `&sessionId=${sessionId}`;
-                rotaUrl += `&sessionId=${sessionId}`;
-            }
-
-            debugLog('Fetching existing tips from', existingUrl);
+            debugLog('Fetching existing tips');
 
             // Check for existing tips first
-            const existingResponse = await fetch(existingUrl, {
-                credentials: 'include',
-                headers: { 
-                    'Cache-Control': 'no-cache',
-                    'Accept': 'application/json'
-                }
-            });
+            const existingResponse = await fetchWithSession(`/tip/existing?date=${monthStart}`);
             
             debugLog('Existing tips response status', existingResponse.status);
             
@@ -746,16 +781,10 @@
                 return;
             }
 
-            debugLog('No existing tips found, fetching rota data from', rotaUrl);
+            debugLog('No existing tips found, fetching rota data');
 
             // If no existing tips, fetch rota data
-            const rotaResponse = await fetch(rotaUrl, {
-                credentials: 'include',
-                headers: { 
-                    'Cache-Control': 'no-cache',
-                    'Accept': 'application/json'
-                }
-            });
+            const rotaResponse = await fetchWithSession(`/tip/rota?startDate=${monthStart}`);
             
             debugLog('Rota response status', rotaResponse.status);
             
@@ -794,15 +823,9 @@
                 const formattedDate = dateObj.toLocaleDateString('en-GB');
                 const formattedDay = `${dayName} ${formattedDate}`;
                 
-                let cashUrl = `/tip/cashReport?date=${encodeURIComponent(formattedDay)}&_=${Date.now()}`;
-                if (sessionId) cashUrl += `&sessionId=${sessionId}`;
+                debugLog('Fetching cash report');
                 
-                debugLog('Fetching cash report from', cashUrl);
-                
-                const cashResponse = await fetch(cashUrl, { 
-                    credentials: 'include',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
+                const cashResponse = await fetchWithSession(`/tip/cashReport?date=${encodeURIComponent(formattedDay)}`);
                 
                 if (cashResponse.ok) {
                     const cashReport = await cashResponse.json();
@@ -847,12 +870,9 @@
 
     // Debug information function
     function showDebugInfo() {
-        const urlParams = new URLSearchParams(window.location.search);
         const debugInfo = {
             url: window.location.href,
-            sessionId: urlParams.get('sessionId'),
-            email: urlParams.get('email'),
-            dbName: urlParams.get('dbName'),
+            sessionParams: currentSessionParams,
             currentDate: document.getElementById('monthStart').value,
             userAgent: navigator.userAgent,
             currentDataLength: currentData.length
@@ -867,7 +887,14 @@
         debugLog('Session expired detected');
         showNotification('Session expired - redirecting to login...', 'error');
         setTimeout(() => {
-            window.location.href = '/';
+            // Preserve session parameters in redirect
+            const redirectUrl = new URL('/', window.location.origin);
+            Object.keys(currentSessionParams).forEach(key => {
+                if (currentSessionParams[key]) {
+                    redirectUrl.searchParams.set(key, currentSessionParams[key]);
+                }
+            });
+            window.location.href = redirectUrl.toString();
         }, 2000);
     }
 
@@ -1048,6 +1075,9 @@
         debugLog('Initializing mobile app');
         
         try {
+            // Initialize session parameters first
+            initializeSessionParams();
+            
             // Set current date
             const today = new Date();
             document.getElementById('monthStart').value = today.toISOString().split('T')[0];
