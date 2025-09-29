@@ -1032,6 +1032,15 @@ app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
     );
 });
 
+// Helper function to get current Monday's date
+function getCurrentMonday() {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    return monday.toISOString().split('T')[0];
+}
+
 // Function to get labor cost
 app.get('/api/labor-cost', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;

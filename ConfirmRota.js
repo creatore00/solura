@@ -33,7 +33,7 @@ function getDeviceType(userAgent) {
     }
 }
 
-// CRITICAL FIX: Enhanced session restoration middleware for iOS
+// CRITICAL FIX: Enhanced session restoration middleware for iOS - SIMPLIFIED like EndDay
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/.test(userAgent);
@@ -51,7 +51,7 @@ app.use((req, res, next) => {
     if (isIOS && (!req.session.user || !req.session.user.dbName)) {
         console.log('📱 iOS Session Restoration Needed - ConfirmRota');
         
-        // Try multiple methods to restore session
+        // Try multiple methods to restore session - SIMPLIFIED like EndDay
         const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
         const sessionId = urlParams.get('sessionId');
         const email = urlParams.get('email');
@@ -141,14 +141,14 @@ app.get('/desktop', isAuthenticated, (req, res) => {
     }
 });
 
-// Enhanced health endpoint for mobile
+// Enhanced health endpoint for mobile - SIMPLIFIED like EndDay
 app.get('/health', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/.test(userAgent);
     
     console.log('🏥 ConfirmRota Health check - iOS:', isIOS, 'Session User:', req.session?.user);
     
-    // For iOS, be more lenient with health checks
+    // For iOS, be more lenient with health checks - EXACTLY like EndDay
     if (isIOS && (!req.session.user || !req.session.user.dbName)) {
         console.log('📱 iOS health check - session incomplete but allowing');
         return res.json({
