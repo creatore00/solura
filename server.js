@@ -644,21 +644,331 @@ app.get('/SupervisorApp.html', isAuthenticated, isSupervisor, (req, res) => {
     res.sendFile(path.join(__dirname, 'SupervisorApp.html'));
 });
 
-// API routes (add your existing API routes here)
+// API routes
 app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
-    // Your existing implementation
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    try {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const daysToCheck = yesterday.getDate();
+
+        let missingDaysCount = 0;
+
+        for (let day = 1; day <= daysToCheck; day++) {
+            const date = new Date(currentYear, currentMonth - 1, day);
+            const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+            const formattedDay = `${String(day).padStart(2, '0')}/${String(currentMonth).padStart(2, '0')}/${currentYear} (${dayName})`;
+
+            const dayExists = await new Promise((resolve, reject) => {
+                pool.query(
+                    `SELECT 1 FROM ConfirmedRota WHERE day = ? LIMIT 1`,
+                    [formattedDay],
+                    (error, results) => {
+                        if (error) return reject(error);
+                        resolve(results.length > 0);
+                    }
+                );
+            });
+
+            if (!dayExists) {
+                missingDaysCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            count: missingDaysCount,
+            checkedDays: daysToCheck
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
 });
 
 app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
-    // Your existing implementation
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+
+    try {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        const daysToCheck = yesterday.getDate();
+
+        let missingDaysCount = 0;
+
+        for (let day = 1; day <= daysToCheck; day++) {
+            const date = new Date(currentYear, currentMonth - 1, day);
+            const formattedDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+            const dayExists = await new Promise((resolve, reject) => {
+                pool.query(
+                    `SELECT 1 FROM tip WHERE day = ? LIMIT 1`,
+                    [formattedDay],
+                    (error, results) => {
+                        if (error) return reject(error);
+                        resolve(results.length > 0);
+                    }
+                );
+            });
+
+            if (!dayExists) {
+                missingDaysCount++;
+            }
+        }
+
+        res.json({
+            success: true,
+            count: missingDaysCount,
+            checkedDays: daysToCheck
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
 });
 
+// Helper function to get current Monday's date
+function getCurrentMonday() {
+    const today = new Date();
+    const day = today.getDay();
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    return monday.toISOString().split('T')[0];
+}
+
+// Auto Login Function
+app.post('/auto-login', async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader) return res.status(401).json({ message: 'No token provided' });
+
+    const accessToken = authHeader.split(' ')[1];
+    if (!accessToken) return res.status(401).json({ message: 'No token provided' });
+
+    try {
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+        
+        // Set session data
+        req.session.user = decoded;
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving auto-login session:', err);
+                return res.status(500).json({ error: 'Failed to save session' });
+            }
+
+            const queryString = `?name=${encodeURIComponent(decoded.name)}&lastName=${encodeURIComponent(decoded.lastName)}&email=${encodeURIComponent(decoded.email)}&dbName=${encodeURIComponent(decoded.dbName)}`;
+            let redirectUrl;
+            
+            if (decoded.role === 'admin' || decoded.role === 'AM') {
+                redirectUrl = `/Admin.html${queryString}`;
+            } else if (decoded.role === 'user') {
+                redirectUrl = `/User.html${queryString}`;
+            } else if (decoded.role === 'supervisor') {
+                redirectUrl = `/Supervisor.html${queryString}`;
+            } else {
+                return res.status(401).json({ message: 'Invalid role' });
+            }
+
+            res.json({ 
+                success: true, 
+                redirectUrl, 
+                user: decoded,
+                accessToken: accessToken
+            });
+        });
+    } catch (err) {
+        console.error('Auto-login token error:', err);
+        res.status(401).json({ message: 'Token expired or invalid' });
+    }
+});
+
+// Function to Refresh Token
+app.post('/refresh-token', async (req, res) => {
+    const { refreshToken } = req.body;
+    if (!refreshToken) return res.status(401).json({ message: 'No refresh token provided' });
+
+    try {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
+        const newAccessToken = jwt.sign(
+            {
+                email: decoded.email,
+                role: decoded.role,
+                name: decoded.name,
+                lastName: decoded.lastName,
+                dbName: decoded.dbName
+            },
+            process.env.JWT_SECRET || 'your-secret-key',
+            { expiresIn: '7d' }
+        );
+        res.json({ accessToken: newAccessToken });
+    } catch (err) {
+        console.error('Refresh token error:', err);
+        res.status(401).json({ message: 'Refresh token invalid or expired' });
+    }
+});
+
+// Endpoint to get employees on shift today
 app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
-    // Your existing implementation
+    const dbName = req.session.user.dbName;
+    if (!dbName) return res.status(401).json({ success: false, message: 'User not authenticated' });
+
+    const pool = getPool(dbName);
+    const today = new Date();
+    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+    const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()} (${dayName})`;
+    
+    pool.query(
+        `SELECT name, lastName, startTime, endTime, designation 
+         FROM rota 
+         WHERE day = ?
+         ORDER BY designation DESC, lastName, name, startTime`,
+        [formattedDate],
+        (error, results) => {
+            if (error) {
+                console.error('Database error:', error);
+                return res.status(500).json({ success: false, error: 'Database error' });
+            }
+
+            const employeeMap = new Map();
+            const now = new Date();
+            const currentTime = now.getHours() * 60 + now.getMinutes();
+            
+            results.forEach(row => {
+                const key = `${row.name} ${row.lastName}`;
+                if (!employeeMap.has(key)) {
+                    employeeMap.set(key, {
+                        name: row.name,
+                        lastName: row.lastName,
+                        designation: row.designation,
+                        timeFrames: []
+                    });
+                }
+                
+                const [startH, startM] = row.startTime.split(':').map(Number);
+                const [endH, endM] = row.endTime.split(':').map(Number);
+                const startMinutes = startH * 60 + startM;
+                const endMinutes = endH * 60 + endM;
+                
+                employeeMap.get(key).timeFrames.push({
+                    start: row.startTime,
+                    end: row.endTime,
+                    startMinutes,
+                    endMinutes
+                });
+            });
+
+            const employees = Array.from(employeeMap.values()).map(emp => {
+                emp.timeFrames.sort((a, b) => a.startMinutes - b.startMinutes);
+                
+                let currentStatus = 'Not started';
+                let nextEvent = '';
+                let activeFrame = null;
+                
+                for (const frame of emp.timeFrames) {
+                    if (currentTime < frame.startMinutes) {
+                        const minsLeft = frame.startMinutes - currentTime;
+                        const hoursLeft = Math.floor(minsLeft / 60);
+                        const remainingMins = minsLeft % 60;
+                        nextEvent = `Starts in ${hoursLeft}h ${remainingMins}m`;
+                        break;
+                    } else if (currentTime <= frame.endMinutes) {
+                        currentStatus = 'Working now';
+                        const minsLeft = frame.endMinutes - currentTime;
+                        const hoursLeft = Math.floor(minsLeft / 60);
+                        const remainingMins = minsLeft % 60;
+                        nextEvent = `Ends in ${hoursLeft}h ${remainingMins}m`;
+                        activeFrame = frame;
+                        break;
+                    }
+                }
+                
+                if (!nextEvent && emp.timeFrames.length > 0) {
+                    const lastFrame = emp.timeFrames[emp.timeFrames.length - 1];
+                    const minsAgo = currentTime - lastFrame.endMinutes;
+                    if (minsAgo > 0) {
+                        const hoursAgo = Math.floor(minsAgo / 60);
+                        const remainingMins = minsAgo % 60;
+                        nextEvent = `Ended ${hoursAgo}h ${remainingMins}m ago`;
+                        currentStatus = 'Shift ended';
+                    }
+                }
+
+                return {
+                    employeeName: `${emp.name} ${emp.lastName}`,
+                    designation: emp.designation,
+                    timeFrames: emp.timeFrames.map(f => ({ start: f.start, end: f.end })),
+                    status: currentStatus,
+                    nextEvent,
+                    currentFrame: activeFrame ? {
+                        endMinutes: activeFrame.endMinutes,
+                        currentTime: currentTime
+                    } : null
+                };
+            });
+
+            res.json({
+                success: true,
+                count: employeeMap.size,
+                employees,
+                serverTime: currentTime 
+            });
+        }
+    );
 });
 
+// Function to get labor cost
 app.get('/api/labor-cost', isAuthenticated, (req, res) => {
-    // Your existing implementation
+    const dbName = req.session.user.dbName;
+    if (!dbName) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const mondayDate = getCurrentMonday();
+    
+    pool.query(
+        `SELECT Weekly_Cost_Before FROM Data WHERE WeekStart = ?`,
+        [mondayDate],
+        (error, results) => {
+            if (error) {
+                console.error('Database error:', error);
+                return res.status(500).json({ success: false, error: 'Database error' });
+            }
+            
+            if (results.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No data found for current week',
+                    week_start_date: mondayDate
+                });
+            }
+            
+            res.json({
+                success: true,
+                cost: results[0].Weekly_Cost_Before,
+                week_start_date: mondayDate
+            });
+        }
+    );
 });
 
 // Route to handle logout

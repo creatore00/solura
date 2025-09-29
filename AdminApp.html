@@ -445,6 +445,35 @@
         .menu-overlay.active {
             display: block;
         }
+
+        /* Loading and Error States */
+        .loading-state {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error-state {
+            text-align: center;
+            padding: 2rem;
+            color: #d32f2f;
+        }
+
+        .session-error {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -480,7 +509,7 @@
                     <i class="fas fa-users"></i>
                     <span>Employees</span>
                 </a>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('rota.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/rota')">
                     <i class="fas fa-calendar-alt"></i>
                     <span>Rotas</span>
                 </a>
@@ -488,15 +517,15 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">Daily</div>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('endday.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/endday')">
                     <i class="fas fa-clock"></i>
                     <span>End Of Day</span>
                 </a>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('confirmrota.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/confirmrota')">
                     <i class="fas fa-check-double"></i>
                     <span>Approve Rota</span>
                 </a>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('tip.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/tip')">
                     <i class="fas fa-hand-holding-usd"></i>
                     <span>Tips</span>
                 </a>
@@ -504,7 +533,7 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">Holidays</div>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('TotalHolidays.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/TotalHolidays')">
                     <i class="fas fa-calendar-check"></i>
                     <span>Holidays Management</span>
                 </a>
@@ -513,7 +542,7 @@
                     <span>Approve/Reject Holidays</span>
                     <span class="notification-badge" id="holidayNotification" style="display: none;"></span>
                 </a>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('userholidays.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/userholidays')">
                     <i class="fas fa-umbrella-beach"></i>
                     <span>Request Holidays</span>
                 </a>
@@ -521,15 +550,15 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">Finance</div>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('timetracking.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/hours')">
                     <i class="fas fa-clock"></i>
                     <span>Time Tracking</span>
                 </a>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('insertpayslip.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/insertpayslip')">
                     <i class="fas fa-file-invoice-dollar"></i>
                     <span>Insert Payslips</span>
                 </a>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('pastpayslips.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/pastpayslips')">
                     <i class="fas fa-receipt"></i>
                     <span>Past Payslips</span>
                 </a>
@@ -541,11 +570,11 @@
             
             <div class="mobile-nav-section">
                 <div class="mobile-nav-title">System</div>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('profile.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/profile')">
                     <i class="fas fa-user-circle"></i>
                     <span>Account</span>
                 </a>
-                <a href="#" class="mobile-nav-link" onclick="navigateTo('generate.html')">
+                <a href="#" class="mobile-nav-link" onclick="navigateTo('/generate')">
                     <i class="fas fa-cog"></i>
                     <span>Manage Access</span>
                 </a>
@@ -574,7 +603,7 @@
                     <h3 class="widget-title">On Shift Today</h3>
                     <i class="fas fa-users" style="color: var(--secondary-color);"></i>
                 </div>
-                <div class="widget-value" id="employees"></div>
+                <div class="widget-value" id="employees">--</div>
                 <div class="widget-footer">
                     <span>Employees</span>
                 </div>
@@ -585,10 +614,10 @@
                     <h3 class="widget-title">Pending Rota Approvals</h3>
                     <i class="fas fa-clock" style="color: #ff9800;"></i>
                 </div>
-                <div class="widget-value" id="approve"></div>
+                <div class="widget-value" id="approve">--</div>
                 <div class="widget-footer">
                     <span>Confirmations waiting</span>
-                    <a href="#" onclick="navigateTo('confirmrota.html')" style="color: var(--secondary-color);">Review</a>
+                    <a href="#" onclick="navigateTo('/confirmrota')" style="color: var(--secondary-color);">Review</a>
                 </div>
             </div>
 
@@ -597,10 +626,10 @@
                     <h3 class="widget-title">Pending Tips Approvals</h3>
                     <i class="fas fa-clock" style="color: #29bce0;"></i>
                 </div>
-                <div class="widget-value" id="tip"></div>
+                <div class="widget-value" id="tip">--</div>
                 <div class="widget-footer">
                     <span>Confirmations waiting</span>
-                    <a href="#" onclick="navigateTo('tip.html')" style="color: var(--secondary-color);">Review</a>
+                    <a href="#" onclick="navigateTo('/tip')" style="color: var(--secondary-color);">Review</a>
                 </div>
             </div>
             
@@ -609,10 +638,10 @@
                     <h3 class="widget-title">Labor Cost</h3>
                     <i class="fas fa-pound-sign" style="color: #f44336;"></i>
                 </div>
-                <div class="widget-value" id="labor"></div>
+                <div class="widget-value" id="labor">--</div>
                 <div class="widget-footer">
                     <span>This Week</span>
-                    <a href="#" onclick="navigateTo('labor.html')" style="color: var(--secondary-color);">Details</a>
+                    <a href="#" onclick="navigateTo('/labor')" style="color: var(--secondary-color);">Details</a>
                 </div>
             </div>
         </div>
@@ -620,42 +649,42 @@
         <!-- Quick Actions -->
         <h2 class="quick-actions-title">Quick Actions</h2>
         <div class="mobile-actions">
-            <a href="#" class="mobile-action" onclick="navigateTo('rota.html')">
+            <a href="#" class="mobile-action" onclick="navigateTo('/rota')">
                 <div class="action-icon">
                     <i class="fas fa-calendar-plus"></i>
                 </div>
                 <div class="action-label">Create Rota</div>
             </a>
             
-            <a href="#" class="mobile-action" onclick="navigateTo('confirmrota.html')">
+            <a href="#" class="mobile-action" onclick="navigateTo('/confirmrota')">
                 <div class="action-icon">
                     <i class="fas fa-check-double"></i>
                 </div>
                 <div class="action-label">Approve Rota</div>
             </a>
             
-            <a href="#" class="mobile-action" onclick="navigateTo('endday.html')">
+            <a href="#" class="mobile-action" onclick="navigateTo('/endday')">
                 <div class="action-icon">
                     <i class="fas fa-clock"></i>
                 </div>
                 <div class="action-label">End of Day</div>
             </a>
             
-            <a href="#" class="mobile-action" onclick="navigateTo('tip.html')">
+            <a href="#" class="mobile-action" onclick="navigateTo('/tip')">
                 <div class="action-icon">
                     <i class="fas fa-hand-holding-usd"></i>
                 </div>
                 <div class="action-label">Daily Tips</div>
             </a>
             
-            <a href="#" class="mobile-action" onclick="navigateTo('insertpayslip.html')">
+            <a href="#" class="mobile-action" onclick="navigateTo('/insertpayslip')">
                 <div class="action-icon">
                     <i class="fas fa-file-invoice-dollar"></i>
                 </div>
                 <div class="action-label">New Payslips</div>
             </a>
             
-            <a href="#" class="mobile-action" onclick="navigateTo('userholidays.html')">
+            <a href="#" class="mobile-action" onclick="navigateTo('/userholidays')">
                 <div class="action-icon">
                     <i class="fas fa-calendar-check"></i>
                 </div>
@@ -675,8 +704,10 @@
                         <th>Activity</th>
                     </tr>
                 </thead>
-                <tbody>
-                    <!-- Will be populated by JavaScript -->
+                <tbody id="shiftsTableBody">
+                    <tr>
+                        <td colspan="4" class="loading-state">Loading shifts...</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -701,7 +732,7 @@
                         <div class="report-name">Payroll Report</div>
                         <div class="report-desc">Comprehensive Payroll Overview</div>
                     </div>
-                    <a href="#" onclick="navigateTo('hours.html')" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('/hours')" class="report-button">Open</a>
                 </div>
                 
                 <!-- Report Item 2 -->
@@ -710,7 +741,7 @@
                         <div class="report-name">Weekly Labor Cost Report</div>
                         <div class="report-desc">Weekly Performance Metrics</div>
                     </div>
-                    <a href="#" onclick="navigateTo('labor.html')" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('/labor')" class="report-button">Open</a>
                 </div>
                 
                 <!-- Report Item 3 -->
@@ -719,25 +750,7 @@
                         <div class="report-name">Financial Summary</div>
                         <div class="report-desc">Revenue & Cost Overview</div>
                     </div>
-                    <a href="#" onclick="navigateTo('financialsummary.html')" class="report-button">Open</a>
-                </div>
-                
-                <!-- Report Item 4 -->
-                <div class="report-item">
-                    <div class="report-info">
-                        <div class="report-name">Coming Soon...</div>
-                        <div class="report-desc">N/A</div>
-                    </div>
-                    <a href="#" onclick="navigateTo('payroll-analysis.html')" class="report-button">Open</a>
-                </div>
-
-                <!-- Report Item 5 -->
-                <div class="report-item">
-                    <div class="report-info">
-                        <div class="report-name">Coming Soon...</div>
-                        <div class="report-desc">N/A</div>
-                    </div>
-                    <a href="#" onclick="navigateTo('employee-hours.html')" class="report-button">Open</a>
+                    <a href="#" onclick="navigateTo('/financialsummary')" class="report-button">Open</a>
                 </div>
             </div>
         </div>
@@ -746,10 +759,84 @@
 <script>
     // Global variables
     let currentUser = null;
+    let inactivityTimer;
 
-    // Enhanced session validation that works with iOS
+    // Initialize the application
     document.addEventListener('DOMContentLoaded', async function() {
-        console.log('Page loaded, checking session...');
+        console.log('Mobile App: Initializing...');
+        
+        // Setup UI components first
+        initializeUI();
+        
+        // Validate session and load data
+        await initializeSession();
+    });
+
+    // Initialize UI components
+    function initializeUI() {
+        console.log('Initializing UI components...');
+        
+        // Setup mobile menu
+        const menuToggle = document.getElementById('menuToggle');
+        const closeMenu = document.getElementById('closeMenu');
+        const mobileMenu = document.getElementById('mobileMenu');
+        const menuOverlay = document.getElementById('menuOverlay');
+
+        if (menuToggle && mobileMenu) {
+            menuToggle.addEventListener('click', function() {
+                mobileMenu.classList.add('active');
+                menuOverlay.classList.add('active');
+            });
+        }
+
+        if (closeMenu && mobileMenu) {
+            closeMenu.addEventListener('click', function() {
+                mobileMenu.classList.remove('active');
+                menuOverlay.classList.remove('active');
+            });
+        }
+
+        if (menuOverlay) {
+            menuOverlay.addEventListener('click', function() {
+                mobileMenu.classList.remove('active');
+                menuOverlay.classList.remove('active');
+            });
+        }
+
+        // Setup reports modal
+        const reportsLink = document.getElementById('reportsLinkMobile');
+        const reportsModal = document.getElementById('reportsModalMobile');
+        const closeReportsModal = document.getElementById('closeReportsModalMobile');
+
+        if (reportsLink && reportsModal) {
+            reportsLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                reportsModal.style.display = 'flex';
+            });
+        }
+
+        if (closeReportsModal && reportsModal) {
+            closeReportsModal.addEventListener('click', function() {
+                reportsModal.style.display = 'none';
+            });
+        }
+
+        if (reportsModal) {
+            reportsModal.addEventListener('click', function(e) {
+                if (e.target === reportsModal) {
+                    reportsModal.style.display = 'none';
+                }
+            });
+        }
+
+        // Update date display
+        updateLiveDateTime();
+        setInterval(updateLiveDateTime, 1000);
+    }
+
+    // Session initialization
+    async function initializeSession() {
+        console.log('Mobile App: Checking session...');
         
         // Check if we have URL parameters (from login redirect)
         const urlParams = new URLSearchParams(window.location.search);
@@ -770,24 +857,20 @@
             localStorage.setItem('userInfo', JSON.stringify(userInfo));
             localStorage.setItem('lastDb', dbName);
             currentUser = userInfo;
-            
-            // Immediately restore session with URL params
-            await restoreSessionFromParams(userInfo);
         }
         
         // Validate session with enhanced recovery for iOS
-        console.log('Validating session...');
         const isValid = await validateSessionWithRecovery();
         
         if (!isValid) {
-            console.log('Session validation failed, not loading data');
+            console.log('Session validation failed');
             showSessionError();
             return;
         }
         
-        console.log('Session valid, initializing page...');
-        initializePage();
-    });
+        console.log('Session valid, loading dashboard data...');
+        loadDashboardData();
+    }
 
     // Enhanced session validation for iOS
     async function validateSessionWithRecovery() {
@@ -1049,7 +1132,7 @@
         }
     }
 
-    // NEW: Navigation function that preserves session
+    // Navigation function that preserves session
     function navigateTo(url) {
         if (!currentUser) {
             console.log('No user data available, cannot navigate');
@@ -1073,15 +1156,21 @@
         const fullUrl = `${targetUrl}?${params.toString()}`;
         console.log(`🔄 Navigating to: ${fullUrl}`);
         
+        // Close mobile menu if open
+        const mobileMenu = document.getElementById('mobileMenu');
+        const menuOverlay = document.getElementById('menuOverlay');
+        if (mobileMenu) mobileMenu.classList.remove('active');
+        if (menuOverlay) menuOverlay.classList.remove('active');
+        
         // Use replace to avoid adding to browser history
-        window.location.replace(fullUrl);
+        window.location.href = fullUrl;
     }
 
     function showSessionError() {
-        const mainContent = document.querySelector('.app-content') || document.getElementById('mainContent');
+        const mainContent = document.getElementById('mainContent');
         if (mainContent) {
             mainContent.innerHTML = `
-                <div class="session-error" style="text-align: center; padding: 2rem;">
+                <div class="session-error">
                     <h2>Session Expired</h2>
                     <p>Your session has expired. Please log in again.</p>
                     <button onclick="redirectToLogin()" class="btn-primary">Return to Login</button>
@@ -1101,155 +1190,7 @@
         window.location.href = '/';
     }
 
-    // Initialize the page
-    function initializePage() {
-        console.log('Initializing page...');
-        initializeUI();
-        loadDashboardData();
-        setupNavigationLinks();
-    }
-    
-    function initializeUI() {
-        console.log('Initializing UI components...');
-        
-        // Update date display
-        updateLiveDateTime();
-        setInterval(updateLiveDateTime, 1000);
-        
-        // Setup database switcher if available
-        setupDatabaseSwitcher();
-    }
-
-    // Setup navigation links with session preservation
-    function setupNavigationLinks() {
-        console.log('Setting up navigation links...');
-        
-        // Setup all navigation links in the sidebar
-        const navLinks = document.querySelectorAll('.nav-link');
-        navLinks.forEach(link => {
-            if (link.href && !link.href.includes('#') && !link.href.includes('logout')) {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetUrl = this.getAttribute('href');
-                    navigateTo(targetUrl);
-                });
-            }
-        });
-
-        // Setup quick action buttons
-        const actionButtons = document.querySelectorAll('.action-btn');
-        actionButtons.forEach(button => {
-            if (button.href) {
-                button.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetUrl = this.getAttribute('href');
-                    navigateTo(targetUrl);
-                });
-            }
-        });
-
-        // Setup footer links
-        const footerLinks = document.querySelectorAll('.app-footer a');
-        footerLinks.forEach(link => {
-            if (link.href && link.href.includes('/')) {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetUrl = this.getAttribute('href');
-                    navigateTo(targetUrl);
-                });
-            }
-        });
-    }
-
-    // Setup database switcher functionality
-    async function setupDatabaseSwitcher() {
-        try {
-            const dbSwitcher = document.getElementById('databaseSwitcher');
-            if (!dbSwitcher || !currentUser) return;
-
-            const response = await fetchWithRecovery('/getUserDatabases', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email: currentUser.email })
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch databases');
-            }
-
-            const data = await response.json();
-            
-            if (data.databases && data.databases.length > 1) {
-                const dbSelector = document.getElementById('dbSelector');
-                const switchBtn = document.getElementById('switchDbBtn');
-                const currentDbDisplay = document.getElementById('currentDbDisplay');
-                
-                if (currentDbDisplay) {
-                    currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
-                }
-                
-                if (dbSelector && switchBtn) {
-                    // Populate dropdown
-                    data.databases.forEach(db => {
-                        const option = document.createElement('option');
-                        option.value = db.db_name;
-                        option.textContent = db.db_name;
-                        if (db.db_name === data.currentDb) {
-                            option.selected = true;
-                        }
-                        dbSelector.appendChild(option);
-                    });
-                    
-                    // Show controls
-                    dbSelector.style.display = 'inline-block';
-                    switchBtn.style.display = 'inline-block';
-                    
-                    // Handle switch
-                    switchBtn.addEventListener('click', async function() {
-                        const selectedDb = dbSelector.value;
-                        if (selectedDb !== data.currentDb) {
-                            try {
-                                const switchResponse = await fetchWithRecovery('/switchDatabase', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json'
-                                    },
-                                    body: JSON.stringify({ 
-                                        email: currentUser.email,
-                                        dbName: selectedDb
-                                    })
-                                });
-                                
-                                const result = await switchResponse.json();
-                                if (result.success) {
-                                    // Update current user and reload
-                                    currentUser.dbName = selectedDb;
-                                    localStorage.setItem('userInfo', JSON.stringify(currentUser));
-                                    localStorage.setItem('lastDb', selectedDb);
-                                    window.location.reload();
-                                } else {
-                                    alert('Failed to switch database: ' + (result.message || 'Unknown error'));
-                                }
-                            } catch (error) {
-                                console.error('Error switching database:', error);
-                                alert('Error switching database');
-                            }
-                        }
-                    });
-                }
-            } else if (data.databases && data.databases.length === 1) {
-                const currentDbDisplay = document.getElementById('currentDbDisplay');
-                if (currentDbDisplay) {
-                    currentDbDisplay.textContent = `Current Database: ${data.databases[0].db_name}`;
-                }
-            }
-        } catch (error) {
-            console.error('Error setting up database switcher:', error);
-        }
-    }
-    
+    // Dashboard data loading
     function loadDashboardData() {
         console.log('Loading dashboard data...');
         
@@ -1329,8 +1270,18 @@
     
     // Function to Populate Shift Table
     function populateShiftTable(employees) {
-        const tableBody = document.querySelector('.data-table tbody');
+        const tableBody = document.getElementById('shiftsTableBody');
         if (!tableBody) return;
+        
+        if (!employees || employees.length === 0) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="loading-state">No employees on shift today</td>
+                </tr>
+            `;
+            return;
+        }
+
         tableBody.innerHTML = '';
 
         employees.forEach(employee => {
@@ -1454,10 +1405,20 @@
             } else {
                 console.error('Error:', data.error || 'Unknown error');
                 updateEmployeesOnShift('--');
+                document.getElementById('shiftsTableBody').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="error-state">Failed to load shifts</td>
+                    </tr>
+                `;
             }
         } catch (error) {
             console.error('Fetch error:', error);
             updateEmployeesOnShift('--');
+            document.getElementById('shiftsTableBody').innerHTML = `
+                <tr>
+                    <td colspan="4" class="error-state">Error loading shifts</td>
+                </tr>
+            `;
         }
     }
     
@@ -1510,7 +1471,6 @@
     }
 
     // Inactivity timer
-    let inactivityTimer;
     function setupInactivityTimer() {
         const resetInactivityTimer = () => {
             clearTimeout(inactivityTimer);
