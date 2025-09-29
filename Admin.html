@@ -555,7 +555,7 @@
             <!-- Quick Actions -->
             <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Quick Actions</h2>
             <div class="quick-actions">
-                <a href="#" class="action-btn" onclick="navigateTo('/rota')">
+                <a href="https://solura.uk/rota"  class="action-btn">
                     <div class="action-icon">
                         <i class="fas fa-calendar-plus"></i>
                     </div>
@@ -664,7 +664,7 @@
 // Global variables
 let currentUser = null;
 
-// Session validation functions (your existing code remains the same)
+// Session validation functions
 async function validateSessionWithRecovery() {
     try {
         console.log('🔐 Validating session...');
@@ -946,7 +946,7 @@ function navigateTo(url) {
     console.log(`🔄 Navigating to: ${fullUrl}`);
     
     // Use replace to avoid adding to browser history
-    window.location.replace(fullUrl);
+    window.location.href = fullUrl;
 }
 
 function redirectToLogin() {
@@ -1040,7 +1040,7 @@ function showSessionError() {
     }
 }
 
-// ========== MISSING FUNCTIONS ADDED BELOW ==========
+// ========== DASHBOARD FUNCTIONS ==========
 
 // Function to update employees on shift widget
 function updateEmployeesOnShift(count) {
@@ -1433,6 +1433,5 @@ window.navigateTo = navigateTo;
 window.logout = logout;
 window.redirectToLogin = redirectToLogin;
 </script>
-
 </body>
 </html>
