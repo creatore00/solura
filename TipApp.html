@@ -559,49 +559,65 @@
     <div id="notification" class="notification"></div>
     <div id="swipeIndicator" class="swipe-indicator">Swipe right to go back</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
-    <script>
-        // Global variables
-        let currentData = [];
-        let isEditable = false;
-        let existingTips = false;
-        let swipeStartX = 0;
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+<script>
+    // Global variables
+    let currentData = [];
+    let isEditable = false;
+    let existingTips = false;
+    let swipeStartX = 0;
 
-        // Initialize Hammer.js for swipe gestures
-        function initializeGestures() {
+    // Debug function to log API calls
+    function debugLog(message, data = null) {
+        console.log(`📱 [TipApp] ${message}`, data || '');
+    }
+
+    // Initialize Hammer.js for swipe gestures
+    function initializeGestures() {
+        try {
             const container = document.querySelector('.container');
-            const hammer = new Hammer(container);
-            
-            // Enable swipe gestures
-            hammer.get('swipe').set({ direction: Hammer.DIRECTION_HORIZONTAL });
-            
-            // Swipe right to go back
-            hammer.on('swiperight', function(event) {
-                if (event.center.x - swipeStartX > 100) { // Minimum swipe distance
-                    showSwipeIndicator();
-                    setTimeout(() => {
-                        window.history.back();
-                    }, 300);
-                }
-            });
-            
-            // Track swipe start
-            hammer.on('panstart', function(event) {
-                swipeStartX = event.center.x;
-            });
+            if (container && typeof Hammer !== 'undefined') {
+                const hammer = new Hammer(container);
+                
+                // Enable swipe gestures
+                hammer.get('swipe').set({ direction: Hammer.DIRECTION_HORIZONTAL });
+                
+                // Swipe right to go back
+                hammer.on('swiperight', function(event) {
+                    if (event.center.x - swipeStartX > 100) {
+                        showSwipeIndicator();
+                        setTimeout(() => {
+                            window.history.back();
+                        }, 300);
+                    }
+                });
+                
+                // Track swipe start
+                hammer.on('panstart', function(event) {
+                    swipeStartX = event.center.x;
+                });
+                
+                debugLog('Gesture controls initialized');
+            }
+        } catch (error) {
+            debugLog('Gesture initialization failed', error);
         }
+    }
 
-        function showSwipeIndicator() {
-            const indicator = document.getElementById('swipeIndicator');
+    function showSwipeIndicator() {
+        const indicator = document.getElementById('swipeIndicator');
+        if (indicator) {
             indicator.classList.add('show');
             setTimeout(() => {
                 indicator.classList.remove('show');
             }, 1000);
         }
+    }
 
-        // Enhanced notification for mobile
-        function showNotification(message, type) {
-            const notification = document.getElementById('notification');
+    // Enhanced notification for mobile
+    function showNotification(message, type) {
+        const notification = document.getElementById('notification');
+        if (notification) {
             notification.textContent = message;
             notification.className = `notification ${type} show`;
             
@@ -609,168 +625,342 @@
                 notification.classList.remove('show');
             }, 3000);
         }
+    }
 
-        // Mobile-optimized loadRota with better error handling
-        async function loadRota() {
-            const monthStart = document.getElementById('monthStart').value;
-            if (!monthStart) return;
-
-            // Show mobile-optimized loading state
-            document.getElementById('hoursSummary').innerHTML = `
-                <div style="text-align: center; padding: 2rem;">
-                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--secondary);"></i>
-                    <p style="margin-top: 1rem; color: var(--text);">Loading data...</p>
-                </div>
-            `;
-
-            try {
-                // Get session ID from URL for mobile devices
-                const urlParams = new URLSearchParams(window.location.search);
-                const sessionId = urlParams.get('sessionId');
-                
-                // Build URLs with session ID and cache busting
-                let existingUrl = `/tip/existing?date=${monthStart}&_=${Date.now()}`;
-                let rotaUrl = `/tip/rota?startDate=${monthStart}&_=${Date.now()}`;
-                
-                if (sessionId) {
-                    existingUrl += `&sessionId=${sessionId}`;
-                    rotaUrl += `&sessionId=${sessionId}`;
-                }
-
-                // Check for existing tips first
-                const existingResponse = await fetch(existingUrl, {
-                    credentials: 'include',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                
-                if (existingResponse.status === 401) {
-                    handleSessionExpired();
-                    return;
-                }
-                
-                const existingData = await existingResponse.json();
-                
-                if (existingData.length > 0) {
-                    existingTips = true;
-                    displayExistingTips(existingData);
-                    showNotification('Existing tips found', 'success');
-                    return;
-                }
-
-                // If no existing tips, fetch rota data
-                const rotaResponse = await fetch(rotaUrl, {
-                    credentials: 'include',
-                    headers: { 'Cache-Control': 'no-cache' }
-                });
-                
-                if (!rotaResponse.ok) throw new Error('Failed to fetch rota data');
-                
-                const rotaData = await rotaResponse.json();
-                
-                if (rotaData.length === 0) {
-                    document.getElementById('hoursSummary').innerHTML = `
-                        <div style="text-align: center; padding: 2rem; color: var(--text);">
-                            <i class="fas fa-calendar-times" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                            <p>No rota data found for this date</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                const totalHours = calculateTotalHours(rotaData);
-                currentData = Object.entries(totalHours.totalHours).map(([name, { hoursWorked }]) => {
-                    const [firstName, lastName] = name.split(' ');
-                    return { firstName, lastName, hoursWorked, tip: 0 };
-                });
-
-                displayCurrentData();
-
-                // Try to fetch cash report
-                try {
-                    const dateObj = new Date(monthStart);
-                    const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
-                    const formattedDate = dateObj.toLocaleDateString('en-GB');
-                    const formattedDay = `${dayName} ${formattedDate}`;
-                    
-                    let cashUrl = `/tip/cashReport?date=${encodeURIComponent(formattedDay)}&_=${Date.now()}`;
-                    if (sessionId) cashUrl += `&sessionId=${sessionId}`;
-                    
-                    const cashResponse = await fetch(cashUrl, { credentials: 'include' });
-                    
-                    if (cashResponse.ok) {
-                        const cashReport = await cashResponse.json();
-                        if (cashReport?.service !== undefined) {
-                            const serviceValue = parseFloat(cashReport.service);
-                            if (!isNaN(serviceValue)) {
-                                document.getElementById('tip').value = serviceValue.toFixed(2);
-                                calculateTip();
-                                showNotification('Service charge loaded', 'success');
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.log('Cash report not available');
-                }
-
-            } catch (error) {
-                console.error('Mobile load error:', error);
-                showNotification('Error loading data', 'error');
-                document.getElementById('hoursSummary').innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: var(--danger);">
-                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                        <p>Error loading data</p>
-                        <button onclick="loadRota()" class="btn btn-primary" style="margin-top: 1rem;">
-                            <i class="fas fa-redo"></i> Try Again
-                        </button>
-                    </div>
-                `;
-            }
+    // Enhanced error handler
+    function handleApiError(error, context) {
+        debugLog(`API Error in ${context}`, error);
+        
+        let userMessage = 'Error loading data';
+        
+        if (error.message.includes('Failed to fetch')) {
+            userMessage = 'Network error - check your connection';
+        } else if (error.message.includes('401')) {
+            userMessage = 'Session expired - please login again';
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 2000);
+        } else if (error.message.includes('404')) {
+            userMessage = 'Data not found';
+        } else if (error.message.includes('500')) {
+            userMessage = 'Server error - please try again';
         }
+        
+        showNotification(userMessage, 'error');
+        return userMessage;
+    }
 
-        // Keep all your existing functions but add mobile optimizations
-        function calculateTotalHours(data) {
-            const totalHours = {};
-            let total = 0;
-
-            data.forEach(entry => {
-                const name = entry.name + ' ' + entry.lastName;
-                const startTime = new Date(`1970-01-01T${entry.startTime}Z`);
-                const endTime = new Date(`1970-01-01T${entry.endTime}Z`);
-                const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
-                total += hoursWorked;
-
-                if (!totalHours[name]) {
-                    totalHours[name] = { hoursWorked: 0 };
-                }
-                totalHours[name].hoursWorked += hoursWorked;
+    // Check app health before making API calls
+    async function checkAppHealth() {
+        try {
+            const healthResponse = await fetch('/tip/health', {
+                credentials: 'include',
+                headers: { 'Cache-Control': 'no-cache' }
             });
+            
+            if (!healthResponse.ok) {
+                throw new Error(`Health check failed: ${healthResponse.status}`);
+            }
+            
+            const healthData = await healthResponse.json();
+            debugLog('App health check', healthData);
+            return healthData.status === 'healthy';
+        } catch (error) {
+            debugLog('Health check failed', error);
+            return false;
+        }
+    }
 
-            return { totalHours, total };
+    // Mobile-optimized loadRota with better error handling
+    async function loadRota() {
+        const monthStart = document.getElementById('monthStart').value;
+        if (!monthStart) {
+            showNotification('Please select a date', 'error');
+            return;
         }
 
-        function calculateTip() {
-            const tip = parseFloat(document.getElementById('tip').value) || 0;
-            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+        debugLog('Loading rota data for date', monthStart);
+
+        // Show mobile-optimized loading state
+        document.getElementById('hoursSummary').innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--secondary);"></i>
+                <p style="margin-top: 1rem; color: var(--text);">Loading data...</p>
+            </div>
+        `;
+
+        try {
+            // Check app health first
+            const isHealthy = await checkAppHealth();
+            if (!isHealthy) {
+                throw new Error('Application is not healthy');
+            }
+
+            // Get session ID from URL for mobile devices
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('sessionId');
+            const email = urlParams.get('email');
+            const dbName = urlParams.get('dbName');
             
-            if (totalHours <= 0) {
-                showNotification('No hours recorded', 'error');
+            debugLog('URL parameters', { sessionId, email, dbName });
+
+            // Build URLs with session ID and cache busting
+            let existingUrl = `/tip/existing?date=${monthStart}&_=${Date.now()}`;
+            let rotaUrl = `/tip/rota?startDate=${monthStart}&_=${Date.now()}`;
+            
+            // Add session ID if available
+            if (sessionId) {
+                existingUrl += `&sessionId=${sessionId}`;
+                rotaUrl += `&sessionId=${sessionId}`;
+            }
+
+            debugLog('Fetching existing tips from', existingUrl);
+
+            // Check for existing tips first
+            const existingResponse = await fetch(existingUrl, {
+                credentials: 'include',
+                headers: { 
+                    'Cache-Control': 'no-cache',
+                    'Accept': 'application/json'
+                }
+            });
+            
+            debugLog('Existing tips response status', existingResponse.status);
+            
+            if (existingResponse.status === 401) {
+                handleSessionExpired();
+                return;
+            }
+            
+            if (!existingResponse.ok) {
+                throw new Error(`Existing tips API failed: ${existingResponse.status}`);
+            }
+            
+            const existingData = await existingResponse.json();
+            debugLog('Existing tips data', existingData);
+            
+            if (existingData.length > 0) {
+                existingTips = true;
+                displayExistingTips(existingData);
+                showNotification('Existing tips found', 'success');
                 return;
             }
 
-            const tipPerHour = tip / totalHours;
+            debugLog('No existing tips found, fetching rota data from', rotaUrl);
+
+            // If no existing tips, fetch rota data
+            const rotaResponse = await fetch(rotaUrl, {
+                credentials: 'include',
+                headers: { 
+                    'Cache-Control': 'no-cache',
+                    'Accept': 'application/json'
+                }
+            });
             
-            currentData.forEach(emp => {
-                emp.tip = emp.hoursWorked * tipPerHour * 0.90;
+            debugLog('Rota response status', rotaResponse.status);
+            
+            if (!rotaResponse.ok) {
+                throw new Error(`Rota API failed: ${rotaResponse.status}`);
+            }
+            
+            const rotaData = await rotaResponse.json();
+            debugLog('Rota data received', rotaData);
+            
+            if (rotaData.length === 0) {
+                document.getElementById('hoursSummary').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text);">
+                        <i class="fas fa-calendar-times" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                        <p>No rota data found for this date</p>
+                        <p style="font-size: 0.8rem; color: var(--text); margin-top: 0.5rem;">
+                            ${monthStart}
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+
+            const totalHours = calculateTotalHours(rotaData);
+            currentData = Object.entries(totalHours.totalHours).map(([name, { hoursWorked }]) => {
+                const [firstName, lastName] = name.split(' ');
+                return { firstName, lastName, hoursWorked, tip: 0 };
             });
 
             displayCurrentData();
+
+            // Try to fetch cash report
+            try {
+                const dateObj = new Date(monthStart);
+                const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
+                const formattedDate = dateObj.toLocaleDateString('en-GB');
+                const formattedDay = `${dayName} ${formattedDate}`;
+                
+                let cashUrl = `/tip/cashReport?date=${encodeURIComponent(formattedDay)}&_=${Date.now()}`;
+                if (sessionId) cashUrl += `&sessionId=${sessionId}`;
+                
+                debugLog('Fetching cash report from', cashUrl);
+                
+                const cashResponse = await fetch(cashUrl, { 
+                    credentials: 'include',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (cashResponse.ok) {
+                    const cashReport = await cashResponse.json();
+                    debugLog('Cash report data', cashReport);
+                    
+                    if (cashReport?.service !== undefined) {
+                        const serviceValue = parseFloat(cashReport.service);
+                        if (!isNaN(serviceValue)) {
+                            document.getElementById('tip').value = serviceValue.toFixed(2);
+                            calculateTip();
+                            showNotification('Service charge loaded', 'success');
+                        }
+                    }
+                } else {
+                    debugLog('Cash report not available', cashResponse.status);
+                }
+            } catch (cashError) {
+                debugLog('Cash report error', cashError);
+                // Don't show error for cash report as it's optional
+            }
+
+            debugLog('Rota data loaded successfully');
+
+        } catch (error) {
+            const userMessage = handleApiError(error, 'loadRota');
+            document.getElementById('hoursSummary').innerHTML = `
+                <div style="text-align: center; padding: 2rem; color: var(--danger);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                    <p>${userMessage}</p>
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center;">
+                        <button onclick="loadRota()" class="btn btn-primary">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                        <button onclick="showDebugInfo()" class="btn btn-secondary">
+                            <i class="fas fa-bug"></i> Debug
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    // Debug information function
+    function showDebugInfo() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const debugInfo = {
+            url: window.location.href,
+            sessionId: urlParams.get('sessionId'),
+            email: urlParams.get('email'),
+            dbName: urlParams.get('dbName'),
+            currentDate: document.getElementById('monthStart').value,
+            userAgent: navigator.userAgent,
+            currentDataLength: currentData.length
+        };
+        
+        debugLog('Debug Information', debugInfo);
+        showNotification('Debug info logged to console', 'success');
+    }
+
+    // Handle session expiration
+    function handleSessionExpired() {
+        debugLog('Session expired detected');
+        showNotification('Session expired - redirecting to login...', 'error');
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 2000);
+    }
+
+    function calculateTotalHours(data) {
+        const totalHours = {};
+        let total = 0;
+
+        data.forEach(entry => {
+            const name = entry.name + ' ' + entry.lastName;
+            const startTime = new Date(`1970-01-01T${entry.startTime}Z`);
+            const endTime = new Date(`1970-01-01T${entry.endTime}Z`);
+            const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
+            total += hoursWorked;
+
+            if (!totalHours[name]) {
+                totalHours[name] = { hoursWorked: 0 };
+            }
+            totalHours[name].hoursWorked += hoursWorked;
+        });
+
+        return { totalHours, total };
+    }
+
+    function calculateTip() {
+        const tip = parseFloat(document.getElementById('tip').value) || 0;
+        const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+        
+        if (totalHours <= 0) {
+            showNotification('No hours recorded', 'error');
+            return;
         }
 
-        // Mobile-optimized display functions
-        function displayCurrentData() {
+        const tipPerHour = tip / totalHours;
+        
+        currentData.forEach(emp => {
+            emp.tip = emp.hoursWorked * tipPerHour * 0.90;
+        });
+
+        displayCurrentData();
+    }
+
+    // Mobile-optimized display functions
+    function displayCurrentData() {
+        const container = document.getElementById('hoursSummary');
+        const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+        const totalTips = currentData.reduce((sum, emp) => sum + emp.tip, 0);
+        
+        let html = `
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Hours</th>
+                            <th>Tip (£)</th>
+                            ${isEditable ? '<th>Action</th>' : ''}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        currentData.forEach((emp, index) => {
+            html += `
+                <tr>
+                    <td>${emp.firstName} ${emp.lastName}</td>
+                    <td class="editable" onclick="editCell(${index}, 'hoursWorked')">${emp.hoursWorked.toFixed(2)}</td>
+                    <td class="editable" onclick="editCell(${index}, 'tip')">${emp.tip.toFixed(2)}</td>
+                    ${isEditable ? `<td><button class="edit-btn" onclick="removeEmployee(${index})"><i class="fas fa-trash"></i></button></td>` : ''}
+                </tr>
+            `;
+        });
+
+        html += `
+                        <tr class="total-row">
+                            <td><strong>Total</strong></td>
+                            <td><strong>${totalHours.toFixed(2)}</strong></td>
+                            <td><strong>£${totalTips.toFixed(2)}</strong></td>
+                            ${isEditable ? '<td></td>' : ''}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        container.innerHTML = html;
+        updateButtonVisibility();
+    }
+
+    // Add your existing functions here with error handling
+    function displayExistingTips(data) {
+        try {
             const container = document.getElementById('hoursSummary');
-            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
-            const totalTips = currentData.reduce((sum, emp) => sum + emp.tip, 0);
+            const totalTips = data.reduce((sum, emp) => sum + parseFloat(emp.tip), 0);
             
             let html = `
                 <div style="overflow-x: auto;">
@@ -780,19 +970,17 @@
                                 <th>Name</th>
                                 <th>Hours</th>
                                 <th>Tip (£)</th>
-                                ${isEditable ? '<th>Action</th>' : ''}
                             </tr>
                         </thead>
                         <tbody>
             `;
 
-            currentData.forEach((emp, index) => {
+            data.forEach(emp => {
                 html += `
                     <tr>
-                        <td>${emp.firstName} ${emp.lastName}</td>
-                        <td class="editable" onclick="editCell(${index}, 'hoursWorked')">${emp.hoursWorked.toFixed(2)}</td>
-                        <td class="editable" onclick="editCell(${index}, 'tip')">${emp.tip.toFixed(2)}</td>
-                        ${isEditable ? `<td><button class="edit-btn" onclick="removeEmployee(${index})"><i class="fas fa-trash"></i></button></td>` : ''}
+                        <td>${emp.name}</td>
+                        <td>${parseFloat(emp.totalHours).toFixed(2)}</td>
+                        <td>£${parseFloat(emp.tip).toFixed(2)}</td>
                     </tr>
                 `;
             });
@@ -800,24 +988,66 @@
             html += `
                             <tr class="total-row">
                                 <td><strong>Total</strong></td>
-                                <td><strong>${totalHours.toFixed(2)}</strong></td>
+                                <td></td>
                                 <td><strong>£${totalTips.toFixed(2)}</strong></td>
-                                ${isEditable ? '<td></td>' : ''}
                             </tr>
                         </tbody>
                     </table>
                 </div>
+                <p style="text-align: center; margin-top: 1rem; color: var(--success);">
+                    <i class="fas fa-info-circle"></i> Tips for this date have already been calculated.
+                </p>
             `;
 
             container.innerHTML = html;
+            
+            // Store the existing data in currentData for potential updates
+            currentData = data.map(emp => {
+                const [firstName, lastName] = emp.name.split(' ');
+                return {
+                    firstName,
+                    lastName,
+                    hoursWorked: parseFloat(emp.totalHours),
+                    tip: parseFloat(emp.tip)
+                };
+            });
+            
+            document.getElementById('tip').value = totalTips.toFixed(2);
             updateButtonVisibility();
+        } catch (error) {
+            handleApiError(error, 'displayExistingTips');
         }
+    }
 
-        // Add all your other existing functions here (displayExistingTips, updateButtonVisibility, etc.)
-        // ... [Include all the other functions from your original code] ...
+    function updateButtonVisibility() {
+        try {
+            const cancelBtn = document.getElementById('cancelBtn');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const updateBtn = document.getElementById('updateBtn');
+            
+            if (existingTips) {
+                cancelBtn.classList.remove('hidden');
+                updateBtn.classList.remove('hidden');
+                confirmBtn.classList.add('hidden');
+            } else if (currentData.length > 0) {
+                cancelBtn.classList.add('hidden');
+                confirmBtn.classList.remove('hidden');
+                updateBtn.classList.add('hidden');
+            } else {
+                cancelBtn.classList.add('hidden');
+                confirmBtn.classList.add('hidden');
+                updateBtn.classList.add('hidden');
+            }
+        } catch (error) {
+            debugLog('Error updating button visibility', error);
+        }
+    }
 
-        // Mobile-specific initialization
-        function initializeMobileApp() {
+    // Mobile-specific initialization
+    function initializeMobileApp() {
+        debugLog('Initializing mobile app');
+        
+        try {
             // Set current date
             const today = new Date();
             document.getElementById('monthStart').value = today.toISOString().split('T')[0];
@@ -827,9 +1057,6 @@
             
             // Load initial data
             loadRota();
-            
-            // Create calendar
-            createTipCalendar();
             
             // Add keyboard event for tip input
             document.getElementById('tip').addEventListener('keypress', (e) => {
@@ -843,19 +1070,67 @@
             document.addEventListener('dblclick', (e) => {
                 e.preventDefault();
             });
+            
+            debugLog('Mobile app initialized successfully');
+        } catch (error) {
+            debugLog('Mobile app initialization failed', error);
+            showNotification('App initialization failed', 'error');
+        }
+    }
+
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', initializeMobileApp);
+
+    // Handle page visibility changes (for mobile)
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden) {
+            debugLog('Page became visible, refreshing data');
+            loadRota();
+        }
+    });
+
+    // Add basic functions to prevent errors
+    function editCell(index, field) {
+        showNotification('Edit mode not available in mobile view', 'warning');
+    }
+
+    function removeEmployee(index) {
+        showNotification('Remove function not available in mobile view', 'warning');
+    }
+
+    function navigateDay(offset) {
+        const monthStart = document.getElementById('monthStart').value;
+        if (!monthStart) {
+            showNotification('Please select a date first', 'error');
+            return;
         }
 
-        // Initialize when DOM is loaded
-        document.addEventListener('DOMContentLoaded', initializeMobileApp);
+        const currentStartDate = new Date(monthStart);
+        currentStartDate.setDate(currentStartDate.getDate() + offset);
+        
+        const newDateStr = currentStartDate.toISOString().split('T')[0];
+        document.getElementById('monthStart').value = newDateStr;
+        loadRota();
+    }
 
-        // Handle page visibility changes (for mobile)
-        document.addEventListener('visibilitychange', function() {
-            if (!document.hidden) {
-                // Page became visible, refresh data
-                loadRota();
-            }
-        });
+    // Add these placeholder functions to prevent errors
+    function createTipCalendar() {
+        debugLog('Calendar creation placeholder');
+        // Calendar will be implemented later
+    }
 
-    </script>
+    function cancelTips() {
+        showNotification('Cancel tips function not implemented', 'warning');
+    }
+
+    function confirmTips() {
+        showNotification('Confirm tips function not implemented', 'warning');
+    }
+
+    function updateTips() {
+        showNotification('Update tips function not implemented', 'warning');
+    }
+
+</script>
 </body>
 </html>
