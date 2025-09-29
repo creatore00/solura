@@ -14,6 +14,9 @@ const app = express();
 app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+// ALL API ROUTES - use enhanced authentication
+app.use('/api', isAuthenticatedWithIOS);
+
 
 // Enhanced mobile detection function
 function isMobile(userAgent) {
@@ -33,7 +36,7 @@ function getDeviceType(userAgent) {
     }
 }
 
-// CRITICAL FIX: Enhanced session restoration middleware for iOS - SIMPLIFIED like EndDay
+// CRITICAL FIX: Enhanced session restoration middleware for iOS
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/.test(userAgent);
@@ -41,17 +44,16 @@ app.use((req, res, next) => {
     console.log('=== CONFIRMROTA SESSION DEBUG ===');
     console.log('Path:', req.path);
     console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
-    console.log('User Role:', req.session?.user?.role);
-    console.log('Database:', req.session?.user?.dbName);
-    console.log('Device Type:', getDeviceType(userAgent));
     console.log('Is iOS:', isIOS);
     console.log('=== END DEBUG ===');
-    
-    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
+
+    // If iOS and session exists but user data is missing, try to restore
+    if (isIOS && req.session && !req.session.user) {
         console.log('📱 iOS Session Restoration Needed - ConfirmRota');
         
-        // Try multiple methods to restore session - SIMPLIFIED like EndDay
+        // Try multiple recovery methods
         const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
         const sessionId = urlParams.get('sessionId');
         const email = urlParams.get('email');
@@ -59,48 +61,108 @@ app.use((req, res, next) => {
         const name = urlParams.get('name');
         const lastName = urlParams.get('lastName');
         
-        console.log('🔄 Attempting session restoration with:', { sessionId, email, dbName });
+        // Also check headers for recovery data
+        const headerSessionId = req.headers['x-session-id'];
+        const headerEmail = req.headers['x-user-email'];
+        const headerDbName = req.headers['x-db-name'];
         
-        if (email && dbName) {
-            console.log('✅ Restoring session from URL parameters');
+        console.log('🔄 Attempting session restoration with:', { 
+            urlParams: { sessionId, email, dbName },
+            headers: { headerSessionId, headerEmail, headerDbName }
+        });
+        
+        // Use URL params first, then headers
+        const recoveryEmail = email || headerEmail;
+        const recoveryDbName = dbName || headerDbName;
+        const recoverySessionId = sessionId || headerSessionId;
+        
+        if (recoveryEmail && recoveryDbName) {
+            console.log('✅ Restoring session for:', recoveryEmail);
+            
             req.session.user = {
-                email: email,
-                dbName: dbName,
+                email: recoveryEmail,
+                dbName: recoveryDbName,
                 name: name || '',
                 lastName: lastName || '',
-                role: 'admin' // Default to admin for confirmrota access
+                role: 'admin' // Default for confirmrota access
             };
             
-            // If sessionId is provided, sync the session ID
-            if (sessionId && req.sessionID !== sessionId) {
-                console.log('🔄 Syncing session ID to:', sessionId);
-                req.sessionID = sessionId;
+            // Sync session ID if provided
+            if (recoverySessionId && req.sessionID !== recoverySessionId) {
+                console.log('🔄 Syncing session ID to:', recoverySessionId);
+                req.sessionID = recoverySessionId;
             }
             
             // Save the restored session
-            req.session.save((err) => {
+            return req.session.save((err) => {
                 if (err) {
                     console.error('❌ Failed to save restored session:', err);
                 } else {
-                    console.log('✅ Session restored successfully for:', email);
+                    console.log('✅ Session restored successfully for:', recoveryEmail);
                 }
                 next();
             });
         } else {
             console.log('❌ No restoration parameters found');
-            next();
         }
-    } else {
-        next();
     }
+    next();
 });
 
+// Enhanced authentication middleware with iOS support
+const isAuthenticatedWithIOS = (req, res, next) => {
+    console.log('=== AUTH MIDDLEWARE DEBUG ===');
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    console.log('Path:', req.path);
+    console.log('Method:', req.method);
+    console.log('=== END DEBUG ===');
+
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+
+    // For iOS, check if we have a session but missing user data
+    if (isIOS && req.session && !req.session.user) {
+        console.log('📱 iOS detected with session but no user data');
+        
+        // For API requests, return a specific error that frontend can handle
+        if (req.path.startsWith('/api/')) {
+            return res.status(401).json({ 
+                error: 'Session recovery needed',
+                requiresReauth: true,
+                sessionId: req.sessionID,
+                message: 'Session data missing, please refresh'
+            });
+        }
+    }
+
+    // Normal authentication check
+    if (req.session && req.session.user) {
+        console.log('✅ Authentication SUCCESS');
+        next();
+    } else {
+        console.log('❌ Authentication FAILED: No valid session');
+        
+        // For API requests, return JSON error
+        if (req.path.startsWith('/api/')) {
+            return res.status(401).json({ 
+                error: 'Authentication required',
+                requiresReauth: true
+            });
+        } else {
+            // For page requests, redirect to login
+            res.redirect('/');
+        }
+    }
+};
+
 // Route to serve the appropriate confirmrota app based on device
-app.get('/', isAuthenticated, (req, res) => {
+app.get('/', isAuthenticatedWithIOS, (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const deviceType = getDeviceType(userAgent);
     
-    console.log('ConfirmRota route - Device Type:', deviceType, 'User-Agent:', userAgent);
+    console.log('ConfirmRota route - Device Type:', deviceType, 'User:', req.session.user.email);
 
     if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         // Add mobile-specific headers
@@ -108,10 +170,9 @@ app.get('/', isAuthenticated, (req, res) => {
         res.header('Pragma', 'no-cache');
         res.header('Expires', '0');
         
-        // For iOS, ensure session ID is preserved in response
+        // For mobile/tablet, serve mobile app with session parameters
         if (deviceType === 'mobile' || deviceType === 'tablet') {
-            const sessionId = req.query.sessionId || req.sessionID;
-            console.log('📱 Serving mobile confirmrota app with session ID:', sessionId);
+            console.log('📱 Serving mobile confirmrota app');
             res.sendFile(path.join(__dirname, 'ConfirmRotaApp.html'));
         } else {
             console.log('💻 Serving desktop confirmrota app');
@@ -124,7 +185,7 @@ app.get('/', isAuthenticated, (req, res) => {
 });
 
 // Route to serve mobile confirmrota app directly
-app.get('/mobile', isAuthenticated, (req, res) => {
+app.get('/mobile', isAuthenticatedWithIOS, (req, res) => {
     if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'ConfirmRotaApp.html'));
     } else {
@@ -133,7 +194,7 @@ app.get('/mobile', isAuthenticated, (req, res) => {
 });
 
 // Route to serve desktop confirmrota app directly
-app.get('/desktop', isAuthenticated, (req, res) => {
+app.get('/desktop', isAuthenticatedWithIOS, (req, res) => {
     if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
         res.sendFile(path.join(__dirname, 'ConfirmRota.html'));
     } else {
@@ -141,51 +202,97 @@ app.get('/desktop', isAuthenticated, (req, res) => {
     }
 });
 
-// Enhanced health endpoint for mobile - SIMPLIFIED like EndDay
+// Enhanced health endpoint for mobile with session recovery support
 app.get('/health', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/.test(userAgent);
     
     console.log('🏥 ConfirmRota Health check - iOS:', isIOS, 'Session User:', req.session?.user);
     
-    // For iOS, be more lenient with health checks - EXACTLY like EndDay
-    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
-        console.log('📱 iOS health check - session incomplete but allowing');
-        return res.json({
-            status: 'degraded',
-            deviceType: getDeviceType(userAgent),
-            isIOS: isIOS,
-            session: !!req.session,
-            user: req.session.user ? {
-                email: req.session.user.email,
-                role: req.session.user.role,
-                name: req.session.user.name
-            } : null,
-            message: 'Session may need restoration'
-        });
+    const healthData = {
+        status: req.session?.user ? 'healthy' : 'unauthenticated',
+        deviceType: getDeviceType(userAgent),
+        isIOS: isIOS,
+        session: !!req.session,
+        user: req.session?.user ? {
+            email: req.session.user.email,
+            role: req.session.user.role,
+            name: req.session.user.name
+        } : null,
+        timestamp: new Date().toISOString()
+    };
+    
+    // For iOS with session issues, provide recovery info
+    if (isIOS && req.session && !req.session.user) {
+        healthData.status = 'needs_recovery';
+        healthData.sessionId = req.sessionID;
+        healthData.recoveryUrl = `/confirmrota/recover?sessionId=${req.sessionID}`;
     }
     
-    // Normal health check for authenticated sessions
-    if (req.session?.user) {
-        res.json({
-            status: 'healthy',
-            deviceType: getDeviceType(userAgent),
-            isIOS: isIOS,
-            session: true,
-            user: {
-                email: req.session.user.email,
-                role: req.session.user.role,
-                name: req.session.user.name
+    res.json(healthData);
+});
+
+// Session recovery endpoint for iOS
+app.get('/recover', (req, res) => {
+    const { sessionId, email, dbName, name, lastName } = req.query;
+    
+    console.log('🔄 Session recovery request:', { sessionId, email, dbName });
+    
+    if (email && dbName) {
+        req.session.user = {
+            email: email,
+            dbName: dbName,
+            name: name || '',
+            lastName: lastName || '',
+            role: 'admin'
+        };
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session recovery failed:', err);
+                return res.status(500).json({ error: 'Recovery failed' });
             }
+            
+            console.log('✅ Session recovered successfully');
+            res.json({ 
+                success: true, 
+                message: 'Session recovered',
+                redirect: '/confirmrota'
+            });
         });
     } else {
-        res.status(401).json({
-            status: 'unauthenticated',
-            deviceType: getDeviceType(userAgent),
-            isIOS: isIOS,
-            session: false,
-            message: 'No active session'
+        res.status(400).json({ error: 'Missing recovery parameters' });
+    }
+});
+
+// Force session refresh endpoint
+app.post('/refresh-session', (req, res) => {
+    const { email, dbName, name, lastName } = req.body;
+    
+    if (email && dbName) {
+        req.session.user = {
+            email: email,
+            dbName: dbName,
+            name: name || '',
+            lastName: lastName || '',
+            role: 'admin'
+        };
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session refresh failed:', err);
+                return res.status(500).json({ error: 'Refresh failed' });
+            }
+            
+            console.log('✅ Session refreshed successfully');
+            res.json({ 
+                success: true, 
+                message: 'Session refreshed',
+                sessionId: req.sessionID
+            });
         });
+    } else {
+        res.status(400).json({ error: 'Missing required parameters' });
     }
 });
 
@@ -206,22 +313,18 @@ const generateUniqueId = async (pool) => {
 };
 
 // API endpoint to get rota data for a specific day
-app.get('/api/rota', isAuthenticated, (req, res) => {
+app.get('/api/rota', (req, res) => {
     const dbName = req.session.user.dbName;
-
-    if (!dbName) {
-        console.error('No dbName in session for /api/rota');
-        return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
     const day = req.query.day;
+    
     if (!day) {
         return res.status(400).json({ error: 'Day is required' });
     }
 
     console.log(`Fetching rota data for day: ${day}, db: ${dbName}`);
 
+    const pool = getPool(dbName);
+    
     const rotaQuery = `
         SELECT name, lastName, wage, day, designation, startTime, endTime
         FROM rota
@@ -261,22 +364,17 @@ app.get('/api/rota', isAuthenticated, (req, res) => {
 });
 
 // Check if Rota has been confirmed by Supervisor
-app.get('/api/check-confirmed-rota2', isAuthenticated, (req, res) => {
+app.get('/api/check-confirmed-rota2', (req, res) => {
     const dbName = req.session.user.dbName;
-    console.log(`[check-confirmed-rota2] Request received for db: ${dbName}, day: ${req.query.day}`);
-
-    if (!dbName) {
-        console.error('[check-confirmed-rota2] No dbName in session - unauthorized');
-        return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
     const day = req.query.day;
+    
     if (!day) {
-        console.error('[check-confirmed-rota2] Day parameter missing');
         return res.status(400).json({ error: 'Day is required' });
     }
 
+    console.log(`[check-confirmed-rota2] Request for db: ${dbName}, day: ${day}`);
+
+    const pool = getPool(dbName);
     const sql = `
         SELECT 
             cr.who AS confirmedBy,
@@ -303,19 +401,16 @@ app.get('/api/check-confirmed-rota2', isAuthenticated, (req, res) => {
             cr2.day = ?
     `;
 
-    console.log(`[check-confirmed-rota2] Executing query for day: ${day}`);
     pool.query(sql, [day, day], (err, results) => {
         if (err) {
             console.error('[check-confirmed-rota2] Database error:', err);
             return res.status(500).json({ error: 'Internal Server Error' });
         }
-
-        console.log(`[check-confirmed-rota2] Raw results:`, results);
         
         const confirmers = results.map(row => `${row.name} ${row.lastName}`);
         const uniqueConfirmers = [...new Set(confirmers)];
         
-        console.log(`[check-confirmed-rota2] Found ${uniqueConfirmers.length} confirmers:`, uniqueConfirmers);
+        console.log(`[check-confirmed-rota2] Found ${uniqueConfirmers.length} confirmers`);
         
         res.json({ 
             exists: results.length > 0,
@@ -325,15 +420,8 @@ app.get('/api/check-confirmed-rota2', isAuthenticated, (req, res) => {
 });
 
 // API endpoint to get confirmed rota data by date
-app.get('/api/confirmed-rota', isAuthenticated, (req, res) => {
+app.get('/api/confirmed-rota', (req, res) => {
     const dbName = req.session.user.dbName;
-
-    if (!dbName) {
-        console.error('No dbName in session for /api/confirmed-rota');
-        return res.status(401).json({ message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
     const day = req.query.day;
 
     if (!day) {
@@ -342,7 +430,9 @@ app.get('/api/confirmed-rota', isAuthenticated, (req, res) => {
 
     console.log(`Fetching confirmed rota for day: ${day}, db: ${dbName}`);
 
+    const pool = getPool(dbName);
     const sql = `SELECT * FROM ConfirmedRota WHERE day = ?`;
+    
     pool.query(sql, [day], (err, results) => {
         if (err) {
             console.error('Error fetching confirmed rota:', err);
