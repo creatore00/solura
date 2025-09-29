@@ -16,7 +16,19 @@ const app = express();
 app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-
+// Add this middleware before your routes
+app.use((req, res, next) => {
+    // Disable caching for dynamic content
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+    
+    // iOS-specific fixes
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'SAMEORIGIN');
+    
+    next();
+});
 // Route to fetch rota data (updated with better error handling)
 app.get('/rota', isAuthenticated, async (req, res) => {
     try {
