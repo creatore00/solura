@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cash Report | Solura</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a365d;
+            --secondary: #2b6cb0;
+            --accent: #4299e1;
+            --light: #f7fafc;
+            --dark: #2d3748;
+            --success: #38a169;
+            --warning: #dd6b20;
+            --danger: #e53e3e;
+            --text: #4a5568;
+            --border: #e2e8f0;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f8f9fa;
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            overflow-x: hidden;
+        }
+
+        body {
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Mobile-optimized navbar */
+        .navbar {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            min-height: 60px;
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .navbar-item {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }
+
+        .navbar-item:active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Mobile container */
+        .container {
+            flex: 1;
+            padding: 1rem;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Mobile date controls */
+        .date-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .date-input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .date-input {
+            padding: 0.75rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            text-align: center;
+            flex: 1;
+            background: white;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+            touch-action: manipulation;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:active {
+            background-color: var(--primary);
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-success:active {
+            background-color: #2f855a;
+        }
+
+        /* Day selector for mobile */
+        .day-selector {
+            display: flex;
+            overflow-x: auto;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .day-tab {
+            padding: 0.75rem 1rem;
+            background: var(--light);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .day-tab.active {
+            background: var(--secondary);
+            color: white;
+            border-color: var(--secondary);
+        }
+
+        /* Mobile table */
+        .mobile-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
+        }
+
+        .table-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .table-row:last-child {
+            border-bottom: none;
+        }
+
+        .table-header {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+
+        .table-total {
+            background: var(--light);
+            font-weight: 600;
+        }
+
+        .denomination-label {
+            font-weight: 600;
+            color: var(--dark);
+            flex: 1;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .currency-input {
+            width: 80px;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            text-align: center;
+            font-size: 0.9rem;
+            background: white;
+        }
+
+        .currency-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .currency-symbol {
+            color: var(--dark);
+            font-weight: 600;
+            min-width: 20px;
+        }
+
+        .result-value {
+            font-weight: 600;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        /* Status indicators */
+        .status-missing {
+            color: var(--danger);
+            font-weight: 600;
+        }
+
+        .status-excess {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .status-even {
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        /* Action buttons */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        /* Summary card */
+        .summary-card {
+            background: var(--light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .summary-item:last-child {
+            border-bottom: none;
+        }
+
+        .summary-label {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .summary-value {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        /* Mobile notification */
+        .notification {
+            position: fixed;
+            top: 80px;
+            left: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(-20px);
+            text-align: center;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification.success {
+            background-color: var(--success);
+        }
+
+        .notification.error {
+            background-color: var(--danger);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Loading states */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            .btn, .day-tab {
+                cursor: default;
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 360px) {
+            .container {
+                padding: 0.75rem;
+            }
+            .card {
+                padding: 1rem;
+            }
+            .currency-input {
+                width: 70px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="javascript:history.back()" class="navbar-brand">
+            <i class="fas fa-arrow-left"></i>
+            <span>SOLURA</span>
+        </a>
+        <div class="navbar-menu">
+            <a href="/dashboard" class="navbar-item"><i class="fas fa-home"></i></a>
+            <a href="/rota" class="navbar-item"><i class="fas fa-calendar-alt"></i></a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card">
+            <h1><i class="fas fa-cash-register"></i> Cash Report</h1>
+            
+            <div class="date-controls">
+                <input type="date" id="weekInput" class="date-input">
+                <button id="loadWeekBtn" class="btn btn-primary">
+                    <i class="fas fa-calendar-week"></i> Load Week
+                </button>
+            </div>
+
+            <div class="day-selector" id="daySelector">
+                <!-- Day tabs will be populated by JavaScript -->
+            </div>
+
+            <div id="dayContent">
+                <!-- Day content will be populated by JavaScript -->
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-item">
+                    <span class="summary-label">Week Total:</span>
+                    <span class="summary-value" id="cashsafe">£0.00</span>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="saveBtn" class="btn btn-success hidden">
+                    <i class="fas fa-save"></i> Submit Report
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script>
+        // Global variables
+        let currentSessionParams = {};
+        let currentWeekData = {};
+        let currentDay = 'monday';
+
+        // Initialize session parameters from URL
+        function initializeSessionParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentSessionParams = {
+                sessionId: urlParams.get('sessionId'),
+                email: urlParams.get('email'),
+                dbName: urlParams.get('dbName'),
+                name: urlParams.get('name'),
+                lastName: urlParams.get('lastName')
+            };
+            debugLog('Session parameters initialized', currentSessionParams);
+        }
+
+        // Enhanced fetch function that preserves session parameters
+        function fetchWithSession(url, options = {}) {
+            let finalUrl = url;
+            const urlObj = new URL(url, window.location.origin);
+            
+            // Add session parameters if they're not already in the URL
+            Object.keys(currentSessionParams).forEach(key => {
+                if (currentSessionParams[key] && !urlObj.searchParams.has(key)) {
+                    urlObj.searchParams.set(key, currentSessionParams[key]);
+                }
+            });
+
+            // Add cache busting for iOS
+            if (!urlObj.searchParams.has('_')) {
+                urlObj.searchParams.set('_', Date.now());
+            }
+
+            finalUrl = urlObj.toString();
+            debugLog('Fetching with session', { original: url, final: finalUrl });
+
+            return fetch(finalUrl, {
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'Accept': 'application/json',
+                    ...options.headers
+                },
+                ...options
+            });
+        }
+
+        // Debug function
+        function debugLog(message, data = null) {
+            console.log(`📱 [EndDayApp] ${message}`, data || '');
+        }
+
+        // Enhanced notification for mobile
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            if (notification) {
+                notification.textContent = message;
+                notification.className = `notification ${type} show`;
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+        }
+
+        // Enhanced error handler
+        function handleApiError(error, context) {
+            debugLog(`API Error in ${context}`, error);
+            
+            let userMessage = 'Error loading data';
+            
+            if (error.message.includes('Failed to fetch')) {
+                userMessage = 'Network error - check your connection';
+            } else if (error.message.includes('401')) {
+                userMessage = 'Session expired - please login again';
+                setTimeout(() => {
+                    const redirectUrl = new URL('/', window.location.origin);
+                    Object.keys(currentSessionParams).forEach(key => {
+                        if (currentSessionParams[key]) {
+                            redirectUrl.searchParams.set(key, currentSessionParams[key]);
+                        }
+                    });
+                    window.location.href = redirectUrl.toString();
+                }, 2000);
+            } else if (error.message.includes('404')) {
+                userMessage = 'Data not found';
+            } else if (error.message.includes('500')) {
+                userMessage = 'Server error - please try again';
+            }
+            
+            showNotification(userMessage, 'error');
+            return userMessage;
+        }
+
+        // Function to get the most recent Monday
+        function getMonday(d) {
+            const day = d.getDay();
+            const diff = day === 0 ? -6 : 1 - day;
+            const monday = new Date(d);
+            monday.setDate(d.getDate() + diff);
+            return monday;
+        }
+
+        // Function to get week dates
+        function getWeekDates(startDate) {
+            const weekDates = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                weekDates.push(date.toLocaleDateString('en-GB'));
+            }
+            return weekDates;
+        }
+
+        // Load week data
+        async function loadWeekData(weekStartDate) {
+            debugLog('Loading week data for', weekStartDate);
+
+            try {
+                const mondayDate = getMonday(new Date(weekStartDate));
+                const weekDates = getWeekDates(mondayDate);
+
+                // Update day selector
+                updateDaySelector(weekDates);
+
+                // Fetch cash reports
+                const startDate = weekDates[0];
+                const endDate = weekDates[6];
+                await fetchCashReports(startDate, endDate);
+
+                showNotification('Week data loaded successfully', 'success');
+            } catch (error) {
+                handleApiError(error, 'loadWeekData');
+            }
+        }
+
+        // Update day selector
+        function updateDaySelector(weekDates) {
+            const daySelector = document.getElementById('daySelector');
+            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+            
+            daySelector.innerHTML = days.map((day, index) => `
+                <div class="day-tab ${day === currentDay ? 'active' : ''}" 
+                     onclick="switchDay('${day}', '${weekDates[index]}')">
+                    ${day.substring(0, 3)} ${weekDates[index].split('/')[0]}
+                </div>
+            `).join('');
+        }
+
+        // Switch between days
+        function switchDay(day, date) {
+            currentDay = day;
+            updateDayTabs();
+            renderDayContent(day, date);
+        }
+
+        // Update day tabs active state
+        function updateDayTabs() {
+            document.querySelectorAll('.day-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelector(`.day-tab:nth-child(${getDayIndex(currentDay) + 1})`).classList.add('active');
+        }
+
+        // Get day index
+        function getDayIndex(day) {
+            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+            return days.indexOf(day);
+        }
+
+        // Render day content
+        function renderDayContent(day, date) {
+            const dayContent = document.getElementById('dayContent');
+            const dayData = currentWeekData[day] || {};
+
+            dayContent.innerHTML = `
+                <div class="mobile-table">
+                    <!-- Z Report -->
+                    <div class="table-row">
+                        <div class="denomination-label">Z Report</div>
+                        <div class="input-container">
+                            <input type="number" step="0.01" id="${day}_z_report" 
+                                   class="currency-input" value="${dayData.zreport || 0}" 
+                                   oninput="calculateDay('${day}')">
+                            <span class="currency-symbol">£</span>
+                        </div>
+                    </div>
+
+                    <!-- Denomination inputs -->
+                    ${getDenominationRows(day, dayData)}
+                    
+                    <!-- Credit Card -->
+                    <div class="table-row">
+                        <div class="denomination-label">Credit Card</div>
+                        <div class="input-container">
+                            <input type="number" step="0.01" id="${day}cc" 
+                                   class="currency-input" value="${dayData.card || 0}" 
+                                   oninput="calculateDay('${day}')">
+                            <span class="currency-symbol">£</span>
+                        </div>
+                    </div>
+
+                    <!-- Service -->
+                    <div class="table-row">
+                        <div class="denomination-label">Service</div>
+                        <div class="input-container">
+                            <input type="number" step="0.01" id="${day}service" 
+                                   class="currency-input" value="${dayData.service || 0}" 
+                                   oninput="calculateDay('${day}')">
+                            <span class="currency-symbol">£</span>
+                        </div>
+                    </div>
+
+                    <!-- Petty Cash -->
+                    <div class="table-row">
+                        <div class="denomination-label">Petty Cash</div>
+                        <div class="input-container">
+                            <input type="number" step="0.01" id="${day}pc" 
+                                   class="currency-input" value="${dayData.petty || 0}" 
+                                   oninput="calculateDay('${day}')">
+                            <span class="currency-symbol">£</span>
+                        </div>
+                    </div>
+
+                    <!-- On Account -->
+                    <div class="table-row">
+                        <div class="denomination-label">On Account</div>
+                        <div class="input-container">
+                            <input type="number" step="0.01" id="${day}oa" 
+                                   class="currency-input" value="${dayData.onaccount || 0}" 
+                                   oninput="calculateDay('${day}')">
+                            <span class="currency-symbol">£</span>
+                        </div>
+                    </div>
+
+                    <!-- Float -->
+                    <div class="table-row">
+                        <div class="denomination-label">Float</div>
+                        <div class="input-container">
+                            <input type="number" step="0.01" id="${day}float" 
+                                   class="currency-input" value="${dayData.floatday || 0}" 
+                                   oninput="calculateDay('${day}')">
+                            <span class="currency-symbol">£</span>
+                        </div>
+                    </div>
+
+                    <!-- Results -->
+                    <div class="table-row table-total">
+                        <div class="denomination-label">Total Cash</div>
+                        <div class="result-value" id="${day}Cash">£0.00</div>
+                    </div>
+
+                    <div class="table-row table-total">
+                        <div class="denomination-label">Daily Total</div>
+                        <div class="result-value" id="${day}total">£0.00</div>
+                    </div>
+
+                    <div class="table-row table-total">
+                        <div class="denomination-label">EOD Status</div>
+                        <div class="result-value" id="${day}Missing">£0.00</div>
+                    </div>
+                </div>
+            `;
+
+            // Calculate initial values
+            calculateDay(day);
+        }
+
+        // Get denomination rows
+        function getDenominationRows(day, dayData) {
+            const denominations = [
+                { id: '50', label: '£50.00', value: dayData.fifty_pounds || 0 },
+                { id: '20', label: '£20.00', value: dayData.twenty_pounds || 0 },
+                { id: '10', label: '£10.00', value: dayData.ten_pounds || 0 },
+                { id: '5', label: '£5.00', value: dayData.five_pounds || 0 },
+                { id: '2', label: '£2.00', value: dayData.two_pounds || 0 },
+                { id: '1', label: '£1.00', value: dayData.one_pound || 0 },
+                { id: '05', label: '£0.50', value: dayData.fifty_pence || 0 },
+                { id: '02', label: '£0.20', value: dayData.twenty_pence || 0 },
+                { id: '01', label: '£0.10', value: dayData.ten_pence || 0 },
+                { id: '005', label: '£0.05', value: dayData.five_pence || 0 }
+            ];
+
+            return denominations.map(denom => `
+                <div class="table-row">
+                    <div class="denomination-label">${denom.label}</div>
+                    <div class="input-container">
+                        <input type="number" id="${day}_${denom.id}" 
+                               class="currency-input" value="${denom.value}" 
+                               oninput="calculateDay('${day}')">
+                        <span class="currency-symbol">£</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Calculate day results
+        function calculateDay(day) {
+            // Get input values
+            const zReport = parseFloat(document.getElementById(`${day}_z_report`).value) || 0;
+            
+            // Cash denominations
+            const fifty = parseFloat(document.getElementById(`${day}_50`).value) || 0;
+            const twenty = parseFloat(document.getElementById(`${day}_20`).value) || 0;
+            const ten = parseFloat(document.getElementById(`${day}_10`).value) || 0;
+            const five = parseFloat(document.getElementById(`${day}_5`).value) || 0;
+            const two = parseFloat(document.getElementById(`${day}_2`).value) || 0;
+            const one = parseFloat(document.getElementById(`${day}_1`).value) || 0;
+            const fiftyPence = parseFloat(document.getElementById(`${day}_05`).value) || 0;
+            const twentyPence = parseFloat(document.getElementById(`${day}_02`).value) || 0;
+            const tenPence = parseFloat(document.getElementById(`${day}_01`).value) || 0;
+            const fivePence = parseFloat(document.getElementById(`${day}_005`).value) || 0;
+            
+            // Other inputs
+            const cc = parseFloat(document.getElementById(`${day}cc`).value) || 0;
+            const service = parseFloat(document.getElementById(`${day}service`).value) || 0;
+            const pettyCash = parseFloat(document.getElementById(`${day}pc`).value) || 0;
+            const onAccount = parseFloat(document.getElementById(`${day}oa`).value) || 0;
+            const float = parseFloat(document.getElementById(`${day}float`).value) || 0;
+
+            // Calculate totals
+            const cash = fifty + twenty + ten + five + two + one + fiftyPence + twentyPence + tenPence + fivePence;
+            const totalSum = cash + cc - service + pettyCash + onAccount - float;
+            const missingAmount = zReport - totalSum;
+
+            // Update display
+            document.getElementById(`${day}Cash`).textContent = `£${cash.toFixed(2)}`;
+            document.getElementById(`${day}total`).textContent = `£${totalSum.toFixed(2)}`;
+
+            // Update EOD status
+            const missingElement = document.getElementById(`${day}Missing`);
+            if (missingAmount > 0) {
+                missingElement.textContent = `Missing: £${missingAmount.toFixed(2)}`;
+                missingElement.className = 'result-value status-missing';
+            } else if (missingAmount < 0) {
+                const excess = Math.abs(missingAmount);
+                missingElement.textContent = `Excess: £${excess.toFixed(2)}`;
+                missingElement.className = 'result-value status-excess';
+            } else {
+                missingElement.textContent = `Even: £${totalSum.toFixed(2)}`;
+                missingElement.className = 'result-value status-even';
+            }
+
+            // Update week total
+            calculateWeekTotal();
+        }
+
+        // Calculate week total
+        function calculateWeekTotal() {
+            let weekTotal = 0;
+            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+            
+            days.forEach(day => {
+                const cashElement = document.getElementById(`${day}Cash`);
+                if (cashElement) {
+                    const cashValue = parseFloat(cashElement.textContent.replace('£', '')) || 0;
+                    weekTotal += cashValue;
+                }
+            });
+
+            document.getElementById('cashsafe').textContent = `£${weekTotal.toFixed(2)}`;
+        }
+
+        // Fetch cash reports
+        async function fetchCashReports(startDate, endDate) {
+            try {
+                debugLog('Fetching cash reports', { startDate, endDate });
+                
+                const response = await fetchWithSession(`/endday/cashreport?startDate=${startDate}&endDate=${endDate}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                debugLog('Cash reports received', data);
+                
+                updateTable(data);
+            } catch (error) {
+                handleApiError(error, 'fetchCashReports');
+            }
+        }
+
+        // Update table with data
+        function updateTable(data) {
+            if (data.error) {
+                console.error('Error fetching data:', data.error);
+                return;
+            }
+
+            // Reset current week data
+            currentWeekData = {};
+
+            // Process data
+            data.forEach(report => {
+                const dayOfWeek = report.day.split(' ')[0].toLowerCase();
+                currentWeekData[dayOfWeek] = report;
+            });
+
+            // Render current day
+            const weekDates = getWeekDates(getMonday(new Date()));
+            renderDayContent(currentDay, weekDates[getDayIndex(currentDay)]);
+        }
+
+        // Save week data
+        async function saveWeekData() {
+            try {
+                const weekData = [];
+                const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+                const weekDates = getWeekDates(getMonday(new Date(document.getElementById('weekInput').value)));
+
+                days.forEach((day, index) => {
+                    const cashElement = document.getElementById(`${day}Cash`);
+                    const totalElement = document.getElementById(`${day}total`);
+                    const missingElement = document.getElementById(`${day}Missing`);
+
+                    weekData.push({
+                        day: `${day.charAt(0).toUpperCase() + day.slice(1)} ${weekDates[index]}`,
+                        zReport: parseFloat(document.getElementById(`${day}_z_report`).value) || 0,
+                        fifty: parseFloat(document.getElementById(`${day}_50`).value) || 0,
+                        twenty: parseFloat(document.getElementById(`${day}_20`).value) || 0,
+                        ten: parseFloat(document.getElementById(`${day}_10`).value) || 0,
+                        five: parseFloat(document.getElementById(`${day}_5`).value) || 0,
+                        two: parseFloat(document.getElementById(`${day}_2`).value) || 0,
+                        one: parseFloat(document.getElementById(`${day}_1`).value) || 0,
+                        fiftyPence: parseFloat(document.getElementById(`${day}_05`).value) || 0,
+                        twentyPence: parseFloat(document.getElementById(`${day}_02`).value) || 0,
+                        tenPence: parseFloat(document.getElementById(`${day}_01`).value) || 0,
+                        fivePence: parseFloat(document.getElementById(`${day}_005`).value) || 0,
+                        cash: parseFloat(cashElement ? cashElement.textContent.replace('£', '') : 0) || 0,
+                        total: parseFloat(totalElement ? totalElement.textContent.replace('£', '') : 0) || 0,
+                        cc: parseFloat(document.getElementById(`${day}cc`).value) || 0,
+                        service: parseFloat(document.getElementById(`${day}service`).value) || 0,
+                        pettyCash: parseFloat(document.getElementById(`${day}pc`).value) || 0,
+                        onAccount: parseFloat(document.getElementById(`${day}oa`).value) || 0,
+                        float: parseFloat(document.getElementById(`${day}float`).value) || 0,
+                        missing: missingElement ? missingElement.textContent : ''
+                    });
+                });
+
+                debugLog('Saving week data', weekData);
+
+                const response = await fetchWithSession("/endday/api/cash-reports", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(weekData),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Save failed: ${response.status}`);
+                }
+
+                const result = await response.json();
+                showNotification('Report saved successfully!', 'success');
+                debugLog('Save successful', result);
+
+            } catch (error) {
+                handleApiError(error, 'saveWeekData');
+            }
+        }
+
+        // Initialize mobile app
+        function initializeMobileApp() {
+            debugLog('Initializing mobile app');
+            
+            try {
+                // Initialize session parameters
+                initializeSessionParams();
+                
+                // Set current date
+                const currentDate = new Date();
+                const currentMonday = getMonday(currentDate);
+                document.getElementById("weekInput").value = currentMonday.toISOString().split('T')[0];
+                
+                // Load initial week data
+                loadWeekData(currentMonday);
+                
+                // Show save button on first interaction
+                document.addEventListener('click', function showButton() {
+                    document.getElementById('saveBtn').classList.remove('hidden');
+                    document.removeEventListener('click', showButton);
+                }, { once: true });
+                
+                // Add event listeners
+                document.getElementById('loadWeekBtn').addEventListener('click', () => {
+                    const selectedDate = document.getElementById('weekInput').value;
+                    if (selectedDate) {
+                        loadWeekData(selectedDate);
+                    } else {
+                        showNotification('Please select a date', 'error');
+                    }
+                });
+                
+                document.getElementById('saveBtn').addEventListener('click', saveWeekData);
+                
+                debugLog('Mobile app initialized successfully');
+            } catch (error) {
+                debugLog('Mobile app initialization failed', error);
+                showNotification('App initialization failed', 'error');
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initializeMobileApp);
+
+    </script>
+</body>
+</html>

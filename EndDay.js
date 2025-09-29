@@ -6,8 +6,8 @@ const path = require('path');
 const express = require('express');
 const bodyParser = require('body-parser');
 const { v4: uuidv4 } = require('uuid');
-const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
-const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor } = require('./sessionConfig'); // Adjust the path as needed
+const { getPool, mainPool } = require('./db.js');
+const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor } = require('./sessionConfig');
 
 const app = express();
 
@@ -16,19 +16,182 @@ app.use(sessionMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Enhanced mobile detection function
+function isMobile(userAgent) {
+    return /android|iphone|ipad|ipod|mobile/i.test(userAgent.toLowerCase());
+}
+
+// Enhanced mobile detection with tablet consideration
+function getDeviceType(userAgent) {
+    const ua = userAgent.toLowerCase();
+    
+    if (/mobile|android|iphone|ipod/.test(ua)) {
+        return 'mobile';
+    } else if (/ipad|tablet/.test(ua)) {
+        return 'tablet';
+    } else {
+        return 'desktop';
+    }
+}
+
+// CRITICAL FIX: Enhanced session restoration middleware for iOS
+app.use((req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
+        console.log('📱 iOS Session Restoration Needed - EndDay');
+        
+        // Try multiple methods to restore session
+        const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+        const sessionId = urlParams.get('sessionId');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        
+        console.log('🔄 Attempting session restoration with:', { sessionId, email, dbName });
+        
+        if (email && dbName) {
+            console.log('✅ Restoring session from URL parameters');
+            req.session.user = {
+                email: email,
+                dbName: dbName,
+                name: name || '',
+                lastName: lastName || '',
+                role: 'admin' // Default to admin for endday access
+            };
+            
+            // If sessionId is provided, sync the session ID
+            if (sessionId && req.sessionID !== sessionId) {
+                console.log('🔄 Syncing session ID to:', sessionId);
+                req.sessionID = sessionId;
+            }
+            
+            // Save the restored session
+            req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Failed to save restored session:', err);
+                } else {
+                    console.log('✅ Session restored successfully for:', email);
+                }
+                next();
+            });
+        } else {
+            console.log('❌ No restoration parameters found');
+            next();
+        }
+    } else {
+        next();
+    }
+});
+
+// Route to serve the appropriate endday app based on device
+app.get('/', isAuthenticated, (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceType = getDeviceType(userAgent);
+    
+    console.log('EndDay route - Device Type:', deviceType, 'User-Agent:', userAgent);
+
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM' || req.session.user.role === 'supervisor') {
+        // Add mobile-specific headers
+        res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.header('Pragma', 'no-cache');
+        res.header('Expires', '0');
+        
+        // For iOS, ensure session ID is preserved in response
+        if (deviceType === 'mobile' || deviceType === 'tablet') {
+            const sessionId = req.query.sessionId || req.sessionID;
+            console.log('📱 Serving mobile endday app with session ID:', sessionId);
+            res.sendFile(path.join(__dirname, 'EndDayApp.html'));
+        } else {
+            console.log('💻 Serving desktop endday app');
+            res.sendFile(path.join(__dirname, 'EndDay.html'));
+        }
+    } else {
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Route to serve mobile endday app directly
+app.get('/mobile', isAuthenticated, (req, res) => {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM' || req.session.user.role === 'supervisor') {
+        res.sendFile(path.join(__dirname, 'EndDayApp.html'));
+    } else {
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Route to serve desktop endday app directly
+app.get('/desktop', isAuthenticated, (req, res) => {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM' || req.session.user.role === 'supervisor') {
+        res.sendFile(path.join(__dirname, 'EndDay.html'));
+    } else {
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Enhanced health endpoint for mobile
+app.get('/health', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    console.log('🏥 EndDay Health check - iOS:', isIOS, 'Session User:', req.session?.user);
+    
+    // For iOS, be more lenient with health checks
+    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
+        console.log('📱 iOS health check - session incomplete but allowing');
+        return res.json({
+            status: 'degraded',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: !!req.session,
+            user: req.session.user ? {
+                email: req.session.user.email,
+                role: req.session.user.role,
+                name: req.session.user.name
+            } : null,
+            message: 'Session may need restoration'
+        });
+    }
+    
+    // Normal health check for authenticated sessions
+    if (req.session?.user) {
+        res.json({
+            status: 'healthy',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: true,
+            user: {
+                email: req.session.user.email,
+                role: req.session.user.role,
+                name: req.session.user.name
+            }
+        });
+    } else {
+        res.status(401).json({
+            status: 'unauthenticated',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: false,
+            message: 'No active session'
+        });
+    }
+});
+
+// ... rest of your existing endpoints (api/cash-reports, cashreport, cash) remain the same ...
+
 // Endpoint to insert cash reports
 app.post('/api/cash-reports', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
+    const pool = getPool(dbName);
+    const weekData = req.body;
 
-    const weekData = req.body; // Get the object containing week data
-
-    // SQL query for inserting or updating cash reports
     const sql = `
         INSERT INTO cash_reports (
             day, zreport, fifty_pounds, twenty_pounds, ten_pounds, five_pounds, 
@@ -49,49 +212,46 @@ app.post('/api/cash-reports', isAuthenticated, (req, res) => {
             eod = VALUES(eod)
     `;
 
-    // Create an array of promises for each day's data insertion or update
-    const promises = Object.entries(weekData).map(([day, data]) => {
+    const promises = weekData.map(data => {
         const values = [
-            data.day, // The dynamic day value (e.g., Monday)
-            data.zReport || 0, // The dynamic date for the day
-            data.fifty || 0, // Amount of £50 notes
-            data.twenty || 0, // Amount of £20 notes
-            data.ten || 0, // Amount of £10 notes
-            data.five || 0, // Amount of £5 notes
-            data.two || 0, // Amount of £2 coins
-            data.one || 0, // Amount of £1 coins
-            data.fiftyPence || 0, // Amount of 50p coins
-            data.twentyPence || 0, // Amount of 20p coins
-            data.tenPence || 0, // Amount of 10p coins
-            data.fivePence || 0, // Amount of 5p coins
-            data.cash || 0, // Total cash amount
-            data.cc || 0, // Credit card total
-            data.service || 0, // Service charges
-            data.pettyCash || 0, // Petty cash
-            data.onAccount || 0, // On account
-            data.float || 0, // Float amount
-            data.total || 0, // Total amount
-            data.missing || 0 // Missing data (if applicable)
+            data.day,
+            data.zReport || 0,
+            data.fifty || 0,
+            data.twenty || 0,
+            data.ten || 0,
+            data.five || 0,
+            data.two || 0,
+            data.one || 0,
+            data.fiftyPence || 0,
+            data.twentyPence || 0,
+            data.tenPence || 0,
+            data.fivePence || 0,
+            data.cash || 0,
+            data.cc || 0,
+            data.service || 0,
+            data.pettyCash || 0,
+            data.onAccount || 0,
+            data.float || 0,
+            data.total || 0,
+            data.missing || 0
         ];
 
-        // Return a promise for each SQL insert/update operation
         return new Promise((resolve, reject) => {
             pool.query(sql, values, (err, result) => {
                 if (err) {
                     console.error('Error inserting/updating data: ', err);
-                    return reject(err); // Reject if there's an error
+                    return reject(err);
                 }
-                resolve(result.insertId); // Resolve with the inserted or updated ID
+                resolve(result.insertId);
             });
         });
     });
 
-    // Wait for all promises (inserts/updates) to complete
     Promise.all(promises)
         .then(results => {
             res.status(201).json({
                 message: 'Cash reports created/updated successfully!',
-                reportIds: results // Array of inserted or updated IDs
+                reportIds: results
             });
         })
         .catch(err => {
@@ -102,40 +262,31 @@ app.post('/api/cash-reports', isAuthenticated, (req, res) => {
 
 // Route to retrieve cash report data based on week
 app.get('/cashreport', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
+    const pool = getPool(dbName);
+    const { startDate, endDate } = req.query;
 
-    const { startDate, endDate } = req.query; // Use query parameters for startDate and endDate
+    const start = new Date(startDate.split('/').reverse().join('-'));
+    const end = new Date(endDate.split('/').reverse().join('-'));
 
-    // Convert startDate and endDate into Date objects
-    const start = new Date(startDate.split('/').reverse().join('-')); // Convert to yyyy-mm-dd
-    const end = new Date(endDate.split('/').reverse().join('-')); // Convert to yyyy-mm-dd
-
-    // Adjust start to the first Monday (or keep the start date if it's already Monday)
     const firstMonday = new Date(start);
-    firstMonday.setDate(start.getDate() + (1 - start.getDay() + 7) % 7); // Get the next Monday
+    firstMonday.setDate(start.getDate() + (1 - start.getDay() + 7) % 7);
 
-    // Adjust end to the last Sunday (or keep the end date if it's already Sunday)
     const lastSunday = new Date(end);
-    lastSunday.setDate(end.getDate() + (7 - end.getDay()) % 7); // Get the next Sunday
+    lastSunday.setDate(end.getDate() + (7 - end.getDay()) % 7);
 
-    // Generate all dates from firstMonday to lastSunday
     const dateArray = [];
     for (let d = firstMonday; d <= lastSunday; d.setDate(d.getDate() + 1)) {
-        // Format each date as 'Monday dd/mm/yyyy' regardless of the actual day
         const formattedDate = `${d.toLocaleString('en-US', { weekday: 'long' })} ${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}/${d.getFullYear()}`;
         dateArray.push(formattedDate);
     }
 
-    // Create a placeholder string for the SQL query
     const placeholders = dateArray.map(() => '?').join(', ');
-
-    // SQL query to get data for the specified days
     const sql = `
         SELECT day, zreport, fifty_pounds, twenty_pounds, ten_pounds, five_pounds, 
             two_pounds, one_pound, fifty_pence, twenty_pence, ten_pence, 
@@ -145,35 +296,31 @@ app.get('/cashreport', isAuthenticated, (req, res) => {
         WHERE day IN (${placeholders})
     `;
     
-    // Execute the query with the formatted dates
     pool.query(sql, dateArray, (err, results) => {
         if (err) {
             console.error('Error retrieving data:', err);
             return res.status(500).json({ error: 'Database error.' });
         }
-        res.status(200).json(results); // Send the data as JSON
+        res.status(200).json(results);
         console.log(results);
     });
 });
 
 // Endpoint to retrieve cash reports by date range
 app.get('/cash', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
-
+    const pool = getPool(dbName);
     const { startdate, enddate } = req.query;
 
-    // Validate query parameters
     if (!startdate || !enddate) {
         return res.status(400).json({ error: 'Start date and end date are required.' });
     }
 
-    // SQL query to select data
     const sql = `
         SELECT * FROM cash_reports 
         WHERE startdate >= ? AND enddate <= ?`;
@@ -187,15 +334,4 @@ app.get('/cash', isAuthenticated, (req, res) => {
     });
 });
 
-// Route to serve the EndDay.html file
-app.get('/', isAuthenticated, (req, res) => {
-    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
-        res.sendFile(path.join(__dirname, 'EndDay.html'));
-    } else if (req.session.user.role === 'supervisor') {
-        res.sendFile(path.join(__dirname, 'EndDay.html'));
-    } else {
-        res.status(403).json({ error: 'Access denied' });
-    }
-});
-
-module.exports = app; // Export the entire Express application
+module.exports = app;
