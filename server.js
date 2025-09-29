@@ -152,25 +152,80 @@ app.use(session({
     proxy: true
 }));
 
-// CRITICAL: Enhanced iOS middleware with session persistence
+// CRITICAL FIX: Session ID synchronization middleware
+app.use((req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
+    
+    if (isIOS) {
+        // Store the original session ID for comparison
+        const originalSessionId = req.sessionID;
+        const urlSessionId = req.query.sessionId;
+        
+        // If URL session ID doesn't match actual session ID, we need to sync them
+        if (urlSessionId && urlSessionId !== originalSessionId) {
+            console.log('🔄 Session ID mismatch detected');
+            console.log('URL Session ID:', urlSessionId);
+            console.log('Actual Session ID:', originalSessionId);
+            
+            // Get the session data from the URL session ID
+            sessionStore.get(urlSessionId, (err, sessionData) => {
+                if (err) {
+                    console.error('❌ Error getting session data:', err);
+                    return next();
+                }
+                
+                if (sessionData) {
+                    console.log('✅ Found session data for URL session ID');
+                    
+                    // Copy session data to current session
+                    if (sessionData.user && req.session) {
+                        req.session.user = sessionData.user;
+                        console.log('🔄 Copied user data from URL session');
+                    }
+                    
+                    // Update the cookie to match URL session ID for consistency
+                    req.sessionID = urlSessionId;
+                    console.log('🔄 Synchronized session ID to URL session ID');
+                } else {
+                    console.log('❌ No session data found for URL session ID');
+                }
+                
+                next();
+            });
+        } else {
+            next();
+        }
+    } else {
+        next();
+    }
+});
+
+// Enhanced iOS middleware with session synchronization
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
     
     // Store original session methods
     const originalSave = req.session?.save;
-    const originalRegenerate = req.session?.regenerate;
     
     if (req.session && isIOS) {
-        // Override save to ensure data persistence
+        // Override save to ensure data persistence and sync session IDs
         req.session.save = function(callback) {
             console.log('💾 FORCING session save for iOS');
-            console.log('Session data being saved:', this);
+            
+            // Ensure session ID consistency
+            const urlSessionId = req.query.sessionId;
+            if (urlSessionId && urlSessionId !== this.id) {
+                console.log('🔄 Updating session ID to match URL:', urlSessionId);
+                this.id = urlSessionId;
+            }
+            
             return originalSave.call(this, (err) => {
                 if (err) {
                     console.error('❌ Session save error:', err);
                 } else {
-                    console.log('✅ Session saved successfully');
+                    console.log('✅ Session saved successfully with ID:', this.id);
                 }
                 if (callback) callback(err);
             });
@@ -187,9 +242,18 @@ app.use((req, res, next) => {
         if (sessionIdFromUrl) {
             console.log('🔄 Using session ID from URL:', sessionIdFromUrl);
             req.headers.cookie = `solura.session=${sessionIdFromUrl}`;
+            
+            // Also set the session ID directly
+            if (req.session) {
+                req.sessionID = sessionIdFromUrl;
+            }
         } else if (sessionIdFromHeader) {
             console.log('🔄 Using session ID from header:', sessionIdFromHeader);
             req.headers.cookie = `solura.session=${sessionIdFromHeader}`;
+            
+            if (req.session) {
+                req.sessionID = sessionIdFromHeader;
+            }
         }
     }
     next();
@@ -247,12 +311,12 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED: iOS session restoration endpoint
+// Enhanced iOS session restoration with session ID synchronization
 app.post('/api/ios-restore-session', async (req, res) => {
     try {
-        const { email, dbName, accessToken } = req.body;
+        const { email, dbName, accessToken, sessionId } = req.body;
         
-        console.log('📱 iOS App session restoration for:', { email, dbName });
+        console.log('📱 iOS App session restoration for:', { email, dbName, sessionId });
         
         if (!email || !dbName) {
             return res.status(400).json({ 
@@ -315,13 +379,20 @@ app.post('/api/ios-restore-session', async (req, res) => {
 
                 console.log('✅ iOS session restoration successful for user:', userInfo);
 
-                // FIXED: Don't destroy session, just update it
+                // Use provided session ID if available, otherwise use current session ID
+                const targetSessionId = sessionId || req.sessionID;
+                
+                console.log('🎯 Target session ID for restoration:', targetSessionId);
+                
+                // Set user data
                 if (req.session) {
-                    console.log('🔄 Updating existing session with user data');
                     req.session.user = userInfo;
-                } else {
-                    console.log('🆕 Creating new session with user data');
-                    req.session.user = userInfo;
+                    
+                    // Ensure session ID matches the target
+                    if (sessionId && sessionId !== req.sessionID) {
+                        console.log('🔄 Updating session ID to match provided ID');
+                        req.sessionID = sessionId;
+                    }
                 }
                 
                 // Force immediate save with verification
@@ -336,24 +407,14 @@ app.post('/api/ios-restore-session', async (req, res) => {
 
                     console.log('✅ iOS session saved with ID:', req.sessionID);
                     
-                    // Verify session was actually saved
-                    sessionStore.get(req.sessionID, (err, sessionData) => {
-                        if (err) {
-                            console.error('❌ Error verifying session storage:', err);
-                        } else {
-                            console.log('🔍 Session storage verification:', {
-                                stored: !!sessionData,
-                                hasUser: sessionData?.user ? 'YES' : 'NO',
-                                userEmail: sessionData?.user?.email
-                            });
-                        }
-
-                        res.json({ 
-                            success: true, 
-                            user: userInfo,
-                            sessionId: req.sessionID,
-                            accessToken: accessToken || generateToken(userInfo)
-                        });
+                    // Return the actual session ID that was used
+                    const finalSessionId = req.sessionID;
+                    
+                    res.json({ 
+                        success: true, 
+                        user: userInfo,
+                        sessionId: finalSessionId,
+                        accessToken: accessToken || generateToken(userInfo)
                     });
                 });
             });

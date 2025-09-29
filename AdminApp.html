@@ -1098,7 +1098,7 @@
         return false;
     }
 
-    // Enhanced fetch with platform-specific handling
+    // Enhanced fetch with session ID synchronization
     async function fetchWithRecovery(url, options = {}) {
         try {
             const config = {
@@ -1115,7 +1115,7 @@
                 }
             };
             
-            // iOS App specific handling
+            // iOS App specific handling with session ID sync
             let targetUrl = url;
             if (isIOSApp && sessionId) {
                 const separator = url.includes('?') ? '&' : '?';
@@ -1130,22 +1130,30 @@
             // Handle unauthorized responses
             if (response.status === 401) {
                 console.log('🔄 Request unauthorized, attempting recovery...');
+                
+                // Update session ID from response if provided
+                const responseSessionId = response.headers.get('X-Session-ID');
+                if (responseSessionId && responseSessionId !== sessionId) {
+                    console.log('🔄 Updating session ID from response:', responseSessionId);
+                    sessionId = responseSessionId;
+                    localStorage.setItem('sessionId', responseSessionId);
+                }
+                
                 const recovered = isIOSApp ? await restoreIOSSession() : await attemptSessionRecovery();
                 
                 if (recovered) {
                     console.log('🔄 Session recovered, retrying request...');
                     
-                    // Update config with new session data
-                    config.headers['X-Session-ID'] = sessionId || '';
-                    if (accessToken) {
-                        config.headers['Authorization'] = `Bearer ${accessToken}`;
-                    }
-                    
-                    // Update URL for iOS App
+                    // Update URL with new session ID
                     let retryUrl = url;
                     if (isIOSApp && sessionId) {
                         const separator = url.includes('?') ? '&' : '?';
                         retryUrl = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
+                    }
+                    
+                    config.headers['X-Session-ID'] = sessionId || '';
+                    if (accessToken) {
+                        config.headers['Authorization'] = `Bearer ${accessToken}`;
                     }
                     
                     response = await fetch(retryUrl, config);
@@ -1168,7 +1176,7 @@
             throw error;
         }
     }
-
+        
     // Navigation function with platform-specific handling
     function navigateTo(url) {
         if (!currentUser) {
