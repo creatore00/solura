@@ -755,15 +755,19 @@
             </div>
         </div>
     </div>
-
-<script>
+    <script>
     // Global variables
     let currentUser = null;
     let inactivityTimer;
+    let sessionId = null;
 
     // Initialize the application
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Mobile App: Initializing...');
+        
+        // Get session ID from URL or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        sessionId = urlParams.get('sessionId') || localStorage.getItem('sessionId');
         
         // Setup UI components first
         initializeUI();
@@ -877,14 +881,7 @@
         try {
             console.log('🔐 Validating session...');
             
-            const response = await fetch('/api/validate-session', {
-                credentials: 'include',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache',
-                    'Accept': 'application/json'
-                }
-            });
+            const response = await fetchWithRecovery('/api/validate-session');
             
             console.log('Session validation response status:', response.status);
             
@@ -902,6 +899,7 @@
                         localStorage.setItem('lastDb', data.user.dbName);
                     }
                     if (data.sessionId) {
+                        sessionId = data.sessionId;
                         localStorage.setItem('sessionId', data.sessionId);
                     }
                     
@@ -931,7 +929,6 @@
         // Try multiple recovery methods
         
         // Method 1: Try with stored session ID and user info
-        const sessionId = localStorage.getItem('sessionId');
         const storedUser = localStorage.getItem('userInfo');
         
         if (sessionId && storedUser) {
@@ -981,7 +978,6 @@
         try {
             const storedUser = localStorage.getItem('userInfo');
             const lastDb = localStorage.getItem('lastDb');
-            const sessionId = localStorage.getItem('sessionId');
             
             if (!storedUser) {
                 return false;
@@ -1005,7 +1001,8 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Session-ID': sessionId || ''
                 },
                 credentials: 'include',
                 body: JSON.stringify(recoveryData)
@@ -1020,6 +1017,7 @@
                 
                 // Update stored session info
                 if (data.sessionId) {
+                    sessionId = data.sessionId;
                     localStorage.setItem('sessionId', data.sessionId);
                 }
                 if (data.user) {
@@ -1046,7 +1044,8 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Session-ID': sessionId || ''
                 },
                 credentials: 'include',
                 body: JSON.stringify(userInfo)
@@ -1057,6 +1056,7 @@
                 console.log('✅ Session restored successfully from params');
                 
                 if (data.sessionId) {
+                    sessionId = data.sessionId;
                     localStorage.setItem('sessionId', data.sessionId);
                 }
                 
@@ -1082,19 +1082,21 @@
                     'Content-Type': 'application/json',
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache',
+                    'X-Session-ID': sessionId || '', // CRITICAL for iOS
                     ...options.headers
                 }
             };
             
-            // Add session ID if available
-            const sessionId = localStorage.getItem('sessionId');
-            if (sessionId) {
-                config.headers['X-Session-ID'] = sessionId;
+            // Add session ID to URL for iOS Safari workaround
+            let targetUrl = url;
+            if (sessionId && (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad'))) {
+                const separator = url.includes('?') ? '&' : '?';
+                targetUrl = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
             }
             
-            console.log(`🔍 Fetching: ${url}`);
-            let response = await fetch(url, config);
-            console.log(`📨 Response status: ${response.status} for ${url}`);
+            console.log(`🔍 Fetching: ${targetUrl}`);
+            let response = await fetch(targetUrl, config);
+            console.log(`📨 Response status: ${response.status} for ${targetUrl}`);
             
             // If unauthorized, try to recover session and retry
             if (response.status === 401) {
@@ -1104,14 +1106,17 @@
                 if (recovered) {
                     console.log('🔄 Session recovered, retrying request...');
                     
-                    // Update session ID in headers for retry
-                    const newSessionId = localStorage.getItem('sessionId');
-                    if (newSessionId) {
-                        config.headers['X-Session-ID'] = newSessionId;
+                    // Update URL with new session ID
+                    let retryUrl = url;
+                    if (sessionId && (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad'))) {
+                        const separator = url.includes('?') ? '&' : '?';
+                        retryUrl = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
                     }
                     
-                    response = await fetch(url, config);
-                    console.log(`📨 Retry response status: ${response.status} for ${url}`);
+                    config.headers['X-Session-ID'] = sessionId || '';
+                    
+                    response = await fetch(retryUrl, config);
+                    console.log(`📨 Retry response status: ${response.status} for ${retryUrl}`);
                 } else {
                     console.log('❌ Session recovery failed, redirecting to login');
                     redirectToLogin();
@@ -1140,7 +1145,7 @@
             return;
         }
 
-        // Build URL with user parameters
+        // Build URL with user parameters and session ID
         let targetUrl = url;
         if (url.startsWith('/')) {
             targetUrl = url.substring(1);
@@ -1152,6 +1157,11 @@
             email: currentUser.email,
             dbName: currentUser.dbName
         });
+
+        // Add session ID for iOS
+        if (sessionId) {
+            params.append('sessionId', sessionId);
+        }
 
         const fullUrl = `${targetUrl}?${params.toString()}`;
         console.log(`🔄 Navigating to: ${fullUrl}`);
@@ -1202,11 +1212,11 @@
         loadLaborCost();
         
         // Set up periodic refreshes
-        setInterval(fetchEmployeesOnShift, 30000); // 30 seconds
-        setInterval(fetchPendingApprovals, 60000); // 1 minute
-        setInterval(fetchTipApprovals, 60000); // 1 minute
-        setInterval(checkPendingRequests, 300000); // 5 minutes
-        setInterval(validateSessionWithRecovery, 120000); // 2 minutes
+        setInterval(fetchEmployeesOnShift, 30000);
+        setInterval(fetchPendingApprovals, 60000);
+        setInterval(fetchTipApprovals, 60000);
+        setInterval(checkPendingRequests, 300000);
+        setInterval(validateSessionWithRecovery, 120000);
         
         // Initialize inactivity timer
         setupInactivityTimer();
@@ -1480,7 +1490,7 @@
                 } else {
                     logout();
                 }
-            }, 60 * 60 * 1000); // 60 minutes
+            }, 60 * 60 * 1000);
         };
 
         // Initialize timer

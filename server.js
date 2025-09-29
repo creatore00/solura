@@ -105,36 +105,57 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(__dirname));
 
-// CRITICAL FIX: Clear existing session middleware with conflicting names
+// CRITICAL FIX: iOS Safari Cookie Workaround Middleware
 app.use((req, res, next) => {
-    // Clear any existing session cookies with conflicting names
-    if (req.headers.cookie) {
-        const cookies = req.headers.cookie.split(';');
-        const filteredCookies = cookies.filter(cookie => 
-            !cookie.trim().startsWith('connect.sid=') && 
-            !cookie.trim().startsWith('sessionId=')
-        );
-        req.headers.cookie = filteredCookies.join(';');
+    // iOS Safari workaround - handle cookie-less requests
+    if (!req.headers.cookie && req.headers['user-agent'] && 
+        (req.headers['user-agent'].includes('iPhone') || 
+         req.headers['user-agent'].includes('iPad') || 
+         req.headers['user-agent'].includes('Macintosh'))) {
+        
+        console.log('📱 iOS Safari detected without cookies, using workaround');
+        
+        // Check for session ID in URL or headers
+        const sessionIdFromUrl = req.query.sessionId;
+        const sessionIdFromHeader = req.headers['x-session-id'];
+        
+        if (sessionIdFromUrl || sessionIdFromHeader) {
+            const sessionId = sessionIdFromUrl || sessionIdFromHeader;
+            console.log('🔄 Using session ID from alternative source:', sessionId);
+            
+            // Manually set the cookie header for express-session
+            req.headers.cookie = `solura.session=${sessionId}`;
+        }
     }
     next();
 });
 
-// Session middleware - FIXED configuration
+// Enhanced session configuration for iOS
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
     resave: true,
     saveUninitialized: false,
     store: sessionStore,
-    name: 'solura.session', // UNIQUE name to avoid conflicts
+    name: 'solura.session',
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'none', // CRITICAL for iOS cross-site
+        maxAge: 24 * 60 * 60 * 1000,
         domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
     },
     rolling: true,
-    proxy: true
+    proxy: true,
+    // Add this for better iOS compatibility
+    genid: (req) => {
+        // Allow session ID from URL for iOS
+        const sessionIdFromUrl = req.query.sessionId;
+        if (sessionIdFromUrl) {
+            console.log('🔄 Using session ID from URL:', sessionIdFromUrl);
+            return sessionIdFromUrl;
+        }
+        return require('crypto').randomBytes(16).toString('hex');
+    }
 }));
 
 // Session debugging middleware
