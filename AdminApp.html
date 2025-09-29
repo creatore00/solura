@@ -1078,10 +1078,10 @@
     }
 
     function showSessionError() {
-        const mainContent = document.getElementById('mainContent');
+        const mainContent = document.querySelector('.app-content') || document.getElementById('mainContent');
         if (mainContent) {
             mainContent.innerHTML = `
-                <div class="session-error">
+                <div class="session-error" style="text-align: center; padding: 2rem;">
                     <h2>Session Expired</h2>
                     <p>Your session has expired. Please log in again.</p>
                     <button onclick="redirectToLogin()" class="btn-primary">Return to Login</button>
@@ -1106,67 +1106,148 @@
         console.log('Initializing page...');
         initializeUI();
         loadDashboardData();
+        setupNavigationLinks();
     }
     
     function initializeUI() {
         console.log('Initializing UI components...');
         
-        // Mobile menu functionality
-        const menuToggle = document.getElementById('menuToggle');
-        const closeMenu = document.getElementById('closeMenu');
-        const mobileMenu = document.getElementById('mobileMenu');
-        const menuOverlay = document.getElementById('menuOverlay');
-        
-        if (menuToggle && mobileMenu && menuOverlay) {
-            menuToggle.addEventListener('click', () => {
-                mobileMenu.classList.add('active');
-                menuOverlay.classList.add('active');
-                document.body.style.overflow = 'hidden';
-            });
-            
-            if (closeMenu) {
-                closeMenu.addEventListener('click', closeMobileMenu);
-            }
-            
-            menuOverlay.addEventListener('click', closeMobileMenu);
-        }
-        
-        // Reports modal functionality
-        const reportsLinkMobile = document.getElementById('reportsLinkMobile');
-        const reportsModalMobile = document.getElementById('reportsModalMobile');
-        const closeReportsModalMobile = document.getElementById('closeReportsModalMobile');
-        
-        if (reportsLinkMobile && reportsModalMobile) {
-            reportsLinkMobile.addEventListener('click', (e) => {
-                e.preventDefault();
-                reportsModalMobile.style.display = 'flex';
-            });
-            
-            if (closeReportsModalMobile) {
-                closeReportsModalMobile.addEventListener('click', () => {
-                    reportsModalMobile.style.display = 'none';
-                });
-            }
-            
-            reportsModalMobile.addEventListener('click', (e) => {
-                if (e.target === reportsModalMobile) {
-                    reportsModalMobile.style.display = 'none';
-                }
-            });
-        }
-        
         // Update date display
         updateLiveDateTime();
         setInterval(updateLiveDateTime, 1000);
-    }
-    
-    function closeMobileMenu() {
-        const mobileMenu = document.getElementById('mobileMenu');
-        const menuOverlay = document.getElementById('menuOverlay');
         
-        if (mobileMenu) mobileMenu.classList.remove('active');
-        if (menuOverlay) menuOverlay.classList.remove('active');
-        document.body.style.overflow = '';
+        // Setup database switcher if available
+        setupDatabaseSwitcher();
+    }
+
+    // Setup navigation links with session preservation
+    function setupNavigationLinks() {
+        console.log('Setting up navigation links...');
+        
+        // Setup all navigation links in the sidebar
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            if (link.href && !link.href.includes('#') && !link.href.includes('logout')) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetUrl = this.getAttribute('href');
+                    navigateTo(targetUrl);
+                });
+            }
+        });
+
+        // Setup quick action buttons
+        const actionButtons = document.querySelectorAll('.action-btn');
+        actionButtons.forEach(button => {
+            if (button.href) {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetUrl = this.getAttribute('href');
+                    navigateTo(targetUrl);
+                });
+            }
+        });
+
+        // Setup footer links
+        const footerLinks = document.querySelectorAll('.app-footer a');
+        footerLinks.forEach(link => {
+            if (link.href && link.href.includes('/')) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const targetUrl = this.getAttribute('href');
+                    navigateTo(targetUrl);
+                });
+            }
+        });
+    }
+
+    // Setup database switcher functionality
+    async function setupDatabaseSwitcher() {
+        try {
+            const dbSwitcher = document.getElementById('databaseSwitcher');
+            if (!dbSwitcher || !currentUser) return;
+
+            const response = await fetchWithRecovery('/getUserDatabases', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: currentUser.email })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch databases');
+            }
+
+            const data = await response.json();
+            
+            if (data.databases && data.databases.length > 1) {
+                const dbSelector = document.getElementById('dbSelector');
+                const switchBtn = document.getElementById('switchDbBtn');
+                const currentDbDisplay = document.getElementById('currentDbDisplay');
+                
+                if (currentDbDisplay) {
+                    currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
+                }
+                
+                if (dbSelector && switchBtn) {
+                    // Populate dropdown
+                    data.databases.forEach(db => {
+                        const option = document.createElement('option');
+                        option.value = db.db_name;
+                        option.textContent = db.db_name;
+                        if (db.db_name === data.currentDb) {
+                            option.selected = true;
+                        }
+                        dbSelector.appendChild(option);
+                    });
+                    
+                    // Show controls
+                    dbSelector.style.display = 'inline-block';
+                    switchBtn.style.display = 'inline-block';
+                    
+                    // Handle switch
+                    switchBtn.addEventListener('click', async function() {
+                        const selectedDb = dbSelector.value;
+                        if (selectedDb !== data.currentDb) {
+                            try {
+                                const switchResponse = await fetchWithRecovery('/switchDatabase', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({ 
+                                        email: currentUser.email,
+                                        dbName: selectedDb
+                                    })
+                                });
+                                
+                                const result = await switchResponse.json();
+                                if (result.success) {
+                                    // Update current user and reload
+                                    currentUser.dbName = selectedDb;
+                                    localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                                    localStorage.setItem('lastDb', selectedDb);
+                                    window.location.reload();
+                                } else {
+                                    alert('Failed to switch database: ' + (result.message || 'Unknown error'));
+                                }
+                            } catch (error) {
+                                console.error('Error switching database:', error);
+                                alert('Error switching database');
+                            }
+                        }
+                    });
+                }
+            } else if (data.databases && data.databases.length === 1) {
+                const currentDbDisplay = document.getElementById('currentDbDisplay');
+                if (currentDbDisplay) {
+                    currentDbDisplay.textContent = `Current Database: ${data.databases[0].db_name}`;
+                }
+            }
+        } catch (error) {
+            console.error('Error setting up database switcher:', error);
+        }
     }
     
     function loadDashboardData() {
@@ -1177,30 +1258,17 @@
         fetchPendingApprovals();
         fetchTipApprovals();
         checkPendingRequests();
-        
-        // Fetch labor cost
-        fetchLaborCost(function(error, cost) {
-            if (error) {
-                console.error('Error fetching labor cost:', error);
-                return;
-            }
-            updateLaborCostWidget(cost);
-        });
+        loadLaborCost();
         
         // Set up periodic refreshes
-        setInterval(fetchEmployeesOnShift, 10000);
-        setInterval(checkPendingRequests, 300000);
-        setInterval(validateSessionWithRecovery, 60000);
+        setInterval(fetchEmployeesOnShift, 30000); // 30 seconds
+        setInterval(fetchPendingApprovals, 60000); // 1 minute
+        setInterval(fetchTipApprovals, 60000); // 1 minute
+        setInterval(checkPendingRequests, 300000); // 5 minutes
+        setInterval(validateSessionWithRecovery, 120000); // 2 minutes
         
         // Initialize inactivity timer
-        resetInactivityTimer();
-        
-        // Add activity listeners
-        document.addEventListener('click', resetInactivityTimer);
-        document.addEventListener('scroll', resetInactivityTimer);
-        document.addEventListener('touchstart', resetInactivityTimer);
-        document.addEventListener('mousemove', resetInactivityTimer);
-        document.addEventListener('keypress', resetInactivityTimer);
+        setupInactivityTimer();
     }
     
     // Set current date
@@ -1209,9 +1277,9 @@
         const dateElement = document.getElementById('currentDate');
         if (dateElement) {
             dateElement.textContent = now.toLocaleDateString('en-GB', {
-                weekday: 'short',
+                weekday: 'long',
                 year: 'numeric',
-                month: 'short',
+                month: 'long',
                 day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
@@ -1261,7 +1329,7 @@
     
     // Function to Populate Shift Table
     function populateShiftTable(employees) {
-        const tableBody = document.querySelector('.mobile-table tbody');
+        const tableBody = document.querySelector('.data-table tbody');
         if (!tableBody) return;
         tableBody.innerHTML = '';
 
@@ -1407,25 +1475,26 @@
         }
     }
     
-    // Function for Labor
-    function fetchLaborCost(callback) {
-        fetchWithRecovery('/api/labor-cost')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    callback(null, data.cost);
-                } else {
-                    callback(data.message || 'No data available');
-                }
-            })
-            .catch(error => {
-                callback('Error: ' + error.message);
-            });
+    // Function to load labor cost
+    async function loadLaborCost() {
+        try {
+            const response = await fetchWithRecovery('/api/labor-cost');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updateLaborCostWidget(data.cost);
+            } else {
+                console.error('Error loading labor cost:', data.error);
+                updateLaborCostWidget('--');
+            }
+        } catch (error) {
+            console.error('Error loading labor cost:', error);
+            updateLaborCostWidget('--');
+        }
     }
 
     // Logout function
@@ -1442,16 +1511,32 @@
 
     // Inactivity timer
     let inactivityTimer;
-    const resetInactivityTimer = () => {
-        clearTimeout(inactivityTimer);
-        inactivityTimer = setTimeout(() => {
-            alert('You have been logged out due to inactivity.');
-            logout();
-        }, 60 * 60 * 1000);
-    };
+    function setupInactivityTimer() {
+        const resetInactivityTimer = () => {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                if (confirm('You have been inactive for a while. Would you like to stay logged in?')) {
+                    resetInactivityTimer();
+                } else {
+                    logout();
+                }
+            }, 60 * 60 * 1000); // 60 minutes
+        };
+
+        // Initialize timer
+        resetInactivityTimer();
+        
+        // Reset on user activity
+        document.addEventListener('click', resetInactivityTimer);
+        document.addEventListener('scroll', resetInactivityTimer);
+        document.addEventListener('touchstart', resetInactivityTimer);
+        document.addEventListener('mousemove', resetInactivityTimer);
+        document.addEventListener('keypress', resetInactivityTimer);
+    }
 
     // Global error handler
     window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled promise rejection:', event.reason);
         if (event.reason && (event.reason.message === 'Unauthorized' || event.reason.status === 401)) {
             console.log('Global auth error caught, redirecting to login');
             redirectToLogin();
@@ -1462,6 +1547,7 @@
     window.logout = logout;
     window.redirectToLogin = redirectToLogin;
     window.navigateTo = navigateTo;
+    window.fetchWithRecovery = fetchWithRecovery;
 </script>
 </body>
 </html>

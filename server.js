@@ -98,35 +98,55 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// Enhanced CORS configuration for iOS
-app.use(cors({
-    origin: ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080'],
+// Enhanced CORS configuration
+const corsOptions = {
+    origin: function (origin, callback) {
+        const allowedOrigins = [
+            'https://www.solura.uk', 
+            'https://solura.uk', 
+            'http://localhost:8080',
+            'http://localhost:3000'
+        ];
+        
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log('Blocked by CORS:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'X-Session-ID'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
     exposedHeaders: ['Set-Cookie']
-}));
+};
+app.use(cors(corsOptions));
+// Handle preflight requests
+app.options('*', cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname));
 
-// FIXED session configuration for iOS Safari
+// FIXED session configuration for iOS Safari and cross-domain
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-session-secret-heroku-production-2024',
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
     cookie: {
-        secure: true,
+        secure: process.env.NODE_ENV === 'production', // true in production, false in development
         httpOnly: true,
-        sameSite: 'none', // Must be 'none' for cross-site
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' for cross-site in production
         maxAge: 24 * 60 * 60 * 1000,
-        domain: '.solura.uk'
+        domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
     },
     proxy: true,
-    name: 'connect.sid',
-    rolling: true // Reset maxAge on every request
+    name: 'sessionId', // Simpler name
+    rolling: true
 }));
 
 // Enhanced session debugging middleware
@@ -299,24 +319,29 @@ function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session User:', req.session?.user);
+    console.log('Path:', req.path);
+    console.log('Method:', req.method);
     
-    if (req.session?.user) {
+    if (req.session?.user && req.session.user.dbName) {
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
         // Update session to extend expiration
         req.session.touch();
         return next();
     }
     
-    console.log('❌ Authentication FAILED - Path:', req.path);
+    console.log('❌ Authentication FAILED');
     
-    if (req.path.startsWith('/api/')) {
+    // For API routes, return JSON error
+    if (req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized',
-            message: 'Please log in again'
+            message: 'Please log in again',
+            requiresLogin: true
         });
     }
     
+    // For HTML routes, redirect to login
     res.redirect('/');
 }
 

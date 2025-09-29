@@ -685,51 +685,285 @@
     </footer>
 
 <script>
-// Function to check for pending requests
-function checkPendingRequests() {
-    fetch('/request/holidays')
-        .then(response => response.json())
-        .then(data => {
-            const pendingRequests = data.filter(request => 
-                !(request.accepted === 'true' || request.accepted === 'unpaid')
-            );
-            
-            const notificationBadge = document.getElementById('holidayNotification');
-            if (pendingRequests.length > 0) {
-                notificationBadge.style.display = 'block';
-                // Optional: Update the count if you want a number instead of just a dot
-                // notificationBadge.textContent = pendingRequests.length;
-            } else {
-                notificationBadge.style.display = 'none';
-            }
-        })
-        .catch(error => {
-            console.error('Error checking pending requests:', error);
-        });
+// Session validation and recovery
+async function validateSession() {
+    try {
+        const response = await authenticatedFetch('/api/validate-session');
+        
+        if (response.status === 401) {
+            // Try to recover session from localStorage
+            const recovered = await attemptSessionRecovery();
+            return recovered;
+        }
+        
+        const data = await response.json();
+        return data.valid;
+    } catch (error) {
+        console.error('Session validation error:', error);
+        const recovered = await attemptSessionRecovery();
+        return recovered;
+    }
 }
-// Check initially when page loads
-document.addEventListener('DOMContentLoaded', checkPendingRequests);
-// Optional: Check periodically (every 5 minutes)
-setInterval(checkPendingRequests, 300000);
+
+async function attemptSessionRecovery() {
+    try {
+        // Check if we have user data in localStorage
+        const storedUser = localStorage.getItem('userData');
+        const storedDb = localStorage.getItem('currentDatabase');
+        
+        if (storedUser && storedDb) {
+            const userData = JSON.parse(storedUser);
+            
+            const response = await fetch('/api/recover-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: userData.email,
+                    dbName: storedDb
+                })
+            });
+            
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    console.log('Session recovered successfully');
+                    return true;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Session recovery failed:', error);
+    }
+    
+    // If recovery fails, redirect to login
+    window.location.href = '/';
+    return false;
+}
+
+// Enhanced fetch wrapper with session handling
+async function authenticatedFetch(url, options = {}) {
+    const fetchOptions = {
+        ...options,
+        credentials: 'include', // Always include cookies
+        headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        }
+    };
+    
+    try {
+        const response = await fetch(url, fetchOptions);
+        
+        // If unauthorized, try to recover session and retry once
+        if (response.status === 401) {
+            const recovered = await attemptSessionRecovery();
+            if (recovered) {
+                // Retry the request with recovered session
+                return await fetch(url, fetchOptions);
+            } else {
+                throw new Error('Authentication required');
+            }
+        }
+        
+        return response;
+    } catch (error) {
+        console.error('Fetch error:', error);
+        throw error;
+    }
+}
+
+// Enhanced dashboard functionality
+document.addEventListener('DOMContentLoaded', async function() {
+    // First validate session
+    const isValid = await validateSession();
+    if (!isValid) {
+        return;
+    }
+
+    // Initialize all dashboard components
+    await initializeDashboard();
+    
+    // Setup navigation and other event listeners
+    setupNavigation();
+    setupEventListeners();
+});
+
+async function initializeDashboard() {
+    try {
+        // Load all data
+        await loadEmployeesOnShift();
+        await loadPendingApprovals();
+        await loadTipApprovals();
+        await loadLaborCost();
+        await initializeDatabaseSwitcher();
+        checkPendingRequests();
+        
+        // Start periodic updates
+        startPeriodicUpdates();
+        
+    } catch (error) {
+        console.error('Dashboard initialization failed:', error);
+    }
+}
+
+function setupNavigation() {
+    // Add click handlers to all navigation links
+    document.querySelectorAll('.nav-link').forEach(link => {
+        if (link.href && !link.href.includes('logout')) {
+            link.addEventListener('click', async function(e) {
+                e.preventDefault();
+                
+                // Validate session before navigating
+                const isValid = await validateSession();
+                if (isValid) {
+                    window.location.href = this.href;
+                }
+            });
+        }
+    });
+}
+
+function setupEventListeners() {
+    // Set up all event listeners here
+    setupReportsModal();
+    setupBackendShortcut();
+    setupInactivityTimer();
+    setupLogout();
+}
+
+// Database switcher functionality
+async function initializeDatabaseSwitcher() {
+    try {
+        // Get user session info from URL or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        let userEmail = urlParams.get('email');
+        
+        if (!userEmail) {
+            const storedUser = localStorage.getItem('userData');
+            if (storedUser) {
+                userEmail = JSON.parse(storedUser).email;
+            }
+        }
+        
+        if (!userEmail) {
+            console.error('No user email found');
+            return;
+        }
+        
+        const response = await authenticatedFetch('/getUserDatabases', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: userEmail })
+        });
+        
+        const data = await response.json();
+        
+        if (data.databases && data.databases.length > 1) {
+            // User has multiple databases - show the switcher
+            const dbSelector = document.getElementById('dbSelector');
+            const switchBtn = document.getElementById('switchDbBtn');
+            const currentDbDisplay = document.getElementById('currentDbDisplay');
+            
+            // Set current database display
+            currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
+            
+            // Populate dropdown
+            data.databases.forEach(db => {
+                const option = document.createElement('option');
+                option.value = db.db_name;
+                option.textContent = db.db_name;
+                if (db.db_name === data.currentDb) {
+                    option.selected = true;
+                }
+                dbSelector.appendChild(option);
+            });
+            
+            // Show controls
+            dbSelector.style.display = 'inline-block';
+            switchBtn.style.display = 'inline-block';
+            
+            // Handle switch
+            switchBtn.addEventListener('click', async function() {
+                const selectedDb = dbSelector.value;
+                if (selectedDb !== data.currentDb) {
+                    try {
+                        const switchResponse = await authenticatedFetch('/switchDatabase', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ 
+                                email: userEmail,
+                                dbName: selectedDb
+                            })
+                        });
+                        
+                        const result = await switchResponse.json();
+                        if (result.success) {
+                            // Reload the page with the new database
+                            window.location.reload();
+                        } else {
+                            alert('Failed to switch database: ' + (result.message || 'Unknown error'));
+                        }
+                    } catch (error) {
+                        console.error('Error switching database:', error);
+                        alert('Error switching database');
+                    }
+                }
+            });
+        } else if (data.databases && data.databases.length === 1) {
+            // User only has one database - just display it
+            document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
+        }
+    } catch (error) {
+        console.error('Error fetching user databases:', error);
+    }
+}
+
+// Function to check for pending requests
+async function checkPendingRequests() {
+    try {
+        const response = await authenticatedFetch('/request/holidays');
+        const data = await response.json();
+        
+        const pendingRequests = data.filter(request => 
+            !(request.accepted === 'true' || request.accepted === 'unpaid')
+        );
+        
+        const notificationBadge = document.getElementById('holidayNotification');
+        if (pendingRequests.length > 0) {
+            notificationBadge.style.display = 'block';
+        } else {
+            notificationBadge.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error checking pending requests:', error);
+    }
+}
+
 // Opens Backend page  
-document.addEventListener('DOMContentLoaded', function() {
-    // Add keyboard event listener
+function setupBackendShortcut() {
     document.addEventListener('keydown', function(event) {
         // Check if Ctrl (or Cmd on Mac) and B are pressed together
         if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
-            // Prevent the default browser behavior (like opening bookmarks)
             event.preventDefault();
-            
-            // Open the Backend page
-            window.location.href = '/Backend'; // or whatever your backend URL is
+            window.location.href = '/Backend';
         }
     });
-});
+}
+
 // Opens Reports Window
-document.addEventListener('DOMContentLoaded', function() {
+function setupReportsModal() {
     const reportsLink = document.getElementById('reportsLink');
     const reportsModal = document.getElementById('reportsModal');
     const closeReportsModal = document.getElementById('closeReportsModal');
+    
+    if (!reportsLink || !reportsModal) return;
     
     // Open modal when Reports is clicked
     reportsLink.addEventListener('click', function(e) {
@@ -755,144 +989,40 @@ document.addEventListener('DOMContentLoaded', function() {
             reportsModal.style.display = 'none';
         }
     });
-});
+}
+
 // Set current date
 function updateLiveDateTime() {
     const now = new Date();
-    document.getElementById('currentDate').textContent = now.toLocaleDateString('en-GB', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false
-    }).replace(',', '');
+    const dateElement = document.getElementById('currentDate');
+    if (dateElement) {
+        dateElement.textContent = now.toLocaleDateString('en-GB', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false
+        }).replace(',', '');
+    }
 }
-// Then update every second (1000ms)
-setInterval(updateLiveDateTime, 1000);
-// Database switcher functionality
-document.addEventListener('DOMContentLoaded', function() {
-            // Get user session info (you may need to adjust this based on how you store session info)
-            const userEmail = new URLSearchParams(window.location.search).get('email');
-            
-            // Fetch the user's accessible databases
-            fetch('/getUserDatabases', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email: userEmail })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.databases && data.databases.length > 1) {
-                    // User has multiple databases - show the switcher
-                    const dbSelector = document.getElementById('dbSelector');
-                    const switchBtn = document.getElementById('switchDbBtn');
-                    const currentDbDisplay = document.getElementById('currentDbDisplay');
-                    
-                    // Set current database display
-                    currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
-                    
-                    // Populate dropdown
-                    data.databases.forEach(db => {
-                        const option = document.createElement('option');
-                        option.value = db.db_name;
-                        option.textContent = db.db_name;
-                        if (db.db_name === data.currentDb) {
-                            option.selected = true;
-                        }
-                        dbSelector.appendChild(option);
-                    });
-                    
-                    // Show controls
-                    dbSelector.style.display = 'inline-block';
-                    switchBtn.style.display = 'inline-block';
-                    
-                    // Handle switch
-                    switchBtn.addEventListener('click', function() {
-                        const selectedDb = dbSelector.value;
-                        if (selectedDb !== data.currentDb) {
-                            // Switch database
-                            fetch('/switchDatabase', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({ 
-                                    email: userEmail,
-                                    dbName: selectedDb
-                                })
-                            })
-                            .then(response => response.json())
-                            .then(result => {
-                                if (result.success) {
-                                    // Reload the page with the new database
-                                    window.location.reload();
-                                } else {
-                                    alert('Failed to switch database: ' + (result.message || 'Unknown error'));
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error switching database:', error);
-                                alert('Error switching database');
-                            });
-                        }
-                    });
-                } else if (data.databases && data.databases.length === 1) {
-                    // User only has one database - just display it
-                    document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching user databases:', error);
-            });
-        });
+
 // Function for Labor
 function updateLaborCostWidget(cost) {
-    // Format the cost with thousands separator
     const formattedCost = new Intl.NumberFormat('en-GB', {
         style: 'currency',
         currency: 'GBP',
         maximumFractionDigits: 0
     }).format(cost).replace('GBP', '').trim();
     
-    // Update the widget value
     const widgetValue = document.getElementById('labor');
     if (widgetValue) {
         widgetValue.textContent = formattedCost;
     }
 }
-// Function for Labor
-function fetchLaborCost(callback) {
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', '/api/labor-cost', true);
-    
-    xhr.onload = function() {
-        if (xhr.status === 200) {
-            try {
-                const data = JSON.parse(xhr.responseText);
-                if (data.success) {
-                    callback(null, data.cost);
-                } else {
-                    callback(data.message || 'No data available');
-                }
-            } catch (e) {
-                callback('Error parsing response');
-            }
-        } else {
-            callback('Request failed with status: ' + xhr.status);
-        }
-    };
-    
-    xhr.onerror = function() {
-        callback('Network error');
-    };
-    
-    xhr.send();
-}
+
 // Function to update employees on shift widget
 function updateEmployeesOnShift(count) {
     const widgetValue = document.getElementById('employees');
@@ -900,20 +1030,8 @@ function updateEmployeesOnShift(count) {
         widgetValue.textContent = count;
     }
 }
-// Helper to format time
-function formatTime(timeString) {
-    if (!timeString) return '';
-    return timeString.split(', ')
-        .map(time => {
-            const [hours, minutes] = time.split(':');
-            const hour = parseInt(hours);
-            const ampm = hour >= 12 ? 'PM' : 'AM';
-            const displayHour = hour % 12 || 12;
-            return `${displayHour}:${minutes} ${ampm}`;
-        })
-        .join(' & ');
-}
-// Helper to format time
+
+// Helper to format time range
 function formatTimeRange(start, end) {
     const format = (time) => {
         const [h, m] = time.split(':');
@@ -923,6 +1041,7 @@ function formatTimeRange(start, end) {
     };
     return `${format(start)} - ${format(end)}`;
 }
+
 // Function to Populate Shift Table
 function populateShiftTable(employees) {
     const tableBody = document.querySelector('.data-table tbody');
@@ -963,6 +1082,7 @@ function populateShiftTable(employees) {
         tableBody.appendChild(row);
     });
 }
+
 // Function to update pending approvals count
 function updatePendingApprovals(count) {
     const widget = document.getElementById('approve');
@@ -970,124 +1090,143 @@ function updatePendingApprovals(count) {
         widget.textContent = count;
     }
 }
-// Function to fetch pending approvals
-async function fetchPendingApprovals() {
-    try {
-        const response = await fetch('/api/pending-approvals');
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        
-        if (data.success) {
-            updatePendingApprovals(data.count);
-        } else {
-            console.error('Error fetching pending approvals:', data.error);
-            updatePendingApprovals('--');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        updatePendingApprovals('--');
-    }
-}
-// Function to update pending approvals count
+
+// Function to update tip approvals count
 function updateTipApprovals(count) {
     const widget = document.getElementById('tip');
     if (widget) {
         widget.textContent = count;
     }
 }
-// Function to fetch pending approvals
-async function fetchTipApprovals() {
+
+// Data loading functions
+async function loadEmployeesOnShift() {
     try {
-        const response = await fetch('/api/tip-approvals');
-        if (!response.ok) {
-            throw new Error('Network response was not ok');
-        }
-        const data = await response.json();
-        
-        if (data.success) {
-            updateTipApprovals(data.count);
-        } else {
-            console.error('Error fetching Tip approvals:', data.error);
-            updateTipApprovals('--');
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        updateTipApprovals('--');
-    }
-}
-// Function to fetch Shift Data
-async function fetchEmployeesOnShift() {
-    try {
-        const response = await fetch('/api/employees-on-shift');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
+        const response = await authenticatedFetch('/api/employees-on-shift');
         const data = await response.json();
         
         if (data.success) {
             updateEmployeesOnShift(data.count);
             populateShiftTable(data.employees);
         } else {
-            console.error('Error:', data.error || 'Unknown error');
+            console.error('Error loading employees:', data.error);
             updateEmployeesOnShift('--');
         }
     } catch (error) {
-        console.error('Fetch error:', error);
+        console.error('Failed to load employees:', error);
         updateEmployeesOnShift('--');
     }
 }
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    fetchEmployeesOnShift();
-    // Optional: Refresh every second
-    setInterval(fetchEmployeesOnShift, 10000);
-    // Update immediately when page loads
-    updateLiveDateTime();
-    // Function to Call Approvals
-    fetchPendingApprovals();
-    // Function To Call Tip
-    fetchTipApprovals();
-});
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    fetchLaborCost(function(error, cost) {
-        if (error) {
-            console.error('Error fetching labor cost:', error);
-            // Optionally show error message or keep default value
-            return;
+
+async function loadPendingApprovals() {
+    try {
+        const response = await authenticatedFetch('/api/pending-approvals');
+        const data = await response.json();
+        
+        if (data.success) {
+            updatePendingApprovals(data.count);
+        } else {
+            console.error('Error loading approvals:', data.error);
+            updatePendingApprovals('--');
         }
-        updateLaborCostWidget(cost);
-    });
-});
+    } catch (error) {
+        console.error('Failed to load approvals:', error);
+        updatePendingApprovals('--');
+    }
+}
+
+async function loadTipApprovals() {
+    try {
+        const response = await authenticatedFetch('/api/tip-approvals');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateTipApprovals(data.count);
+        } else {
+            console.error('Error loading tip approvals:', data.error);
+            updateTipApprovals('--');
+        }
+    } catch (error) {
+        console.error('Failed to load tip approvals:', error);
+        updateTipApprovals('--');
+    }
+}
+
+async function loadLaborCost() {
+    try {
+        const response = await authenticatedFetch('/api/labor-cost');
+        const data = await response.json();
+        
+        if (data.success) {
+            updateLaborCostWidget(data.cost);
+        } else {
+            console.error('Error loading labor cost:', data.error);
+            updateLaborCostWidget('--');
+        }
+    } catch (error) {
+        console.error('Failed to load labor cost:', error);
+        updateLaborCostWidget('--');
+    }
+}
+
+function startPeriodicUpdates() {
+    // Update employees and approvals every 30 seconds
+    setInterval(() => {
+        loadEmployeesOnShift();
+        loadPendingApprovals();
+        loadTipApprovals();
+        checkPendingRequests();
+    }, 30000);
+    
+    // Update labor cost every 5 minutes
+    setInterval(() => {
+        loadLaborCost();
+    }, 300000);
+    
+    // Update date/time every second
+    setInterval(updateLiveDateTime, 1000);
+    
+    // Initial date update
+    updateLiveDateTime();
+}
+
 // Inactivity timer
 let inactivityTimer;
-const resetInactivityTimer = () => {
-            clearTimeout(inactivityTimer);
-            inactivityTimer = setTimeout(() => {
-                alert('You have been logged out due to inactivity.');
+
+function setupInactivityTimer() {
+    const resetInactivityTimer = () => {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+            if (confirm('You have been inactive for a while. Would you like to stay logged in?')) {
+                resetInactivityTimer();
+            } else {
                 window.location.href = '/logout';
-            }, 60 * 60 * 1000); // 60 minutes
-        };
-// Initialize timer and event listeners
-window.onload = function() {
-            resetInactivityTimer();
-        };
-window.onmousemove = resetInactivityTimer;
-window.onkeypress = resetInactivityTimer;
+            }
+        }, 60 * 60 * 1000); // 60 minutes
+    };
+
+    // Initialize timer
+    resetInactivityTimer();
+    
+    // Reset on user activity
+    window.addEventListener('mousemove', resetInactivityTimer);
+    window.addEventListener('keypress', resetInactivityTimer);
+    window.addEventListener('click', resetInactivityTimer);
+    window.addEventListener('scroll', resetInactivityTimer);
+}
+
 // Logout functionality
-document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+function setupLogout() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             try {
-                const response = await fetch('/logout', {
-                    method: 'GET',
-                    credentials: 'same-origin'
-                });
-
+                const response = await authenticatedFetch('/logout');
                 if (response.ok) {
+                    // Clear localStorage
+                    localStorage.removeItem('userData');
+                    localStorage.removeItem('currentDatabase');
                     window.location.href = '/';
                 } else {
                     console.error('Failed to logout:', response.statusText);
@@ -1098,6 +1237,12 @@ document.getElementById('logoutBtn').addEventListener('click', async (e) => {
                 alert('Failed to logout. Please try again.');
             }
         });
+    }
+}
+
+// Make functions globally available for HTML onclick events
+window.validateSession = validateSession;
+window.authenticatedFetch = authenticatedFetch;
 </script>
 </body>
 </html>
