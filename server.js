@@ -49,27 +49,6 @@ const port = process.env.PORT || 8080;
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
-// Create session store using your MAIN database
-const sessionStore = new MySQLStore({
-    host: 'sv41.byethost41.org',
-    port: 3306,
-    user: 'yassir_yassir',
-    password: 'Qazokm123890',
-    database: 'yassir_access',
-    createDatabaseTable: true,
-    schema: {
-        tableName: 'user_sessions',
-        columnNames: {
-            session_id: 'session_id',
-            expires: 'expires',
-            data: 'data'
-        }
-    },
-    checkExpirationInterval: 900000,
-    expiration: 86400000,
-    clearExpired: true
-}, mainPool);
-
 // Enhanced CORS configuration
 const corsOptions = {
     origin: function (origin, callback) {
@@ -118,19 +97,92 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: iOS App Cookie Workaround Middleware
+// CRITICAL FIX: Custom session serialization for MySQL store
+const sessionStore = new MySQLStore({
+    host: 'sv41.byethost41.org',
+    port: 3306,
+    user: 'yassir_yassir',
+    password: 'Qazokm123890',
+    database: 'yassir_access',
+    createDatabaseTable: true,
+    schema: {
+        tableName: 'user_sessions',
+        columnNames: {
+            session_id: 'session_id',
+            expires: 'expires',
+            data: 'data'
+        }
+    },
+    checkExpirationInterval: 900000,
+    expiration: 86400000,
+    clearExpired: true,
+    // CRITICAL: Add custom serialization
+    serializer: {
+        stringify: function(session) {
+            console.log('🔐 Stringifying session for storage:', session);
+            return JSON.stringify(session);
+        },
+        parse: function(string) {
+            try {
+                const session = JSON.parse(string);
+                console.log('🔐 Parsed session from storage:', session);
+                return session;
+            } catch (err) {
+                console.error('❌ Error parsing session:', err);
+                return {};
+            }
+        }
+    }
+}, mainPool);
+
+// Enhanced session configuration
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
+    resave: false, // Changed back to false to prevent overwrites
+    saveUninitialized: false,
+    store: sessionStore,
+    name: 'solura.session',
+    cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        sameSite: 'none',
+        maxAge: 24 * 60 * 60 * 1000
+    },
+    rolling: true,
+    proxy: true
+}));
+
+// CRITICAL: Enhanced iOS middleware with session persistence
 app.use((req, res, next) => {
-    // iOS App/Safari workaround - handle cookie-less requests
     const userAgent = req.headers['user-agent'] || '';
-    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad') || userAgent.includes('Macintosh');
+    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
     
+    // Store original session methods
+    const originalSave = req.session?.save;
+    const originalRegenerate = req.session?.regenerate;
+    
+    if (req.session && isIOS) {
+        // Override save to ensure data persistence
+        req.session.save = function(callback) {
+            console.log('💾 FORCING session save for iOS');
+            console.log('Session data being saved:', this);
+            return originalSave.call(this, (err) => {
+                if (err) {
+                    console.error('❌ Session save error:', err);
+                } else {
+                    console.log('✅ Session saved successfully');
+                }
+                if (callback) callback(err);
+            });
+        };
+    }
+    
+    // Handle cookie-less iOS requests
     if ((!req.headers.cookie || req.headers.cookie === 'undefined') && isIOS) {
-        console.log('📱 iOS detected without cookies, using workaround');
+        console.log('📱 iOS detected without cookies');
         
-        // Check for session ID in multiple sources
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
-        const authToken = req.headers['authorization']?.replace('Bearer ', '');
         
         if (sessionIdFromUrl) {
             console.log('🔄 Using session ID from URL:', sessionIdFromUrl);
@@ -138,63 +190,46 @@ app.use((req, res, next) => {
         } else if (sessionIdFromHeader) {
             console.log('🔄 Using session ID from header:', sessionIdFromHeader);
             req.headers.cookie = `solura.session=${sessionIdFromHeader}`;
-        } else if (authToken) {
-            console.log('🔄 Using JWT token for session recovery');
-            // Decode JWT to get user info and create session
-            try {
-                const decoded = jwt.verify(authToken, process.env.JWT_SECRET || 'your-secret-key');
-                req.headers['x-ios-user-data'] = JSON.stringify(decoded);
-            } catch (err) {
-                console.log('❌ Invalid JWT token');
-            }
         }
     }
     next();
 });
 
-// Enhanced session configuration for iOS Apps
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
-    resave: true,
-    saveUninitialized: false,
-    store: sessionStore,
-    name: 'solura.session',
-    cookie: {
-        secure: process.env.NODE_ENV === 'production',
-        httpOnly: true,
-        sameSite: 'none', // CRITICAL for iOS cross-site
-        maxAge: 24 * 60 * 60 * 1000,
-        domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
-    },
-    rolling: true,
-    proxy: true,
-    // Enhanced genid for iOS apps
-    genid: (req) => {
-        // Allow session ID from URL for iOS
-        const sessionIdFromUrl = req.query.sessionId;
-        if (sessionIdFromUrl) {
-            console.log('🔄 Using session ID from URL:', sessionIdFromUrl);
-            return sessionIdFromUrl;
-        }
+// NEW: Session validation and repair middleware
+app.use((req, res, next) => {
+    if (req.session && !req.session.user && req.sessionID) {
+        console.log('🛠️ Session has no user data, attempting repair...');
         
-        // Check for iOS user data in headers
-        const iosUserData = req.headers['x-ios-user-data'];
-        if (iosUserData) {
-            try {
-                const userData = JSON.parse(iosUserData);
-                console.log('🔄 Creating session from iOS user data:', userData.email);
-                // You can create a custom session ID based on user data
-                return `ios_${userData.email}_${Date.now()}`;
-            } catch (err) {
-                console.log('❌ Invalid iOS user data');
-            }
-        }
+        // Try to restore user data from URL parameters
+        const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
         
-        return require('crypto').randomBytes(16).toString('hex');
+        if (email && dbName) {
+            console.log('🔧 Restoring user data from URL parameters');
+            req.session.user = {
+                email: email,
+                dbName: dbName,
+                name: name || '',
+                lastName: lastName || '',
+                role: 'user' // Default role, will be updated if needed
+            };
+            
+            req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Failed to repair session:', err);
+                } else {
+                    console.log('✅ Session repaired successfully');
+                }
+            });
+        }
     }
-}));
+    next();
+});
 
-// NEW: iOS-specific session restoration endpoint
+// Enhanced iOS session restoration with session store verification
 app.post('/api/ios-restore-session', async (req, res) => {
     try {
         const { email, dbName, accessToken } = req.body;
@@ -262,27 +297,68 @@ app.post('/api/ios-restore-session', async (req, res) => {
 
                 console.log('✅ iOS session restoration successful for user:', userInfo);
 
-                // Set session data
-                req.session.user = userInfo;
-                
-                req.session.save((err) => {
-                    if (err) {
-                        console.error('Error saving iOS session:', err);
-                        return res.status(500).json({ 
-                            success: false, 
-                            error: 'Failed to restore session' 
-                        });
-                    }
-
-                    console.log('✅ iOS session saved with ID:', req.sessionID);
-
-                    res.json({ 
-                        success: true, 
-                        user: userInfo,
-                        sessionId: req.sessionID,
-                        accessToken: accessToken || generateToken(userInfo)
+                // CRITICAL: Destroy existing session first to avoid conflicts
+                if (req.session) {
+                    req.session.destroy((err) => {
+                        if (err) {
+                            console.error('Error destroying old session:', err);
+                        }
+                        createNewSession();
                     });
-                });
+                } else {
+                    createNewSession();
+                }
+
+                function createNewSession() {
+                    // Create fresh session
+                    req.session.regenerate((err) => {
+                        if (err) {
+                            console.error('Error regenerating session:', err);
+                            return res.status(500).json({ 
+                                success: false, 
+                                error: 'Failed to create session' 
+                            });
+                        }
+
+                        console.log('🆕 Created new session with ID:', req.sessionID);
+                        
+                        // Set user data
+                        req.session.user = userInfo;
+                        
+                        // Force immediate save with verification
+                        req.session.save((err) => {
+                            if (err) {
+                                console.error('❌ Error saving iOS session:', err);
+                                return res.status(500).json({ 
+                                    success: false, 
+                                    error: 'Failed to save session' 
+                                });
+                            }
+
+                            console.log('✅ iOS session saved with ID:', req.sessionID);
+                            
+                            // Verify session was actually saved
+                            sessionStore.get(req.sessionID, (err, sessionData) => {
+                                if (err) {
+                                    console.error('❌ Error verifying session storage:', err);
+                                } else {
+                                    console.log('🔍 Session storage verification:', {
+                                        stored: !!sessionData,
+                                        hasUser: sessionData?.user ? 'YES' : 'NO',
+                                        userEmail: sessionData?.user?.email
+                                    });
+                                }
+
+                                res.json({ 
+                                    success: true, 
+                                    user: userInfo,
+                                    sessionId: req.sessionID,
+                                    accessToken: accessToken || generateToken(userInfo)
+                                });
+                            });
+                        });
+                    });
+                }
             });
         });
         
@@ -472,11 +548,13 @@ app.post('/api/recover-session', async (req, res) => {
     }
 });
 
-// Authentication middleware
+// Enhanced authentication middleware with session verification
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
+    console.log('Session keys:', req.session ? Object.keys(req.session) : 'no session');
     
     if (req.session?.user && req.session.user.dbName) {
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
@@ -484,18 +562,76 @@ function isAuthenticated(req, res, next) {
         return next();
     }
     
-    console.log('❌ Authentication FAILED');
+    console.log('❌ Authentication FAILED - No valid user in session');
     
-    if (req.path.startsWith('/api/') || req.xhr) {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Unauthorized',
-            message: 'Please log in again',
-            requiresLogin: true
+    // Try to repair session from URL parameters for iOS
+    const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+    const email = urlParams.get('email');
+    const dbName = urlParams.get('dbName');
+    
+    if (email && dbName && req.session) {
+        console.log('🛠️ Attempting session repair from URL parameters');
+        
+        // Verify user has access
+        const verifySql = `SELECT u.Access FROM users u WHERE u.Email = ? AND u.db_name = ?`;
+        mainPool.query(verifySql, [email, dbName], (err, results) => {
+            if (err || results.length === 0) {
+                console.log('❌ Session repair failed - user not authorized');
+                sendAuthError();
+                return;
+            }
+            
+            const userDetails = results[0];
+            
+            // Get user info
+            const companyPool = getPool(dbName);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+            
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err || companyResults.length === 0) {
+                    console.log('❌ Session repair failed - user not found');
+                    sendAuthError();
+                    return;
+                }
+                
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+                
+                req.session.user = {
+                    email: email,
+                    role: userDetails.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+                
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('❌ Session repair save failed:', err);
+                        sendAuthError();
+                        return;
+                    }
+                    
+                    console.log('✅ Session repaired successfully');
+                    next();
+                });
+            });
         });
+    } else {
+        sendAuthError();
     }
     
-    res.redirect('/');
+    function sendAuthError() {
+        if (req.path.startsWith('/api/') || req.xhr) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Unauthorized',
+                message: 'Please log in again',
+                requiresLogin: true
+            });
+        }
+        res.redirect('/');
+    }
 }
 
 // Role-based middleware
