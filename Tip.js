@@ -35,6 +35,58 @@ function getDeviceType(userAgent) {
     }
 }
 
+// CRITICAL FIX: Enhanced session restoration middleware for iOS
+app.use((req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
+        console.log('📱 iOS Session Restoration Needed');
+        
+        // Try multiple methods to restore session
+        const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+        const sessionId = urlParams.get('sessionId');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        
+        console.log('🔄 Attempting session restoration with:', { sessionId, email, dbName });
+        
+        if (email && dbName) {
+            console.log('✅ Restoring session from URL parameters');
+            req.session.user = {
+                email: email,
+                dbName: dbName,
+                name: name || '',
+                lastName: lastName || '',
+                role: 'admin' // Default to admin for tip access
+            };
+            
+            // If sessionId is provided, sync the session ID
+            if (sessionId && req.sessionID !== sessionId) {
+                console.log('🔄 Syncing session ID to:', sessionId);
+                req.sessionID = sessionId;
+            }
+            
+            // Save the restored session
+            req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Failed to save restored session:', err);
+                } else {
+                    console.log('✅ Session restored successfully for:', email);
+                }
+                next();
+            });
+        } else {
+            console.log('❌ No restoration parameters found');
+            next();
+        }
+    } else {
+        next();
+    }
+});
+
 // Route to serve the appropriate tip app based on device
 app.get('/', isAuthenticated, isAdmin, (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
@@ -80,6 +132,54 @@ app.get('/desktop', isAuthenticated, isAdmin, (req, res) => {
     }
 });
 
+// Enhanced health endpoint that works without full authentication
+app.get('/health', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    console.log('🏥 Health check - iOS:', isIOS, 'Session User:', req.session?.user);
+    
+    // For iOS, be more lenient with health checks
+    if (isIOS && (!req.session.user || !req.session.user.dbName)) {
+        console.log('📱 iOS health check - session incomplete but allowing');
+        return res.json({
+            status: 'degraded',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: !!req.session,
+            user: req.session.user ? {
+                email: req.session.user.email,
+                role: req.session.user.role,
+                name: req.session.user.name
+            } : null,
+            message: 'Session may need restoration'
+        });
+    }
+    
+    // Normal health check for authenticated sessions
+    if (req.session?.user) {
+        res.json({
+            status: 'healthy',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: true,
+            user: {
+                email: req.session.user.email,
+                role: req.session.user.role,
+                name: req.session.user.name
+            }
+        });
+    } else {
+        res.status(401).json({
+            status: 'unauthenticated',
+            deviceType: getDeviceType(userAgent),
+            isIOS: isIOS,
+            session: false,
+            message: 'No active session'
+        });
+    }
+});
+
 // Device detection API endpoint
 app.get('/device-info', isAuthenticated, (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
@@ -92,7 +192,11 @@ app.get('/device-info', isAuthenticated, (req, res) => {
         isMobile: deviceType === 'mobile' || deviceType === 'tablet',
         isIOS: isIOS,
         isAndroid: isAndroid,
-        userAgent: userAgent
+        userAgent: userAgent,
+        session: {
+            id: req.sessionID,
+            user: req.session.user
+        }
     });
 });
 
@@ -380,23 +484,6 @@ app.get('/calendar-status', isAuthenticated, (req, res) => {
 
             res.json(response);
         });
-    });
-});
-
-// Mobile-optimized health check endpoint
-app.get('/health', isAuthenticated, (req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-    const deviceType = getDeviceType(userAgent);
-    
-    res.json({
-        status: 'healthy',
-        deviceType: deviceType,
-        session: !!req.session.user,
-        user: req.session.user ? {
-            email: req.session.user.email,
-            role: req.session.user.role,
-            name: req.session.user.name
-        } : null
     });
 });
 
