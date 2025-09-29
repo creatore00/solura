@@ -14,9 +14,6 @@ const app = express();
 app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-// ALL API ROUTES - use enhanced authentication
-app.use('/api', isAuthenticatedWithIOS);
-
 
 // Enhanced mobile detection function
 function isMobile(userAgent) {
@@ -108,6 +105,7 @@ app.use((req, res, next) => {
     }
     next();
 });
+
 
 // Enhanced authentication middleware with iOS support
 const isAuthenticatedWithIOS = (req, res, next) => {
@@ -311,6 +309,10 @@ const generateUniqueId = async (pool) => {
 
     return id;
 };
+
+// ALL API ROUTES - use enhanced authentication
+app.use('/api', isAuthenticatedWithIOS);
+
 
 // API endpoint to get rota data for a specific day
 app.get('/api/rota', (req, res) => {
