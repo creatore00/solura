@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Daily Tips | Solura</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js">
+    <style>
+        :root {
+            --primary: #1a365d;
+            --secondary: #2b6cb0;
+            --accent: #4299e1;
+            --light: #f7fafc;
+            --dark: #2d3748;
+            --success: #38a169;
+            --warning: #dd6b20;
+            --danger: #e53e3e;
+            --text: #4a5568;
+            --border: #e2e8f0;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        html, body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: #f8f9fa;
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+            min-height: -webkit-fill-available;
+            overflow-x: hidden;
+        }
+
+        body {
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Mobile-optimized navbar */
+        .navbar {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            min-height: 60px;
+        }
+
+        .navbar-brand {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .navbar-menu {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .navbar-item {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem;
+            border-radius: 6px;
+            transition: background-color 0.3s;
+        }
+
+        .navbar-item:active {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Mobile container */
+        .container {
+            flex: 1;
+            padding: 1rem;
+            max-width: 100%;
+            margin: 0 auto;
+        }
+
+        .card {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        /* Mobile-optimized date picker */
+        .date-picker {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            gap: 0.5rem;
+        }
+
+        .date-btn {
+            background-color: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            min-width: 80px;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+
+        .date-btn:active {
+            transform: scale(0.95);
+            background-color: var(--primary);
+        }
+
+        .date-input {
+            padding: 0.75rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+            text-align: center;
+            flex: 1;
+            min-width: 0;
+            background: white;
+        }
+
+        /* Mobile tip input */
+        .tip-input-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .tip-input-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+            font-size: 1rem;
+        }
+
+        .tip-input {
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-size: 1.25rem;
+            text-align: center;
+            width: 100%;
+            background: white;
+            font-weight: 600;
+        }
+
+        .tip-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Mobile table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--light);
+        }
+
+        .total-row {
+            font-weight: bold;
+            background-color: rgba(66, 153, 225, 0.2) !important;
+        }
+
+        /* Mobile action buttons */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+            touch-action: manipulation;
+            min-height: 54px;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:active {
+            background-color: var(--primary);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:active {
+            background-color: #c53030;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-success:active {
+            background-color: #2f855a;
+        }
+
+        /* Mobile footer */
+        .footer {
+            background-color: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            margin-top: auto;
+        }
+
+        .footer-text {
+            font-size: 0.8rem;
+        }
+
+        /* Mobile edit styles */
+        .edit-input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            width: 70px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .edit-btn {
+            background-color: transparent;
+            border: none;
+            color: var(--secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        .edit-btn:active {
+            background-color: rgba(66, 153, 225, 0.1);
+        }
+
+        .editable {
+            position: relative;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .editable:active {
+            background-color: rgba(66, 153, 225, 0.1);
+        }
+
+        /* Mobile notification */
+        .notification {
+            position: fixed;
+            top: 80px;
+            left: 1rem;
+            right: 1rem;
+            padding: 1rem;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(-20px);
+            text-align: center;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification.success {
+            background-color: var(--success);
+        }
+
+        .notification.error {
+            background-color: var(--danger);
+        }
+
+        /* Mobile calendar styles */
+        .calendar-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .calendar-nav {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            background: var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .calendar-day-header {
+            background: var(--primary);
+            color: white;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .calendar-day {
+            background: white;
+            padding: 0.5rem;
+            text-align: center;
+            min-height: 44px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .calendar-day:active {
+            background-color: var(--light);
+        }
+
+        .calendar-day.today {
+            border: 2px solid var(--accent);
+        }
+
+        .day-number {
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .day-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+
+        .status-confirmed { background-color: var(--success); }
+        .status-pending { background-color: var(--danger); }
+        .status-no-data { background-color: #6c757d; }
+
+        .calendar-legend {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .calendar-legend div {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        /* Swipe indicator */
+        .swipe-indicator {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .swipe-indicator.show {
+            opacity: 1;
+        }
+
+        /* Loading states */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* iOS specific fixes */
+        @supports (-webkit-touch-callout: none) {
+            .btn, .date-btn, .calendar-day {
+                cursor: default;
+            }
+        }
+
+        /* Android elevation */
+        @media (prefers-color-scheme: dark) {
+            .card, table {
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 360px) {
+            .container {
+                padding: 0.75rem;
+            }
+            .card {
+                padding: 1rem;
+            }
+            th, td {
+                padding: 0.5rem 0.25rem;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="javascript:history.back()" class="navbar-brand">
+            <i class="fas fa-arrow-left"></i>
+            <span>SOLURA</span>
+        </a>
+        <div class="navbar-menu">
+            <a href="/dashboard" class="navbar-item"><i class="fas fa-home"></i></a>
+            <a href="/rota" class="navbar-item"><i class="fas fa-calendar-alt"></i></a>
+            <a href="/endday" class="navbar-item"><i class="fas fa-chart-bar"></i></a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="calendar-container" id="tipCalendarContainer"></div>
+        <div class="card">
+            <h1><i class="fas fa-calculator"></i> Daily Tips</h1>
+            
+            <div class="date-picker">
+                <button class="date-btn" onclick="navigateDay(-1)"><i class="fas fa-chevron-left"></i> Prev</button>
+                <input type="date" id="monthStart" class="date-input" onchange="loadRota()">
+                <button class="date-btn" onclick="navigateDay(1)">Next <i class="fas fa-chevron-right"></i></button>
+            </div>
+
+            <div class="tip-input-container">
+                <label for="tip" class="tip-input-label">Total Tips (£)</label>
+                <input type="number" id="tip" min="0" step="0.01" class="tip-input" onchange="calculateTip()" inputmode="decimal">
+            </div>
+
+            <div id="hoursSummary">
+                <!-- Content will be loaded dynamically -->
+            </div>
+
+            <div class="action-buttons">
+                <button id="cancelBtn" onclick="cancelTips()" class="btn btn-danger hidden"><i class="fas fa-times"></i> Cancel Tips</button>
+                <button id="confirmBtn" onclick="confirmTips()" class="btn btn-success hidden"><i class="fas fa-check"></i> Confirm Tips</button>
+                <button id="updateBtn" onclick="updateTips()" class="btn btn-primary hidden"><i class="fas fa-sync-alt"></i> Update Tips</button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p class="footer-text">Solura Ltd © 2024</p>
+    </footer>
+
+    <div id="notification" class="notification"></div>
+    <div id="swipeIndicator" class="swipe-indicator">Swipe right to go back</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script>
+        // Global variables
+        let currentData = [];
+        let isEditable = false;
+        let existingTips = false;
+        let swipeStartX = 0;
+
+        // Initialize Hammer.js for swipe gestures
+        function initializeGestures() {
+            const container = document.querySelector('.container');
+            const hammer = new Hammer(container);
+            
+            // Enable swipe gestures
+            hammer.get('swipe').set({ direction: Hammer.DIRECTION_HORIZONTAL });
+            
+            // Swipe right to go back
+            hammer.on('swiperight', function(event) {
+                if (event.center.x - swipeStartX > 100) { // Minimum swipe distance
+                    showSwipeIndicator();
+                    setTimeout(() => {
+                        window.history.back();
+                    }, 300);
+                }
+            });
+            
+            // Track swipe start
+            hammer.on('panstart', function(event) {
+                swipeStartX = event.center.x;
+            });
+        }
+
+        function showSwipeIndicator() {
+            const indicator = document.getElementById('swipeIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 1000);
+        }
+
+        // Enhanced notification for mobile
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Mobile-optimized loadRota with better error handling
+        async function loadRota() {
+            const monthStart = document.getElementById('monthStart').value;
+            if (!monthStart) return;
+
+            // Show mobile-optimized loading state
+            document.getElementById('hoursSummary').innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--secondary);"></i>
+                    <p style="margin-top: 1rem; color: var(--text);">Loading data...</p>
+                </div>
+            `;
+
+            try {
+                // Get session ID from URL for mobile devices
+                const urlParams = new URLSearchParams(window.location.search);
+                const sessionId = urlParams.get('sessionId');
+                
+                // Build URLs with session ID and cache busting
+                let existingUrl = `/tip/existing?date=${monthStart}&_=${Date.now()}`;
+                let rotaUrl = `/tip/rota?startDate=${monthStart}&_=${Date.now()}`;
+                
+                if (sessionId) {
+                    existingUrl += `&sessionId=${sessionId}`;
+                    rotaUrl += `&sessionId=${sessionId}`;
+                }
+
+                // Check for existing tips first
+                const existingResponse = await fetch(existingUrl, {
+                    credentials: 'include',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (existingResponse.status === 401) {
+                    handleSessionExpired();
+                    return;
+                }
+                
+                const existingData = await existingResponse.json();
+                
+                if (existingData.length > 0) {
+                    existingTips = true;
+                    displayExistingTips(existingData);
+                    showNotification('Existing tips found', 'success');
+                    return;
+                }
+
+                // If no existing tips, fetch rota data
+                const rotaResponse = await fetch(rotaUrl, {
+                    credentials: 'include',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+                
+                if (!rotaResponse.ok) throw new Error('Failed to fetch rota data');
+                
+                const rotaData = await rotaResponse.json();
+                
+                if (rotaData.length === 0) {
+                    document.getElementById('hoursSummary').innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: var(--text);">
+                            <i class="fas fa-calendar-times" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                            <p>No rota data found for this date</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const totalHours = calculateTotalHours(rotaData);
+                currentData = Object.entries(totalHours.totalHours).map(([name, { hoursWorked }]) => {
+                    const [firstName, lastName] = name.split(' ');
+                    return { firstName, lastName, hoursWorked, tip: 0 };
+                });
+
+                displayCurrentData();
+
+                // Try to fetch cash report
+                try {
+                    const dateObj = new Date(monthStart);
+                    const dayName = dateObj.toLocaleDateString('en-GB', { weekday: 'long' });
+                    const formattedDate = dateObj.toLocaleDateString('en-GB');
+                    const formattedDay = `${dayName} ${formattedDate}`;
+                    
+                    let cashUrl = `/tip/cashReport?date=${encodeURIComponent(formattedDay)}&_=${Date.now()}`;
+                    if (sessionId) cashUrl += `&sessionId=${sessionId}`;
+                    
+                    const cashResponse = await fetch(cashUrl, { credentials: 'include' });
+                    
+                    if (cashResponse.ok) {
+                        const cashReport = await cashResponse.json();
+                        if (cashReport?.service !== undefined) {
+                            const serviceValue = parseFloat(cashReport.service);
+                            if (!isNaN(serviceValue)) {
+                                document.getElementById('tip').value = serviceValue.toFixed(2);
+                                calculateTip();
+                                showNotification('Service charge loaded', 'success');
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.log('Cash report not available');
+                }
+
+            } catch (error) {
+                console.error('Mobile load error:', error);
+                showNotification('Error loading data', 'error');
+                document.getElementById('hoursSummary').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--danger);">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem;"></i>
+                        <p>Error loading data</p>
+                        <button onclick="loadRota()" class="btn btn-primary" style="margin-top: 1rem;">
+                            <i class="fas fa-redo"></i> Try Again
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Keep all your existing functions but add mobile optimizations
+        function calculateTotalHours(data) {
+            const totalHours = {};
+            let total = 0;
+
+            data.forEach(entry => {
+                const name = entry.name + ' ' + entry.lastName;
+                const startTime = new Date(`1970-01-01T${entry.startTime}Z`);
+                const endTime = new Date(`1970-01-01T${entry.endTime}Z`);
+                const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
+                total += hoursWorked;
+
+                if (!totalHours[name]) {
+                    totalHours[name] = { hoursWorked: 0 };
+                }
+                totalHours[name].hoursWorked += hoursWorked;
+            });
+
+            return { totalHours, total };
+        }
+
+        function calculateTip() {
+            const tip = parseFloat(document.getElementById('tip').value) || 0;
+            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+            
+            if (totalHours <= 0) {
+                showNotification('No hours recorded', 'error');
+                return;
+            }
+
+            const tipPerHour = tip / totalHours;
+            
+            currentData.forEach(emp => {
+                emp.tip = emp.hoursWorked * tipPerHour * 0.90;
+            });
+
+            displayCurrentData();
+        }
+
+        // Mobile-optimized display functions
+        function displayCurrentData() {
+            const container = document.getElementById('hoursSummary');
+            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+            const totalTips = currentData.reduce((sum, emp) => sum + emp.tip, 0);
+            
+            let html = `
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Hours</th>
+                                <th>Tip (£)</th>
+                                ${isEditable ? '<th>Action</th>' : ''}
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            currentData.forEach((emp, index) => {
+                html += `
+                    <tr>
+                        <td>${emp.firstName} ${emp.lastName}</td>
+                        <td class="editable" onclick="editCell(${index}, 'hoursWorked')">${emp.hoursWorked.toFixed(2)}</td>
+                        <td class="editable" onclick="editCell(${index}, 'tip')">${emp.tip.toFixed(2)}</td>
+                        ${isEditable ? `<td><button class="edit-btn" onclick="removeEmployee(${index})"><i class="fas fa-trash"></i></button></td>` : ''}
+                    </tr>
+                `;
+            });
+
+            html += `
+                            <tr class="total-row">
+                                <td><strong>Total</strong></td>
+                                <td><strong>${totalHours.toFixed(2)}</strong></td>
+                                <td><strong>£${totalTips.toFixed(2)}</strong></td>
+                                ${isEditable ? '<td></td>' : ''}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = html;
+            updateButtonVisibility();
+        }
+
+        // Add all your other existing functions here (displayExistingTips, updateButtonVisibility, etc.)
+        // ... [Include all the other functions from your original code] ...
+
+        // Mobile-specific initialization
+        function initializeMobileApp() {
+            // Set current date
+            const today = new Date();
+            document.getElementById('monthStart').value = today.toISOString().split('T')[0];
+            
+            // Initialize gestures
+            initializeGestures();
+            
+            // Load initial data
+            loadRota();
+            
+            // Create calendar
+            createTipCalendar();
+            
+            // Add keyboard event for tip input
+            document.getElementById('tip').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    calculateTip();
+                    e.target.blur(); // Hide keyboard on mobile
+                }
+            });
+            
+            // Prevent zoom on double-tap
+            document.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+            });
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initializeMobileApp);
+
+        // Handle page visibility changes (for mobile)
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                // Page became visible, refresh data
+                loadRota();
+            }
+        });
+
+    </script>
+</body>
+</html>

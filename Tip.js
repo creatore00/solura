@@ -17,33 +17,85 @@ app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// iOS-specific session fix middleware
-app.use((req, res, next) => {
-    // Check if this is iOS Safari
-    const isIOS = /iPhone|iPad|iPod/.test(req.headers['user-agent']);
-    const hasSessionParam = req.query.sessionId;
+// Enhanced mobile detection function
+function isMobile(userAgent) {
+    return /android|iphone|ipad|ipod|mobile/i.test(userAgent.toLowerCase());
+}
+
+// Enhanced mobile detection with tablet consideration
+function getDeviceType(userAgent) {
+    const ua = userAgent.toLowerCase();
     
-    if (isIOS && hasSessionParam) {
-        console.log('📱 iOS detected with session parameter');
-        
-        // If session doesn't exist but we have sessionId in URL, restore it
-        if (!req.session.user && req.query.sessionId) {
-            console.log('🔄 Restoring session from URL for iOS');
-            // You need to implement session restoration logic here
-            // This would typically involve looking up the session by ID
-        }
-        
-        // Ensure session is saved and cookie is set properly
-        req.session.save((err) => {
-            if (err) {
-                console.error('❌ Session save error:', err);
-            }
-            next();
-        });
+    if (/mobile|android|iphone|ipod/.test(ua)) {
+        return 'mobile';
+    } else if (/ipad|tablet/.test(ua)) {
+        return 'tablet';
     } else {
-        next();
+        return 'desktop';
+    }
+}
+
+// Route to serve the appropriate tip app based on device
+app.get('/', isAuthenticated, isAdmin, (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceType = getDeviceType(userAgent);
+    
+    console.log('Tip route - Device Type:', deviceType, 'User-Agent:', userAgent);
+
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
+        // Add mobile-specific headers
+        res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.header('Pragma', 'no-cache');
+        res.header('Expires', '0');
+        
+        // For iOS, ensure session ID is preserved in response
+        if (deviceType === 'mobile' || deviceType === 'tablet') {
+            const sessionId = req.query.sessionId || req.sessionID;
+            console.log('📱 Serving mobile tip app with session ID:', sessionId);
+            res.sendFile(path.join(__dirname, 'TipApp.html'));
+        } else {
+            console.log('💻 Serving desktop tip app');
+            res.sendFile(path.join(__dirname, 'Tip.html'));
+        }
+    } else {
+        res.status(403).json({ error: 'Access denied' });
     }
 });
+
+// Route to serve mobile tip app directly
+app.get('/mobile', isAuthenticated, isAdmin, (req, res) => {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
+        res.sendFile(path.join(__dirname, 'TipApp.html'));
+    } else {
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Route to serve desktop tip app directly
+app.get('/desktop', isAuthenticated, isAdmin, (req, res) => {
+    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
+        res.sendFile(path.join(__dirname, 'Tip.html'));
+    } else {
+        res.status(403).json({ error: 'Access denied' });
+    }
+});
+
+// Device detection API endpoint
+app.get('/device-info', isAuthenticated, (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceType = getDeviceType(userAgent);
+    const isIOS = /iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+    const isAndroid = /android/i.test(userAgent.toLowerCase());
+    
+    res.json({
+        deviceType: deviceType,
+        isMobile: deviceType === 'mobile' || deviceType === 'tablet',
+        isIOS: isIOS,
+        isAndroid: isAndroid,
+        userAgent: userAgent
+    });
+});
+
 // Route to fetch rota data (updated with better error handling)
 app.get('/rota', isAuthenticated, async (req, res) => {
     try {
@@ -82,7 +134,7 @@ app.get('/rota', isAuthenticated, async (req, res) => {
     }
 });
 
-// Route to fetch existing tips (updated)
+// Route to fetch existing tips (updated with mobile support)
 app.get('/existing', isAuthenticated, async (req, res) => {
     try {
         const dbName = req.session.user.dbName;
@@ -106,7 +158,23 @@ app.get('/existing', isAuthenticated, async (req, res) => {
         `;
 
         const results = await query(pool, sql, [date]);
-        res.json(results);
+        
+        // Add mobile-optimized response
+        const userAgent = req.headers['user-agent'] || '';
+        const deviceType = getDeviceType(userAgent);
+        
+        if (deviceType === 'mobile' || deviceType === 'tablet') {
+            // Return simplified data for mobile
+            const mobileResults = results.map(emp => ({
+                name: emp.name,
+                tip: parseFloat(emp.tip).toFixed(2),
+                totalHours: parseFloat(emp.totalHours).toFixed(2)
+            }));
+            
+            res.json(mobileResults);
+        } else {
+            res.json(results);
+        }
     } catch (error) {
         console.error('Existing tips error:', error);
         res.status(500).json({ 
@@ -117,7 +185,7 @@ app.get('/existing', isAuthenticated, async (req, res) => {
     }
 });
 
-// Route to submit payslips (fixed)
+// Route to submit payslips (fixed with mobile support)
 app.post('/submitPayslips', isAuthenticated, async (req, res) => {
     try {
         const dbName = req.session.user.dbName;
@@ -150,7 +218,11 @@ app.post('/submitPayslips', isAuthenticated, async (req, res) => {
 
         await Promise.all(insertPromises);
         
-        res.status(200).json({ success: true, message: 'Tips saved successfully' });
+        res.status(200).json({ 
+            success: true, 
+            message: 'Tips saved successfully',
+            count: payslipData.length
+        });
     } catch (error) {
         console.error('Submit payslips error:', error);
         res.status(500).json({ 
@@ -161,7 +233,7 @@ app.post('/submitPayslips', isAuthenticated, async (req, res) => {
     }
 });
 
-// Cancel tips for the day (fixed)
+// Cancel tips for the day (fixed with mobile support)
 app.delete('/cancel', isAuthenticated, async (req, res) => {
     try {
         const dbName = req.session.user.dbName;
@@ -193,7 +265,7 @@ app.delete('/cancel', isAuthenticated, async (req, res) => {
     }
 });
 
-// Route to fetch cash report (updated with better error handling)
+// Route to fetch cash report (updated with better error handling and mobile support)
 app.get('/cashReport', isAuthenticated, async (req, res) => {
     try {
         const dbName = req.session.user.dbName;
@@ -212,7 +284,19 @@ app.get('/cashReport', isAuthenticated, async (req, res) => {
         const [result] = await query(pool, sql, [date]);
 
         const cashReport = processCashReport(result || { service: 0, eod: '' });
-        res.json(cashReport);
+        
+        // Add mobile-optimized response
+        const userAgent = req.headers['user-agent'] || '';
+        const deviceType = getDeviceType(userAgent);
+        
+        if (deviceType === 'mobile' || deviceType === 'tablet') {
+            res.json({
+                service: cashReport.service,
+                hasEod: !!cashReport.eod
+            });
+        } else {
+            res.json(cashReport);
+        }
     } catch (error) {
         console.error('Cash report error:', error);
         res.status(500).json({ 
@@ -223,7 +307,7 @@ app.get('/cashReport', isAuthenticated, async (req, res) => {
     }
 });
 
-// Function to get Values for the Monthly Calendar
+// Function to get Values for the Monthly Calendar (updated with mobile support)
 app.get('/calendar-status', isAuthenticated, (req, res) => {
     const dbName = req.session.user.dbName;
     const { year, month } = req.query;
@@ -275,14 +359,44 @@ app.get('/calendar-status', isAuthenticated, (req, res) => {
                 rotaDates[row.date] = true;
             });
 
-            res.json({
+            const response = {
                 month: `${year}-${formattedMonth}`,
                 data: {
                     tips: tipsByDate,
                     rotaDays: rotaDates
                 }
-            });
+            };
+
+            // Add mobile optimization
+            const userAgent = req.headers['user-agent'] || '';
+            const deviceType = getDeviceType(userAgent);
+            
+            if (deviceType === 'mobile' || deviceType === 'tablet') {
+                // Simplify response for mobile
+                response.mobileOptimized = true;
+                response.totalDaysWithTips = Object.keys(tipsByDate).length;
+                response.totalDaysWithRota = Object.keys(rotaDates).length;
+            }
+
+            res.json(response);
         });
+    });
+});
+
+// Mobile-optimized health check endpoint
+app.get('/health', isAuthenticated, (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceType = getDeviceType(userAgent);
+    
+    res.json({
+        status: 'healthy',
+        deviceType: deviceType,
+        session: !!req.session.user,
+        user: req.session.user ? {
+            email: req.session.user.email,
+            role: req.session.user.role,
+            name: req.session.user.name
+        } : null
     });
 });
 
@@ -297,14 +411,5 @@ function processCashReport(report) {
     report.service = report.service.toFixed(2);
     return report;
 }
-
-// Route to serve the Tip.html file
-app.get('/', isAuthenticated, isAdmin, (req, res) => {
-    if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
-        res.sendFile(path.join(__dirname, 'Tip.html'));
-    } else {
-        res.status(403).json({ error: 'Access denied' });
-    }
-});
 
 module.exports = app;
