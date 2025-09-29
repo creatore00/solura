@@ -3,30 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOLURA - Tip Calculation</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Daily Tip Calculation | Solura</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
-            --primary: #2c3e50;
-            --secondary: #3498db;
-            --success: #27ae60;
-            --danger: #e74c3c;
-            --warning: #f39c12;
-            --light: #ecf0f1;
-            --dark: #2c3e50;
+            --primary: #1a365d; /* Navy blue */
+            --secondary: #2b6cb0; /* Medium blue */
+            --accent: #4299e1; /* Light blue */
+            --light: #f7fafc; /* Very light gray */
+            --dark: #2d3748; /* Dark gray */
+            --success: #38a169; /* Green */
+            --warning: #dd6b20; /* Orange */
+            --danger: #e53e3e; /* Red */
+            --text: #4a5568; /* Gray text */
+            --border: #e2e8f0; /* Light border */
         }
 
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
         body {
-            background-color: #f5f7fa;
-            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            color: var(--text);
             line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .navbar {
@@ -36,11 +42,11 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .navbar-brand {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: bold;
             color: white;
             text-decoration: none;
@@ -54,44 +60,48 @@
         .navbar-item {
             color: white;
             text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-weight: 500;
             transition: color 0.3s;
         }
 
         .navbar-item:hover {
-            color: var(--secondary);
+            color: var(--accent);
         }
-
+        /* Added new style for edit mode indicator */
+        .edit-mode {
+            background-color: rgba(221, 107, 32, 0.1);
+            border-left: 4px solid var(--warning);
+        }
+        
+        .edit-mode-indicator {
+            display: inline-block;
+            background-color: var(--warning);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 1rem;
+        }
         .container {
             max-width: 1200px;
             margin: 2rem auto;
             padding: 0 1rem;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2rem;
+            flex: 1;
         }
 
         .card {
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            padding: 1.5rem;
-            grid-column: 2;
-        }
-
-        .calendar-container {
-            grid-column: 1;
-            grid-row: 1;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            padding: 2rem;
+            margin-bottom: 2rem;
         }
 
         h1 {
             color: var(--primary);
             margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            font-size: 2rem;
+            text-align: center;
         }
 
         .date-picker {
@@ -99,156 +109,192 @@
             align-items: center;
             justify-content: center;
             gap: 1rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
         }
 
         .date-btn {
-            background: var(--secondary);
+            background-color: var(--secondary);
             color: white;
             border: none;
+            border-radius: 4px;
             padding: 0.5rem 1rem;
-            border-radius: 5px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: background 0.3s;
+            transition: background-color 0.3s;
         }
 
         .date-btn:hover {
-            background: #2980b9;
+            background-color: var(--primary);
         }
 
         .date-input {
             padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
             font-size: 1rem;
+            text-align: center;
         }
 
         .tip-input-container {
-            margin-bottom: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 2rem;
         }
 
         .tip-input-label {
-            display: block;
-            margin-bottom: 0.5rem;
             font-weight: 600;
+            margin-bottom: 0.5rem;
             color: var(--dark);
         }
 
         .tip-input {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1rem;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-size: 1.25rem;
+            text-align: center;
+            width: 200px;
+            transition: border-color 0.3s;
+        }
+
+        .tip-input:focus {
+            outline: none;
+            border-color: var(--accent);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         th, td {
-            padding: 0.75rem;
-            text-align: left;
-            border-bottom: 1px solid #eee;
+            padding: 1rem;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
         }
 
         th {
-            background-color: #f8f9fa;
+            background-color: var(--primary);
+            color: white;
             font-weight: 600;
-            color: var(--dark);
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--light);
+        }
+
+        tr:hover {
+            background-color: rgba(66, 153, 225, 0.1);
         }
 
         .total-row {
             font-weight: bold;
-            background-color: #f8f9fa;
-        }
-
-        .editable {
-            cursor: pointer;
-            transition: background 0.3s;
-        }
-
-        .editable:hover {
-            background-color: #f0f8ff;
-        }
-
-        .edit-input {
-            width: 100%;
-            padding: 0.25rem;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
-
-        .edit-btn {
-            background: var(--danger);
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 3px;
-            cursor: pointer;
+            background-color: rgba(66, 153, 225, 0.2) !important;
         }
 
         .action-buttons {
             display: flex;
+            justify-content: center;
             gap: 1rem;
-            justify-content: flex-end;
+            margin-top: 2rem;
         }
 
         .btn {
             padding: 0.75rem 1.5rem;
             border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            border-radius: 6px;
             font-weight: 600;
-            display: flex;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            transition: all 0.3s;
         }
 
         .btn-primary {
-            background: var(--secondary);
+            background-color: var(--secondary);
             color: white;
         }
 
         .btn-primary:hover {
-            background: #2980b9;
-        }
-
-        .btn-success {
-            background: var(--success);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background: #219653;
+            background-color: var(--primary);
+            transform: translateY(-2px);
         }
 
         .btn-danger {
-            background: var(--danger);
+            background-color: var(--danger);
             color: white;
         }
 
         .btn-danger:hover {
-            background: #c0392b;
+            background-color: #c53030;
+            transform: translateY(-2px);
         }
 
-        .hidden {
-            display: none;
+        .btn-success {
+            background-color: var(--success);
+            color: white;
         }
 
-        .fade-in {
-            animation: fadeIn 0.5s;
+        .btn-success:hover {
+            background-color: #2f855a;
+            transform: translateY(-2px);
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .footer {
+            background-color: var(--primary);
+            color: white;
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: auto;
+        }
+
+        .footer-text {
+            font-size: 0.9rem;
+        }
+
+        .edit-input {
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            width: 80px;
+            text-align: center;
+        }
+
+        .edit-btn {
+            background-color: transparent;
+            border: none;
+            color: var(--secondary);
+            cursor: pointer;
+            font-size: 1rem;
+            margin-left: 0.5rem;
+        }
+
+        .edit-btn:hover {
+            color: var(--primary);
+        }
+
+        .editable {
+            position: relative;
+        }
+
+        .editable:hover::after {
+            content: 'Click to edit';
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--dark);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
         }
 
         .notification {
@@ -256,218 +302,58 @@
             top: 20px;
             right: 20px;
             padding: 1rem 1.5rem;
-            border-radius: 5px;
+            border-radius: 6px;
             color: white;
+            font-weight: 600;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             z-index: 1000;
-            transform: translateX(150%);
-            transition: transform 0.3s;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
         .notification.show {
-            transform: translateX(0);
+            opacity: 1;
         }
 
         .notification.success {
-            background: var(--success);
+            background-color: var(--success);
         }
 
         .notification.error {
-            background: var(--danger);
+            background-color: var(--danger);
         }
 
-        .notification.warning {
-            background: var(--warning);
-        }
-
-        .footer {
-            background: var(--dark);
-            color: white;
-            text-align: center;
-            padding: 1rem;
-            margin-top: 2rem;
-        }
-
-        .footer-text {
-            margin: 0;
-        }
-
-        /* Details Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            padding: 1rem;
-        }
-
-        .modal {
-            background: white;
-            border-radius: 10px;
-            width: 100%;
-            max-width: 800px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-        }
-
-        .modal-header {
-            padding: 1.5rem;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            font-size: 1.5rem;
-            color: var(--primary);
-            margin: 0;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #777;
-        }
-
-        .modal-body {
-            padding: 1.5rem;
-        }
-
-        .summary-section {
-            margin-bottom: 2rem;
-            padding: 1rem;
-            background: #f8f9fa;
-            border-radius: 8px;
-        }
-
-        .summary-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1rem;
-        }
-
-        .summary-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .summary-item:last-child {
-            border-bottom: none;
-        }
-
-        .summary-label {
-            font-weight: 600;
-        }
-
-        .summary-value {
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        .calculation-steps {
-            margin-top: 2rem;
-        }
-
-        .step {
-            margin-bottom: 1.5rem;
-            padding: 1rem;
-            background: white;
-            border-radius: 8px;
-            border-left: 4px solid var(--secondary);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-
-        .step-title {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            color: var(--primary);
-        }
-
-        .step-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .step-formula {
-            font-family: monospace;
-            background: #f8f9fa;
-            padding: 0.75rem;
-            border-radius: 5px;
-            margin-bottom: 0.5rem;
-        }
-
-        .employee-breakdown {
-            margin-top: 1rem;
-        }
-
-        .employee-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid #eee;
-        }
-
-        .employee-item:last-child {
-            border-bottom: none;
-        }
-
-        .progress-bar {
-            height: 8px;
-            background: #e0e0e0;
-            border-radius: 4px;
-            margin-top: 0.25rem;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--secondary);
-            border-radius: 4px;
-        }
-
-        .btn-info {
-            background: #17a2b8;
-            color: white;
-        }
-
-        .btn-info:hover {
-            background: #138496;
-        }
-
-        @media (max-width: 768px) {
-            .container {
-                grid-template-columns: 1fr;
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
             }
-            
-            .calendar-container {
-                grid-column: 1;
-                grid-row: 1;
+            to {
+                opacity: 1;
+                transform: translateY(0);
             }
-            
-            .card {
-                grid-column: 1;
-                grid-row: 2;
-            }
-            
-            .summary-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .step-content {
-                grid-template-columns: 1fr;
-            }
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.5s ease forwards;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
         }
     </style>
 </head>
@@ -503,7 +389,6 @@
             </div>
 
             <div class="action-buttons">
-                <button id="detailsBtn" onclick="showDetails()" class="btn btn-info hidden"><i class="fas fa-chart-pie"></i> Details</button>
                 <button id="cancelBtn" onclick="cancelTips()" class="btn btn-danger hidden"><i class="fas fa-times"></i> Cancel Tips</button>
                 <button id="confirmBtn" onclick="confirmTips()" class="btn btn-success hidden"><i class="fas fa-check"></i> Confirm Tips</button>
                 <button id="updateBtn" onclick="updateTips()" class="btn btn-primary hidden"><i class="fas fa-sync-alt"></i> Update Tips</button>
@@ -516,19 +401,6 @@
     </footer>
 
     <div id="notification" class="notification"></div>
-
-    <!-- Details Modal -->
-    <div id="detailsModal" class="modal-overlay hidden">
-        <div class="modal">
-            <div class="modal-header">
-                <h2 class="modal-title">Tip Calculation Details</h2>
-                <button class="close-btn" onclick="closeDetails()">&times;</button>
-            </div>
-            <div class="modal-body" id="detailsContent">
-                <!-- Details content will be loaded here -->
-            </div>
-        </div>
-    </div>
 
     <script>
         // Global variables
@@ -786,16 +658,9 @@
 
         // Function to update button visibility based on state
         function updateButtonVisibility() {
-            const detailsBtn = document.getElementById('detailsBtn');
             const cancelBtn = document.getElementById('cancelBtn');
             const confirmBtn = document.getElementById('confirmBtn');
             const updateBtn = document.getElementById('updateBtn');
-            
-            if (currentData.length > 0) {
-                detailsBtn.classList.remove('hidden');
-            } else {
-                detailsBtn.classList.add('hidden');
-            }
             
             if (existingTips) {
                 cancelBtn.classList.remove('hidden');
@@ -858,153 +723,6 @@
             displayCurrentData();
         }
 
-        // Function to show detailed breakdown
-        function showDetails() {
-            const modal = document.getElementById('detailsModal');
-            const content = document.getElementById('detailsContent');
-            
-            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
-            const totalTips = parseFloat(document.getElementById('tip').value) || 0;
-            const distributedTips = currentData.reduce((sum, emp) => sum + emp.tip, 0);
-            const deduction = totalTips - distributedTips;
-            
-            let html = `
-                <div class="summary-section">
-                    <h3>Summary</h3>
-                    <div class="summary-grid">
-                        <div class="summary-item">
-                            <span class="summary-label">Total Hours Worked:</span>
-                            <span class="summary-value">${totalHours.toFixed(2)}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Total Tips Available:</span>
-                            <span class="summary-value">£${totalTips.toFixed(2)}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">10% Deduction:</span>
-                            <span class="summary-value">£${deduction.toFixed(2)}</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">Tips to Distribute:</span>
-                            <span class="summary-value">£${distributedTips.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="calculation-steps">
-                    <h3>Calculation Steps</h3>
-                    
-                    <div class="step">
-                        <div class="step-title">Step 1: Calculate Tip Per Hour</div>
-                        <div class="step-content">
-                            <div>
-                                <div class="step-formula">
-                                    Tip Per Hour = Total Tips / Total Hours
-                                </div>
-                                <div class="step-formula">
-                                    Tip Per Hour = £${totalTips.toFixed(2)} / ${totalHours.toFixed(2)}
-                                </div>
-                                <div class="step-formula">
-                                    Tip Per Hour = £${(totalTips / totalHours).toFixed(4)}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="step-title">Hour Distribution</div>
-                                ${currentData.map(emp => {
-                                    const percentage = (emp.hoursWorked / totalHours * 100).toFixed(1);
-                                    return `
-                                        <div class="employee-item">
-                                            <span>${emp.firstName} ${emp.lastName}</span>
-                                            <span>${emp.hoursWorked.toFixed(2)}h (${percentage}%)</span>
-                                        </div>
-                                        <div class="progress-bar">
-                                            <div class="progress-fill" style="width: ${percentage}%"></div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="step">
-                        <div class="step-title">Step 2: Apply 10% Deduction</div>
-                        <div class="step-content">
-                            <div>
-                                <div class="step-formula">
-                                    Tips After Deduction = Total Tips × 0.90
-                                </div>
-                                <div class="step-formula">
-                                    Tips After Deduction = £${totalTips.toFixed(2)} × 0.90
-                                </div>
-                                <div class="step-formula">
-                                    Tips After Deduction = £${(totalTips * 0.90).toFixed(2)}
-                                </div>
-                            </div>
-                            <div>
-                                <div class="step-title">Deduction Breakdown</div>
-                                <div class="employee-item">
-                                    <span>Original Tips</span>
-                                    <span>£${totalTips.toFixed(2)}</span>
-                                </div>
-                                <div class="employee-item">
-                                    <span>10% Deduction</span>
-                                    <span>£${deduction.toFixed(2)}</span>
-                                </div>
-                                <div class="employee-item">
-                                    <span>Remaining Tips</span>
-                                    <span>£${distributedTips.toFixed(2)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="step">
-                        <div class="step-title">Step 3: Calculate Individual Tips</div>
-                        <div class="step-content">
-                            <div>
-                                <div class="step-formula">
-                                    Individual Tip = Hours Worked × Tip Per Hour × 0.90
-                                </div>
-                            </div>
-                            <div class="employee-breakdown">
-                                <div class="step-title">Employee Breakdown</div>
-                                ${currentData.map(emp => {
-                                    const tipPerHour = totalTips / totalHours;
-                                    const individualTip = emp.hoursWorked * tipPerHour * 0.90;
-                                    const percentage = (emp.tip / distributedTips * 100).toFixed(1);
-                                    
-                                    return `
-                                        <div class="employee-item">
-                                            <div>
-                                                <strong>${emp.firstName} ${emp.lastName}</strong><br>
-                                                <small>${emp.hoursWorked.toFixed(2)}h × £${tipPerHour.toFixed(4)} × 0.90</small>
-                                            </div>
-                                            <div>
-                                                <span>£${individualTip.toFixed(2)}</span><br>
-                                                <small>${percentage}% of distributed tips</small>
-                                            </div>
-                                        </div>
-                                        <div class="progress-bar">
-                                            <div class="progress-fill" style="width: ${percentage}%"></div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            content.innerHTML = html;
-            modal.classList.remove('hidden');
-        }
-
-        // Function to close details modal
-        function closeDetails() {
-            const modal = document.getElementById('detailsModal');
-            modal.classList.add('hidden');
-        }
-
         // Function to enable editing with better UI feedback
         function enableEditing() {
             isEditable = true;
@@ -1050,321 +768,324 @@
 
         // Function to confirm tips (submit new)
         async function confirmTips() {
-            if (!confirm('Are you sure you want to confirm these tips?')) {
-                return;
-            }
-            
-            const monthStart = document.getElementById('monthStart').value;
-            
-            // Calculate total hours for verification
-            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
-            
-            // Prepare data with fixed 2 decimal places for tips
-            const payslipData = currentData.map(emp => ({
-                firstName: emp.firstName,
-                lastName: emp.lastName,
-                totalHours: parseFloat(emp.hoursWorked.toFixed(2)), // Ensure 2 decimal places
-                tip: parseFloat((emp.tip).toFixed(2)), // Apply 10% deduction and fix to 2 decimals
-                monthStart: monthStart
-            }));
-            
-            try {
-                const response = await fetch('/tip/submitPayslips', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(payslipData)
-                });
-                
-                if (response.ok) {
-                    const responseData = await response.json();
-                    showNotification('Tips confirmed successfully', 'success');
-                    existingTips = true;
-                    loadRota();
-                    console.log('Submitted data:', {
-                        payslips: payslipData,
-                        totalHours: parseFloat(totalHours.toFixed(2))
-                    });
-                } else {
-                    const errorText = await response.text();
-                    throw new Error(errorText || 'Unknown error occurred');
-                }
-            } catch (error) {
-                console.error('Tip confirmation error:', error);
-                showNotification(`Error confirming tips: ${error.message}`, 'error');
-            }
+    if (!confirm('Are you sure you want to confirm these tips?')) {
+        return;
+    }
+    
+    const monthStart = document.getElementById('monthStart').value;
+    
+    // Calculate total hours for verification
+    const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+    
+    // Prepare data with fixed 2 decimal places for tips
+    const payslipData = currentData.map(emp => ({
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        totalHours: parseFloat(emp.hoursWorked.toFixed(2)), // Ensure 2 decimal places
+        tip: parseFloat((emp.tip).toFixed(2)), // Apply 10% deduction and fix to 2 decimals
+        monthStart: monthStart
+    }));
+    
+    try {
+        const response = await fetch('/tip/submitPayslips', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payslipData)
+        });
+        
+        if (response.ok) {
+            const responseData = await response.json();
+            showNotification('Tips confirmed successfully', 'success');
+            existingTips = true;
+            loadRota();
+            console.log('Submitted data:', {
+                payslips: payslipData,
+                totalHours: parseFloat(totalHours.toFixed(2))
+            });
+        } else {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Unknown error occurred');
         }
+    } catch (error) {
+        console.error('Tip confirmation error:', error);
+        showNotification(`Error confirming tips: ${error.message}`, 'error');
+    }
+}
         
         // Function to create the tip calendar visualization
         async function createTipCalendar() {
-            const container = document.getElementById('tipCalendarContainer');
-            if (!container) return;
+    const container = document.getElementById('tipCalendarContainer');
+    if (!container) return;
 
-            container.innerHTML = `
-                <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Tip Status Calendar</h2>
-                <div class="calendar-controls">
-                    <button id="prevMonth" class="btn calendar-nav"><i class="fas fa-chevron-left"></i></button>
-                    <h3 id="currentMonthYear" style="margin: 0 0.5rem; font-size: 1rem;"></h3>
-                    <button id="nextMonth" class="btn calendar-nav"><i class="fas fa-chevron-right"></i></button>
-                </div>
-                <div class="calendar-grid" id="calendarGrid"></div>
-                <div class="calendar-legend">
-                    <div><span class="legend-confirmed"></span> Tips Confirmed</div>
-                    <div><span class="legend-pending"></span> No Tips</div>
-                    <div><span class="legend-no-data"></span> No Data</div>
-                </div>
-            `;
+    container.innerHTML = `
+        <h2 style="font-size: 1.2rem; margin-bottom: 0.5rem;">Tip Status Calendar</h2>
+        <div class="calendar-controls">
+            <button id="prevMonth" class="btn calendar-nav"><i class="fas fa-chevron-left"></i></button>
+            <h3 id="currentMonthYear" style="margin: 0 0.5rem; font-size: 1rem;"></h3>
+            <button id="nextMonth" class="btn calendar-nav"><i class="fas fa-chevron-right"></i></button>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+        <div class="calendar-legend">
+            <div><span class="legend-confirmed"></span> Tips Confirmed</div>
+            <div><span class="legend-pending"></span> No Tips</div>
+            <div><span class="legend-no-data"></span> No Data</div>
+        </div>
+    `;
 
-            // Add styles if they don't exist
-            if (!document.getElementById('tipCalendarStyles')) {
-                const style = document.createElement('style');
-                style.id = 'tipCalendarStyles';
-                style.textContent = `
-                    .calendar-container {
-                        margin-bottom: 1.5rem;
-                        padding: 0.8rem;
-                        background: #f8f9fa;
-                        border-radius: 6px;
-                        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                    }
-                    .calendar-controls {
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        margin-bottom: 0.5rem;
-                    }
-                    .calendar-grid {
-                        display: grid;
-                        grid-template-columns: repeat(7, 1fr);
-                        gap: 4px;
-                    }
-                    .calendar-day {
-                        padding: 4px;
-                        text-align: center;
-                        border-radius: 3px;
-                        cursor: pointer;
-                        min-height: 30px;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: space-between;
-                        border: 1px solid #e0e0e0;
-                    }
-                    .calendar-day:hover {
-                        background: rgba(0,0,0,0.05);
-                    }
-                    .day-number {
-                        font-weight: bold;
-                        font-size: 0.85rem;
-                    }
-                    .day-status {
-                        width: 10px;
-                        height: 10px;
-                        border-radius: 50%;
-                        margin: 2px auto 0;
-                    }
-                    .status-confirmed {
-                        background-color: #28a745;
-                    }
-                    .status-pending {
-                        background-color: #dc3545;
-                    }
-                    .status-no-data {
-                        background-color: #6c757d;
-                    }
-                    .calendar-day.today-pending {
-                        border: 2px solid #ffc107 !important;
-                        background-color: rgba(255, 193, 7, 0.1);
-                    }
-                    .calendar-legend {
-                        display: flex;
-                        justify-content: center;
-                        gap: 1rem;
-                        margin-top: 0.5rem;
-                        font-size: 0.8rem;
-                    }
-                    .calendar-legend div {
-                        display: flex;
-                        align-items: center;
-                    }
-                    .calendar-legend span {
-                        display: inline-block;
-                        width: 10px;
-                        height: 10px;
-                        border-radius: 50%;
-                        margin-right: 3px;
-                    }
-                    .legend-confirmed { background-color: #28a745; }
-                    .legend-pending { background-color: #dc3545; }
-                    .legend-no-data { background-color: #6c757d; }
-                    .calendar-day-header {
-                        font-weight: bold;
-                        text-align: center;
-                        padding: 2px;
-                        font-size: 0.8rem;
-                    }
-                    .calendar-day.today {
-                        border: 2px solid #007bff;
-                    }
-                `;
-                document.head.appendChild(style);
+    // Add styles if they don't exist
+    if (!document.getElementById('tipCalendarStyles')) {
+        const style = document.createElement('style');
+        style.id = 'tipCalendarStyles';
+        style.textContent = `
+            .calendar-container {
+                margin-bottom: 1.5rem;
+                padding: 0.8rem;
+                background: #f8f9fa;
+                border-radius: 6px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             }
+            .calendar-controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 4px;
+            }
+            .calendar-day {
+                padding: 4px;
+                text-align: center;
+                border-radius: 3px;
+                cursor: pointer;
+                min-height: 30px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                border: 1px solid #e0e0e0;
+            }
+            .calendar-day:hover {
+                background: rgba(0,0,0,0.05);
+            }
+            .day-number {
+                font-weight: bold;
+                font-size: 0.85rem;
+            }
+            .day-status {
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                margin: 2px auto 0;
+            }
+/* Add these to your existing calendar styles */
+.status-confirmed {
+    background-color: #28a745; /* Green - tips confirmed */
+}
+.status-pending {
+    background-color: #dc3545; /* Red - needs confirmation */
+}
+.status-no-data {
+    background-color: #6c757d; /* Gray - no data */
+}
+    /* Highlight for today when it needs attention */
+.calendar-day.today-pending {
+    border: 2px solid #ffc107 !important;
+    background-color: rgba(255, 193, 7, 0.1);
+}
+/* Update legend to match */
+.calendar-legend {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+}
+.calendar-legend div {
+    display: flex;
+    align-items: center;
+}
+            .calendar-legend span {
+                display: inline-block;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                margin-right: 3px;
+            }
+.legend-confirmed { background-color: #28a745; }
+.legend-pending { background-color: #dc3545; }
+.legend-no-data { background-color: #6c757d; }
+            .calendar-day-header {
+                font-weight: bold;
+                text-align: center;
+                padding: 2px;
+                font-size: 0.8rem;
+            }
+            .calendar-day.today {
+                border: 2px solid #007bff;
+            }
+        `;
+        document.head.appendChild(style);
+    }
 
-            // Initialize calendar with current month
-            const currentDate = new Date();
-            let currentMonth = currentDate.getMonth();
-            let currentYear = currentDate.getFullYear();
+    // Initialize calendar with current month
+    const currentDate = new Date();
+    let currentMonth = currentDate.getMonth();
+    let currentYear = currentDate.getFullYear();
 
-            // Render the calendar
-            renderTipCalendar(currentMonth, currentYear);
+    // Render the calendar
+    renderTipCalendar(currentMonth, currentYear);
 
-            // Event listeners for navigation
-            document.getElementById('prevMonth').addEventListener('click', () => {
-                currentMonth--;
-                if (currentMonth < 0) {
-                    currentMonth = 11;
-                    currentYear--;
-                }
-                renderTipCalendar(currentMonth, currentYear);
-            });
-
-            document.getElementById('nextMonth').addEventListener('click', () => {
-                currentMonth++;
-                if (currentMonth > 11) {
-                    currentMonth = 0;
-                    currentYear++;
-                }
-                renderTipCalendar(currentMonth, currentYear);
-            });
+    // Event listeners for navigation
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        currentMonth--;
+        if (currentMonth < 0) {
+            currentMonth = 11;
+            currentYear--;
         }
+        renderTipCalendar(currentMonth, currentYear);
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        currentMonth++;
+        if (currentMonth > 11) {
+            currentMonth = 0;
+            currentYear++;
+        }
+        renderTipCalendar(currentMonth, currentYear);
+    });
+}
 
         // Function to render the tip calendar
         async function renderTipCalendar(month, year) {
-            const monthNames = ["January", "February", "March", "April", "May", "June",
-                            "July", "August", "September", "October", "November", "December"];
-            
-            document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
-            
-            const firstDay = new Date(year, month, 1);
-            const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            // Adjust to make Monday the first day (0=Sunday, 1=Monday, etc.)
-            let firstDayOfWeek = firstDay.getDay();
-            if (firstDayOfWeek === 0) firstDayOfWeek = 6; // Sunday becomes 6
-            else firstDayOfWeek--; // Other days shift down by 1
-            
-            const calendarGrid = document.getElementById('calendarGrid');
-            calendarGrid.innerHTML = '';
-            
-            // Day headers starting with Monday
-            const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            dayNames.forEach(day => {
-                const dayHeader = document.createElement('div');
-                dayHeader.className = 'calendar-day-header';
-                dayHeader.textContent = day;
-                calendarGrid.appendChild(dayHeader);
-            });
-            
-            // Add empty cells for days before the first day of the month
-            for (let i = 0; i < firstDayOfWeek; i++) {
-                const emptyDay = document.createElement('div');
-                emptyDay.className = 'calendar-day empty-day';
-                calendarGrid.appendChild(emptyDay);
-            }
-            
-            // Add days of the current month
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, month, day);
-                const dayElement = document.createElement('div');
-                dayElement.className = 'calendar-day';
-                
-                // Format date as YYYY-MM-DD for the dataset
-                const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                dayElement.dataset.date = formattedDate;
-                
-                // Check if this is today
-                const today = new Date();
-                if (date.getDate() === today.getDate() && 
-                    date.getMonth() === today.getMonth() && 
-                    date.getFullYear() === today.getFullYear()) {
-                    dayElement.classList.add('today');
-                }
-                
-                const dayNumber = document.createElement('div');
-                dayNumber.className = 'day-number';
-                dayNumber.textContent = day;
-                dayElement.appendChild(dayNumber);
-                
-                const statusIndicator = document.createElement('div');
-                statusIndicator.className = 'day-status status-no-data';
-                dayElement.appendChild(statusIndicator);
-                
-                calendarGrid.appendChild(dayElement);
-                
-                // Add click handler to load tips for that day
-                dayElement.addEventListener('click', () => {
-                    document.getElementById('monthStart').value = formattedDate;
-                    loadRota();
-                });
-            }
-            
-            // Update statuses for all days
-            await updateTipCalendarStatuses(month, year);
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+                       "July", "August", "September", "October", "November", "December"];
+    
+    document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+    
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Adjust to make Monday the first day (0=Sunday, 1=Monday, etc.)
+    let firstDayOfWeek = firstDay.getDay();
+    if (firstDayOfWeek === 0) firstDayOfWeek = 6; // Sunday becomes 6
+    else firstDayOfWeek--; // Other days shift down by 1
+    
+    const calendarGrid = document.getElementById('calendarGrid');
+    calendarGrid.innerHTML = '';
+    
+    // Day headers starting with Monday
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    dayNames.forEach(day => {
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'calendar-day-header';
+        dayHeader.textContent = day;
+        calendarGrid.appendChild(dayHeader);
+    });
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < firstDayOfWeek; i++) {
+        const emptyDay = document.createElement('div');
+        emptyDay.className = 'calendar-day empty-day';
+        calendarGrid.appendChild(emptyDay);
+    }
+    
+    // Add days of the current month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const dayElement = document.createElement('div');
+        dayElement.className = 'calendar-day';
+        
+        // Format date as YYYY-MM-DD for the dataset
+        const formattedDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        dayElement.dataset.date = formattedDate;
+        
+        // Check if this is today
+        const today = new Date();
+        if (date.getDate() === today.getDate() && 
+            date.getMonth() === today.getMonth() && 
+            date.getFullYear() === today.getFullYear()) {
+            dayElement.classList.add('today');
         }
+        
+        const dayNumber = document.createElement('div');
+        dayNumber.className = 'day-number';
+        dayNumber.textContent = day;
+        dayElement.appendChild(dayNumber);
+        
+        const statusIndicator = document.createElement('div');
+        statusIndicator.className = 'day-status status-no-data';
+        dayElement.appendChild(statusIndicator);
+        
+        calendarGrid.appendChild(dayElement);
+        
+        // Add click handler to load tips for that day
+        dayElement.addEventListener('click', () => {
+            document.getElementById('monthStart').value = formattedDate;
+            loadRota();
+        });
+    }
+    
+    // Update statuses for all days
+    await updateTipCalendarStatuses(month, year);
+}
 
         // Function to Update the Tip status
         async function updateTipCalendarStatuses(month, year) {
-            try {
-                // Fetch all calendar status data for this month
-                const response = await fetch(`/tip/calendar-status?year=${year}&month=${month + 1}`);
-                if (!response.ok) throw new Error('Failed to fetch calendar status');
+    try {
+        // Fetch all calendar status data for this month
+        const response = await fetch(`/tip/calendar-status?year=${year}&month=${month + 1}`);
+        if (!response.ok) throw new Error('Failed to fetch calendar status');
+        
+        const { data } = await response.json();
+        
+        // Process each calendar day
+        const calendarDays = document.querySelectorAll('.calendar-day:not(.empty-day)');
+        const today = new Date();
+        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+        
+        calendarDays.forEach(dayElement => {
+            const date = dayElement.dataset.date; // Format: yyyy-mm-dd
+            const statusIndicator = dayElement.querySelector('.day-status');
+            
+            // Convert calendar date (yyyy-mm-dd) to dd/mm/yyyy format for comparison
+            const [y, m, d] = date.split('-');
+            const formattedDate = `${d}/${m}/${y}`;
+            
+            // Clear previous classes and tooltip
+            statusIndicator.className = 'day-status';
+            dayElement.removeAttribute('style'); // Clear any previous styling
+            dayElement.title = '';
+            
+            if (data.tips[formattedDate]) {
+                // Tips exist for this date (green)
+                statusIndicator.classList.add('status-confirmed');
+                dayElement.title = `Tips confirmed: £${data.tips[formattedDate].toFixed(2)}`;
+            } else if (data.rotaDays[formattedDate]) {
+                // Rota exists but no tips (red - needs confirmation)
+                statusIndicator.classList.add('status-pending');
+                dayElement.title = 'Tips need confirmation for this day';
                 
-                const { data } = await response.json();
-                
-                // Process each calendar day
-                const calendarDays = document.querySelectorAll('.calendar-day:not(.empty-day)');
-                const today = new Date();
-                const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-                
-                calendarDays.forEach(dayElement => {
-                    const date = dayElement.dataset.date; // Format: yyyy-mm-dd
-                    const statusIndicator = dayElement.querySelector('.day-status');
-                    
-                    // Convert calendar date (yyyy-mm-dd) to dd/mm/yyyy format for comparison
-                    const [y, m, d] = date.split('-');
-                    const formattedDate = `${d}/${m}/${y}`;
-                    
-                    // Clear previous classes and tooltip
-                    statusIndicator.className = 'day-status';
-                    dayElement.removeAttribute('style'); // Clear any previous styling
-                    dayElement.title = '';
-                    
-                    if (data.tips[formattedDate]) {
-                        // Tips exist for this date (green)
-                        statusIndicator.classList.add('status-confirmed');
-                        dayElement.title = `Tips confirmed: £${data.tips[formattedDate].toFixed(2)}`;
-                    } else if (data.rotaDays[formattedDate]) {
-                        // Rota exists but no tips (red - needs confirmation)
-                        statusIndicator.classList.add('status-pending');
-                        dayElement.title = 'Tips need confirmation for this day';
-                        
-                        // Highlight today more prominently if it needs confirmation
-                        if (formattedDate === todayFormatted) {
-                            dayElement.style.border = '2px solid #ffc107';
-                            dayElement.style.backgroundColor = 'rgba(255, 193, 7, 0.1)';
-                        }
-                    } else {
-                        // No data at all (gray)
-                        statusIndicator.classList.add('status-no-data');
-                        dayElement.title = 'No rota data for this day';
-                    }
-                });
-                
-            } catch (error) {
-                console.error('Error updating calendar statuses:', error);
-                showNotification('Error loading calendar status', 'error');
+                // Highlight today more prominently if it needs confirmation
+                if (formattedDate === todayFormatted) {
+                    dayElement.style.border = '2px solid #ffc107';
+                    dayElement.style.backgroundColor = 'rgba(255, 193, 7, 0.1)';
+                }
+            } else {
+                // No data at all (gray)
+                statusIndicator.classList.add('status-no-data');
+                dayElement.title = 'No rota data for this day';
             }
-        }
+        });
+        
+    } catch (error) {
+        console.error('Error updating calendar statuses:', error);
+        showNotification('Error loading calendar status', 'error');
+    }
+}
         
         // Function to update tips - now properly initiates edit mode
         function updateTips() {
@@ -1381,18 +1102,18 @@
             calculateSavedTip();
             
             const monthStart = document.getElementById('monthStart').value;
-            // Calculate total hours for verification
-            const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
-            
-            // Prepare data with fixed 2 decimal places for tips
-            const payslipData = currentData.map(emp => ({
-                firstName: emp.firstName,
-                lastName: emp.lastName,
-                totalHours: parseFloat(emp.hoursWorked.toFixed(2)), // Ensure 2 decimal places
-                tip: parseFloat((emp.tip).toFixed(2)), // Apply 10% deduction and fix to 2 decimals
-                monthStart: monthStart
-            }));
-            
+    // Calculate total hours for verification
+    const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+    
+    // Prepare data with fixed 2 decimal places for tips
+    const payslipData = currentData.map(emp => ({
+        firstName: emp.firstName,
+        lastName: emp.lastName,
+        totalHours: parseFloat(emp.hoursWorked.toFixed(2)), // Ensure 2 decimal places
+        tip: parseFloat((emp.tip).toFixed(2)), // Apply 10% deduction and fix to 2 decimals
+        monthStart: monthStart
+    }));
+    
             try {
                 // Show loading state
                 const updateBtn = document.getElementById('updateBtn');

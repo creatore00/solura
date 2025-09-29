@@ -663,9 +663,10 @@
                     <div class="action-label">Holiday Booking</div>
                 </a>
             </div>
-                        <!-- Recent Activity -->
-                        <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
-                        <table class="data-table">
+
+            <!-- Recent Activity -->
+            <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
+            <table class="data-table">
                             <thead>
                                 <tr>                                   
                                     <th>Employee</th>                                    
@@ -677,7 +678,7 @@
                             <tbody>
                                 <!-- Will be populated by JavaScript -->
                             </tbody>
-                        </table>
+            </table>
     
     <!-- App Footer -->
     <footer class="app-footer">
@@ -685,25 +686,67 @@
     </footer>
 
 <script>
-// Session validation and recovery
+// Enhanced session validation
 async function validateSession() {
     try {
-        const response = await authenticatedFetch('/api/validate-session');
+        const response = await fetch('/api/validate-session', {
+            method: 'GET',
+            credentials: 'include'
+        });
         
         if (response.status === 401) {
             // Try to recover session from localStorage
-            const recovered = await attemptSessionRecovery();
-            return recovered;
+            const storedUser = localStorage.getItem('userData');
+            const storedDb = localStorage.getItem('currentDatabase');
+            
+            if (storedUser && storedDb) {
+                const userData = JSON.parse(storedUser);
+                const recoveryResponse = await fetch('/api/recover-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        email: userData.email,
+                        dbName: storedDb
+                    })
+                });
+                
+                if (recoveryResponse.ok) {
+                    const result = await recoveryResponse.json();
+                    if (result.success) {
+                        console.log('Session recovered successfully');
+                        return true;
+                    }
+                }
+            }
+            
+            // If recovery fails, redirect to login
+            window.location.href = '/';
+            return false;
         }
         
         const data = await response.json();
         return data.valid;
     } catch (error) {
         console.error('Session validation error:', error);
-        const recovered = await attemptSessionRecovery();
-        return recovered;
+        window.location.href = '/';
+        return false;
     }
 }
+// Initialize dashboard after session validation
+document.addEventListener('DOMContentLoaded', async function() {
+    const isValid = await validateSession();
+    if (!isValid) {
+        return;
+    }
+    
+    // Rest of your initialization code...
+    await initializeDashboard();
+    setupNavigation();
+    setupEventListeners();
+});
 
 async function attemptSessionRecovery() {
     try {
