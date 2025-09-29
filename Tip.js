@@ -16,18 +16,33 @@ const app = express();
 app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-// Add this middleware before your routes
+
+// iOS-specific session fix middleware
 app.use((req, res, next) => {
-    // Disable caching for dynamic content
-    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.header('Pragma', 'no-cache');
-    res.header('Expires', '0');
+    // Check if this is iOS Safari
+    const isIOS = /iPhone|iPad|iPod/.test(req.headers['user-agent']);
+    const hasSessionParam = req.query.sessionId;
     
-    // iOS-specific fixes
-    res.header('X-Content-Type-Options', 'nosniff');
-    res.header('X-Frame-Options', 'SAMEORIGIN');
-    
-    next();
+    if (isIOS && hasSessionParam) {
+        console.log('📱 iOS detected with session parameter');
+        
+        // If session doesn't exist but we have sessionId in URL, restore it
+        if (!req.session.user && req.query.sessionId) {
+            console.log('🔄 Restoring session from URL for iOS');
+            // You need to implement session restoration logic here
+            // This would typically involve looking up the session by ID
+        }
+        
+        // Ensure session is saved and cookie is set properly
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session save error:', err);
+            }
+            next();
+        });
+    } else {
+        next();
+    }
 });
 // Route to fetch rota data (updated with better error handling)
 app.get('/rota', isAuthenticated, async (req, res) => {

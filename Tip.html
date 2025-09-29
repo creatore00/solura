@@ -403,6 +403,75 @@
     <div id="notification" class="notification"></div>
 
     <script>
+        // Add this at the very beginning of your script
+(function() {
+    // Detect iOS and handle session issues
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    if (isIOS) {
+        console.log('📱 iOS detected - applying fixes');
+        
+        // Ensure session ID is preserved in all URLs
+        function preserveSessionInURLs() {
+            const currentURL = new URL(window.location.href);
+            const sessionId = currentURL.searchParams.get('sessionId');
+            
+            if (sessionId) {
+                // Update all internal links to include sessionId
+                document.querySelectorAll('a[href^="/"]').forEach(link => {
+                    const linkURL = new URL(link.href, window.location.origin);
+                    if (!linkURL.searchParams.get('sessionId')) {
+                        linkURL.searchParams.set('sessionId', sessionId);
+                        link.href = linkURL.toString();
+                    }
+                });
+            }
+        }
+        
+        // Fix for fetch requests on iOS
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            const options = args[1] || {};
+            
+            // Add sessionId to all API calls if it exists in URL
+            if (typeof url === 'string' && url.startsWith('/')) {
+                const currentURL = new URL(window.location.href);
+                const sessionId = currentURL.searchParams.get('sessionId');
+                
+                if (sessionId && !url.includes('sessionId')) {
+                    const separator = url.includes('?') ? '&' : '?';
+                    args[0] = url + separator + 'sessionId=' + sessionId;
+                }
+            }
+            
+            // Add cache-busting for iOS
+            if (typeof url === 'string') {
+                const cacheBuster = '&_=' + Date.now();
+                if (!url.includes('_=')) {
+                    args[0] = url + (url.includes('?') ? cacheBuster : '?' + cacheBuster.substring(1));
+                }
+            }
+            
+            return originalFetch.apply(this, args);
+        };
+        
+        // Apply fixes when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', preserveSessionInURLs);
+        } else {
+            preserveSessionInURLs();
+        }
+        
+        // Force session preservation on page show
+        window.addEventListener('pageshow', function(event) {
+            if (event.persisted) {
+                console.log('🔄 Page restored from bfcache - refreshing session');
+                preserveSessionInURLs();
+            }
+        });
+    }
+})();
         // Global variables
         let currentData = [];
         let isEditable = false;
