@@ -124,7 +124,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: Custom session serialization for MySQL store
+// FIXED: Enhanced MySQL session store with proper serialization
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
     port: 3306,
@@ -142,23 +142,10 @@ const sessionStore = new MySQLStore({
     },
     checkExpirationInterval: 900000,
     expiration: 86400000,
-    clearExpired: true,
-    serializer: {
-        stringify: function(session) {
-            return JSON.stringify(session);
-        },
-        parse: function(string) {
-            try {
-                return JSON.parse(string);
-            } catch (err) {
-                console.error('❌ Error parsing session:', err);
-                return {};
-            }
-        }
-    }
+    clearExpired: true
 }, mainPool);
 
-// Enhanced session configuration
+// Enhanced session configuration with custom serialization
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
     resave: false,
@@ -172,44 +159,56 @@ app.use(session({
         maxAge: 24 * 60 * 60 * 1000
     },
     rolling: true,
-    proxy: true
+    proxy: true,
+    // CRITICAL: Add custom serializer to handle user object
+    serialize: (user) => {
+        try {
+            return JSON.stringify(user);
+        } catch (err) {
+            console.error('Session serialize error:', err);
+            return '{}';
+        }
+    },
+    unserialize: (data) => {
+        try {
+            return JSON.parse(data);
+        } catch (err) {
+            console.error('Session unserialize error:', err);
+            return {};
+        }
+    }
 }));
 
-// FIXED: Enhanced iOS middleware - simplified and secure
+// FIXED: Simplified iOS middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
     
     if (isIOS) {
-        // Handle session ID from URL for iOS (secure way)
+        // Handle session ID from URL for iOS
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
         
-        if (sessionIdFromUrl && req.session) {
+        if (sessionIdFromUrl && req.sessionStore) {
             console.log('📱 iOS - Using session ID from URL:', sessionIdFromUrl);
-            req.sessionID = sessionIdFromUrl;
-        } else if (sessionIdFromHeader && req.session) {
-            console.log('📱 iOS - Using session ID from header:', sessionIdFromHeader);
-            req.sessionID = sessionIdFromHeader;
+            
+            // Load the session data from store
+            req.sessionStore.get(sessionIdFromUrl, (err, sessionData) => {
+                if (err) {
+                    console.error('❌ Error loading iOS session:', err);
+                } else if (sessionData) {
+                    console.log('✅ iOS session loaded successfully');
+                    req.sessionID = sessionIdFromUrl;
+                    req.session = sessionData;
+                }
+                next();
+            });
+        } else {
+            next();
         }
-        
-        // Enhanced session save for iOS
-        if (req.session) {
-            const originalSave = req.session.save;
-            req.session.save = function(callback) {
-                console.log('💾 iOS - Ensuring session persistence');
-                return originalSave.call(this, (err) => {
-                    if (err) {
-                        console.error('❌ iOS Session save error:', err);
-                    } else {
-                        console.log('✅ iOS Session saved with ID:', this.id);
-                    }
-                    if (callback) callback(err);
-                });
-            };
-        }
+    } else {
+        next();
     }
-    next();
 });
 
 // SECURITY: Block direct access to protected HTML files without session
@@ -421,7 +420,7 @@ app.post('/api/switch-database', isAuthenticated, (req, res) => {
     });
 });
 
-// Enhanced iOS session restoration
+// ENHANCED: iOS session restoration with proper session handling
 app.post('/api/ios-restore-session', async (req, res) => {
     try {
         const { email, dbName, accessToken, sessionId } = req.body;
@@ -500,15 +499,15 @@ app.post('/api/ios-restore-session', async (req, res) => {
 
                 console.log('✅ iOS session restoration successful for user:', userInfo);
 
-                // Use provided session ID if available
-                if (sessionId && req.session) {
+                // Use existing session or create new one
+                if (sessionId) {
                     req.sessionID = sessionId;
                 }
                 
-                // Set user data
+                // Set user data - this is critical
                 req.session.user = userInfo;
                 
-                // Force immediate save with verification
+                // Force save with callback to ensure it's persisted
                 req.session.save((err) => {
                     if (err) {
                         console.error('❌ Error saving iOS session:', err);
@@ -518,13 +517,24 @@ app.post('/api/ios-restore-session', async (req, res) => {
                         });
                     }
 
-                    console.log('✅ iOS session saved with ID:', req.sessionID);
+                    console.log('✅ iOS session saved/updated with ID:', req.sessionID);
                     
-                    res.json({ 
-                        success: true, 
-                        user: userInfo,
-                        sessionId: req.sessionID,
-                        accessToken: accessToken
+                    // Verify the session was actually saved
+                    req.sessionStore.get(req.sessionID, (verifyErr, savedSession) => {
+                        if (verifyErr) {
+                            console.error('❌ Error verifying session save:', verifyErr);
+                        } else if (savedSession && savedSession.user) {
+                            console.log('✅ Session verification passed - user data persisted');
+                        } else {
+                            console.error('❌ Session verification failed - no user data in stored session');
+                        }
+                        
+                        res.json({ 
+                            success: true, 
+                            user: userInfo,
+                            sessionId: req.sessionID,
+                            accessToken: accessToken
+                        });
                     });
                 });
             });
@@ -659,16 +669,44 @@ function isAuthenticated(req, res, next) {
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
-    // Only allow access with valid session user data
-    if (req.session?.user && req.session.user.dbName && req.session.user.email) {
+    // For iOS apps, also check for session ID in query params
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
+    const sessionIdFromUrl = req.query.sessionId;
+    
+    if (isIOS && sessionIdFromUrl && (!req.session || !req.session.user)) {
+        console.log('📱 iOS - Attempting to load session from URL ID:', sessionIdFromUrl);
+        
+        // Try to load session from store
+        req.sessionStore.get(sessionIdFromUrl, (err, sessionData) => {
+            if (err) {
+                console.error('❌ Error loading iOS session from store:', err);
+                return sendAuthError(res, isIOS);
+            }
+            
+            if (sessionData && sessionData.user) {
+                console.log('✅ iOS session loaded from store successfully');
+                req.sessionID = sessionIdFromUrl;
+                req.session = sessionData;
+                req.session.touch();
+                return next();
+            } else {
+                console.log('❌ No session data found for iOS session ID');
+                return sendAuthError(res, isIOS);
+            }
+        });
+    } else if (req.session?.user && req.session.user.dbName && req.session.user.email) {
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
         req.session.touch();
         return next();
+    } else {
+        console.log('❌ Authentication FAILED - No valid user in session');
+        return sendAuthError(res, isIOS);
     }
-    
-    console.log('❌ Authentication FAILED - No valid user in session');
-    
-    if (req.path.startsWith('/api/') || req.xhr) {
+}
+
+function sendAuthError(res, isIOS) {
+    if (isIOS || req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized',

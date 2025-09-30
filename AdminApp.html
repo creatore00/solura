@@ -775,12 +775,16 @@
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Mobile App: Initializing...');
         
-        // Detect if this is an iOS app (added to home screen)
+        // Enhanced iOS detection
         isIOSApp = window.navigator.standalone || 
-                  (window.matchMedia('(display-mode: standalone)').matches) ||
-                  (navigator.userAgent.includes('iPhone') && !navigator.userAgent.includes('Safari'));
-        
+                (window.matchMedia('(display-mode: standalone)').matches) ||
+                (navigator.userAgent.includes('iPhone') && !navigator.userAgent.includes('Safari')) ||
+                (navigator.userAgent.includes('iPad') && !navigator.userAgent.includes('Safari'));
+
         console.log('📱 iOS App detected:', isIOSApp);
+        console.log('User Agent:', navigator.userAgent);
+        console.log('Standalone mode:', window.navigator.standalone);
+        console.log('Display mode:', window.matchMedia('(display-mode: standalone)').matches);
         
         // Get session data from multiple sources
         const urlParams = new URLSearchParams(window.location.search);
