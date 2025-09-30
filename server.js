@@ -54,7 +54,7 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
-// Safe session touch utility - MOVED BEFORE ITS USAGE
+// Safe session touch utility - MOVED TO TOP
 function safeSessionTouch(req) {
     if (req.session && req.session.touch && typeof req.session.touch === 'function') {
         req.session.touch();
@@ -1323,21 +1323,6 @@ app.post('/submit', async (req, res) => {
         });
     }
 });
-
-// Function to generate a JWT token
-function generateToken(user) {
-    return jwt.sign(
-        { 
-            email: user.email, 
-            role: user.role, 
-            name: user.name, 
-            lastName: user.lastName, 
-            dbName: user.dbName 
-        },
-        process.env.JWT_SECRET || 'your-secret-key',
-        { expiresIn: '7d' }
-    );
-}
 
 // Protected routes - NO URL PARAMETERS ALLOWED
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
