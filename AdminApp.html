@@ -486,6 +486,13 @@
         <button class="mobile-menu-btn" id="menuToggle">
             <i class="fas fa-bars"></i>
         </button>
+        <!-- Database Switcher - Add to your header/navigation -->
+<div id="databaseSwitcher" style="display: inline-block; margin-left: 15px;">
+    <select id="databaseSelect" onchange="switchDatabase(this.value)" 
+            style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+        <option value="">Loading databases...</option>
+    </select>
+</div>
     </header>
     
     <!-- Mobile Menu -->
@@ -755,17 +762,26 @@
             </div>
         </div>
     </div>
- <script>
+<script>
     // Global variables
     let currentUser = null;
     let inactivityTimer;
     let sessionId = null;
     let accessToken = null;
     let isIOSApp = false;
+    let availableDatabases = [];
 
     // Initialize the application
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Mobile App: Initializing...');
+        
+        // FIRST: Check if we have valid session before anything else
+        const hasValidSession = await checkInitialAuthentication();
+        if (!hasValidSession) {
+            console.log('❌ No valid session found, redirecting to login');
+            redirectToLogin();
+            return;
+        }
         
         // Detect if this is an iOS app (added to home screen)
         isIOSApp = window.navigator.standalone || 
@@ -779,36 +795,88 @@
         sessionId = urlParams.get('sessionId') || localStorage.getItem('sessionId');
         accessToken = localStorage.getItem('accessToken');
         
-        // Get user info from URL or localStorage
-        const name = urlParams.get('name');
-        const lastName = urlParams.get('lastName');
-        const email = urlParams.get('email');
-        const dbName = urlParams.get('dbName');
-        
-        if (name && lastName && email && dbName) {
-            console.log('Found URL parameters, storing user info...');
-            currentUser = {
-                email: email,
-                name: name,
-                lastName: lastName,
-                dbName: dbName
-            };
-            localStorage.setItem('userInfo', JSON.stringify(currentUser));
-            localStorage.setItem('lastDb', dbName);
-        } else {
-            // Try to get from localStorage
-            const storedUser = localStorage.getItem('userInfo');
-            if (storedUser) {
-                currentUser = JSON.parse(storedUser);
-            }
-        }
-        
         // Setup UI components first
         initializeUI();
         
         // Validate session and load data
         await initializeSession();
     });
+
+    // CRITICAL: Check initial authentication before loading page
+    async function checkInitialAuthentication() {
+        console.log('🔐 Checking initial authentication...');
+        
+        // Try to get current user from API first
+        try {
+            const response = await fetch('/api/current-user', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.user) {
+                    console.log('✅ Initial authentication successful');
+                    currentUser = data.user;
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.log('❌ Initial authentication failed:', error);
+        }
+        
+        // If API fails, check localStorage as fallback
+        const storedUser = localStorage.getItem('userInfo');
+        if (storedUser) {
+            console.log('🔄 Trying stored user data...');
+            currentUser = JSON.parse(storedUser);
+            
+            // Verify stored user is still valid
+            const isValid = await validateStoredUser();
+            if (isValid) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    // Validate stored user data
+    async function validateStoredUser() {
+        if (!currentUser || !currentUser.email) return false;
+        
+        try {
+            const response = await fetch('/api/recover-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: currentUser.email,
+                    dbName: currentUser.dbName,
+                    accessToken: localStorage.getItem('accessToken')
+                })
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    currentUser = data.user;
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('Error validating stored user:', error);
+        }
+        
+        return false;
+    }
 
     // Initialize UI components
     function initializeUI() {
@@ -870,6 +938,130 @@
         // Update date display
         updateLiveDateTime();
         setInterval(updateLiveDateTime, 1000);
+        
+        // Initialize database switcher if element exists
+        initializeDatabaseSwitcher();
+    }
+
+    // Initialize database switcher
+    async function initializeDatabaseSwitcher() {
+        const dbSwitcher = document.getElementById('databaseSwitcher');
+        if (!dbSwitcher) return;
+        
+        try {
+            // Load available databases
+            const response = await fetchWithRecovery('/api/user-databases');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    availableDatabases = data.databases;
+                    populateDatabaseSwitcher(data.databases, data.currentDb);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading databases:', error);
+        }
+    }
+
+    // Populate database switcher dropdown
+    function populateDatabaseSwitcher(databases, currentDb) {
+        const dbSelect = document.getElementById('databaseSelect');
+        if (!dbSelect) return;
+        
+        dbSelect.innerHTML = '';
+        
+        databases.forEach(db => {
+            const option = document.createElement('option');
+            option.value = db.db_name;
+            option.textContent = db.db_name;
+            option.selected = db.db_name === currentDb;
+            dbSelect.appendChild(option);
+        });
+        
+        console.log('✅ Database switcher populated with', databases.length, 'databases');
+    }
+
+    // Switch database function
+    async function switchDatabase(newDbName) {
+        if (!newDbName || !currentUser) return;
+        
+        try {
+            console.log('🔄 Switching to database:', newDbName);
+            
+            const response = await fetchWithRecovery('/api/switch-database', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                'Accept': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({ 
+                    dbName: newDbName,
+                    email: currentUser.email 
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('✅ Database switched successfully');
+                currentUser = data.user;
+                localStorage.setItem('userInfo', JSON.stringify(data.user));
+                
+                // Show success message and reload
+                showNotification('Database switched successfully', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+                
+            } else {
+                throw new Error(data.error || 'Failed to switch database');
+            }
+            
+        } catch (error) {
+            console.error('❌ Error switching database:', error);
+            showNotification('Error switching database', 'error');
+        }
+    }
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+        // Create notification element if it doesn't exist
+        let notification = document.getElementById('globalNotification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'globalNotification';
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 6px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                max-width: 300px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                transition: all 0.3s ease;
+            `;
+            document.body.appendChild(notification);
+        }
+        
+        // Set style based on type
+        const styles = {
+            success: 'background: #4CAF50;',
+            error: 'background: #f44336;',
+            info: 'background: #2196F3;'
+        };
+        
+        notification.style.cssText += styles[type] || styles.info;
+        notification.textContent = message;
+        notification.style.display = 'block';
+        
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 3000);
     }
 
     // Session initialization
@@ -1177,31 +1369,30 @@
         }
     }
         
-    // Navigation function with platform-specific handling
+    // SECURE Navigation function - prevents unauthorized access
     function navigateTo(url) {
         if (!currentUser) {
-            console.log('No user data available, cannot navigate');
+            console.log('❌ No user data available, redirecting to login');
             redirectToLogin();
             return;
         }
 
-        // Build URL with user parameters
+        // Build secure URL without sensitive parameters in URL
         let targetUrl = url.startsWith('/') ? url.substring(1) : url;
         
+        // Only include minimal non-sensitive parameters
         const params = new URLSearchParams({
-            name: currentUser.name,
-            lastName: currentUser.lastName,
-            email: currentUser.email,
-            dbName: currentUser.dbName
+            // Don't include sensitive user data in URL
+            t: Date.now() // Cache buster only
         });
 
-        // Add session ID for iOS Apps
+        // Add session ID for iOS Apps only if needed
         if (isIOSApp && sessionId) {
             params.append('sessionId', sessionId);
         }
 
         const fullUrl = `${targetUrl}?${params.toString()}`;
-        console.log(`🔄 Navigating to: ${fullUrl}`);
+        console.log(`🔄 Navigating to: ${targetUrl}`);
         
         // Close mobile menu if open
         const mobileMenu = document.getElementById('mobileMenu');
@@ -1233,10 +1424,13 @@
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
         
+        // Clear cookies by setting expired date
+        document.cookie = "solura.session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+        
         window.location.href = '/';
     }
 
-    // Dashboard data loading and other functions remain the same...
+    // Dashboard data loading
     function loadDashboardData() {
         console.log('Loading dashboard data...');
         
@@ -1553,6 +1747,7 @@
     window.redirectToLogin = redirectToLogin;
     window.navigateTo = navigateTo;
     window.fetchWithRecovery = fetchWithRecovery;
+    window.switchDatabase = switchDatabase;
 </script>
 </body>
 </html>
