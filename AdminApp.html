@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Solura | Workforce Management</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
+<style>
         :root {
             --primary-color: #004f9e;
             --secondary-color: #007acc;
@@ -16,6 +17,10 @@
             --dark-gray: #333;
             --white: #ffffff;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --safe-area-top: env(safe-area-inset-top, 0px);
+            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+            --safe-area-left: env(safe-area-inset-left, 0px);
+            --safe-area-right: env(safe-area-inset-right, 0px);
         }
         
         * {
@@ -32,9 +37,14 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            /* Safe area padding for notch devices */
+            padding-top: var(--safe-area-top);
+            padding-bottom: var(--safe-area-bottom);
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
         
-        /* Mobile Header */
+        /* Mobile Header - Now starts below the status bar */
         .mobile-header {
             background-color: var(--white);
             padding: 1rem;
@@ -45,6 +55,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            /* Ensure header starts below the status bar */
+            margin-top: calc(-1 * var(--safe-area-top));
         }
         
         .mobile-title {
@@ -65,7 +77,7 @@
             padding: 0.25rem;
         }
         
-        /* Mobile Menu */
+        /* Mobile Menu - Adjusted for safe areas */
         .mobile-menu {
             position: fixed;
             top: 0;
@@ -77,6 +89,11 @@
             transition: left 0.3s ease;
             overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            /* Safe area padding */
+            padding-top: var(--safe-area-top);
+            padding-bottom: var(--safe-area-bottom);
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
         
         .mobile-menu.active {
@@ -90,6 +107,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            /* Adjust for safe area */
+            margin-top: calc(-1 * var(--safe-area-top));
+            padding-top: calc(1.5rem + var(--safe-area-top));
         }
         
         .close-menu {
@@ -156,11 +176,14 @@
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
         }
         
-        /* Main Content */
+        /* Main Content - Safe area adjusted */
         .mobile-content {
             flex: 1;
             padding: 1rem;
             overflow-y: auto;
+            /* Ensure content doesn't go under the notch */
+            padding-top: calc(1rem + var(--safe-area-top));
+            padding-bottom: calc(1rem + var(--safe-area-bottom));
         }
         
         .content-header {
@@ -335,16 +358,18 @@
             color: #616161;
         }
         
-        /* Footer */
+        /* Footer - Safe area adjusted */
         .mobile-footer {
             background: var(--primary-color);
             color: var(--white);
             padding: 1rem;
             text-align: center;
             font-size: 0.8rem;
+            /* Safe area for home indicator */
+            padding-bottom: calc(1rem + var(--safe-area-bottom));
         }
         
-        /* Modal */
+        /* Modal - Safe area adjusted */
         .mobile-modal {
             display: none;
             position: fixed;
@@ -357,6 +382,11 @@
             justify-content: center;
             align-items: center;
             padding: 1rem;
+            /* Safe area padding */
+            padding-top: calc(1rem + var(--safe-area-top));
+            padding-bottom: calc(1rem + var(--safe-area-bottom));
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
         }
         
         .mobile-modal-content {
@@ -430,7 +460,7 @@
             white-space: nowrap;
         }
         
-        /* Overlay for menu */
+        /* Overlay for menu - Full screen with safe areas */
         .menu-overlay {
             display: none;
             position: fixed;
@@ -440,6 +470,11 @@
             height: 100%;
             background: rgba(0,0,0,0.5);
             z-index: 999;
+            /* Safe area padding */
+            padding-top: var(--safe-area-top);
+            padding-bottom: var(--safe-area-bottom);
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
         
         .menu-overlay.active {
@@ -473,6 +508,46 @@
             font-size: 1rem;
             cursor: pointer;
             margin-top: 1rem;
+        }
+
+        /* Additional viewport meta tag for iOS PWA */
+        @supports (padding: max(0px)) {
+            .mobile-content,
+            .mobile-footer,
+            .mobile-modal {
+                padding-left: max(1rem, var(--safe-area-left));
+                padding-right: max(1rem, var(--safe-area-right));
+            }
+        }
+
+        /* iPhone X and later specific adjustments */
+        @media only screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3),
+               only screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3),
+               only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2),
+               only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3),
+               only screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) {
+            body {
+                padding-top: 44px; /* Standard iOS status bar height */
+                padding-bottom: 34px; /* Home indicator area */
+            }
+            
+            .mobile-header {
+                margin-top: -44px;
+            }
+            
+            .menu-header {
+                margin-top: -44px;
+                padding-top: calc(1.5rem + 44px);
+            }
+            
+            .mobile-content {
+                padding-top: calc(1rem + 44px);
+                padding-bottom: calc(1rem + 34px);
+            }
+            
+            .mobile-footer {
+                padding-bottom: calc(1rem + 34px);
+            }
         }
     </style>
 </head>
