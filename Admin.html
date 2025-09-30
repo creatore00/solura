@@ -391,14 +391,15 @@
             <i class="fas fa-calendar-alt"></i>
             <span>Solura Workforce</span>
         </div>
-        
-        <div class="app-controls">
-            <div id="databaseSwitcher">
-                <span id="currentDbDisplay">Loading database...</span>
-                <select id="dbSelector"></select>
-                <button id="switchDbBtn">Switch</button>
-            </div>
-        </div>
+        <!-- Minimal Database Switcher -->
+<div style="position: fixed; top: 15px; right: 15px; z-index: 1000;">
+    <select id="databaseSelect" onchange="switchDatabase(this.value)" 
+            style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;">
+        <option value="">Loading...</option>
+    </select>
+    <div id="switchStatus" style="font-size: 11px; margin-top: 4px; color: #666;"></div>
+</div>
+
     </header>
     
     <!-- Main App Container -->
@@ -952,39 +953,25 @@ async function loadAvailableDatabases() {
     }
 }
 
-// Populate database dropdown
-function populateDatabaseDropdown(databases, currentDb) {
+// Enhanced switch database function with loading state
+async function switchDatabase(newDbName) {
+    if (!newDbName) return;
+    
+    const statusDiv = document.getElementById('switchStatus');
     const dbSelect = document.getElementById('databaseSelect');
-    if (!dbSelect) {
-        console.log('ℹ️ Database select element not found, skipping dropdown population');
-        return;
+    
+    // Show loading state
+    if (statusDiv) {
+        statusDiv.textContent = 'Switching...';
+        statusDiv.style.color = '#ff9800';
     }
     
-    // Clear existing options
-    dbSelect.innerHTML = '';
-    
-    // Add databases to dropdown
-    databases.forEach(db => {
-        const option = document.createElement('option');
-        option.value = db.db_name;
-        option.textContent = db.db_name;
-        option.selected = db.db_name === currentDb;
-        dbSelect.appendChild(option);
-    });
-    
-    console.log('✅ Database dropdown populated with', databases.length, 'databases');
-}
-
-// Switch database function
-async function switchDatabase(newDbName) {
-    if (!newDbName) {
-        console.error('❌ No database selected');
-        return;
+    // Disable dropdown during switch
+    if (dbSelect) {
+        dbSelect.disabled = true;
     }
     
     try {
-        console.log('🔄 Switching to database:', newDbName);
-        
         const response = await fetch('/api/switch-database', {
             method: 'POST',
             headers: {
@@ -997,16 +984,15 @@ async function switchDatabase(newDbName) {
         const data = await response.json();
         
         if (data.success) {
-            console.log('✅ Database switched successfully');
-            showNotification(`Switched to ${newDbName}`, 'success');
+            if (statusDiv) {
+                statusDiv.textContent = '✓ Switched successfully';
+                statusDiv.style.color = '#4CAF50';
+            }
             
-            // Update current database display if element exists
-            safeUpdateElement('currentDatabase', newDbName);
-            
-            // Reload page data after a short delay
+            // Reload page after success
             setTimeout(() => {
                 location.reload();
-            }, 1000);
+            }, 800);
             
         } else {
             throw new Error(data.error || 'Failed to switch database');
@@ -1014,8 +1000,42 @@ async function switchDatabase(newDbName) {
         
     } catch (error) {
         console.error('❌ Error switching database:', error);
-        showNotification(error.message, 'error');
+        
+        if (statusDiv) {
+            statusDiv.textContent = '✗ Switch failed';
+            statusDiv.style.color = '#f44336';
+        }
+        
+        // Re-enable dropdown on error
+        if (dbSelect) {
+            dbSelect.disabled = false;
+        }
+        
+        // Clear error message after 3 seconds
+        setTimeout(() => {
+            if (statusDiv) {
+                statusDiv.textContent = '';
+            }
+        }, 3000);
     }
+}
+
+// Update populate function to handle the new design
+function populateDatabaseDropdown(databases, currentDb) {
+    const dbSelect = document.getElementById('databaseSelect');
+    if (!dbSelect) return;
+    
+    dbSelect.innerHTML = '';
+    
+    databases.forEach(db => {
+        const option = document.createElement('option');
+        option.value = db.db_name;
+        option.textContent = db.db_name;
+        option.selected = db.db_name === currentDb;
+        dbSelect.appendChild(option);
+    });
+    
+    console.log('✅ Database switcher ready');
 }
 
 // Initialize when page loads
