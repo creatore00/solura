@@ -699,18 +699,7 @@ app.get('/', (req, res) => {
 });
 
 // Login route - COMPLETELY REWRITTEN with proper session handling
-app.post('/submit', [
-    body('email').isEmail().normalizeEmail(),
-    body('password').isLength({ min: 1 }),
-    body('dbName').optional().isAlphanumeric()
-], async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-            success: false, 
-            errors: errors.array() 
-        });
-    }
+app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     const { email, password, dbName } = req.body;
 
