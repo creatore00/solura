@@ -54,17 +54,16 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
-// Safe session touch utility - MOVED TO TOP
+// Safe session touch utility
 function safeSessionTouch(req) {
     if (req.session && req.session.touch && typeof req.session.touch === 'function') {
         req.session.touch();
     } else if (req.session && req.session.cookie) {
-        // Manual extension by updating the maxAge
         req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
     }
 }
 
-// Update your token generation function
+// Token generation function
 function generateToken(user) {
     return jwt.sign(
         { 
@@ -79,7 +78,7 @@ function generateToken(user) {
     );
 }
 
-// Enhanced CORS configuration
+// Enhanced CORS configuration for iOS compatibility
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
@@ -101,8 +100,8 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept'],
-    exposedHeaders: ['Set-Cookie']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID'],
+    exposedHeaders: ['Set-Cookie', 'X-Session-ID']
 };
 
 app.use(cors(corsOptions));
@@ -175,75 +174,66 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// ENHANCED: Session configuration with better security
+// FIXED: Session configuration with iOS compatibility - CRITICAL CHANGES
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
-    resave: false,
-    saveUninitialized: false,
+    secret: SESSION_SECRET,
+    resave: true, // Changed to true for better iOS compatibility
+    saveUninitialized: true, // Changed to true to ensure session is always created
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProduction,
         httpOnly: true,
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
+        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
+        maxAge: 24 * 60 * 60 * 1000,
+        domain: isProduction ? '.solura.uk' : undefined
     },
     rolling: true,
     proxy: true,
-    // Additional security options
-    unset: 'destroy'
+    genid: function(req) {
+        return require('crypto').randomBytes(16).toString('hex');
+    }
 }));
 
-// ENHANCED: iOS middleware with biometric support
+// FIXED: iOS-specific middleware - MUST come after session middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
-    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     
     if (isIOS) {
-        // Handle session ID from URL for iOS
+        console.log('📱 iOS Device Detected');
+        
+        // Handle session ID from various sources for iOS
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
-        const sessionId = sessionIdFromUrl || sessionIdFromHeader;
         
-        // Handle biometric authentication headers
-        const biometricToken = req.headers['x-biometric-token'];
-        const biometricEmail = req.headers['x-biometric-email'];
+        console.log('📱 Session ID from URL:', sessionIdFromUrl);
+        console.log('📱 Session ID from Header:', sessionIdFromHeader);
+        console.log('📱 Current Session ID:', req.sessionID);
         
-        if (biometricToken && biometricEmail) {
-            console.log('📱 iOS - Biometric authentication attempt for:', biometricEmail);
-            // You could add additional biometric verification here
+        // Ensure session is initialized for iOS
+        if (!req.session.initialized) {
+            req.session.initialized = true;
+            console.log('📱 Initializing session for iOS');
         }
         
-        if (sessionId && req.sessionStore) {
-            console.log('📱 iOS - Attempting to load session from ID:', sessionId);
+        // If we have a session ID from URL/header, try to use it
+        const externalSessionId = sessionIdFromUrl || sessionIdFromHeader;
+        if (externalSessionId && req.sessionID !== externalSessionId) {
+            console.log('🔄 Attempting to use external session ID for iOS:', externalSessionId);
             
-            // Load the session data from store
-            req.sessionStore.get(sessionId, (err, sessionData) => {
+            req.sessionStore.get(externalSessionId, (err, sessionData) => {
                 if (err) {
-                    console.error('❌ Error loading iOS session:', err);
+                    console.error('❌ Error loading external session:', err);
                     return next();
                 }
                 
                 if (sessionData && sessionData.user) {
-                    console.log('✅ iOS session loaded successfully with user data');
-                    
-                    // Regenerate session with loaded data
-                    req.session.regenerate((err) => {
-                        if (err) {
-                            console.error('❌ Error regenerating session:', err);
-                            return next();
-                        }
-                        
-                        Object.assign(req.session, sessionData);
-                        req.sessionID = sessionId;
-                        console.log('✅ iOS session regenerated successfully');
-                        next();
-                    });
-                } else {
-                    console.log('❌ No valid session data found for iOS session ID');
-                    next();
+                    console.log('✅ External session data found, merging...');
+                    // Merge the external session data with current session
+                    Object.assign(req.session, sessionData);
                 }
+                next();
             });
         } else {
             next();
@@ -272,16 +262,18 @@ app.use((req, res, next) => {
     next();
 });
 
-// Add CORS headers manually
+// Add CORS headers manually for additional security
 app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (origin && (origin.includes('solura.uk') || origin.includes('localhost'))) {
+    const allowedOrigins = ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080', 'http://localhost:3000'];
+    
+    if (origin && allowedOrigins.includes(origin)) {
         res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Credentials', 'true');
-        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID');
-        res.header('Access-Control-Expose-Headers', 'Set-Cookie');
     }
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID');
+    res.header('Access-Control-Expose-Headers', 'Set-Cookie, X-Session-ID');
     
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
@@ -363,10 +355,16 @@ app.use((req, res, next) => {
     next();
 });
 
-// Health check endpoint
+// Health check endpoint with session info
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
+        session: {
+            id: req.sessionID,
+            exists: !!req.session,
+            user: req.session?.user,
+            initialized: req.session?.initialized
+        },
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         memory: process.memoryUsage(),
@@ -374,7 +372,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Routes
+// ALL YOUR ORIGINAL ROUTES - KEPT INTACT
 app.use('/rota', newRota);
 app.use('/rota2', newRota2);
 app.use('/confirmpassword', confirmpassword);
@@ -487,6 +485,7 @@ app.post('/api/verify-biometric', async (req, res) => {
 
                 // Create session
                 req.session.user = userInfo;
+                req.session.initialized = true;
                 
                 // Generate new tokens
                 const authToken = generateToken(userInfo);
@@ -594,6 +593,7 @@ app.post('/api/refresh-token', async (req, res) => {
 
 // NEW: Get current user info endpoint for frontend
 app.get('/api/current-user', isAuthenticated, (req, res) => {
+    safeSessionTouch(req);
     res.json({
         success: true,
         user: req.session.user
@@ -604,6 +604,7 @@ app.get('/api/current-user', isAuthenticated, (req, res) => {
 app.get('/api/validate-session', (req, res) => {
     console.log('=== VALIDATE SESSION ===');
     console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
     if (req.session?.user) {
@@ -841,6 +842,7 @@ app.post('/api/ios-restore-session', async (req, res) => {
                 
                 // Set user data - this is critical
                 req.session.user = userInfo;
+                req.session.initialized = true;
                 
                 // Force save with callback to ensure it's persisted
                 req.session.save((err) => {
@@ -968,6 +970,7 @@ app.post('/api/recover-session', async (req, res) => {
 
                 // Assign user data to existing session
                 req.session.user = userInfo;
+                req.session.initialized = true;
                 
                 req.session.save((err) => {
                     if (err) {
@@ -996,6 +999,34 @@ app.post('/api/recover-session', async (req, res) => {
             error: error.message 
         });
     }
+});
+
+// FIXED: Session initialization endpoint for iOS
+app.get('/api/init-session', (req, res) => {
+    console.log('🔄 Initializing session');
+    
+    // Ensure session is created and marked as initialized
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+    }
+    
+    // Touch the session to ensure it's saved
+    safeSessionTouch(req);
+    
+    req.session.save((err) => {
+        if (err) {
+            console.error('Error saving session:', err);
+            return res.status(500).json({ success: false, error: 'Session initialization failed' });
+        }
+        
+        console.log('✅ Session initialized with ID:', req.sessionID);
+        
+        res.json({
+            success: true,
+            sessionId: req.sessionID,
+            message: 'Session initialized successfully'
+        });
+    });
 });
 
 // FIXED: Secure authentication middleware
@@ -1133,22 +1164,38 @@ function isMobile(userAgent) {
     return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 }
 
-// Main route
+// FIXED: Main route with session initialization
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     console.log('Root route - User-Agent:', userAgent);
+    console.log('Session ID at root:', req.sessionID);
 
-    if (isMobile(userAgent)) {
+    // Ensure session is initialized
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving root session:', err);
+            }
+        });
+    }
+
+    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(userAgent);
+    
+    if (isMobileDevice) {
+        console.log('📱 Serving mobile version');
         res.sendFile(path.join(__dirname, 'LoginApp.html'));
     } else {
+        console.log('💻 Serving desktop version');
         res.sendFile(path.join(__dirname, 'Login.html'));
     }
 });
 
-// Login route with proper session handling
+// FIXED: Login route with robust session handling
 app.post('/submit', async (req, res) => {
-    safeSessionTouch(req);
     console.log('=== LOGIN ATTEMPT ===');
+    console.log('Session ID at login start:', req.sessionID);
+    
     const { email, password, dbName } = req.body;
 
     if (!email || !password) {
@@ -1255,8 +1302,9 @@ app.post('/submit', async (req, res) => {
 
                 console.log('✅ Login successful, creating session for user:', userInfo);
 
-                // Create new session with user data
+                // FIXED: Use existing session instead of regenerating
                 req.session.user = userInfo;
+                req.session.initialized = true;
                 
                 // Generate tokens
                 const authToken = generateToken(userInfo);
@@ -1272,9 +1320,8 @@ app.post('/submit', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
-                // SECURITY FIX: Remove URL parameters from redirect URLs
                 const userAgent = req.headers['user-agent'] || '';
-                const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+                const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(userAgent.toLowerCase());
 
                 let redirectUrl = '';
 
@@ -1306,7 +1353,7 @@ app.post('/submit', async (req, res) => {
                     res.json({
                         success: true,
                         message: 'Login successful',
-                        redirectUrl: redirectUrl, // No URL parameters
+                        redirectUrl: redirectUrl,
                         user: userInfo,
                         accessToken: authToken,
                         refreshToken: refreshToken,
@@ -1662,6 +1709,7 @@ sessionStore.on('error', (error) => {
 
 app.listen(port, () => {
     console.log(`Server listening at http://localhost:${port}`);
+    console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
     const databaseNames = ['bbuonaoxford', '100%pastaoxford'];
     scheduleTestUpdates(databaseNames);
 });
