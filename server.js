@@ -145,7 +145,7 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// Enhanced session configuration with custom serialization
+// SIMPLIFIED: Session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
     resave: false,
@@ -159,27 +159,20 @@ app.use(session({
         maxAge: 24 * 60 * 60 * 1000
     },
     rolling: true,
-    proxy: true,
-    // CRITICAL: Add custom serializer to handle user object
-    serialize: (user) => {
-        try {
-            return JSON.stringify(user);
-        } catch (err) {
-            console.error('Session serialize error:', err);
-            return '{}';
-        }
-    },
-    unserialize: (data) => {
-        try {
-            return JSON.parse(data);
-        } catch (err) {
-            console.error('Session unserialize error:', err);
-            return {};
-        }
-    }
+    proxy: true
 }));
 
-// FIXED: Simplified iOS middleware
+// Safe session touch utility
+function safeSessionTouch(req) {
+    if (req.session && req.session.touch && typeof req.session.touch === 'function') {
+        req.session.touch();
+    } else if (req.session && req.session.cookie) {
+        // Manual extension by updating the maxAge
+        req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
+    }
+}
+
+// FIXED: iOS middleware that properly handles session loading
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
@@ -188,20 +181,38 @@ app.use((req, res, next) => {
         // Handle session ID from URL for iOS
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
+        const sessionId = sessionIdFromUrl || sessionIdFromHeader;
         
-        if (sessionIdFromUrl && req.sessionStore) {
-            console.log('📱 iOS - Using session ID from URL:', sessionIdFromUrl);
+        if (sessionId && req.sessionStore) {
+            console.log('📱 iOS - Attempting to load session from ID:', sessionId);
             
-            // Load the session data from store
-            req.sessionStore.get(sessionIdFromUrl, (err, sessionData) => {
+            // Load the session data from store but don't replace req.session directly
+            req.sessionStore.get(sessionId, (err, sessionData) => {
                 if (err) {
                     console.error('❌ Error loading iOS session:', err);
-                } else if (sessionData) {
-                    console.log('✅ iOS session loaded successfully');
-                    req.sessionID = sessionIdFromUrl;
-                    req.session = sessionData;
+                    return next();
                 }
-                next();
+                
+                if (sessionData && sessionData.user) {
+                    console.log('✅ iOS session loaded successfully with user data');
+                    
+                    // Instead of replacing req.session, regenerate the session with the loaded data
+                    req.session.regenerate((err) => {
+                        if (err) {
+                            console.error('❌ Error regenerating session:', err);
+                            return next();
+                        }
+                        
+                        // Copy the loaded session data to the new session
+                        Object.assign(req.session, sessionData);
+                        req.sessionID = sessionId;
+                        console.log('✅ iOS session regenerated successfully');
+                        next();
+                    });
+                } else {
+                    console.log('❌ No valid session data found for iOS session ID');
+                    next();
+                }
             });
         } else {
             next();
@@ -247,6 +258,36 @@ app.use((req, res, next) => {
     next();
 });
 
+// Global error handler to prevent session-related crashes
+app.use((error, req, res, next) => {
+    console.error('🚨 Global error handler:', error);
+    
+    if (error.message && error.message.includes('touch')) {
+        // Session touch error - try to recover
+        console.log('🔄 Recovering from session touch error');
+        if (req.session) {
+            req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
+        }
+        
+        if (req.path.startsWith('/api/')) {
+            return res.json({ 
+                success: false, 
+                error: 'Session error, please refresh',
+                recovered: true 
+            });
+        }
+    }
+    
+    if (req.path.startsWith('/api/')) {
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    } else {
+        res.status(500).send('Internal server error');
+    }
+});
+
 // Routes
 app.use('/rota', newRota);
 app.use('/rota2', newRota2);
@@ -283,15 +324,15 @@ app.get('/api/current-user', isAuthenticated, (req, res) => {
     });
 });
 
-// Session validation endpoint
+// Session validation endpoint with safe touch
 app.get('/api/validate-session', (req, res) => {
     console.log('=== VALIDATE SESSION ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session User:', req.session?.user);
     
     if (req.session?.user) {
-        // Update session to extend expiration
-        req.session.touch();
+        // Safe session extension
+        safeSessionTouch(req);
         res.json({ 
             valid: true, 
             user: req.session.user,
@@ -308,6 +349,7 @@ app.get('/api/validate-session', (req, res) => {
 
 // NEW: Get available databases for current user
 app.get('/api/user-databases', isAuthenticated, (req, res) => {
+    safeSessionTouch(req);
     const email = req.session.user.email;
     
     const sql = `SELECT u.db_name, u.Access FROM users u WHERE u.Email = ?`;
@@ -336,6 +378,7 @@ app.get('/api/user-databases', isAuthenticated, (req, res) => {
 
 // NEW: Switch database endpoint
 app.post('/api/switch-database', isAuthenticated, (req, res) => {
+    safeSessionTouch(req);
     const { dbName } = req.body;
     const email = req.session.user.email;
 
@@ -422,6 +465,7 @@ app.post('/api/switch-database', isAuthenticated, (req, res) => {
 
 // ENHANCED: iOS session restoration with proper session handling
 app.post('/api/ios-restore-session', async (req, res) => {
+    safeSessionTouch(req);
     try {
         const { email, dbName, accessToken, sessionId } = req.body;
         
@@ -551,6 +595,7 @@ app.post('/api/ios-restore-session', async (req, res) => {
 
 // Enhanced session recovery endpoint
 app.post('/api/recover-session', async (req, res) => {
+    safeSessionTouch(req);
     try {
         const { email, dbName, accessToken } = req.body;
         
@@ -662,50 +707,75 @@ app.post('/api/recover-session', async (req, res) => {
     }
 });
 
-// SECURE authentication middleware with session verification
+// FIXED: Secure authentication middleware
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
-    // For iOS apps, also check for session ID in query params
+    // Only allow access with valid session user data
+    if (req.session?.user && req.session.user.dbName && req.session.user.email) {
+        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
+        
+        // Use safe session extension - don't call touch() if it doesn't exist
+        if (req.session.touch && typeof req.session.touch === 'function') {
+            req.session.touch();
+        } else {
+            // Manual session extension by updating maxAge
+            req.session.cookie.maxAge = req.session.cookie.originalMaxAge;
+        }
+        
+        return next();
+    }
+    
+    console.log('❌ Authentication FAILED - No valid user in session');
+    
+    // For iOS apps, try to load session from URL parameter as fallback
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
     const sessionIdFromUrl = req.query.sessionId;
     
-    if (isIOS && sessionIdFromUrl && (!req.session || !req.session.user)) {
-        console.log('📱 iOS - Attempting to load session from URL ID:', sessionIdFromUrl);
+    if (isIOS && sessionIdFromUrl && req.sessionStore) {
+        console.log('📱 iOS - Attempting session recovery from URL parameter');
         
-        // Try to load session from store
         req.sessionStore.get(sessionIdFromUrl, (err, sessionData) => {
             if (err) {
-                console.error('❌ Error loading iOS session from store:', err);
-                return sendAuthError(res, isIOS);
+                console.error('❌ Error loading iOS session from URL:', err);
+                return sendAuthError(res, isIOS, req);
             }
             
             if (sessionData && sessionData.user) {
-                console.log('✅ iOS session loaded from store successfully');
-                req.sessionID = sessionIdFromUrl;
-                req.session = sessionData;
-                req.session.touch();
-                return next();
+                console.log('✅ iOS session recovery successful');
+                
+                // Regenerate session with loaded data
+                req.session.regenerate((err) => {
+                    if (err) {
+                        console.error('❌ Error regenerating session during recovery:', err);
+                        return sendAuthError(res, isIOS, req);
+                    }
+                    
+                    Object.assign(req.session, sessionData);
+                    req.sessionID = sessionIdFromUrl;
+                    
+                    // Safe session extension
+                    if (req.session.touch && typeof req.session.touch === 'function') {
+                        req.session.touch();
+                    }
+                    
+                    return next();
+                });
             } else {
-                console.log('❌ No session data found for iOS session ID');
-                return sendAuthError(res, isIOS);
+                console.log('❌ No valid session data found for recovery');
+                sendAuthError(res, isIOS, req);
             }
         });
-    } else if (req.session?.user && req.session.user.dbName && req.session.user.email) {
-        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
-        req.session.touch();
-        return next();
     } else {
-        console.log('❌ Authentication FAILED - No valid user in session');
-        return sendAuthError(res, isIOS);
+        sendAuthError(res, isIOS, req);
     }
 }
 
-function sendAuthError(res, isIOS) {
+function sendAuthError(res, isIOS, req) {
     if (isIOS || req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
             success: false, 
@@ -786,6 +856,7 @@ app.get('/', (req, res) => {
 
 // Login route with proper session handling
 app.post('/submit', async (req, res) => {
+    safeSessionTouch(req);
     console.log('=== LOGIN ATTEMPT ===');
     const { email, password, dbName } = req.body;
 
@@ -1004,6 +1075,7 @@ app.get('/SupervisorApp.html', isAuthenticated, isSupervisor, (req, res) => {
 
 // Endpoint to get employees on shift today
 app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
+    safeSessionTouch(req);
     const dbName = req.session.user.dbName;
     if (!dbName) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
@@ -1122,6 +1194,7 @@ function getCurrentMonday() {
 
 // Function to get labor cost
 app.get('/api/labor-cost', isAuthenticated, (req, res) => {
+    safeSessionTouch(req);
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -1158,6 +1231,7 @@ app.get('/api/labor-cost', isAuthenticated, (req, res) => {
 
 // API routes
 app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
+    safeSessionTouch(req);
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -1209,6 +1283,7 @@ app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
 });
 
 app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
+    safeSessionTouch(req);
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
