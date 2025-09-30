@@ -129,7 +129,6 @@
         </form>
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
-
 <script>
     let databases = [];
     let currentUserData = null;
@@ -148,48 +147,69 @@
     init();
 
     async function init() {
-        // Clear any existing session data on init
-        localStorage.removeItem('pendingLogin');
-        
-        // Check for existing session first
-        const hasSession = await checkExistingSession();
-        
-        if (hasSession) {
-            console.log('Existing session found, skipping auto-login');
-            return;
-        }
-        
-        // Check biometric support
-        await checkBiometricSupport();
-        
-        // Try biometric auto-login if supported
-        if (biometricSupported) {
-            await tryBiometricAutoLogin();
-        }
-        
-        if (!isCapacitor) return;
-        
-        // Initialize push notifications for Capacitor
-        if (window.Capacitor?.Plugins?.PushNotifications) {
-            const { PushNotifications } = window.Capacitor.Plugins;
-            try {
-                const result = await PushNotifications.requestPermissions();
-                if (result.receive === 'granted') {
-                    await PushNotifications.register();
-                }
-                
-                PushNotifications.addListener('registration', async (token) => {
-                    console.log('Device token:', token.value);
-                    await savePushToken(token.value);
-                });
-            } catch (error) {
-                console.warn('Push notifications not available:', error);
+        try {
+            // Clear any existing session data on init
+            localStorage.removeItem('pendingLogin');
+            
+            // Check for existing session first
+            const hasSession = await checkExistingSession();
+            
+            if (hasSession) {
+                console.log('Existing session found, skipping auto-login');
+                return;
             }
+            
+            // Check biometric support with error handling
+            try {
+                await checkBiometricSupport();
+                
+                // Try biometric auto-login if supported
+                if (biometricSupported) {
+                    await tryBiometricAutoLogin();
+                }
+            } catch (bioError) {
+                console.warn('Biometric initialization failed:', bioError);
+                // Continue with normal login flow
+                biometricSupported = false;
+                document.getElementById('biometricSection').style.display = 'none';
+            }
+            
+            if (!isCapacitor) return;
+            
+            // Initialize push notifications for Capacitor
+            if (window.Capacitor?.Plugins?.PushNotifications) {
+                const { PushNotifications } = window.Capacitor.Plugins;
+                try {
+                    const result = await PushNotifications.requestPermissions();
+                    if (result.receive === 'granted') {
+                        await PushNotifications.register();
+                    }
+                    
+                    PushNotifications.addListener('registration', async (token) => {
+                        console.log('Device token:', token.value);
+                        await savePushToken(token.value);
+                    });
+                } catch (error) {
+                    console.warn('Push notifications not available:', error);
+                // Don't break the app if push notifications fail
+                biometricSupported = false;
+                    document.getElementById('biometricSection').style.display = 'none';
+                }
+            }
+        } catch (error) {
+            console.error('Initialization error:', error);
+            // Ensure app continues to work even if initialization fails
+            biometricSupported = false;
+            document.getElementById('biometricSection').style.display = 'none';
         }
     }
 
     // Check biometric support
     async function checkBiometricSupport() {
+        // Always hide biometric section by default
+        document.getElementById('biometricSection').style.display = 'none';
+        biometricSupported = false;
+
         if (!isCapacitor) {
             // Check for WebAuthn API support in browsers
             if (window.PublicKeyCredential) {
@@ -203,6 +223,12 @@
         }
 
         try {
+            // Check if Capacitor biometric plugin is available
+            if (!window.Capacitor?.Plugins?.BiometricAuth) {
+                console.log('❌ BiometricAuth plugin not available');
+                return;
+            }
+
             const { BiometricAuth } = window.Capacitor.Plugins;
             const available = await BiometricAuth.isAvailable();
             
@@ -231,6 +257,7 @@
             }
         } catch (error) {
             console.error('Error checking biometric support:', error);
+            throw error; // Re-throw to be handled by caller
         }
     }
 
@@ -309,6 +336,11 @@
                 // Web authentication fallback
                 await authenticateWithWebAuthn();
                 return;
+            }
+
+            // Check if plugin is available
+            if (!window.Capacitor?.Plugins?.BiometricAuth) {
+                throw new Error('Biometric authentication not available');
             }
 
             const { BiometricAuth } = window.Capacitor.Plugins;
@@ -474,6 +506,11 @@
     // Store credentials using Capacitor Biometric Auth
     async function storeBiometricCredentials(email, accessToken) {
         try {
+            if (!window.Capacitor?.Plugins?.BiometricAuth) {
+                console.warn('BiometricAuth plugin not available for storing credentials');
+                return;
+            }
+
             const { BiometricAuth } = window.Capacitor.Plugins;
             
             await BiometricAuth.setCredentials({
@@ -485,6 +522,7 @@
             console.log('✅ Biometric credentials stored successfully');
         } catch (error) {
             console.error('Error storing biometric credentials:', error);
+            // Don't throw error - this shouldn't break the login flow
         }
     }
 
