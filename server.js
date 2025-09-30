@@ -226,12 +226,6 @@ app.use((req, res, next) => {
             console.log('🚫 SECURITY: Blocked direct access to protected route:', req.path);
             return res.redirect('/');
         }
-        
-        // SECURITY: Remove any URL parameters from protected routes
-        if (Object.keys(req.query).length > 0) {
-            console.log('🔒 SECURITY: Stripping URL parameters from protected route');
-            return res.redirect(req.path); // Redirect to same path without parameters
-        }
     }
     
     next();
@@ -282,6 +276,14 @@ app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
 
+// NEW: Get current user info endpoint for frontend
+app.get('/api/current-user', isAuthenticated, (req, res) => {
+    res.json({
+        success: true,
+        user: req.session.user
+    });
+});
+
 // Session validation endpoint
 app.get('/api/validate-session', (req, res) => {
     console.log('=== VALIDATE SESSION ===');
@@ -303,6 +305,120 @@ app.get('/api/validate-session', (req, res) => {
             message: 'No active session'
         });
     }
+});
+
+// NEW: Get available databases for current user
+app.get('/api/user-databases', isAuthenticated, (req, res) => {
+    const email = req.session.user.email;
+    
+    const sql = `SELECT u.db_name, u.Access FROM users u WHERE u.Email = ?`;
+    
+    mainPool.query(sql, [email], (err, results) => {
+        if (err) {
+            console.error('Error querying user databases:', err);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Internal Server Error' 
+            });
+        }
+
+        const databases = results.map(row => ({
+            db_name: row.db_name,
+            access: row.Access
+        }));
+
+        res.json({
+            success: true,
+            databases: databases,
+            currentDb: req.session.user.dbName
+        });
+    });
+});
+
+// NEW: Switch database endpoint
+app.post('/api/switch-database', isAuthenticated, (req, res) => {
+    const { dbName } = req.body;
+    const email = req.session.user.email;
+
+    if (!dbName) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Database name is required' 
+        });
+    }
+
+    // Verify user has access to the requested database
+    const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
+    
+    mainPool.query(verifySql, [email, dbName], (err, results) => {
+        if (err) {
+            console.error('Error verifying database access:', err);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Internal Server Error' 
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'User not authorized for this database' 
+            });
+        }
+
+        const userDetails = results[0];
+        
+        // Get user info from the new company database
+        const companyPool = getPool(dbName);
+        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+        
+        companyPool.query(companySql, [email], (err, companyResults) => {
+            if (err) {
+                console.error('Error querying company database:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Internal Server Error' 
+                });
+            }
+
+            if (companyResults.length === 0) {
+                return res.status(404).json({ 
+                    success: false, 
+                    error: 'User not found in company database' 
+                });
+            }
+
+            const name = companyResults[0].name;
+            const lastName = companyResults[0].lastName;
+
+            // Update session with new database info
+            req.session.user = {
+                email: email,
+                role: userDetails.Access,
+                name: name,
+                lastName: lastName,
+                dbName: dbName,
+            };
+
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Error saving session after database switch:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        error: 'Failed to update session' 
+                    });
+                }
+
+                console.log('✅ Database switched successfully to:', dbName);
+
+                res.json({
+                    success: true,
+                    message: 'Database switched successfully',
+                    user: req.session.user
+                });
+            });
+        });
+    });
 });
 
 // Enhanced iOS session restoration
@@ -1121,9 +1237,6 @@ app.get('/logout', (req, res) => {
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax'
             });
-            
-            // Also clear any duplicate cookies
-            res.clearCookie('solura.session');
             
             console.log('✅ Logout successful for session:', sessionId);
             res.json({ success: true, message: 'Logged out successfully' });
