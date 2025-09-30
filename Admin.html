@@ -877,7 +877,7 @@ function setupEventListeners() {
     setupLogout();
 }
 
-// Initialize database switcher - UPDATED VERSION
+// Initialize database switcher - FIXED VERSION
 async function initializeDatabaseSwitcher() {
     console.log('🔄 Initializing database switcher...');
     
@@ -897,14 +897,14 @@ async function initializeDatabaseSwitcher() {
             const user = data.user;
             console.log('✅ User data loaded:', user);
             
-            // Update UI with user info
-            document.getElementById('userEmail').textContent = user.email;
-            document.getElementById('userName').textContent = `${user.name} ${user.lastName}`;
-            document.getElementById('userRole').textContent = user.role;
-            document.getElementById('currentDatabase').textContent = user.dbName;
+            // SAFELY update UI with user info - check if elements exist first
+            safeUpdateElement('userEmail', user.email);
+            safeUpdateElement('userName', `${user.name} ${user.lastName}`);
+            safeUpdateElement('userRole', user.role);
+            safeUpdateElement('currentDatabase', user.dbName);
             
             // Load available databases
-            await loadAvailableDatabases(user.email);
+            await loadAvailableDatabases();
             
         } else {
             throw new Error('No user data received');
@@ -912,14 +912,22 @@ async function initializeDatabaseSwitcher() {
         
     } catch (error) {
         console.error('❌ Error loading user data:', error);
-        document.getElementById('userEmail').textContent = 'Error loading user data';
-        // You might want to redirect to login if this fails
-        // window.location.href = '/';
+        safeUpdateElement('userEmail', 'Error loading user data');
+    }
+}
+
+// Safe element updater - won't crash if element doesn't exist
+function safeUpdateElement(elementId, text) {
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.textContent = text;
+    } else {
+        console.log(`ℹ️ Element #${elementId} not found, skipping update`);
     }
 }
 
 // Load available databases for the user
-async function loadAvailableDatabases(userEmail) {
+async function loadAvailableDatabases() {
     try {
         const response = await fetch('/api/user-databases', {
             credentials: 'include'
@@ -948,7 +956,7 @@ async function loadAvailableDatabases(userEmail) {
 function populateDatabaseDropdown(databases, currentDb) {
     const dbSelect = document.getElementById('databaseSelect');
     if (!dbSelect) {
-        console.error('❌ Database select element not found');
+        console.log('ℹ️ Database select element not found, skipping dropdown population');
         return;
     }
     
@@ -992,10 +1000,10 @@ async function switchDatabase(newDbName) {
             console.log('✅ Database switched successfully');
             showNotification(`Switched to ${newDbName}`, 'success');
             
-            // Update current database display
-            document.getElementById('currentDatabase').textContent = newDbName;
+            // Update current database display if element exists
+            safeUpdateElement('currentDatabase', newDbName);
             
-            // Reload page data
+            // Reload page data after a short delay
             setTimeout(() => {
                 location.reload();
             }, 1000);
@@ -1008,13 +1016,6 @@ async function switchDatabase(newDbName) {
         console.error('❌ Error switching database:', error);
         showNotification(error.message, 'error');
     }
-}
-
-// Show notification
-function showNotification(message, type = 'info') {
-    // You can implement your notification system here
-    console.log(`${type.toUpperCase()}: ${message}`);
-    alert(`${type.toUpperCase()}: ${message}`); // Simple alert for now
 }
 
 // Initialize when page loads
