@@ -84,6 +84,33 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(__dirname));
 
+// FIXED: Cookie cleanup middleware - remove duplicate cookies
+app.use((req, res, next) => {
+    if (req.headers.cookie) {
+        const cookies = req.headers.cookie.split(';');
+        const uniqueCookies = new Map();
+        
+        // Process cookies in reverse to keep the most recent one
+        for (let i = cookies.length - 1; i >= 0; i--) {
+            const cookie = cookies[i].trim();
+            const [name, value] = cookie.split('=');
+            if (name && value) {
+                if (!uniqueCookies.has(name)) {
+                    uniqueCookies.set(name, value);
+                }
+            }
+        }
+        
+        // Rebuild cookie header with unique cookies
+        const newCookieHeader = Array.from(uniqueCookies.entries())
+            .map(([name, value]) => `${name}=${value}`)
+            .join('; ');
+        
+        req.headers.cookie = newCookieHeader;
+    }
+    next();
+});
+
 // Session debugging middleware
 app.use((req, res, next) => {
     console.log('=== SESSION DEBUG ===');
@@ -116,17 +143,13 @@ const sessionStore = new MySQLStore({
     checkExpirationInterval: 900000,
     expiration: 86400000,
     clearExpired: true,
-    // CRITICAL: Add custom serialization
     serializer: {
         stringify: function(session) {
-            console.log('🔐 Stringifying session for storage:', session);
             return JSON.stringify(session);
         },
         parse: function(string) {
             try {
-                const session = JSON.parse(string);
-                console.log('🔐 Parsed session from storage:', session);
-                return session;
+                return JSON.parse(string);
             } catch (err) {
                 console.error('❌ Error parsing session:', err);
                 return {};
@@ -145,155 +168,74 @@ app.use(session({
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: 'lax', // Changed from 'none' for better security
+        sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000
     },
     rolling: true,
     proxy: true
 }));
 
-// CRITICAL FIX: Session ID synchronization middleware
+// FIXED: Enhanced iOS middleware - simplified and secure
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
     
     if (isIOS) {
-        // Store the original session ID for comparison
-        const originalSessionId = req.sessionID;
-        const urlSessionId = req.query.sessionId;
-        
-        // If URL session ID doesn't match actual session ID, we need to sync them
-        if (urlSessionId && urlSessionId !== originalSessionId) {
-            console.log('🔄 Session ID mismatch detected');
-            console.log('URL Session ID:', urlSessionId);
-            console.log('Actual Session ID:', originalSessionId);
-            
-            // Get the session data from the URL session ID
-            sessionStore.get(urlSessionId, (err, sessionData) => {
-                if (err) {
-                    console.error('❌ Error getting session data:', err);
-                    return next();
-                }
-                
-                if (sessionData) {
-                    console.log('✅ Found session data for URL session ID');
-                    
-                    // Copy session data to current session
-                    if (sessionData.user && req.session) {
-                        req.session.user = sessionData.user;
-                        console.log('🔄 Copied user data from URL session');
-                    }
-                    
-                    // Update the cookie to match URL session ID for consistency
-                    req.sessionID = urlSessionId;
-                    console.log('🔄 Synchronized session ID to URL session ID');
-                } else {
-                    console.log('❌ No session data found for URL session ID');
-                }
-                
-                next();
-            });
-        } else {
-            next();
-        }
-    } else {
-        next();
-    }
-});
-
-// Enhanced iOS middleware with session synchronization
-app.use((req, res, next) => {
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
-    
-    // Store original session methods
-    const originalSave = req.session?.save;
-    
-    if (req.session && isIOS) {
-        // Override save to ensure data persistence and sync session IDs
-        req.session.save = function(callback) {
-            console.log('💾 FORCING session save for iOS');
-            
-            // Ensure session ID consistency
-            const urlSessionId = req.query.sessionId;
-            if (urlSessionId && urlSessionId !== this.id) {
-                console.log('🔄 Updating session ID to match URL:', urlSessionId);
-                this.id = urlSessionId;
-            }
-            
-            return originalSave.call(this, (err) => {
-                if (err) {
-                    console.error('❌ Session save error:', err);
-                } else {
-                    console.log('✅ Session saved successfully with ID:', this.id);
-                }
-                if (callback) callback(err);
-            });
-        };
-    }
-    
-    // Handle cookie-less iOS requests
-    if ((!req.headers.cookie || req.headers.cookie === 'undefined') && isIOS) {
-        console.log('📱 iOS detected without cookies');
-        
+        // Handle session ID from URL for iOS (secure way)
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
         
-        if (sessionIdFromUrl) {
-            console.log('🔄 Using session ID from URL:', sessionIdFromUrl);
-            req.headers.cookie = `solura.session=${sessionIdFromUrl}`;
-            
-            // Also set the session ID directly
-            if (req.session) {
-                req.sessionID = sessionIdFromUrl;
-            }
-        } else if (sessionIdFromHeader) {
-            console.log('🔄 Using session ID from header:', sessionIdFromHeader);
-            req.headers.cookie = `solura.session=${sessionIdFromHeader}`;
-            
-            if (req.session) {
-                req.sessionID = sessionIdFromHeader;
-            }
+        if (sessionIdFromUrl && req.session) {
+            console.log('📱 iOS - Using session ID from URL:', sessionIdFromUrl);
+            req.sessionID = sessionIdFromUrl;
+        } else if (sessionIdFromHeader && req.session) {
+            console.log('📱 iOS - Using session ID from header:', sessionIdFromHeader);
+            req.sessionID = sessionIdFromHeader;
+        }
+        
+        // Enhanced session save for iOS
+        if (req.session) {
+            const originalSave = req.session.save;
+            req.session.save = function(callback) {
+                console.log('💾 iOS - Ensuring session persistence');
+                return originalSave.call(this, (err) => {
+                    if (err) {
+                        console.error('❌ iOS Session save error:', err);
+                    } else {
+                        console.log('✅ iOS Session saved with ID:', this.id);
+                    }
+                    if (callback) callback(err);
+                });
+            };
         }
     }
     next();
 });
 
-// CRITICAL SECURITY FIX: REMOVED the vulnerable session repair middleware
-// This was creating sessions from URL parameters - MAJOR SECURITY HOLE
-// app.use((req, res, next) => {
-//     if (req.session && !req.session.user && req.sessionID) {
-//         console.log('🛠️ Session has no user data, attempting repair...');
-//         
-//         // Try to restore user data from URL parameters - SECURITY VULNERABILITY!
-//         const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
-//         const email = urlParams.get('email');
-//         const dbName = urlParams.get('dbName');
-//         const name = urlParams.get('name');
-//         const lastName = urlParams.get('lastName');
-//         
-//         if (email && dbName) {
-//             console.log('🔧 Restoring user data from URL parameters');
-//             req.session.user = {
-//                 email: email,
-//                 dbName: dbName,
-//                 name: name || '',
-//                 lastName: lastName || '',
-//                 role: 'user' // Default role, will be updated if needed
-//             };
-//             
-//             // Don't wait for save to complete, just continue
-//             req.session.save((err) => {
-//                 if (err) {
-//                     console.error('❌ Failed to repair session:', err);
-//                 } else {
-//                     console.log('✅ Session repaired successfully');
-//                 }
-//             });
-//         }
-//     }
-//     next();
-// });
+// SECURITY: Block direct access to protected HTML files without session
+app.use((req, res, next) => {
+    const protectedRoutes = [
+        '/Admin.html', '/AdminApp.html',
+        '/User.html', '/UserApp.html', 
+        '/Supervisor.html', '/SupervisorApp.html'
+    ];
+    
+    // Check if this is a direct access to protected route
+    if (protectedRoutes.includes(req.path)) {
+        if (!req.session?.user) {
+            console.log('🚫 SECURITY: Blocked direct access to protected route:', req.path);
+            return res.redirect('/');
+        }
+        
+        // SECURITY: Remove any URL parameters from protected routes
+        if (Object.keys(req.query).length > 0) {
+            console.log('🔒 SECURITY: Stripping URL parameters from protected route');
+            return res.redirect(req.path); // Redirect to same path without parameters
+        }
+    }
+    
+    next();
+});
 
 // Add CORS headers manually
 app.use((req, res, next) => {
@@ -312,7 +254,58 @@ app.use((req, res, next) => {
     next();
 });
 
-// Enhanced iOS session restoration with session ID synchronization
+// Routes
+app.use('/rota', newRota);
+app.use('/rota2', newRota2);
+app.use('/confirmpassword', confirmpassword);
+app.use('/token', token);
+app.use('/Backend', Backend);
+app.use('/generate', generate);
+app.use('/updateinfo', updateinfo);
+app.use('/ForgotPassword', ForgotPassword);
+app.use('/userholidays', userholidays);
+app.use('/hours', hours);
+app.use('/labor', labor);
+app.use('/pastpayslips', pastpayslips);
+app.use('/request', request);
+app.use('/tip', tip);
+app.use('/pastemployees', pastemployees);
+app.use('/TotalHolidays', TotalHolidays);
+app.use('/UserCrota', UserCrota);
+app.use('/UserHoliday', UserHolidays);
+app.use('/confirmrota', confirmrota);
+app.use('/confirmrota2', confirmrota2);
+app.use('/profile', profile);
+app.use('/UserTotalHours', UserTotalHours);
+app.use('/insertpayslip', insertpayslip);
+app.use('/modify', modify);
+app.use('/endday', endday);
+app.use('/financialsummary', financialsummary);
+
+// Session validation endpoint
+app.get('/api/validate-session', (req, res) => {
+    console.log('=== VALIDATE SESSION ===');
+    console.log('Session ID:', req.sessionID);
+    console.log('Session User:', req.session?.user);
+    
+    if (req.session?.user) {
+        // Update session to extend expiration
+        req.session.touch();
+        res.json({ 
+            valid: true, 
+            user: req.session.user,
+            sessionId: req.sessionID 
+        });
+    } else {
+        console.log('Session validation failed - no user in session');
+        res.status(401).json({ 
+            valid: false,
+            message: 'No active session'
+        });
+    }
+});
+
+// Enhanced iOS session restoration
 app.post('/api/ios-restore-session', async (req, res) => {
     try {
         const { email, dbName, accessToken, sessionId } = req.body;
@@ -381,34 +374,23 @@ app.post('/api/ios-restore-session', async (req, res) => {
                     });
                 }
 
-                const name = companyResults[0].name;
-                const lastName = companyResults[0].lastName;
-
                 const userInfo = {
                     email: email,
                     role: userDetails.Access,
-                    name: name,
-                    lastName: lastName,
+                    name: companyResults[0].name,
+                    lastName: companyResults[0].lastName,
                     dbName: dbName,
                 };
 
                 console.log('✅ iOS session restoration successful for user:', userInfo);
 
-                // Use provided session ID if available, otherwise use current session ID
-                const targetSessionId = sessionId || req.sessionID;
-                
-                console.log('🎯 Target session ID for restoration:', targetSessionId);
+                // Use provided session ID if available
+                if (sessionId && req.session) {
+                    req.sessionID = sessionId;
+                }
                 
                 // Set user data
-                if (req.session) {
-                    req.session.user = userInfo;
-                    
-                    // Ensure session ID matches the target
-                    if (sessionId && sessionId !== req.sessionID) {
-                        console.log('🔄 Updating session ID to match provided ID');
-                        req.sessionID = sessionId;
-                    }
-                }
+                req.session.user = userInfo;
                 
                 // Force immediate save with verification
                 req.session.save((err) => {
@@ -422,13 +404,10 @@ app.post('/api/ios-restore-session', async (req, res) => {
 
                     console.log('✅ iOS session saved with ID:', req.sessionID);
                     
-                    // Return the actual session ID that was used
-                    const finalSessionId = req.sessionID;
-                    
                     res.json({ 
                         success: true, 
                         user: userInfo,
-                        sessionId: finalSessionId,
+                        sessionId: req.sessionID,
                         accessToken: accessToken
                     });
                 });
@@ -440,66 +419,6 @@ app.post('/api/ios-restore-session', async (req, res) => {
         res.status(500).json({ 
             success: false, 
             error: error.message 
-        });
-    }
-});
-
-// Test session store connection
-sessionStore.on('connected', () => {
-    console.log('✅ Session store connected to database');
-});
-
-sessionStore.on('error', (error) => {
-    console.error('❌ Session store error:', error);
-});
-
-// Routes
-app.use('/rota', newRota);
-app.use('/rota2', newRota2);
-app.use('/confirmpassword', confirmpassword);
-app.use('/token', token);
-app.use('/Backend', Backend);
-app.use('/generate', generate);
-app.use('/updateinfo', updateinfo);
-app.use('/ForgotPassword', ForgotPassword);
-app.use('/userholidays', userholidays);
-app.use('/hours', hours);
-app.use('/labor', labor);
-app.use('/pastpayslips', pastpayslips);
-app.use('/request', request);
-app.use('/tip', tip);
-app.use('/pastemployees', pastemployees);
-app.use('/TotalHolidays', TotalHolidays);
-app.use('/UserCrota', UserCrota);
-app.use('/UserHoliday', UserHolidays);
-app.use('/confirmrota', confirmrota);
-app.use('/confirmrota2', confirmrota2);
-app.use('/profile', profile);
-app.use('/UserTotalHours', UserTotalHours);
-app.use('/insertpayslip', insertpayslip);
-app.use('/modify', modify);
-app.use('/endday', endday);
-app.use('/financialsummary', financialsummary);
-
-// Session validation endpoint
-app.get('/api/validate-session', (req, res) => {
-    console.log('=== VALIDATE SESSION ===');
-    console.log('Session ID:', req.sessionID);
-    console.log('Session User:', req.session?.user);
-    
-    if (req.session?.user) {
-        // Update session to extend expiration
-        req.session.touch();
-        res.json({ 
-            valid: true, 
-            user: req.session.user,
-            sessionId: req.sessionID 
-        });
-    } else {
-        console.log('Session validation failed - no user in session');
-        res.status(401).json({ 
-            valid: false,
-            message: 'No active session'
         });
     }
 });
@@ -575,14 +494,11 @@ app.post('/api/recover-session', async (req, res) => {
                     });
                 }
 
-                const name = companyResults[0].name;
-                const lastName = companyResults[0].lastName;
-
                 const userInfo = {
                     email: email,
                     role: userDetails.Access,
-                    name: name,
-                    lastName: lastName,
+                    name: companyResults[0].name,
+                    lastName: companyResults[0].lastName,
                     dbName: dbName,
                 };
 
@@ -635,8 +551,6 @@ function isAuthenticated(req, res, next) {
     }
     
     console.log('❌ Authentication FAILED - No valid user in session');
-    
-    // SECURITY: No URL parameter bypass - users must have proper session
     
     if (req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
@@ -842,18 +756,18 @@ app.post('/submit', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
-                const queryString = `?name=${encodeURIComponent(name)}&lastName=${encodeURIComponent(lastName)}&email=${encodeURIComponent(email)}&dbName=${encodeURIComponent(userDetails.db_name)}`;
+                // SECURITY FIX: Remove URL parameters from redirect URLs
                 const userAgent = req.headers['user-agent'] || '';
                 const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
 
                 let redirectUrl = '';
 
                 if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    redirectUrl = isMobileDevice ? `/AdminApp.html${queryString}` : `/Admin.html${queryString}`;
+                    redirectUrl = isMobileDevice ? '/AdminApp.html' : '/Admin.html';
                 } else if (userDetails.access === 'user') {
-                    redirectUrl = isMobileDevice ? `/UserApp.html${queryString}` : `/User.html${queryString}`;
+                    redirectUrl = isMobileDevice ? '/UserApp.html' : '/User.html';
                 } else if (userDetails.access === 'supervisor') {
-                    redirectUrl = isMobileDevice ? `/SupervisorApp.html${queryString}` : `/Supervisor.html${queryString}`;
+                    redirectUrl = isMobileDevice ? '/SupervisorApp.html' : '/Supervisor.html';
                 } else {
                     return res.status(401).json({ 
                         success: false,
@@ -876,12 +790,11 @@ app.post('/submit', async (req, res) => {
                     res.json({
                         success: true,
                         message: 'Login successful',
-                        redirectUrl: redirectUrl,
+                        redirectUrl: redirectUrl, // No URL parameters
                         user: userInfo,
                         accessToken: authToken,
                         refreshToken: refreshToken,
-                        sessionId: req.sessionID,
-                        localStorageUser: userInfo
+                        sessionId: req.sessionID
                     });
                 });
             });
@@ -910,7 +823,7 @@ function generateToken(user) {
     );
 }
 
-// Protected routes
+// Protected routes - NO URL PARAMETERS ALLOWED
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
@@ -1191,15 +1104,28 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     }
 });
 
-// Route to handle logout
+// Route to handle logout - IMPROVED with better cookie cleanup
 app.get('/logout', (req, res) => {
     if (req.session) {
+        const sessionId = req.sessionID;
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to destroy session:', err);
                 return res.status(500).json({ error: 'Failed to logout' });
             }
+            
+            // Clear the cookie with proper settings
+            res.clearCookie('solura.session', {
+                path: '/',
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax'
+            });
+            
+            // Also clear any duplicate cookies
             res.clearCookie('solura.session');
+            
+            console.log('✅ Logout successful for session:', sessionId);
             res.json({ success: true, message: 'Logged out successfully' });
         });
     } else {
@@ -1218,6 +1144,15 @@ app.get('*', (req, res) => {
     } else {
         res.redirect('/');
     }
+});
+
+// Test session store connection
+sessionStore.on('connected', () => {
+    console.log('✅ Session store connected to database');
+});
+
+sessionStore.on('error', (error) => {
+    console.error('❌ Session store error:', error);
 });
 
 app.listen(port, () => {
