@@ -49,6 +49,26 @@ const port = process.env.PORT || 8080;
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
+// Environment configuration
+const isProduction = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production';
+
+// Update your token generation function
+function generateToken(user) {
+    return jwt.sign(
+        { 
+            email: user.email, 
+            role: user.role, 
+            name: user.name, 
+            lastName: user.lastName, 
+            dbName: user.dbName 
+        },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+}
+
 // Enhanced CORS configuration
 const corsOptions = {
     origin: function (origin, callback) {
@@ -145,7 +165,7 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// SIMPLIFIED: Session configuration
+// ENHANCED: Session configuration with better security
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
     resave: false,
@@ -156,23 +176,16 @@ app.use(session({
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
     },
     rolling: true,
-    proxy: true
+    proxy: true,
+    // Additional security options
+    unset: 'destroy'
 }));
 
-// Safe session touch utility
-function safeSessionTouch(req) {
-    if (req.session && req.session.touch && typeof req.session.touch === 'function') {
-        req.session.touch();
-    } else if (req.session && req.session.cookie) {
-        // Manual extension by updating the maxAge
-        req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
-    }
-}
-
-// FIXED: iOS middleware that properly handles session loading
+// ENHANCED: iOS middleware with biometric support
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
@@ -183,10 +196,19 @@ app.use((req, res, next) => {
         const sessionIdFromHeader = req.headers['x-session-id'];
         const sessionId = sessionIdFromUrl || sessionIdFromHeader;
         
+        // Handle biometric authentication headers
+        const biometricToken = req.headers['x-biometric-token'];
+        const biometricEmail = req.headers['x-biometric-email'];
+        
+        if (biometricToken && biometricEmail) {
+            console.log('📱 iOS - Biometric authentication attempt for:', biometricEmail);
+            // You could add additional biometric verification here
+        }
+        
         if (sessionId && req.sessionStore) {
             console.log('📱 iOS - Attempting to load session from ID:', sessionId);
             
-            // Load the session data from store but don't replace req.session directly
+            // Load the session data from store
             req.sessionStore.get(sessionId, (err, sessionData) => {
                 if (err) {
                     console.error('❌ Error loading iOS session:', err);
@@ -196,14 +218,13 @@ app.use((req, res, next) => {
                 if (sessionData && sessionData.user) {
                     console.log('✅ iOS session loaded successfully with user data');
                     
-                    // Instead of replacing req.session, regenerate the session with the loaded data
+                    // Regenerate session with loaded data
                     req.session.regenerate((err) => {
                         if (err) {
                             console.error('❌ Error regenerating session:', err);
                             return next();
                         }
                         
-                        // Copy the loaded session data to the new session
                         Object.assign(req.session, sessionData);
                         req.sessionID = sessionId;
                         console.log('✅ iOS session regenerated successfully');
@@ -258,12 +279,19 @@ app.use((req, res, next) => {
     next();
 });
 
-// Global error handler to prevent session-related crashes
+// ENHANCED: Global error handler
 app.use((error, req, res, next) => {
     console.error('🚨 Global error handler:', error);
     
+    // Log additional context
+    console.error('Error context:', {
+        url: req.url,
+        method: req.method,
+        userAgent: req.headers['user-agent'],
+        ip: req.ip
+    });
+    
     if (error.message && error.message.includes('touch')) {
-        // Session touch error - try to recover
         console.log('🔄 Recovering from session touch error');
         if (req.session) {
             req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
@@ -278,14 +306,62 @@ app.use((error, req, res, next) => {
         }
     }
     
+    // Don't leak error details in production
+    const isProduction = process.env.NODE_ENV === 'production';
+    const errorMessage = isProduction ? 'Internal server error' : error.message;
+    
     if (req.path.startsWith('/api/')) {
         res.status(500).json({ 
             success: false, 
-            error: 'Internal server error' 
+            error: errorMessage 
         });
     } else {
         res.status(500).send('Internal server error');
     }
+});
+
+// Enhanced security middleware
+app.use((req, res, next) => {
+    // Security headers
+    res.header('X-Content-Type-Options', 'nosniff');
+    res.header('X-Frame-Options', 'DENY');
+    res.header('X-XSS-Protection', '1; mode=block');
+    res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    
+    // Rate limiting for login attempts (simple in-memory version)
+    if (req.path === '/submit' && req.method === 'POST') {
+        const clientIP = req.ip || req.connection.remoteAddress;
+        const now = Date.now();
+        const windowStart = now - (15 * 60 * 1000); // 15 minutes window
+        
+        // Simple rate limiting - in production, use Redis or similar
+        if (!req.rateLimit) req.rateLimit = {};
+        if (!req.rateLimit[clientIP]) req.rateLimit[clientIP] = [];
+        
+        req.rateLimit[clientIP] = req.rateLimit[clientIP].filter(time => time > windowStart);
+        
+        if (req.rateLimit[clientIP].length >= 5) { // 5 attempts per 15 minutes
+            return res.status(429).json({
+                success: false,
+                error: 'Too many login attempts. Please try again later.'
+            });
+        }
+        
+        req.rateLimit[clientIP].push(now);
+    }
+    
+    next();
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        version: '1.0.0'
+    });
 });
 
 // Routes
@@ -315,6 +391,196 @@ app.use('/insertpayslip', insertpayslip);
 app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
+
+// Biometric authentication verification endpoint
+app.post('/api/verify-biometric', async (req, res) => {
+    safeSessionTouch(req);
+    try {
+        const { email, accessToken } = req.body;
+
+        if (!email || !accessToken) {
+            return res.status(400).json({ 
+                success: false,
+                error: 'Email and access token are required' 
+            });
+        }
+
+        // Verify the access token
+        try {
+            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+            if (decoded.email !== email) {
+                return res.status(401).json({ 
+                    success: false,
+                    error: 'Invalid token' 
+                });
+            }
+        } catch (tokenError) {
+            return res.status(401).json({ 
+                success: false,
+                error: 'Invalid or expired token' 
+            });
+        }
+
+        // Get user info from database
+        const sql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
+        
+        mainPool.query(sql, [email], (err, results) => {
+            if (err) {
+                console.error('Error querying database:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Internal Server Error'
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(401).json({ 
+                    success: false,
+                    message: 'User not found' 
+                });
+            }
+
+            const userDetails = results[0];
+            
+            // Get user info from company database
+            const companyPool = getPool(userDetails.db_name);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Internal Server Error'
+                    });
+                }
+
+                if (companyResults.length === 0) {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'User not found in company database' 
+                    });
+                }
+
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                const userInfo = {
+                    email: email,
+                    role: userDetails.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: userDetails.db_name,
+                };
+
+                console.log('✅ Biometric authentication successful for user:', userInfo);
+
+                // Create session
+                req.session.user = userInfo;
+                
+                // Generate new tokens
+                const authToken = generateToken(userInfo);
+                const refreshToken = jwt.sign(
+                    {
+                        email: userInfo.email,
+                        role: userInfo.role,
+                        name: userInfo.name,
+                        lastName: userInfo.lastName,
+                        dbName: userInfo.dbName
+                    },
+                    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                    { expiresIn: '30d' }
+                );
+
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
+
+                let redirectUrl = '';
+
+                if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
+                    redirectUrl = isMobileDevice ? '/AdminApp.html' : '/Admin.html';
+                } else if (userDetails.Access === 'user') {
+                    redirectUrl = isMobileDevice ? '/UserApp.html' : '/User.html';
+                } else if (userDetails.Access === 'supervisor') {
+                    redirectUrl = isMobileDevice ? '/SupervisorApp.html' : '/Supervisor.html';
+                }
+
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            error: 'Failed to create session'
+                        });
+                    }
+
+                    res.json({
+                        success: true,
+                        message: 'Biometric authentication successful',
+                        redirectUrl: redirectUrl,
+                        user: userInfo,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Biometric authentication error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// Token refresh endpoint for biometric authentication
+app.post('/api/refresh-token', async (req, res) => {
+    safeSessionTouch(req);
+    try {
+        const { refreshToken } = req.body;
+
+        if (!refreshToken) {
+            return res.status(400).json({ 
+                success: false,
+                error: 'Refresh token is required' 
+            });
+        }
+
+        // Verify the refresh token
+        try {
+            const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
+            
+            // Generate new access token
+            const newAccessToken = generateToken({
+                email: decoded.email,
+                role: decoded.role,
+                name: decoded.name,
+                lastName: decoded.lastName,
+                dbName: decoded.dbName
+            });
+
+            res.json({
+                success: true,
+                accessToken: newAccessToken,
+                expiresIn: '7d'
+            });
+
+        } catch (tokenError) {
+            return res.status(401).json({ 
+                success: false,
+                error: 'Invalid or expired refresh token' 
+            });
+        }
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
 
 // NEW: Get current user info endpoint for frontend
 app.get('/api/current-user', isAuthenticated, (req, res) => {

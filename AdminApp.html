@@ -511,16 +511,13 @@
         <button class="mobile-menu-btn" id="menuToggle">
             <i class="fas fa-bars"></i>
         </button>
-        <!-- Add this to your mobile menu -->
-        <div class="mobile-nav-section">
-            <div class="mobile-nav-title">Database</div>
-            <div class="database-switcher">
-                <select id="databaseSelect" class="database-select" onchange="switchDatabase(this.value)">
-                    <option value="">Select Database...</option>
-                    <!-- Options will be populated by JavaScript -->
-                </select>
-            </div>
-        </div>
+        <!-- Database Switcher - Add to your header/navigation -->
+<div id="databaseSwitcher" style="display: inline-block; margin-left: 15px;">
+    <select id="databaseSelect" onchange="switchDatabase(this.value)" 
+            style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+        <option value="">Loading databases...</option>
+    </select>
+</div>
     </header>
     
     <!-- Mobile Menu -->
@@ -1075,7 +1072,7 @@
         console.log('✅ Database switcher populated with', databases.length, 'databases');
     }
 
-    // ENHANCED: Switch database function with session maintenance
+    // Switch database function
     async function switchDatabase(newDbName) {
         if (!newDbName || !currentUser) return;
         
@@ -1099,23 +1096,13 @@
             
             if (data.success) {
                 console.log('✅ Database switched successfully');
-                
-                // Update current user with new data
                 currentUser = data.user;
                 localStorage.setItem('userInfo', JSON.stringify(data.user));
-                
-                // Update session ID if provided (should be the same)
-                if (data.sessionId && data.sessionId !== sessionId) {
-                    sessionId = data.sessionId;
-                    localStorage.setItem('sessionId', data.sessionId);
-                    console.log('🔄 Session ID updated:', sessionId);
-                }
                 
                 // Show success message and reload
                 showNotification('Database switched successfully', 'success');
                 setTimeout(() => {
-                    // Use navigateTo to maintain session
-                    navigateTo('AdminApp.html');
+                    location.reload();
                 }, 1000);
                 
             } else {
@@ -1124,10 +1111,10 @@
             
         } catch (error) {
             console.error('❌ Error switching database:', error);
-            showNotification('Error switching database: ' + error.message, 'error');
+            showNotification('Error switching database', 'error');
         }
     }
-        
+
     // Show notification
     function showNotification(message, type = 'info') {
         // Create notification element if it doesn't exist
