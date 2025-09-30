@@ -17,12 +17,6 @@
             --dark-gray: #333;
             --white: #ffffff;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-
-            /* iOS safe area variables */
-            --safe-area-top: env(safe-area-inset-top, 0px);
-            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-            --safe-area-left: env(safe-area-inset-left, 0px);
-            --safe-area-right: env(safe-area-inset-right, 0px);
         }
         
         * {
@@ -39,25 +33,37 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            /* NO body padding - let individual elements handle safe areas */
+            /* Critical: Use constant() for older iOS and env() for newer */
+            padding-top: constant(safe-area-inset-top); /* iOS 11.0 */
+            padding-top: env(safe-area-inset-top); /* iOS 11.2+ */
+            padding-bottom: constant(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: constant(safe-area-inset-left);
+            padding-left: env(safe-area-inset-left);
+            padding-right: constant(safe-area-inset-right);
+            padding-right: env(safe-area-inset-right);
         }
         
-        /* Mobile Header - starts below notch */
+        /* Mobile Header - Fixed positioning to avoid notch */
         .mobile-header {
             background-color: var(--white);
             padding: 1rem;
             box-shadow: var(--shadow);
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
             z-index: 100;
             display: flex;
             justify-content: space-between;
             align-items: center;
-
-            /* Safe area padding only for top */
-            padding-top: calc(1rem + var(--safe-area-top));
-            padding-left: calc(1rem + var(--safe-area-left));
-            padding-right: calc(1rem + var(--safe-area-right));
+            /* Critical: Add safe area padding to top */
+            padding-top: calc(1rem + constant(safe-area-inset-top));
+            padding-top: calc(1rem + env(safe-area-inset-top));
+            padding-left: calc(1rem + constant(safe-area-inset-left));
+            padding-left: calc(1rem + env(safe-area-inset-left));
+            padding-right: calc(1rem + constant(safe-area-inset-right));
+            padding-right: calc(1rem + env(safe-area-inset-right));
         }
         
         .mobile-title {
@@ -78,63 +84,19 @@
             padding: 0.25rem;
         }
 
-        /* Mobile Menu */
-        .mobile-menu {
-            position: fixed;
-            top: 0;
-            left: -100%;
-            width: 85%;
-            height: 100%;
-            background: var(--white);
-            z-index: 1000;
-            transition: left 0.3s ease;
-            overflow-y: auto;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-
-            /* Safe area padding */
-            padding-top: var(--safe-area-top);
-            padding-bottom: var(--safe-area-bottom);
-            padding-left: var(--safe-area-left);
-            padding-right: var(--safe-area-right);
-        }
-
-        .mobile-menu.active {
-            left: 0;
-        }
-
-        .menu-header {
-            padding: 1.5rem 1rem;
-            background: var(--primary-color);
-            color: white;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-
-            /* Respect notch space */
-            padding-top: calc(1.5rem + var(--safe-area-top));
-            padding-left: calc(1rem + var(--safe-area-left));
-            padding-right: calc(1rem + var(--safe-area-right));
-        }
-
-        .close-menu {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 1.5rem;
-            cursor: pointer;
-        }
-
-        /* Main Content Area - Safe area aware */
+        /* Main Content Area - Add margin top to account for fixed header */
         .mobile-content {
             flex: 1;
             padding: 1rem;
             overflow-y: auto;
-            
-            /* Safe area padding */
-            padding-top: calc(1rem + var(--safe-area-top));
-            padding-bottom: calc(1rem + var(--safe-area-bottom));
-            padding-left: calc(1rem + var(--safe-area-left));
-            padding-right: calc(1rem + var(--safe-area-right));
+            margin-top: calc(4rem + constant(safe-area-inset-top)); /* header height + safe area */
+            margin-top: calc(4rem + env(safe-area-inset-top));
+            margin-bottom: constant(safe-area-inset-bottom);
+            margin-bottom: env(safe-area-inset-bottom);
+            padding-left: calc(1rem + constant(safe-area-inset-left));
+            padding-left: calc(1rem + env(safe-area-inset-left));
+            padding-right: calc(1rem + constant(safe-area-inset-right));
+            padding-right: calc(1rem + env(safe-area-inset-right));
         }
 
         .content-header {
@@ -309,131 +271,59 @@
             color: #616161;
         }
         
-        /* Footer - Safe area adjusted */
+        /* Footer */
         .mobile-footer {
             background: var(--primary-color);
             color: var(--white);
             padding: 1rem;
             text-align: center;
             font-size: 0.8rem;
-            
-            /* Safe area for home indicator and sides */
-            padding-bottom: calc(1rem + var(--safe-area-bottom));
-            padding-left: calc(1rem + var(--safe-area-left));
-            padding-right: calc(1rem + var(--safe-area-right));
+            /* Safe area for home indicator */
+            padding-bottom: calc(1rem + constant(safe-area-inset-bottom));
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
         }
-        
-        /* Modal - Safe area adjusted */
-        .mobile-modal {
-            display: none;
+
+        /* Mobile Menu - Fixed positioning */
+        .mobile-menu {
             position: fixed;
             top: 0;
-            left: 0;
-            width: 100%;
+            left: -100%;
+            width: 85%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background: var(--white);
             z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            
+            transition: left 0.3s ease;
+            overflow-y: auto;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
             /* Safe area padding */
-            padding: calc(1rem + var(--safe-area-top)) 
-                     calc(1rem + var(--safe-area-right)) 
-                     calc(1rem + var(--safe-area-bottom)) 
-                     calc(1rem + var(--safe-area-left));
+            padding-top: constant(safe-area-inset-top);
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: constant(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom);
         }
-        
-        .mobile-modal-content {
-            background: white;
-            border-radius: 8px;
-            width: 100%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+
+        .mobile-menu.active {
+            left: 0;
         }
-        
-        .modal-header {
+
+        .menu-header {
+            padding: 1.5rem 1rem;
+            background: var(--primary-color);
+            color: white;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
-            border-bottom: 1px solid #eee;
-            background: #f8f9fa;
+            /* Safe area padding */
+            padding-top: calc(1.5rem + constant(safe-area-inset-top));
+            padding-top: calc(1.5rem + env(safe-area-inset-top));
         }
-        
-        .modal-title {
-            margin: 0;
-            font-size: 1.1rem;
-            color: #004f9e;
-        }
-        
-        .close-modal {
+
+        .close-menu {
             background: none;
             border: none;
+            color: white;
             font-size: 1.5rem;
             cursor: pointer;
-            color: #666;
-        }
-        
-        .modal-body {
-            padding: 1rem;
-        }
-        
-        .report-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            margin-bottom: 0.5rem;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
-        
-        .report-info {
-            flex: 1;
-        }
-        
-        .report-name {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-        
-        .report-desc {
-            font-size: 0.8rem;
-            color: #666;
-        }
-        
-        .report-button {
-            padding: 0.5rem 0.75rem;
-            background: #007acc;
-            color: white;
-            border-radius: 4px;
-            text-decoration: none;
-            font-size: 0.9rem;
-            white-space: nowrap;
-        }
-        
-        /* Overlay for menu - Full screen with safe areas */
-        .menu-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 999;
-            
-            /* Safe area padding */
-            padding: var(--safe-area-top) 
-                     var(--safe-area-right) 
-                     var(--safe-area-bottom) 
-                     var(--safe-area-left);
-        }
-        
-        .menu-overlay.active {
-            display: block;
         }
 
         .mobile-nav {
@@ -492,6 +382,79 @@
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
         }
 
+        /* Modal */
+        .mobile-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            /* Safe area padding */
+            padding-top: calc(1rem + constant(safe-area-inset-top));
+            padding-top: calc(1rem + env(safe-area-inset-top));
+            padding-bottom: calc(1rem + constant(safe-area-inset-bottom));
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+        }
+        
+        .mobile-modal-content {
+            background: white;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow: auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+        }
+        
+        .modal-title {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #004f9e;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-body {
+            padding: 1rem;
+        }
+
+        /* Overlay for menu */
+        .menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        
+        .menu-overlay.active {
+            display: block;
+        }
+
         /* Loading and Error States */
         .loading-state {
             text-align: center;
@@ -521,38 +484,20 @@
             margin-top: 1rem;
         }
 
-        /* iPhone X and later specific adjustments */
-        @media only screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3),
-               only screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3),
-               only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2),
-               only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3),
-               only screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) {
-            .mobile-header {
-                padding-top: calc(1rem + 88px); /* Status bar height */
+        /* Fallback for older browsers */
+        @supports not (padding: env(safe-area-inset-top)) {
+            body {
+                padding-top: 20px;
+                padding-bottom: 20px;
             }
             
-            .menu-header {
-                padding-top: calc(1.5rem + 44px);
+            .mobile-header {
+                padding-top: 1rem;
             }
             
             .mobile-content {
-                padding-top: calc(1rem + 44px);
-                padding-bottom: calc(1rem + 34px); /* Home indicator */
+                margin-top: 4rem;
             }
-            
-            .mobile-footer {
-                padding-bottom: calc(1rem + 34px);
-            }
-            
-            .mobile-modal {
-                padding-top: calc(1rem + 44px);
-                padding-bottom: calc(1rem + 34px);
-            }
-        }
-
-        /* Ensure viewport covers entire screen */
-        @viewport {
-            viewport-fit: cover;
         }
     </style>
 </head>
@@ -836,6 +781,27 @@
     let accessToken = null;
     let isIOSApp = false;
     let availableDatabases = [];
+    // Add this to your JavaScript to detect and apply safe areas
+    document.addEventListener('DOMContentLoaded', function() {
+        // Detect if we're on an iOS device with a notch
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const hasNotch = isIOS && (window.screen.height >= 812 || window.screen.width >= 812);
+        
+        if (hasNotch) {
+            document.body.style.paddingTop = '44px';
+            document.body.style.paddingBottom = '34px';
+            
+            const header = document.querySelector('.mobile-header');
+            if (header) {
+                header.style.paddingTop = 'calc(1rem + 44px)';
+            }
+            
+            const content = document.querySelector('.mobile-content');
+            if (content) {
+                content.style.marginTop = 'calc(4rem + 44px)';
+            }
+        }
+    });
 
     // Initialize the application
     document.addEventListener('DOMContentLoaded', async function() {
