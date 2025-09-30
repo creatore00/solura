@@ -376,9 +376,8 @@ app.get('/api/user-databases', isAuthenticated, (req, res) => {
     });
 });
 
-// NEW: Switch database endpoint
-app.post('/api/switch-database', isAuthenticated, (req, res) => {
-    safeSessionTouch(req);
+// FIXED: Switch database endpoint with proper session handling
+app.post('/api/switch-database', isAuthenticated, async (req, res) => {
     const { dbName } = req.body;
     const email = req.session.user.email;
 
@@ -389,78 +388,94 @@ app.post('/api/switch-database', isAuthenticated, (req, res) => {
         });
     }
 
-    // Verify user has access to the requested database
-    const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
-    
-    mainPool.query(verifySql, [email, dbName], (err, results) => {
-        if (err) {
-            console.error('Error verifying database access:', err);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Internal Server Error' 
-            });
-        }
-
-        if (results.length === 0) {
-            return res.status(403).json({ 
-                success: false, 
-                error: 'User not authorized for this database' 
-            });
-        }
-
-        const userDetails = results[0];
+    try {
+        // Verify user has access to the requested database
+        const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
-        // Get user info from the new company database
-        const companyPool = getPool(dbName);
-        const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-        
-        companyPool.query(companySql, [email], (err, companyResults) => {
+        mainPool.query(verifySql, [email, dbName], (err, results) => {
             if (err) {
-                console.error('Error querying company database:', err);
+                console.error('Error verifying database access:', err);
                 return res.status(500).json({ 
                     success: false, 
                     error: 'Internal Server Error' 
                 });
             }
 
-            if (companyResults.length === 0) {
-                return res.status(404).json({ 
+            if (results.length === 0) {
+                return res.status(403).json({ 
                     success: false, 
-                    error: 'User not found in company database' 
+                    error: 'User not authorized for this database' 
                 });
             }
 
-            const name = companyResults[0].name;
-            const lastName = companyResults[0].lastName;
-
-            // Update session with new database info
-            req.session.user = {
-                email: email,
-                role: userDetails.Access,
-                name: name,
-                lastName: lastName,
-                dbName: dbName,
-            };
-
-            req.session.save((err) => {
+            const userDetails = results[0];
+            
+            // Get user info from the new company database
+            const companyPool = getPool(dbName);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+            
+            companyPool.query(companySql, [email], (err, companyResults) => {
                 if (err) {
-                    console.error('Error saving session after database switch:', err);
+                    console.error('Error querying company database:', err);
                     return res.status(500).json({ 
                         success: false, 
-                        error: 'Failed to update session' 
+                        error: 'Internal Server Error' 
                     });
                 }
 
-                console.log('✅ Database switched successfully to:', dbName);
+                if (companyResults.length === 0) {
+                    return res.status(404).json({ 
+                        success: false, 
+                        error: 'User not found in company database' 
+                    });
+                }
 
-                res.json({
-                    success: true,
-                    message: 'Database switched successfully',
-                    user: req.session.user
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                // Store the current session ID before updating
+                const oldSessionId = req.sessionID;
+                
+                // Update session with new database info - KEEP THE SAME SESSION
+                req.session.user = {
+                    email: email,
+                    role: userDetails.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+
+                console.log('🔄 Database switching - Updated session user:', req.session.user);
+
+                // Save session and maintain the same session ID
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session after database switch:', err);
+                        return res.status(500).json({ 
+                            success: false, 
+                            error: 'Failed to update session' 
+                        });
+                    }
+
+                    console.log('✅ Database switched successfully to:', dbName);
+                    console.log('🔄 Session maintained with ID:', req.sessionID);
+
+                    res.json({
+                        success: true,
+                        message: 'Database switched successfully',
+                        user: req.session.user,
+                        sessionId: req.sessionID // Return the same session ID
+                    });
                 });
             });
         });
-    });
+    } catch (error) {
+        console.error('Database switch error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
 });
 
 // ENHANCED: iOS session restoration with proper session handling
