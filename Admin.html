@@ -877,96 +877,151 @@ function setupEventListeners() {
     setupLogout();
 }
 
-// Database switcher functionality
+// Initialize database switcher - UPDATED VERSION
 async function initializeDatabaseSwitcher() {
+    console.log('🔄 Initializing database switcher...');
+    
     try {
-        // Get user session info from URL or localStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        let userEmail = urlParams.get('email');
+        // Get current user info from API
+        const response = await fetch('/api/current-user', {
+            credentials: 'include'
+        });
         
-        if (!userEmail) {
-            const storedUser = localStorage.getItem('userData');
-            if (storedUser) {
-                userEmail = JSON.parse(storedUser).email;
-            }
+        if (!response.ok) {
+            throw new Error('Failed to get user data');
         }
         
-        if (!userEmail) {
-            console.error('No user email found');
-            return;
+        const data = await response.json();
+        
+        if (data.success && data.user) {
+            const user = data.user;
+            console.log('✅ User data loaded:', user);
+            
+            // Update UI with user info
+            document.getElementById('userEmail').textContent = user.email;
+            document.getElementById('userName').textContent = `${user.name} ${user.lastName}`;
+            document.getElementById('userRole').textContent = user.role;
+            document.getElementById('currentDatabase').textContent = user.dbName;
+            
+            // Load available databases
+            await loadAvailableDatabases(user.email);
+            
+        } else {
+            throw new Error('No user data received');
         }
         
-        const response = await authenticatedFetch('/getUserDatabases', {
+    } catch (error) {
+        console.error('❌ Error loading user data:', error);
+        document.getElementById('userEmail').textContent = 'Error loading user data';
+        // You might want to redirect to login if this fails
+        // window.location.href = '/';
+    }
+}
+
+// Load available databases for the user
+async function loadAvailableDatabases(userEmail) {
+    try {
+        const response = await fetch('/api/user-databases', {
+            credentials: 'include'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load databases');
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('📊 Available databases:', data.databases);
+            populateDatabaseDropdown(data.databases, data.currentDb);
+        } else {
+            throw new Error(data.error || 'Failed to load databases');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading databases:', error);
+        showNotification('Error loading databases', 'error');
+    }
+}
+
+// Populate database dropdown
+function populateDatabaseDropdown(databases, currentDb) {
+    const dbSelect = document.getElementById('databaseSelect');
+    if (!dbSelect) {
+        console.error('❌ Database select element not found');
+        return;
+    }
+    
+    // Clear existing options
+    dbSelect.innerHTML = '';
+    
+    // Add databases to dropdown
+    databases.forEach(db => {
+        const option = document.createElement('option');
+        option.value = db.db_name;
+        option.textContent = db.db_name;
+        option.selected = db.db_name === currentDb;
+        dbSelect.appendChild(option);
+    });
+    
+    console.log('✅ Database dropdown populated with', databases.length, 'databases');
+}
+
+// Switch database function
+async function switchDatabase(newDbName) {
+    if (!newDbName) {
+        console.error('❌ No database selected');
+        return;
+    }
+    
+    try {
+        console.log('🔄 Switching to database:', newDbName);
+        
+        const response = await fetch('/api/switch-database', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email: userEmail })
+            credentials: 'include',
+            body: JSON.stringify({ dbName: newDbName })
         });
         
         const data = await response.json();
         
-        if (data.databases && data.databases.length > 1) {
-            // User has multiple databases - show the switcher
-            const dbSelector = document.getElementById('dbSelector');
-            const switchBtn = document.getElementById('switchDbBtn');
-            const currentDbDisplay = document.getElementById('currentDbDisplay');
+        if (data.success) {
+            console.log('✅ Database switched successfully');
+            showNotification(`Switched to ${newDbName}`, 'success');
             
-            // Set current database display
-            currentDbDisplay.textContent = `Current Database: ${data.currentDb}`;
+            // Update current database display
+            document.getElementById('currentDatabase').textContent = newDbName;
             
-            // Populate dropdown
-            data.databases.forEach(db => {
-                const option = document.createElement('option');
-                option.value = db.db_name;
-                option.textContent = db.db_name;
-                if (db.db_name === data.currentDb) {
-                    option.selected = true;
-                }
-                dbSelector.appendChild(option);
-            });
+            // Reload page data
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
             
-            // Show controls
-            dbSelector.style.display = 'inline-block';
-            switchBtn.style.display = 'inline-block';
-            
-            // Handle switch
-            switchBtn.addEventListener('click', async function() {
-                const selectedDb = dbSelector.value;
-                if (selectedDb !== data.currentDb) {
-                    try {
-                        const switchResponse = await authenticatedFetch('/switchDatabase', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ 
-                                email: userEmail,
-                                dbName: selectedDb
-                            })
-                        });
-                        
-                        const result = await switchResponse.json();
-                        if (result.success) {
-                            // Reload the page with the new database
-                            window.location.reload();
-                        } else {
-                            alert('Failed to switch database: ' + (result.message || 'Unknown error'));
-                        }
-                    } catch (error) {
-                        console.error('Error switching database:', error);
-                        alert('Error switching database');
-                    }
-                }
-            });
-        } else if (data.databases && data.databases.length === 1) {
-            // User only has one database - just display it
-            document.getElementById('currentDbDisplay').textContent = `Current Database: ${data.databases[0].db_name}`;
+        } else {
+            throw new Error(data.error || 'Failed to switch database');
         }
+        
     } catch (error) {
-        console.error('Error fetching user databases:', error);
+        console.error('❌ Error switching database:', error);
+        showNotification(error.message, 'error');
     }
 }
+
+// Show notification
+function showNotification(message, type = 'info') {
+    // You can implement your notification system here
+    console.log(`${type.toUpperCase()}: ${message}`);
+    alert(`${type.toUpperCase()}: ${message}`); // Simple alert for now
+}
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Admin page loaded, initializing...');
+    initializeDatabaseSwitcher();
+});
 
 // Function to check for pending requests
 async function checkPendingRequests() {
