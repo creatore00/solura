@@ -165,26 +165,20 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// ENHANCED: Session configuration with better security
+// FIX: Simplify cookie/session handling
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Set to false for development
         httpOnly: true,
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
-    },
-    rolling: true,
-    proxy: true,
-    // Additional security options
-    unset: 'destroy'
+        maxAge: 24 * 60 * 60 * 1000,
+    }
 }));
-
 // Safe session touch utility - MOVED BEFORE ITS USAGE
 function safeSessionTouch(req) {
     if (req.session && req.session.touch && typeof req.session.touch === 'function') {
