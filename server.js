@@ -100,51 +100,7 @@ app.use(cors(corsOptions));
 // Handle preflight requests
 app.options('*', cors(corsOptions));
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static(__dirname));
-
-// FIXED: Cookie cleanup middleware - remove duplicate cookies
-app.use((req, res, next) => {
-    if (req.headers.cookie) {
-        const cookies = req.headers.cookie.split(';');
-        const uniqueCookies = new Map();
-        
-        // Process cookies in reverse to keep the most recent one
-        for (let i = cookies.length - 1; i >= 0; i--) {
-            const cookie = cookies[i].trim();
-            const [name, value] = cookie.split('=');
-            if (name && value) {
-                if (!uniqueCookies.has(name)) {
-                    uniqueCookies.set(name, value);
-                }
-            }
-        }
-        
-        // Rebuild cookie header with unique cookies
-        const newCookieHeader = Array.from(uniqueCookies.entries())
-            .map(([name, value]) => `${name}=${value}`)
-            .join('; ');
-        
-        req.headers.cookie = newCookieHeader;
-    }
-    next();
-});
-
-// Session debugging middleware
-app.use((req, res, next) => {
-    console.log('=== SESSION DEBUG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    console.log('Cookies:', req.headers.cookie);
-    console.log('=== END DEBUG ===');
-    next();
-});
-
-// FIXED: Enhanced MySQL session store with proper serialization
+// FIXED: Session configuration should come FIRST
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
     port: 3306,
@@ -165,20 +121,41 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// FIX: Simplify cookie/session handling
+// Session middleware should be early in the pipeline
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'fallback-secret-key',
+    secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
     resave: false,
     saveUninitialized: false,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // Set to false for development
+        secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
-    }
+        domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
+    },
+    rolling: true,
+    proxy: true
 }));
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static(__dirname));
+
+// Session debugging middleware
+app.use((req, res, next) => {
+    console.log('=== SESSION DEBUG ===');
+    console.log('URL:', req.url);
+    console.log('Method:', req.method);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    console.log('Cookies:', req.headers.cookie);
+    console.log('=== END DEBUG ===');
+    next();
+});
+
 // Safe session touch utility - MOVED BEFORE ITS USAGE
 function safeSessionTouch(req) {
     if (req.session && req.session.touch && typeof req.session.touch === 'function') {
