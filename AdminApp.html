@@ -775,14 +775,6 @@
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Mobile App: Initializing...');
         
-        // FIRST: Check if we have valid session before anything else
-        const hasValidSession = await checkInitialAuthentication();
-        if (!hasValidSession) {
-            console.log('❌ No valid session found, redirecting to login');
-            redirectToLogin();
-            return;
-        }
-        
         // Detect if this is an iOS app (added to home screen)
         isIOSApp = window.navigator.standalone || 
                   (window.matchMedia('(display-mode: standalone)').matches) ||
@@ -795,12 +787,69 @@
         sessionId = urlParams.get('sessionId') || localStorage.getItem('sessionId');
         accessToken = localStorage.getItem('accessToken');
         
+        // For iOS Apps, be more lenient with initial authentication
+        if (isIOSApp) {
+            console.log('📱 iOS App - Using relaxed authentication check');
+            await initializeIOSApp();
+        } else {
+            // Regular browsers use strict authentication
+            const hasValidSession = await checkInitialAuthentication();
+            if (!hasValidSession) {
+                console.log('❌ No valid session found, redirecting to login');
+                redirectToLogin();
+                return;
+            }
+        }
+        
         // Setup UI components first
         initializeUI();
         
         // Validate session and load data
         await initializeSession();
     });
+
+    // Special initialization for iOS Apps
+    async function initializeIOSApp() {
+        console.log('📱 iOS App initialization...');
+        
+        // Try to get user from multiple sources
+        const urlParams = new URLSearchParams(window.location.search);
+        const storedUser = localStorage.getItem('userInfo');
+        
+        // Method 1: Check URL parameters (from login redirect)
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        
+        if (name && lastName && email && dbName) {
+            console.log('📱 Found user data in URL parameters');
+            currentUser = {
+                email: email,
+                name: name,
+                lastName: lastName,
+                dbName: dbName
+            };
+            localStorage.setItem('userInfo', JSON.stringify(currentUser));
+            localStorage.setItem('lastDb', dbName);
+            return;
+        }
+        
+        // Method 2: Check localStorage
+        if (storedUser) {
+            console.log('📱 Found stored user data');
+            currentUser = JSON.parse(storedUser);
+            return;
+        }
+        
+        // Method 3: Try to validate session
+        console.log('📱 No immediate user data, trying session validation...');
+        const isValid = await validateIOSSession();
+        if (!isValid) {
+            console.log('📱 iOS App session validation failed');
+            // Don't redirect immediately - let the session initialization handle it
+        }
+    }
 
     // CRITICAL: Check initial authentication before loading page
     async function checkInitialAuthentication() {
@@ -835,7 +884,13 @@
             console.log('🔄 Trying stored user data...');
             currentUser = JSON.parse(storedUser);
             
-            // Verify stored user is still valid
+            // For iOS Apps, don't validate stored user immediately
+            if (isIOSApp) {
+                console.log('📱 iOS App - Using stored user without immediate validation');
+                return true;
+            }
+            
+            // Verify stored user is still valid (for regular browsers)
             const isValid = await validateStoredUser();
             if (isValid) {
                 return true;
@@ -992,7 +1047,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                    'Accept': 'application/json'
                 },
                 credentials: 'include',
                 body: JSON.stringify({ 
@@ -1093,8 +1148,6 @@
     async function validateIOSSession() {
         try {
             console.log('📱 Validating iOS App session...');
-            
-            // Try multiple authentication methods for iOS App
             
             // Method 1: Try with access token
             if (accessToken) {
