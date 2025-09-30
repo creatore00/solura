@@ -138,7 +138,41 @@ app.use(session({
     rolling: true,
     proxy: true
 }));
-
+// Session recovery middleware
+app.use((req, res, next) => {
+    // If session exists in cookie but req.session is undefined, try to load it
+    if (req.headers.cookie && req.headers.cookie.includes('solura.session') && !req.session) {
+        console.log('🔄 Attempting to recover session from cookie');
+        
+        // Parse the session ID from cookie
+        const sessionCookie = req.headers.cookie.split(';')
+            .find(c => c.trim().startsWith('solura.session='));
+            
+        if (sessionCookie) {
+            const sessionId = sessionCookie.split('=')[1];
+            console.log('🔍 Found session ID in cookie:', sessionId);
+            
+            // Try to load session from store
+            req.sessionStore.get(sessionId, (err, sessionData) => {
+                if (err) {
+                    console.error('❌ Error loading session from store:', err);
+                    return next();
+                }
+                
+                if (sessionData) {
+                    console.log('✅ Successfully loaded session from store');
+                    req.sessionID = sessionId;
+                    req.session = sessionData;
+                }
+                next();
+            });
+        } else {
+            next();
+        }
+    } else {
+        next();
+    }
+});
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(__dirname));
