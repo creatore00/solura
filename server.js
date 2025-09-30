@@ -138,14 +138,14 @@ const sessionStore = new MySQLStore({
 // Enhanced session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
-    resave: false, // Changed back to false to prevent overwrites
+    resave: false,
     saveUninitialized: false,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: 'none',
+        sameSite: 'lax', // Changed from 'none' for better security
         maxAge: 24 * 60 * 60 * 1000
     },
     rolling: true,
@@ -314,18 +314,32 @@ app.use((req, res, next) => {
 // Enhanced iOS session restoration with session ID synchronization
 app.post('/api/ios-restore-session', async (req, res) => {
     try {
-        const { email, dbName, accessToken, sessionId } = req.body;
+        const { email, dbName, accessToken } = req.body;
         
-        console.log('📱 iOS App session restoration for:', { email, dbName, sessionId });
-        
-        if (!email || !dbName) {
+        if (!email || !dbName || !accessToken) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Missing email or dbName' 
+                error: 'Missing required parameters' 
             });
         }
 
-        // Verify user access
+        // Verify the access token first
+        try {
+            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+            if (decoded.email !== email || decoded.dbName !== dbName) {
+                return res.status(401).json({ 
+                    success: false, 
+                    error: 'Invalid token' 
+                });
+            }
+        } catch (tokenError) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Invalid or expired token' 
+            });
+        }
+
+        // Then proceed with user verification (your existing code)
         const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
         mainPool.query(verifySql, [email, dbName], (err, results) => {
@@ -596,7 +610,8 @@ function isAuthenticated(req, res, next) {
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
-    if (req.session?.user && req.session.user.dbName) {
+    // Only allow access with valid session user data
+    if (req.session?.user && req.session.user.dbName && req.session.user.email) {
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
         req.session.touch();
         return next();
@@ -604,27 +619,7 @@ function isAuthenticated(req, res, next) {
     
     console.log('❌ Authentication FAILED - No valid user in session');
     
-    // For iOS apps, allow temporary access with URL parameters
-    const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
-    const email = urlParams.get('email');
-    const dbName = urlParams.get('dbName');
-    
-    if (email && dbName && (req.headers['user-agent']?.includes('iPhone') || req.headers['user-agent']?.includes('iPad'))) {
-        console.log('📱 iOS app detected with URL parameters, allowing temporary access');
-        
-        // Create temporary session data
-        if (req.session) {
-            req.session.user = {
-                email: email,
-                dbName: dbName,
-                name: urlParams.get('name') || '',
-                lastName: urlParams.get('lastName') || '',
-                role: 'user' // Temporary role
-            };
-        }
-        
-        return next();
-    }
+    // REMOVED: The iOS URL parameter bypass - this is the security hole
     
     if (req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
@@ -704,7 +699,18 @@ app.get('/', (req, res) => {
 });
 
 // Login route - COMPLETELY REWRITTEN with proper session handling
-app.post('/submit', async (req, res) => {
+app.post('/submit', [
+    body('email').isEmail().normalizeEmail(),
+    body('password').isLength({ min: 1 }),
+    body('dbName').optional().isAlphanumeric()
+], async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ 
+            success: false, 
+            errors: errors.array() 
+        });
+    }
     console.log('=== LOGIN ATTEMPT ===');
     const { email, password, dbName } = req.body;
 
