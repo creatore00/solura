@@ -39,11 +39,7 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            /* Safe area padding for notch devices */
-            padding-top: var(--safe-area-top);
-            padding-bottom: var(--safe-area-bottom);
-            padding-left: var(--safe-area-left);
-            padding-right: var(--safe-area-right);
+            /* NO body padding - let individual elements handle safe areas */
         }
         
         /* Mobile Header - starts below notch */
@@ -58,11 +54,13 @@
             justify-content: space-between;
             align-items: center;
 
-            /* No negative margin anymore */
+            /* Safe area padding only for top */
             padding-top: calc(1rem + var(--safe-area-top));
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
         }
         
-       .mobile-title {
+        .mobile-title {
             font-size: 1.25rem;
             font-weight: 700;
             color: var(--primary-color);
@@ -114,6 +112,8 @@
 
             /* Respect notch space */
             padding-top: calc(1.5rem + var(--safe-area-top));
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
         }
 
         .close-menu {
@@ -124,91 +124,19 @@
             cursor: pointer;
         }
 
-        /* Content area - below header and notch */
+        /* Main Content Area - Safe area aware */
         .mobile-content {
             flex: 1;
             padding: 1rem;
             overflow-y: auto;
+            
+            /* Safe area padding */
             padding-top: calc(1rem + var(--safe-area-top));
             padding-bottom: calc(1rem + var(--safe-area-bottom));
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
         }
 
-        /* Footer - safe area aware */
-        .mobile-footer {
-            background: var(--primary-color);
-            color: var(--white);
-            padding: 1rem;
-            text-align: center;
-            font-size: 0.8rem;
-            padding-bottom: calc(1rem + var(--safe-area-bottom));
-        }
-        
-        .mobile-nav {
-            padding: 1rem 0;
-        }
-        
-        .mobile-nav-section {
-            margin-bottom: 1rem;
-        }
-        
-        .mobile-nav-title {
-            padding: 0.75rem 1rem;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--primary-color);
-            font-weight: 600;
-            background: rgba(0, 122, 204, 0.1);
-        }
-        
-        .mobile-nav-link {
-            display: flex;
-            align-items: center;
-            padding: 1rem 1.5rem;
-            color: var(--dark-gray);
-            text-decoration: none;
-            border-bottom: 1px solid #eee;
-            gap: 0.75rem;
-        }
-        
-        .mobile-nav-link i {
-            width: 24px;
-            text-align: center;
-            font-size: 1.1rem;
-        }
-        
-        .mobile-nav-link.active {
-            background-color: rgba(0, 122, 204, 0.1);
-            color: var(--primary-color);
-            border-left: 3px solid var(--primary-color);
-        }
-        
-        .notification-badge {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background-color: #ff0000;
-            border-radius: 50%;
-            margin-left: auto;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(255, 0, 0, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
-        }
-        
-        /* Main Content - Safe area adjusted */
-        .mobile-content {
-            flex: 1;
-            padding: 1rem;
-            overflow-y: auto;
-            /* Ensure content doesn't go under the notch */
-            padding-top: calc(1rem + var(--safe-area-top));
-            padding-bottom: calc(1rem + var(--safe-area-bottom));
-        }
-        
         .content-header {
             display: flex;
             justify-content: space-between;
@@ -388,8 +316,11 @@
             padding: 1rem;
             text-align: center;
             font-size: 0.8rem;
-            /* Safe area for home indicator */
+            
+            /* Safe area for home indicator and sides */
             padding-bottom: calc(1rem + var(--safe-area-bottom));
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
         }
         
         /* Modal - Safe area adjusted */
@@ -404,12 +335,12 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            padding: 1rem;
+            
             /* Safe area padding */
-            padding-top: calc(1rem + var(--safe-area-top));
-            padding-bottom: calc(1rem + var(--safe-area-bottom));
-            padding-left: calc(1rem + var(--safe-area-left));
-            padding-right: calc(1rem + var(--safe-area-right));
+            padding: calc(1rem + var(--safe-area-top)) 
+                     calc(1rem + var(--safe-area-right)) 
+                     calc(1rem + var(--safe-area-bottom)) 
+                     calc(1rem + var(--safe-area-left));
         }
         
         .mobile-modal-content {
@@ -493,15 +424,72 @@
             height: 100%;
             background: rgba(0,0,0,0.5);
             z-index: 999;
+            
             /* Safe area padding */
-            padding-top: var(--safe-area-top);
-            padding-bottom: var(--safe-area-bottom);
-            padding-left: var(--safe-area-left);
-            padding-right: var(--safe-area-right);
+            padding: var(--safe-area-top) 
+                     var(--safe-area-right) 
+                     var(--safe-area-bottom) 
+                     var(--safe-area-left);
         }
         
         .menu-overlay.active {
             display: block;
+        }
+
+        .mobile-nav {
+            padding: 1rem 0;
+        }
+        
+        .mobile-nav-section {
+            margin-bottom: 1rem;
+        }
+        
+        .mobile-nav-title {
+            padding: 0.75rem 1rem;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary-color);
+            font-weight: 600;
+            background: rgba(0, 122, 204, 0.1);
+        }
+        
+        .mobile-nav-link {
+            display: flex;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            color: var(--dark-gray);
+            text-decoration: none;
+            border-bottom: 1px solid #eee;
+            gap: 0.75rem;
+        }
+        
+        .mobile-nav-link i {
+            width: 24px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+        
+        .mobile-nav-link.active {
+            background-color: rgba(0, 122, 204, 0.1);
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .notification-badge {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            margin-left: auto;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(255, 0, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
         }
 
         /* Loading and Error States */
@@ -533,44 +521,38 @@
             margin-top: 1rem;
         }
 
-        /* Additional viewport meta tag for iOS PWA */
-        @supports (padding: max(0px)) {
-            .mobile-content,
-            .mobile-footer,
-            .mobile-modal {
-                padding-left: max(1rem, var(--safe-area-left));
-                padding-right: max(1rem, var(--safe-area-right));
-            }
-        }
-
         /* iPhone X and later specific adjustments */
         @media only screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3),
                only screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3),
                only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2),
                only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3),
                only screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) {
-            body {
-                padding-top: 44px; /* Standard iOS status bar height */
-                padding-bottom: 34px; /* Home indicator area */
-            }
-            
             .mobile-header {
-                margin-top: -44px;
+                padding-top: calc(1rem + 44px); /* Status bar height */
             }
             
             .menu-header {
-                margin-top: -44px;
                 padding-top: calc(1.5rem + 44px);
             }
             
             .mobile-content {
                 padding-top: calc(1rem + 44px);
-                padding-bottom: calc(1rem + 34px);
+                padding-bottom: calc(1rem + 34px); /* Home indicator */
             }
             
             .mobile-footer {
                 padding-bottom: calc(1rem + 34px);
             }
+            
+            .mobile-modal {
+                padding-top: calc(1rem + 44px);
+                padding-bottom: calc(1rem + 34px);
+            }
+        }
+
+        /* Ensure viewport covers entire screen */
+        @viewport {
+            viewport-fit: cover;
         }
     </style>
 </head>
