@@ -100,7 +100,51 @@ app.use(cors(corsOptions));
 // Handle preflight requests
 app.options('*', cors(corsOptions));
 
-// FIXED: Session configuration should come FIRST
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.static(__dirname));
+
+// FIXED: Cookie cleanup middleware - remove duplicate cookies
+app.use((req, res, next) => {
+    if (req.headers.cookie) {
+        const cookies = req.headers.cookie.split(';');
+        const uniqueCookies = new Map();
+        
+        // Process cookies in reverse to keep the most recent one
+        for (let i = cookies.length - 1; i >= 0; i--) {
+            const cookie = cookies[i].trim();
+            const [name, value] = cookie.split('=');
+            if (name && value) {
+                if (!uniqueCookies.has(name)) {
+                    uniqueCookies.set(name, value);
+                }
+            }
+        }
+        
+        // Rebuild cookie header with unique cookies
+        const newCookieHeader = Array.from(uniqueCookies.entries())
+            .map(([name, value]) => `${name}=${value}`)
+            .join('; ');
+        
+        req.headers.cookie = newCookieHeader;
+    }
+    next();
+});
+
+// Session debugging middleware
+app.use((req, res, next) => {
+    console.log('=== SESSION DEBUG ===');
+    console.log('URL:', req.url);
+    console.log('Method:', req.method);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    console.log('Cookies:', req.headers.cookie);
+    console.log('=== END DEBUG ===');
+    next();
+});
+
+// FIXED: Enhanced MySQL session store with proper serialization
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
     port: 3306,
@@ -121,7 +165,7 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// Session middleware should be early in the pipeline
+// ENHANCED: Session configuration with better security
 app.use(session({
     secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production-2024',
     resave: false,
@@ -132,63 +176,14 @@ app.use(session({
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
         domain: process.env.NODE_ENV === 'production' ? '.solura.uk' : undefined
     },
     rolling: true,
-    proxy: true
+    proxy: true,
+    // Additional security options
+    unset: 'destroy'
 }));
-// Session recovery middleware
-app.use((req, res, next) => {
-    // If session exists in cookie but req.session is undefined, try to load it
-    if (req.headers.cookie && req.headers.cookie.includes('solura.session') && !req.session) {
-        console.log('🔄 Attempting to recover session from cookie');
-        
-        // Parse the session ID from cookie
-        const sessionCookie = req.headers.cookie.split(';')
-            .find(c => c.trim().startsWith('solura.session='));
-            
-        if (sessionCookie) {
-            const sessionId = sessionCookie.split('=')[1];
-            console.log('🔍 Found session ID in cookie:', sessionId);
-            
-            // Try to load session from store
-            req.sessionStore.get(sessionId, (err, sessionData) => {
-                if (err) {
-                    console.error('❌ Error loading session from store:', err);
-                    return next();
-                }
-                
-                if (sessionData) {
-                    console.log('✅ Successfully loaded session from store');
-                    req.sessionID = sessionId;
-                    req.session = sessionData;
-                }
-                next();
-            });
-        } else {
-            next();
-        }
-    } else {
-        next();
-    }
-});
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(express.static(__dirname));
-
-// Session debugging middleware
-app.use((req, res, next) => {
-    console.log('=== SESSION DEBUG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    console.log('Cookies:', req.headers.cookie);
-    console.log('=== END DEBUG ===');
-    next();
-});
 
 // Safe session touch utility - MOVED BEFORE ITS USAGE
 function safeSessionTouch(req) {
