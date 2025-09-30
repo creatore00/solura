@@ -17,12 +17,6 @@
             --dark-gray: #333;
             --white: #ffffff;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-
-            /* iOS safe area variables with fallbacks */
-            --safe-area-top: env(safe-area-inset-top, constant(safe-area-inset-top, 0px));
-            --safe-area-bottom: env(safe-area-inset-bottom, constant(safe-area-inset-bottom, 0px));
-            --safe-area-left: env(safe-area-inset-left, constant(safe-area-inset-left, 0px));
-            --safe-area-right: env(safe-area-inset-right, constant(safe-area-inset-right, 0px));
         }
         
         * {
@@ -39,27 +33,37 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            /* Safe area padding */
-            padding-top: var(--safe-area-top);
-            padding-bottom: var(--safe-area-bottom);
-            padding-left: var(--safe-area-left);
-            padding-right: var(--safe-area-right);
+            /* Critical: Use constant() for older iOS and env() for newer */
+            padding-top: constant(safe-area-inset-top); /* iOS 11.0 */
+            padding-top: env(safe-area-inset-top); /* iOS 11.2+ */
+            padding-bottom: constant(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: constant(safe-area-inset-left);
+            padding-left: env(safe-area-inset-left);
+            padding-right: constant(safe-area-inset-right);
+            padding-right: env(safe-area-inset-right);
         }
         
-        /* Mobile Header - Fixed below notch */
+        /* Mobile Header - Fixed positioning to avoid notch */
         .mobile-header {
             background-color: var(--white);
             padding: 1rem;
             box-shadow: var(--shadow);
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
+            right: 0;
             z-index: 100;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            /* Safe area margin to push below notch */
-            margin-top: calc(-1 * var(--safe-area-top));
-            padding-top: calc(1rem + var(--safe-area-top));
+            /* Critical: Add safe area padding to top */
+            padding-top: calc(1rem + constant(safe-area-inset-top));
+            padding-top: calc(1rem + env(safe-area-inset-top));
+            padding-left: calc(1rem + constant(safe-area-inset-left));
+            padding-left: calc(1rem + env(safe-area-inset-left));
+            padding-right: calc(1rem + constant(safe-area-inset-right));
+            padding-right: calc(1rem + env(safe-area-inset-right));
         }
         
         .mobile-title {
@@ -80,7 +84,206 @@
             padding: 0.25rem;
         }
 
-        /* Mobile Menu - Full safe area coverage */
+        /* Main Content Area - Add margin top to account for fixed header */
+        .mobile-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            margin-top: calc(4rem + constant(safe-area-inset-top)); /* header height + safe area */
+            margin-top: calc(4rem + env(safe-area-inset-top));
+            margin-bottom: constant(safe-area-inset-bottom);
+            margin-bottom: env(safe-area-inset-bottom);
+            padding-left: calc(1rem + constant(safe-area-inset-left));
+            padding-left: calc(1rem + env(safe-area-inset-left));
+            padding-right: calc(1rem + constant(safe-area-inset-right));
+            padding-right: calc(1rem + env(safe-area-inset-right));
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .content-title {
+            font-size: 1.25rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .date-display {
+            font-size: 0.9rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* Dashboard Widgets */
+        .mobile-dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mobile-widget {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .widget-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .widget-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--dark-gray);
+            margin: 0.25rem 0;
+        }
+        
+        .widget-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: #666;
+        }
+        
+        /* Quick Actions */
+        .quick-actions-title {
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+        
+        .mobile-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mobile-action {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            color: var(--dark-gray);
+            transition: transform 0.2s ease;
+        }
+        
+        .mobile-action:active {
+            transform: scale(0.98);
+        }
+        
+        .action-icon {
+            font-size: 1.5rem;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
+        }
+        
+        .action-label {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        /* Data Tables */
+        .mobile-table-container {
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+        
+        .mobile-table {
+            width: 100%;
+            min-width: 500px;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        
+        .mobile-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .mobile-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9rem;
+        }
+        
+        .mobile-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .boh-cell {
+            background-color: #ffebee;
+            color: #c62828;
+            font-weight: bold;
+        }
+
+        .foh-cell {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            font-size: 0.8rem;
+        }
+
+        .status-indicator.working {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .status-indicator.inactive {
+            background-color: #f5f5f5;
+            color: #616161;
+        }
+        
+        /* Footer */
+        .mobile-footer {
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.8rem;
+            /* Safe area for home indicator */
+            padding-bottom: calc(1rem + constant(safe-area-inset-bottom));
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+        }
+
+        /* Mobile Menu - Fixed positioning */
         .mobile-menu {
             position: fixed;
             top: 0;
@@ -92,11 +295,11 @@
             transition: left 0.3s ease;
             overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            /* Full safe area coverage */
-            padding-top: var(--safe-area-top);
-            padding-bottom: var(--safe-area-bottom);
-            padding-left: var(--safe-area-left);
-            padding-right: var(--safe-area-right);
+            /* Safe area padding */
+            padding-top: constant(safe-area-inset-top);
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: constant(safe-area-inset-bottom);
+            padding-bottom: env(safe-area-inset-bottom);
         }
 
         .mobile-menu.active {
@@ -110,9 +313,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            /* Safe area adjustment */
-            margin-top: calc(-1 * var(--safe-area-top));
-            padding-top: calc(1.5rem + var(--safe-area-top));
+            /* Safe area padding */
+            padding-top: calc(1.5rem + constant(safe-area-inset-top));
+            padding-top: calc(1.5rem + env(safe-area-inset-top));
         }
 
         .close-menu {
@@ -123,22 +326,8 @@
             cursor: pointer;
         }
 
-        /* Main Content Area */
-        .mobile-content {
-            flex: 1;
-            padding: 1rem;
-            overflow-y: auto;
-            /* Safe area padding */
-            padding-top: calc(1rem + var(--safe-area-top));
-            padding-bottom: calc(1rem + var(--safe-area-bottom));
-        }
-
-        /* Navigation in Sidebar - Safe area aware */
         .mobile-nav {
             padding: 1rem 0;
-            /* Ensure nav content is within safe area */
-            max-height: calc(100vh - var(--safe-area-top) - var(--safe-area-bottom) - 80px);
-            overflow-y: auto;
         }
         
         .mobile-nav-section {
@@ -163,9 +352,6 @@
             text-decoration: none;
             border-bottom: 1px solid #eee;
             gap: 0.75rem;
-            /* Safe area padding for wide screens */
-            padding-left: calc(1.5rem + var(--safe-area-left));
-            padding-right: calc(1.5rem + var(--safe-area-right));
         }
         
         .mobile-nav-link i {
@@ -196,18 +382,7 @@
             100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
         }
 
-        /* Footer with safe area */
-        .mobile-footer {
-            background: var(--primary-color);
-            color: var(--white);
-            padding: 1rem;
-            text-align: center;
-            font-size: 0.8rem;
-            /* Safe area for home indicator */
-            padding-bottom: calc(1rem + var(--safe-area-bottom));
-        }
-
-        /* Modal with safe areas */
+        /* Modal */
         .mobile-modal {
             display: none;
             position: fixed;
@@ -219,11 +394,12 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
+            padding: 1rem;
             /* Safe area padding */
-            padding: calc(1rem + var(--safe-area-top)) 
-                     calc(1rem + var(--safe-area-right)) 
-                     calc(1rem + var(--safe-area-bottom)) 
-                     calc(1rem + var(--safe-area-left));
+            padding-top: calc(1rem + constant(safe-area-inset-top));
+            padding-top: calc(1rem + env(safe-area-inset-top));
+            padding-bottom: calc(1rem + constant(safe-area-inset-bottom));
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
         }
         
         .mobile-modal-content {
@@ -235,8 +411,35 @@
             overflow: auto;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+            background: #f8f9fa;
+        }
+        
+        .modal-title {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #004f9e;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-body {
+            padding: 1rem;
+        }
 
-        /* Overlay for menu - Full screen with safe areas */
+        /* Overlay for menu */
         .menu-overlay {
             display: none;
             position: fixed;
@@ -246,85 +449,57 @@
             height: 100%;
             background: rgba(0,0,0,0.5);
             z-index: 999;
-            /* Safe area padding */
-            padding: var(--safe-area-top) 
-                     var(--safe-area-right) 
-                     var(--safe-area-bottom) 
-                     var(--safe-area-left);
         }
         
         .menu-overlay.active {
             display: block;
         }
 
-        /* Database Switcher in Sidebar */
-        .database-switcher {
-            padding: 1rem 1.5rem;
-            border-bottom: 1px solid #eee;
+        /* Loading and Error States */
+        .loading-state {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
         }
 
-        .database-select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
+        .error-state {
+            text-align: center;
+            padding: 2rem;
+            color: #d32f2f;
+        }
+
+        .session-error {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
             border-radius: 4px;
-            font-size: 0.9rem;
-            background: white;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
         }
 
-        /* iPhone X+ specific adjustments */
-        @supports (padding: max(0px)) {
-            .mobile-nav-link {
-                padding-left: max(1.5rem, var(--safe-area-left));
-                padding-right: max(1.5rem, var(--safe-area-right));
-            }
-            
-            .mobile-menu {
-                padding-left: max(0px, var(--safe-area-left));
-                padding-right: max(0px, var(--safe-area-right));
-            }
-        }
-
-        /* Force notch avoidance for iOS */
-        @media only screen and (device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3),
-               only screen and (device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3),
-               only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2),
-               only screen and (device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3),
-               only screen and (device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) {
+        /* Fallback for older browsers */
+        @supports not (padding: env(safe-area-inset-top)) {
             body {
-                padding-top: 44px;
-                padding-bottom: 34px;
+                padding-top: 20px;
+                padding-bottom: 20px;
             }
             
             .mobile-header {
-                margin-top: -44px;
-                padding-top: calc(1rem + 44px);
-            }
-            
-            .menu-header {
-                margin-top: -44px;
-                padding-top: calc(1.5rem + 44px);
+                padding-top: 1rem;
             }
             
             .mobile-content {
-                padding-top: calc(1rem + 44px);
-                padding-bottom: calc(1rem + 34px);
-            }
-            
-            .mobile-footer {
-                padding-bottom: calc(1rem + 34px);
-            }
-            
-            .mobile-nav {
-                max-height: calc(100vh - 44px - 34px - 80px);
+                margin-top: 4rem;
             }
         }
-
-        /* Ensure viewport covers entire screen */
-        @viewport {
-            viewport-fit: cover;
-        }
-</style>
+    </style>
 </head>
 <body>
     <!-- Mobile Header -->
@@ -336,16 +511,13 @@
         <button class="mobile-menu-btn" id="menuToggle">
             <i class="fas fa-bars"></i>
         </button>
-    <!-- Add this to your mobile menu -->
-    <div class="mobile-nav-section">
-        <div class="mobile-nav-title">Database</div>
-        <div class="database-switcher">
-            <select id="databaseSelect" class="database-select" onchange="switchDatabase(this.value)">
-                <option value="">Select Database...</option>
-                <!-- Options will be populated by JavaScript -->
-            </select>
-        </div>
-    </div>
+        <!-- Database Switcher - Add to your header/navigation -->
+<div id="databaseSwitcher" style="display: inline-block; margin-left: 15px;">
+    <select id="databaseSelect" onchange="switchDatabase(this.value)" 
+            style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+        <option value="">Loading databases...</option>
+    </select>
+</div>
     </header>
     
     <!-- Mobile Menu -->
