@@ -131,6 +131,30 @@
     </div>
 
 <script>
+    // Add this at the VERY TOP of your script section
+    console.log('✅ HTML file loaded successfully');
+    console.log('✅ JavaScript executing');
+
+    // Check if DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ DOM fully loaded');
+        console.log('✅ Login container exists:', !!document.querySelector('.login-container'));
+        console.log('✅ Form exists:', !!document.getElementById('loginForm'));
+    });
+
+    // If you still see white screen, add this emergency CSS fix:
+    document.addEventListener('DOMContentLoaded', function() {
+        // Emergency background color to ensure something shows
+        document.body.style.backgroundColor = '#ffffff';
+        document.body.style.minHeight = '100vh';
+        
+        // Force show login container
+        const loginContainer = document.querySelector('.login-container');
+        if (loginContainer) {
+            loginContainer.style.display = 'flex';
+            loginContainer.style.opacity = '1';
+        }
+    });
     let databases = [];
     let currentUserData = null;
     const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
