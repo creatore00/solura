@@ -1220,14 +1220,15 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     }
 });
 
-// Route to handle logout - IMPROVED with better cookie cleanup
+// Route to handle logout - REDIRECTS TO LOGIN PAGE
 app.get('/logout', (req, res) => {
     if (req.session) {
         const sessionId = req.sessionID;
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to destroy session:', err);
-                return res.status(500).json({ error: 'Failed to logout' });
+                // Even on error, redirect to login page
+                return res.redirect('/');
             }
             
             // Clear the cookie with proper settings
@@ -1239,10 +1240,12 @@ app.get('/logout', (req, res) => {
             });
             
             console.log('✅ Logout successful for session:', sessionId);
-            res.json({ success: true, message: 'Logged out successfully' });
+            // Redirect to login page instead of JSON response
+            res.redirect('/');
         });
     } else {
-        res.json({ success: true, message: 'No active session' });
+        // No session exists, just redirect to login page
+        res.redirect('/');
     }
 });
 
