@@ -259,40 +259,41 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED: Session validation and repair middleware
-app.use((req, res, next) => {
-    if (req.session && !req.session.user && req.sessionID) {
-        console.log('🛠️ Session has no user data, attempting repair...');
-        
-        // Try to restore user data from URL parameters
-        const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
-        const email = urlParams.get('email');
-        const dbName = urlParams.get('dbName');
-        const name = urlParams.get('name');
-        const lastName = urlParams.get('lastName');
-        
-        if (email && dbName) {
-            console.log('🔧 Restoring user data from URL parameters');
-            req.session.user = {
-                email: email,
-                dbName: dbName,
-                name: name || '',
-                lastName: lastName || '',
-                role: 'user' // Default role, will be updated if needed
-            };
-            
-            // Don't wait for save to complete, just continue
-            req.session.save((err) => {
-                if (err) {
-                    console.error('❌ Failed to repair session:', err);
-                } else {
-                    console.log('✅ Session repaired successfully');
-                }
-            });
-        }
-    }
-    next();
-});
+// CRITICAL SECURITY FIX: REMOVED the vulnerable session repair middleware
+// This was creating sessions from URL parameters - MAJOR SECURITY HOLE
+// app.use((req, res, next) => {
+//     if (req.session && !req.session.user && req.sessionID) {
+//         console.log('🛠️ Session has no user data, attempting repair...');
+//         
+//         // Try to restore user data from URL parameters - SECURITY VULNERABILITY!
+//         const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+//         const email = urlParams.get('email');
+//         const dbName = urlParams.get('dbName');
+//         const name = urlParams.get('name');
+//         const lastName = urlParams.get('lastName');
+//         
+//         if (email && dbName) {
+//             console.log('🔧 Restoring user data from URL parameters');
+//             req.session.user = {
+//                 email: email,
+//                 dbName: dbName,
+//                 name: name || '',
+//                 lastName: lastName || '',
+//                 role: 'user' // Default role, will be updated if needed
+//             };
+//             
+//             // Don't wait for save to complete, just continue
+//             req.session.save((err) => {
+//                 if (err) {
+//                     console.error('❌ Failed to repair session:', err);
+//                 } else {
+//                     console.log('✅ Session repaired successfully');
+//                 }
+//             });
+//         }
+//     }
+//     next();
+// });
 
 // Add CORS headers manually
 app.use((req, res, next) => {
@@ -314,7 +315,7 @@ app.use((req, res, next) => {
 // Enhanced iOS session restoration with session ID synchronization
 app.post('/api/ios-restore-session', async (req, res) => {
     try {
-        const { email, dbName, accessToken } = req.body;
+        const { email, dbName, accessToken, sessionId } = req.body;
         
         if (!email || !dbName || !accessToken) {
             return res.status(400).json({ 
@@ -339,7 +340,7 @@ app.post('/api/ios-restore-session', async (req, res) => {
             });
         }
 
-        // Then proceed with user verification (your existing code)
+        // Then proceed with user verification
         const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
         mainPool.query(verifySql, [email, dbName], (err, results) => {
@@ -428,7 +429,7 @@ app.post('/api/ios-restore-session', async (req, res) => {
                         success: true, 
                         user: userInfo,
                         sessionId: finalSessionId,
-                        accessToken: accessToken || generateToken(userInfo)
+                        accessToken: accessToken
                     });
                 });
             });
@@ -506,14 +507,30 @@ app.get('/api/validate-session', (req, res) => {
 // Enhanced session recovery endpoint
 app.post('/api/recover-session', async (req, res) => {
     try {
-        const { email, dbName } = req.body;
+        const { email, dbName, accessToken } = req.body;
         
         console.log('🔄 Attempting session recovery for:', { email, dbName });
         
-        if (!email || !dbName) {
+        if (!email || !dbName || !accessToken) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Missing email or dbName' 
+                error: 'Missing email, dbName, or accessToken' 
+            });
+        }
+
+        // Verify access token first
+        try {
+            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+            if (decoded.email !== email || decoded.dbName !== dbName) {
+                return res.status(401).json({ 
+                    success: false, 
+                    error: 'Invalid token' 
+                });
+            }
+        } catch (tokenError) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Invalid or expired token' 
             });
         }
 
@@ -571,7 +588,7 @@ app.post('/api/recover-session', async (req, res) => {
 
                 console.log('✅ Session recovery successful for user:', userInfo);
 
-                // FIXED: Just assign user data to existing session
+                // Assign user data to existing session
                 req.session.user = userInfo;
                 
                 req.session.save((err) => {
@@ -603,7 +620,7 @@ app.post('/api/recover-session', async (req, res) => {
     }
 });
 
-// Enhanced authentication middleware with session verification
+// SECURE authentication middleware with session verification
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
@@ -619,7 +636,7 @@ function isAuthenticated(req, res, next) {
     
     console.log('❌ Authentication FAILED - No valid user in session');
     
-    // REMOVED: The iOS URL parameter bypass - this is the security hole
+    // SECURITY: No URL parameter bypass - users must have proper session
     
     if (req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
@@ -632,6 +649,7 @@ function isAuthenticated(req, res, next) {
     
     res.redirect('/');
 }
+
 // Role-based middleware
 function isAdmin(req, res, next) {
     if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
@@ -698,7 +716,7 @@ app.get('/', (req, res) => {
     }
 });
 
-// Login route - COMPLETELY REWRITTEN with proper session handling
+// Login route with proper session handling
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     const { email, password, dbName } = req.body;
@@ -807,8 +825,7 @@ app.post('/submit', async (req, res) => {
 
                 console.log('✅ Login successful, creating session for user:', userInfo);
 
-                // FIXED: Create new session without destroying first
-                // Just assign the user data to the existing session
+                // Create new session with user data
                 req.session.user = userInfo;
                 
                 // Generate tokens
