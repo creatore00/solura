@@ -46,13 +46,13 @@ const MySQLStore = require('express-mysql-session')(session);
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Trust proxy for Heroku
-app.set('trust proxy', 1);
-
 // Environment configuration
 const isProduction = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production';
+
+// Trust proxy for Heroku
+app.set('trust proxy', 1);
 
 // Update your token generation function
 function generateToken(user) {
@@ -184,6 +184,16 @@ app.use(session({
     // Additional security options
     unset: 'destroy'
 }));
+
+// Safe session touch utility - MOVED BEFORE ITS USAGE
+function safeSessionTouch(req) {
+    if (req.session && req.session.touch && typeof req.session.touch === 'function') {
+        req.session.touch();
+    } else if (req.session && req.session.cookie) {
+        // Manual extension by updating the maxAge
+        req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
+    }
+}
 
 // ENHANCED: iOS middleware with biometric support
 app.use((req, res, next) => {
