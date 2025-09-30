@@ -15,6 +15,7 @@
             --light-text: #777;
             --background-color: #ffffff;
             --input-bg: #f8f9fa;
+            --matt-blue: #1e3a5f; /* New matt blue color */
         }
         
         body {
@@ -23,35 +24,73 @@
             display: flex;
             height: 100vh;
             overflow: hidden;
-            align-items: center;
-            justify-content: center;
             background-color: var(--background-color);
-            background-image: linear-gradient(135deg, rgba(0, 31, 63, 0.05) 0%, rgba(255, 255, 255, 1) 100%);
             color: var(--text-color);
         }
         
-        .login-container {
-            background: var(--background-color);
+        /* Blue Matt Side */
+        .blue-side {
+            flex: 1;
+            background: linear-gradient(135deg, var(--matt-blue) 0%, #2c5282 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0, 31, 63, 0.15);
-            width: 100%;
-            max-width: 500px;
-            text-align: center;
-            animation: fadeIn 0.6s ease;
-            border: 1px solid rgba(0, 31, 63, 0.1);
             position: relative;
             overflow: hidden;
         }
         
-        .login-container::before {
+        .blue-side::before {
             content: '';
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 6px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.05"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        }
+        
+        .blue-content {
+            text-align: center;
+            color: white;
+            z-index: 1;
+            max-width: 400px;
+        }
+        
+        .blue-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 300;
+            opacity: 0.9;
+        }
+        
+        .blue-content p {
+            font-size: 1.1rem;
+            line-height: 1.6;
+            opacity: 0.8;
+            font-weight: 300;
+        }
+        
+        /* Login Form Side */
+        .login-side {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background: var(--background-color);
+        }
+        
+        .login-container {
+            background: var(--background-color);
+            padding: 50px 40px;
+            border-radius: 0;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            animation: fadeIn 0.6s ease;
+            position: relative;
         }
         
         .login-container h2 {
@@ -105,7 +144,7 @@
         }
         
         .form-group button {
-            background-color: var(--primary-color);
+            background-color: var(--matt-blue);
             color: white;
             padding: 14px 20px;
             border: none;
@@ -122,7 +161,7 @@
         .form-group button:hover {
             background-color: var(--secondary-color);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2);
+            box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3);
         }
         
         .form-group button:active {
@@ -180,7 +219,7 @@
             left: 0;
             width: 100%;
             height: 6px;
-            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            background: linear-gradient(90deg, var(--matt-blue), var(--accent-color));
         }
         
         #databasePopup h3 {
@@ -215,7 +254,7 @@
         }
         
         #databasePopup button {
-            background-color: var(--primary-color);
+            background-color: var(--matt-blue);
             color: white;
             padding: 12px 24px;
             border: none;
@@ -242,10 +281,51 @@
         }
         
         /* Responsive adjustments */
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .blue-side {
+                flex: 0.4;
+                padding: 20px;
+            }
+            
+            .login-side {
+                flex: 0.6;
+                padding: 20px;
+            }
+            
+            .blue-content h1 {
+                font-size: 2rem;
+            }
+            
+            .blue-content p {
+                font-size: 1rem;
+            }
+            
             .login-container {
                 padding: 30px 20px;
-                margin: 0 15px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .blue-side {
+                flex: 0.3;
+                padding: 15px;
+            }
+            
+            .login-side {
+                flex: 0.7;
+                padding: 15px;
+            }
+            
+            .blue-content h1 {
+                font-size: 1.5rem;
+            }
+            
+            .blue-content p {
+                font-size: 0.9rem;
             }
             
             #databasePopup {
@@ -256,6 +336,42 @@
     </style>
 </head>
 <body>
+    <!-- Blue Matt Side -->
+    <div class="blue-side">
+        <div class="blue-content">
+            <h1>Enterprise Suite</h1>
+            <p>Advanced data management platform for modern businesses. Streamline operations, gain insights, and drive growth with our comprehensive solution.</p>
+        </div>
+    </div>
+
+    <!-- Login Form Side -->
+    <div class="login-side">
+        <div class="login-container">
+            <h2>Welcome Back</h2>
+            <p>Sign in to access your Enterprise Data Management Suite</p>
+            
+            <form class="login-form" id="loginForm" action="" method="post">
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" required placeholder="your.email@company.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="••••••••">
+                </div>
+                <div class="form-group">
+                    <button type="submit">Sign In</button>
+                </div>
+            </form>
+            
+            <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
+            
+            <div class="powered-by">
+                Enterprise Data Management Suite v3.2 · Secure Login
+            </div>
+        </div>
+    </div>
+
     <!-- Database Selection Popup -->
     <div id="databasePopup">
         <h3>Select Account</h3>
@@ -263,32 +379,6 @@
         <ul id="databaseList"></ul>
         <button onclick="submitDatabase()">Continue</button>
         <button onclick="closePopup()" class="close-btn">Cancel</button>
-    </div>
-
-    <!-- Login Container -->
-    <div class="login-container">
-        <h2>Welcome Back</h2>
-        <p>Sign in to access your Enterprise Data Management Suite. Manage your databases, analyze performance metrics, and collaborate with your team.</p>
-        
-        <form class="login-form" id="loginForm" action="" method="post">
-            <div class="form-group">
-                <label for="email">Email Address</label>
-                <input type="email" id="email" name="email" required placeholder="your.email@company.com">
-            </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="••••••••">
-            </div>
-            <div class="form-group">
-                <button type="submit">Sign In</button>
-            </div>
-        </form>
-        
-        <a href="/ForgotPassword" id="forgotPasswordForm">Forgot your password?</a>
-        
-        <div class="powered-by">
-            Enterprise Data Management Suite v3.2 · Secure Login
-        </div>
     </div>
 
     <script>
