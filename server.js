@@ -435,6 +435,37 @@ app.use((req, res, next) => {
     next();
 });
 
+// ENHANCED: Root route with mobile/desktop detection
+app.get('/', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    console.log('Root route - User-Agent:', userAgent);
+    console.log('Session ID at root:', req.sessionID);
+
+    // Ensure session is initialized
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+        req.session.save((err) => {
+            if (err) {
+                console.error('Error saving root session:', err);
+            }
+        });
+    }
+
+    // Enhanced device detection
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+    const isAndroid = /Android/i.test(userAgent);
+    const isMobile = isIOS || isAndroid;
+    
+    if (isMobile) {
+        console.log('📱 Mobile device detected:', isIOS ? 'iOS' : 'Android');
+        console.log('📱 Serving LoginApp.html for mobile');
+        res.sendFile(path.join(__dirname, 'LoginApp.html'));
+    } else {
+        console.log('💻 Desktop device detected, serving Login.html');
+        res.sendFile(path.join(__dirname, 'Login.html'));
+    }
+});
+
 // Health check endpoint with session info
 app.get('/health', (req, res) => {
     res.json({
@@ -722,13 +753,15 @@ app.post('/api/verify-biometric', async (req, res) => {
 
                 // ALWAYS use desktop versions for browsers
                 let redirectUrl = '';
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                    redirectUrl = '/Admin.html';
+                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
                 } else if (userDetails.Access === 'user') {
-                    redirectUrl = '/User.html';
+                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
                 } else if (userDetails.Access === 'supervisor') {
-                    redirectUrl = '/Supervisor.html';
+                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
                 req.session.save((err) => {
@@ -1716,18 +1749,15 @@ app.post('/submit-database', async (req, res) => {
                 );
 
                 let redirectUrl = '';
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (row.Access === 'admin' || row.Access === 'AM') {
-                    redirectUrl = '/Admin.html';
+                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
                 } else if (row.Access === 'user') {
-                    redirectUrl = '/User.html';
+                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
                 } else if (row.Access === 'supervisor') {
-                    redirectUrl = '/Supervisor.html';
-                } else {
-                    return res.status(401).json({ 
-                        success: false,
-                        message: 'Invalid access level' 
-                    });
+                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
                 // Save session and then respond
@@ -1761,27 +1791,6 @@ app.post('/submit-database', async (req, res) => {
             error: 'Internal server error'
         });
     }
-});
-
-// FIXED: Main route - ALWAYS show Login.html for browsers
-app.get('/', (req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-    console.log('Root route - User-Agent:', userAgent);
-    console.log('Session ID at root:', req.sessionID);
-
-    // Ensure session is initialized
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving root session:', err);
-            }
-        });
-    }
-
-    // ALWAYS serve Login.html for browsers, regardless of device
-    console.log('💻 Serving desktop Login.html (browser detected)');
-    res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
 // FIXED: Login route with proper duplicate session prevention
@@ -1971,18 +1980,15 @@ app.post('/submit', async (req, res) => {
                 );
 
                 let redirectUrl = '';
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    redirectUrl = '/Admin.html';
+                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
                 } else if (userDetails.access === 'user') {
-                    redirectUrl = '/User.html';
+                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
                 } else if (userDetails.access === 'supervisor') {
-                    redirectUrl = '/Supervisor.html';
-                } else {
-                    return res.status(401).json({ 
-                        success: false,
-                        message: 'Incorrect email or password' 
-                    });
+                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
                 // Save session and then respond
