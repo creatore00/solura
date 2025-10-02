@@ -1138,6 +1138,52 @@ app.get('/api/user-databases', isAuthenticated, (req, res) => {
     });
 });
 
+// Add this route to your server
+app.get('/test-simple', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Test Page</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body { 
+                    background: linear-gradient(135deg, #001f3f, #0074D9);
+                    color: white; 
+                    font-family: -apple-system, sans-serif;
+                    padding: 40px 20px;
+                    text-align: center;
+                    height: 100vh;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                }
+                h1 { font-size: 28px; margin-bottom: 20px; }
+                button { 
+                    background: white; 
+                    color: #001f3f; 
+                    border: none; 
+                    padding: 15px 30px; 
+                    border-radius: 8px; 
+                    font-size: 18px; 
+                    font-weight: bold;
+                    margin: 10px;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>✅ iOS WebView Test</h1>
+            <p>If you see this, everything is working!</p>
+            <button onclick="alert('JavaScript works!')">Test JavaScript</button>
+            <button onclick="window.location.href='/'">Go to Real Login</button>
+            <div style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
+                Loaded at: ${new Date().toISOString()}
+            </div>
+        </body>
+        </html>
+    `);
+});
+
 // FIXED: Switch database endpoint with proper session handling
 app.post('/api/switch-database', isAuthenticated, async (req, res) => {
     const { dbName } = req.body;
