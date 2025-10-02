@@ -435,21 +435,20 @@ app.use((req, res, next) => {
     next();
 });
 
-// ENHANCED: Root route with mobile/desktop detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     
-    // Only serve mobile app version for specific app user agents
-    // For all browsers (including mobile browsers), serve desktop version
-    const isMobileApp = userAgent.includes('SoluraApp') || 
-                       userAgent.includes('YourMobileAppIdentifier');
+    // Enhanced device detection
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+    const isAndroid = /Android/i.test(userAgent);
+    const isMobile = isIOS || isAndroid; // ← THIS IS THE PROBLEM
     
-    if (isMobileApp) {
-        console.log('📱 Mobile APP detected - serving LoginApp.html');
-        res.sendFile(path.join(__dirname, 'LoginApp.html'));
+    if (isMobile) {
+        console.log('📱 Mobile device detected');
+        res.sendFile(path.join(__dirname, 'LoginApp.html')); // ← SERVING MOBILE VERSION
     } else {
-        console.log('🌐 Browser detected - serving Login.html');
-        res.sendFile(path.join(__dirname, 'Login.html'));
+        console.log('💻 Desktop device detected');
+        res.sendFile(path.join(__dirname, 'Login.html')); // ← SERVING DESKTOP VERSION
     }
 });
 
