@@ -57,13 +57,46 @@ app.set('trust proxy', 1);
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
 
-// Safe session touch utility
-function safeSessionTouch(req) {
-    if (req.session && req.session.touch && typeof req.session.touch === 'function') {
-        req.session.touch();
-    } else if (req.session && req.session.cookie) {
-        req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
+// CRITICAL FIX: Session operation queue to prevent race conditions
+const sessionOperationQueue = new Map(); // sessionId -> operation promises
+
+// OPTIMIZED: Safe session touch utility with queueing
+async function safeSessionTouch(req) {
+    const sessionId = req.sessionID;
+    if (!sessionId || !req.session) return;
+
+    // If there's already an operation for this session, wait for it
+    if (sessionOperationQueue.has(sessionId)) {
+        await sessionOperationQueue.get(sessionId);
     }
+
+    const touchPromise = new Promise((resolve) => {
+        try {
+            if (req.session.touch && typeof req.session.touch === 'function') {
+                req.session.touch((err) => {
+                    if (err) {
+                        // Fallback: manually extend session
+                        if (req.session.cookie) {
+                            req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
+                        }
+                    }
+                    resolve();
+                });
+            } else if (req.session.cookie) {
+                req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
+                resolve();
+            } else {
+                resolve();
+            }
+        } catch (error) {
+            console.log('Session touch error, using fallback');
+            resolve();
+        }
+    });
+
+    sessionOperationQueue.set(sessionId, touchPromise);
+    await touchPromise;
+    sessionOperationQueue.delete(sessionId);
 }
 
 // Token generation function
@@ -81,20 +114,22 @@ function generateToken(user) {
     );
 }
 
-// Enhanced CORS configuration for iOS compatibility
+// OPTIMIZED: CORS configuration for iOS
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
             'https://www.solura.uk', 
             'https://solura.uk', 
             'http://localhost:8080',
-            'http://localhost:3000'
+            'http://localhost:3000',
+            'capacitor://localhost',
+            'ionic://localhost'
         ];
         
-        // Allow requests with no origin (like mobile apps or curl requests)
+        // Allow requests with no origin (like mobile apps)
         if (!origin) return callback(null, true);
         
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('localhost')) {
             callback(null, true);
         } else {
             console.log('Blocked by CORS:', origin);
@@ -116,13 +151,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(__dirname));
 
-// FIXED: Cookie cleanup middleware - remove duplicate cookies
+// FIXED: Cookie cleanup middleware
 app.use((req, res, next) => {
     if (req.headers.cookie) {
         const cookies = req.headers.cookie.split(';');
         const uniqueCookies = new Map();
         
-        // Process cookies in reverse to keep the most recent one
         for (let i = cookies.length - 1; i >= 0; i--) {
             const cookie = cookies[i].trim();
             const [name, value] = cookie.split('=');
@@ -133,7 +167,6 @@ app.use((req, res, next) => {
             }
         }
         
-        // Rebuild cookie header with unique cookies
         const newCookieHeader = Array.from(uniqueCookies.entries())
             .map(([name, value]) => `${name}=${value}`)
             .join('; ');
@@ -143,20 +176,22 @@ app.use((req, res, next) => {
     next();
 });
 
-// Session debugging middleware
+// OPTIMIZED: Reduced session debugging (only log errors)
 app.use((req, res, next) => {
-    console.log('=== SESSION DEBUG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    console.log('Cookies:', req.headers.cookie);
-    console.log('=== END DEBUG ===');
+    // Only log session issues, not every request
+    const shouldLog = req.path.includes('/api/') && (Math.random() < 0.01 || !req.session?.user);
+    
+    if (shouldLog) {
+        console.log('=== SESSION DEBUG ===');
+        console.log('URL:', req.url);
+        console.log('Session ID:', req.sessionID);
+        console.log('Session User:', req.session?.user?.email);
+        console.log('=== END DEBUG ===');
+    }
     next();
 });
 
-// FIXED: Enhanced MySQL session store with proper serialization
+// FIXED: MySQL session store with better configuration
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
     port: 3306,
@@ -172,23 +207,23 @@ const sessionStore = new MySQLStore({
             data: 'data'
         }
     },
-    checkExpirationInterval: 60000,
-    expiration: 600000,
+    checkExpirationInterval: 900000, // 15 minutes
+    expiration: 86400000, // 24 hours
     clearExpired: true
 }, mainPool);
 
-// FIXED: Session configuration with iOS compatibility - CRITICAL CHANGES
+// CRITICAL FIX: Session configuration optimized for iOS
 app.use(session({
     secret: SESSION_SECRET,
-    resave: true, // Changed to true for better iOS compatibility
-    saveUninitialized: true, // Changed to true to ensure session is always created
+    resave: false, // Changed to false to prevent race conditions
+    saveUninitialized: false, // Changed to false to reduce unnecessary sessions
     store: sessionStore,
     name: 'solura.session',
     cookie: {
         secure: isProduction,
         httpOnly: true,
-        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
-        maxAge: 10 * 60 * 1000, // 10 minutes in milliseconds
+        sameSite: isProduction ? 'none' : 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
         domain: isProduction ? '.solura.uk' : undefined
     },
     rolling: true,
@@ -198,78 +233,47 @@ app.use(session({
     }
 }));
 
-// Session recovery middleware for heartbeat issues
-app.use('/api/session-heartbeat', (req, res, next) => {
-    // Force session reload for heartbeat
-    if (req.session && typeof req.session.reload === 'function') {
-        req.session.reload((err) => {
-            if (err) {
-                console.log('🔄 Heartbeat session reload failed, continuing anyway');
-            }
-            next();
-        });
-    } else {
-        next();
-    }
-});
+// OPTIMIZED: iOS-specific middleware with caching
+const iosSessionCache = new Map();
 
-// Enhanced session tracking middleware
-app.use((req, res, next) => {
-    // Override session.save to track active sessions
-    const originalSave = req.session.save;
-    req.session.save = function(callback) {
-        originalSave.call(this, (err) => {
-            if (!err && req.session.user && req.session.user.email) {
-                const email = req.session.user.email;
-                if (!activeSessions.has(email)) {
-                    activeSessions.set(email, new Set());
-                }
-                activeSessions.get(email).add(req.sessionID);
-                console.log(`✅ Session tracked for ${email}: ${req.sessionID}`);
-            }
-            if (callback) callback(err);
-        });
-    };
-    next();
-});
-
-// FIXED: iOS-specific middleware - MUST come after session middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     
     if (isIOS) {
-        console.log('📱 iOS Device Detected');
+        req.isIOS = true;
         
-        // Handle session ID from various sources for iOS
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
-        
-        console.log('📱 Session ID from URL:', sessionIdFromUrl);
-        console.log('📱 Session ID from Header:', sessionIdFromHeader);
-        console.log('📱 Current Session ID:', req.sessionID);
-        
-        // Ensure session is initialized for iOS
-        if (!req.session.initialized) {
-            req.session.initialized = true;
-            console.log('📱 Initializing session for iOS');
-        }
-        
-        // If we have a session ID from URL/header, try to use it
         const externalSessionId = sessionIdFromUrl || sessionIdFromHeader;
-        if (externalSessionId && req.sessionID !== externalSessionId) {
-            console.log('🔄 Attempting to use external session ID for iOS:', externalSessionId);
+        
+        if (externalSessionId && (!req.sessionID || req.sessionID !== externalSessionId)) {
+            // Check cache first
+            if (iosSessionCache.has(externalSessionId)) {
+                const cached = iosSessionCache.get(externalSessionId);
+                if (Date.now() - cached.timestamp < 30000) { // 30 second cache
+                    Object.assign(req.session, cached.data);
+                    req.sessionID = externalSessionId;
+                    return next();
+                }
+            }
             
+            // Load from store
             req.sessionStore.get(externalSessionId, (err, sessionData) => {
                 if (err) {
-                    console.error('❌ Error loading external session:', err);
+                    console.error('Error loading external session:', err);
                     return next();
                 }
                 
                 if (sessionData && sessionData.user) {
-                    console.log('✅ External session data found, merging...');
-                    // Merge the external session data with current session
                     Object.assign(req.session, sessionData);
+                    req.sessionID = externalSessionId;
+                    
+                    // Cache for future requests
+                    iosSessionCache.set(externalSessionId, {
+                        data: sessionData,
+                        timestamp: Date.now()
+                    });
                 }
                 next();
             });
@@ -281,7 +285,7 @@ app.use((req, res, next) => {
     }
 });
 
-// SECURITY: Block direct access to protected HTML files without session
+// SECURITY: Block direct access to protected HTML files
 app.use((req, res, next) => {
     const protectedRoutes = [
         '/Admin.html', '/AdminApp.html',
@@ -289,33 +293,34 @@ app.use((req, res, next) => {
         '/Supervisor.html', '/SupervisorApp.html'
     ];
     
-    // Check if this is a direct access to protected route
-    if (protectedRoutes.includes(req.path)) {
-        if (!req.session?.user) {
-            console.log('🚫 SECURITY: Blocked direct access to protected route:', req.path);
-            return res.redirect('/');
-        }
+    if (protectedRoutes.includes(req.path) && !req.session?.user) {
+        console.log('🚫 SECURITY: Blocked direct access to protected route:', req.path);
+        return res.redirect('/');
     }
     
     next();
 });
 
-// Session reloading middleware for API endpoints
-app.use('/api/', (req, res, next) => {
-    // Force session reload for API calls
+// OPTIMIZED: Session middleware for API endpoints
+app.use('/api/', async (req, res, next) => {
     if (req.session && typeof req.session.reload === 'function') {
-        req.session.reload((err) => {
-            if (err) {
-                console.error('Error reloading session:', err);
-            }
-            next();
-        });
-    } else {
-        next();
+        try {
+            await new Promise((resolve, reject) => {
+                req.session.reload((err) => {
+                    if (err) {
+                        console.error('Error reloading session:', err);
+                    }
+                    resolve();
+                });
+            });
+        } catch (error) {
+            console.error('Session reload error:', error);
+        }
     }
+    next();
 });
 
-// Add CORS headers manually for additional security
+// Add CORS headers manually
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     const allowedOrigins = ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080', 'http://localhost:3000'];
@@ -336,18 +341,9 @@ app.use((req, res, next) => {
 
 // ENHANCED: Global error handler
 app.use((error, req, res, next) => {
-    console.error('🚨 Global error handler:', error);
-    
-    // Log additional context
-    console.error('Error context:', {
-        url: req.url,
-        method: req.method,
-        userAgent: req.headers['user-agent'],
-        ip: req.ip
-    });
+    console.error('🚨 Global error handler:', error.message);
     
     if (error.message && error.message.includes('touch')) {
-        console.log('🔄 Recovering from session touch error');
         if (req.session) {
             req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
         }
@@ -361,8 +357,6 @@ app.use((error, req, res, next) => {
         }
     }
     
-    // Don't leak error details in production
-    const isProduction = process.env.NODE_ENV === 'production';
     const errorMessage = isProduction ? 'Internal server error' : error.message;
     
     if (req.path.startsWith('/api/')) {
@@ -375,7 +369,8 @@ app.use((error, req, res, next) => {
     }
 });
 
-// Enhanced security middleware
+// OPTIMIZED: Rate limiting with proper storage
+const rateLimitMap = new Map();
 app.use((req, res, next) => {
     // Security headers
     res.header('X-Content-Type-Options', 'nosniff');
@@ -383,35 +378,33 @@ app.use((req, res, next) => {
     res.header('X-XSS-Protection', '1; mode=block');
     res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
     
-    // Rate limiting for login attempts (simple in-memory version)
-    if (req.path === '/submit' && req.method === 'POST') {
+    // Rate limiting for login attempts
+    if ((req.path === '/submit' || req.path === '/submit-database') && req.method === 'POST') {
         const clientIP = req.ip || req.connection.remoteAddress;
         const now = Date.now();
-        const windowStart = now - (15 * 60 * 1000); // 15 minutes window
+        const windowStart = now - (15 * 60 * 1000);
         
-        // Simple rate limiting - in production, use Redis or similar
-        if (!req.rateLimit) req.rateLimit = {};
-        if (!req.rateLimit[clientIP]) req.rateLimit[clientIP] = [];
+        if (!rateLimitMap.has(clientIP)) {
+            rateLimitMap.set(clientIP, []);
+        }
         
-        req.rateLimit[clientIP] = req.rateLimit[clientIP].filter(time => time > windowStart);
+        const attempts = rateLimitMap.get(clientIP).filter(time => time > windowStart);
+        rateLimitMap.set(clientIP, attempts);
         
-        if (req.rateLimit[clientIP].length >= 5) { // 5 attempts per 15 minutes
+        if (attempts.length >= 5) {
             return res.status(429).json({
                 success: false,
-                error: 'Too many login attempts. Please try again later.'
+                error: 'Too many login attempts. Please try again in 15 minutes.'
             });
         }
         
-        req.rateLimit[clientIP].push(now);
+        attempts.push(now);
     }
     
     next();
 });
 
-// Track session creation times for better management
-const sessionCreationTime = new Map(); // sessionId -> creation timestamp
-
-// Enhanced session tracking middleware
+// Enhanced session tracking
 app.use((req, res, next) => {
     const originalSave = req.session.save;
     req.session.save = function(callback) {
@@ -422,12 +415,6 @@ app.use((req, res, next) => {
                     activeSessions.set(email, new Set());
                 }
                 activeSessions.get(email).add(req.sessionID);
-                
-                // Track creation time
-                if (!sessionCreationTime.has(req.sessionID)) {
-                    sessionCreationTime.set(req.sessionID, Date.now());
-                    console.log(`✅ Session tracked: ${req.sessionID} for ${email}`);
-                }
             }
             if (callback) callback(err);
         });
@@ -440,27 +427,18 @@ app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const referer = req.headers.referer || '';
 
-    // Capacitor apps often run from file:// URLs or can set a custom header
     const isCapacitorApp = 
-        /Capacitor/.test(userAgent) ||            // Capacitor UA string
-        /ionic/.test(userAgent) ||                // Ionic UA string
-        referer.startsWith('file://') ||          // Capacitor uses file:// for local assets
-        req.headers['x-capacitor'] === 'true' ||  // Optional: custom header
-        req.query.capacitor === 'true';           // Optional: query parameter
+        /Capacitor/.test(userAgent) ||
+        /ionic/.test(userAgent) ||
+        referer.startsWith('file://') ||
+        req.headers['x-capacitor'] === 'true' ||
+        req.query.capacitor === 'true';
 
-    console.log('User-Agent:', userAgent);
-    console.log('Referer:', referer);
-    console.log('Capacitor app detected:', isCapacitorApp);
-
-    // Serve the correct HTML file
     const fileToServe = isCapacitorApp ? 'LoginApp.html' : 'Login.html';
-    console.log('Serving file:', fileToServe);
-
     res.sendFile(path.join(__dirname, fileToServe));
 });
 
-
-// Health check endpoint with session info
+// Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
@@ -468,16 +446,13 @@ app.get('/health', (req, res) => {
             id: req.sessionID,
             exists: !!req.session,
             user: req.session?.user,
-            initialized: req.session?.initialized
         },
         timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        version: '1.0.0'
+        uptime: process.uptime()
     });
 });
 
-// ALL YOUR ORIGINAL ROUTES - KEPT INTACT
+// ALL YOUR ORIGINAL ROUTES
 app.use('/rota', newRota);
 app.use('/rota2', newRota2);
 app.use('/confirmpassword', confirmpassword);
@@ -505,7 +480,35 @@ app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
 
-// NEW: Check if user already has active session
+// NEW: iOS session initialization endpoint
+app.get('/api/ios-init', async (req, res) => {
+    try {
+        if (!req.session.initialized) {
+            req.session.initialized = true;
+            await new Promise((resolve, reject) => {
+                req.session.save((err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+        }
+        
+        res.json({
+            success: true,
+            sessionId: req.sessionID,
+            message: 'iOS session initialized'
+        });
+    } catch (error) {
+        console.error('iOS init error:', error);
+        res.json({
+            success: true,
+            sessionId: req.sessionID,
+            message: 'Session available'
+        });
+    }
+});
+
+// OPTIMIZED: Check active sessions
 app.post('/api/check-active-session', async (req, res) => {
     const { email } = req.body;
     
@@ -520,46 +523,12 @@ app.post('/api/check-active-session', async (req, res) => {
         const activeSessionIds = activeSessions.get(email);
         
         if (activeSessionIds && activeSessionIds.size > 0) {
-            // Check which sessions are still valid
-            const validSessions = [];
-            
-            for (const sessionId of activeSessionIds) {
-                await new Promise((resolve) => {
-                    sessionStore.get(sessionId, (err, sessionData) => {
-                        if (err) {
-                            console.error('Error checking session:', err);
-                            resolve();
-                            return;
-                        }
-                        
-                        if (sessionData && sessionData.user && sessionData.user.email === email) {
-                            validSessions.push({
-                                sessionId: sessionId,
-                                lastAccess: sessionData.cookie?.originalMaxAge ? 
-                                    new Date(Date.now() - (24 * 60 * 60 * 1000 - sessionData.cookie.originalMaxAge)) : 
-                                    new Date()
-                            });
-                        }
-                        resolve();
-                    });
-                });
-            }
-            
-            // Remove invalid sessions from tracking
-            if (validSessions.length === 0) {
-                activeSessions.delete(email);
-            } else {
-                activeSessions.set(email, new Set(validSessions.map(s => s.sessionId)));
-            }
-            
-            if (validSessions.length > 0) {
-                return res.json({
-                    success: true,
-                    hasActiveSession: true,
-                    activeSessions: validSessions.length,
-                    message: `You are already logged in on ${validSessions.length} device(s).`
-                });
-            }
+            return res.json({
+                success: true,
+                hasActiveSession: true,
+                activeSessions: activeSessionIds.size,
+                message: `You are already logged in on ${activeSessionIds.size} device(s).`
+            });
         }
         
         res.json({
@@ -576,7 +545,7 @@ app.post('/api/check-active-session', async (req, res) => {
     }
 });
 
-// Enhanced force logout with immediate effect
+// OPTIMIZED: Force logout
 app.post('/api/force-logout-others', async (req, res) => {
     const { email, keepCurrentSession } = req.body;
     
@@ -601,20 +570,19 @@ app.post('/api/force-logout-others', async (req, res) => {
                 sessionsToDestroy.push(sessionId);
             }
             
-            console.log(`🔄 Force logging out ${sessionsToDestroy.length} sessions for ${email}`);
-            
-            for (const sessionId of sessionsToDestroy) {
-                await new Promise((resolve) => {
+            // Destroy sessions in parallel with limit
+            const destroyPromises = sessionsToDestroy.map(sessionId => 
+                new Promise((resolve) => {
                     sessionStore.destroy(sessionId, (err) => {
                         if (!err) {
                             loggedOutCount++;
-                            sessionCreationTime.delete(sessionId);
-                            console.log(`✅ Immediately destroyed session: ${sessionId}`);
                         }
                         resolve();
                     });
-                });
-            }
+                })
+            );
+            
+            await Promise.all(destroyPromises);
             
             if (keepCurrentSession && req.sessionID) {
                 activeSessions.set(email, new Set([req.sessionID]));
@@ -626,7 +594,7 @@ app.post('/api/force-logout-others', async (req, res) => {
         res.json({
             success: true,
             loggedOutCount: loggedOutCount,
-            message: `Immediately logged out from ${loggedOutCount} other session(s)`
+            message: `Logged out from ${loggedOutCount} other session(s)`
         });
 
     } catch (error) {
@@ -638,10 +606,10 @@ app.post('/api/force-logout-others', async (req, res) => {
     }
 });
 
-// Biometric authentication verification endpoint
+// OPTIMIZED: Biometric authentication
 app.post('/api/verify-biometric', async (req, res) => {
-    safeSessionTouch(req);
     try {
+        await safeSessionTouch(req);
         const { email, accessToken } = req.body;
 
         if (!email || !accessToken) {
@@ -653,7 +621,7 @@ app.post('/api/verify-biometric', async (req, res) => {
 
         // Verify the access token
         try {
-            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+            const decoded = jwt.verify(accessToken, JWT_SECRET);
             if (decoded.email !== email) {
                 return res.status(401).json({ 
                     success: false,
@@ -687,8 +655,6 @@ app.post('/api/verify-biometric', async (req, res) => {
             }
 
             const userDetails = results[0];
-            
-            // Get user info from company database
             const companyPool = getPool(userDetails.db_name);
             const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
 
@@ -708,18 +674,13 @@ app.post('/api/verify-biometric', async (req, res) => {
                     });
                 }
 
-                const name = companyResults[0].name;
-                const lastName = companyResults[0].lastName;
-
                 const userInfo = {
                     email: email,
                     role: userDetails.Access,
-                    name: name,
-                    lastName: lastName,
+                    name: companyResults[0].name,
+                    lastName: companyResults[0].lastName,
                     dbName: userDetails.db_name,
                 };
-
-                console.log('✅ Biometric authentication successful for user:', userInfo);
 
                 // Create session
                 req.session.user = userInfo;
@@ -731,21 +692,14 @@ app.post('/api/verify-biometric', async (req, res) => {
                 }
                 activeSessions.get(email).add(req.sessionID);
                 
-                // Generate new tokens
+                // Generate tokens
                 const authToken = generateToken(userInfo);
                 const refreshToken = jwt.sign(
-                    {
-                        email: userInfo.email,
-                        role: userInfo.role,
-                        name: userInfo.name,
-                        lastName: userInfo.lastName,
-                        dbName: userInfo.dbName
-                    },
+                    userInfo,
                     process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
                     { expiresIn: '30d' }
                 );
 
-                // ALWAYS use desktop versions for browsers
                 let redirectUrl = '';
                 const userAgent = req.headers['user-agent'] || '';
                 const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
@@ -788,10 +742,10 @@ app.post('/api/verify-biometric', async (req, res) => {
     }
 });
 
-// Token refresh endpoint for biometric authentication
+// Token refresh endpoint
 app.post('/api/refresh-token', async (req, res) => {
-    safeSessionTouch(req);
     try {
+        await safeSessionTouch(req);
         const { refreshToken } = req.body;
 
         if (!refreshToken) {
@@ -801,18 +755,9 @@ app.post('/api/refresh-token', async (req, res) => {
             });
         }
 
-        // Verify the refresh token
         try {
             const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || 'your-refresh-secret');
-            
-            // Generate new access token
-            const newAccessToken = generateToken({
-                email: decoded.email,
-                role: decoded.role,
-                name: decoded.name,
-                lastName: decoded.lastName,
-                dbName: decoded.dbName
-            });
+            const newAccessToken = generateToken(decoded);
 
             res.json({
                 success: true,
@@ -835,105 +780,86 @@ app.post('/api/refresh-token', async (req, res) => {
     }
 });
 
-// NEW: Get current user info endpoint for frontend
-app.get('/api/current-user', isAuthenticated, (req, res) => {
-    safeSessionTouch(req);
-    res.json({
-        success: true,
-        user: req.session.user
-    });
-});
-
-// Session validation endpoint with safe touch
-app.get('/api/validate-session', (req, res) => {
-    console.log('=== VALIDATE SESSION ===');
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    
-    if (req.session?.user) {
-        // Safe session extension
-        safeSessionTouch(req);
-        res.json({ 
-            valid: true, 
-            user: req.session.user,
-            sessionId: req.sessionID 
-        });
-    } else {
-        console.log('Session validation failed - no user in session');
-        res.status(401).json({ 
-            valid: false,
-            message: 'No active session'
-        });
-    }
-});
-
-// FIXED: Real-time session validation endpoint
-app.get('/api/validate-session-real-time', async (req, res) => {
-    console.log('=== REAL-TIME SESSION VALIDATION ===');
-    console.log('Session ID from cookie:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    
-    // Ensure session is loaded
-    if (!req.session) {
-        return res.json({
-            valid: false,
-            reason: 'session_not_loaded',
-            message: 'Session not loaded'
-        });
-    }
-
-    if (!req.session.user) {
-        return res.json({
-            valid: false,
-            reason: 'no_session_user',
-            message: 'No user in session'
-        });
-    }
-
-    const email = req.session.user.email;
-    const activeSessionIds = activeSessions.get(email);
-    
-    console.log('Active sessions for user:', activeSessionIds ? Array.from(activeSessionIds) : 'None');
-    console.log('Current session in active sessions:', activeSessionIds?.has(req.sessionID));
-    
-    // Check if this session is still active
-    if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
-        console.log('🚫 Session terminated - no longer in active sessions');
+// OPTIMIZED: Session validation with caching
+const sessionValidationCache = new Map();
+app.get('/api/validate-session', async (req, res) => {
+    try {
+        await safeSessionTouch(req);
         
-        // Destroy the invalid session
-        req.session.destroy((err) => {
-            if (err) {
-                console.error('Error destroying invalid session:', err);
+        const cacheKey = req.sessionID;
+        const cacheTime = 5000; // 5 seconds cache
+        
+        // Check cache first
+        if (sessionValidationCache.has(cacheKey)) {
+            const cached = sessionValidationCache.get(cacheKey);
+            if (Date.now() - cached.timestamp < cacheTime) {
+                return res.json(cached.response);
             }
+        }
+        
+        let response;
+        
+        if (req.session?.user) {
+            response = { 
+                valid: true, 
+                user: req.session.user,
+                sessionId: req.sessionID 
+            };
+        } else {
+            response = { 
+                valid: false,
+                message: 'No active session'
+            };
+        }
+        
+        // Cache the response
+        sessionValidationCache.set(cacheKey, {
+            response: response,
+            timestamp: Date.now()
         });
         
-        return res.json({
+        res.json(response);
+        
+    } catch (error) {
+        console.error('Session validation error:', error);
+        res.json({ 
             valid: false,
-            reason: 'session_terminated',
-            message: 'Your session was terminated from another device',
-            terminated: true
+            message: 'Session validation error'
         });
     }
-
-    // Session is valid - update last access
-    safeSessionTouch(req);
-    
-    res.json({
-        valid: true,
-        user: req.session.user,
-        sessionId: req.sessionID,
-        activeSessions: activeSessionIds ? Array.from(activeSessionIds) : [],
-        message: 'Session is valid'
-    });
 });
 
-// FIXED: Simplified heartbeat endpoint
+// OPTIMIZED: Real-time session validation
+app.get('/api/validate-session-real-time', async (req, res) => {
+    try {
+        if (req.session?.user) {
+            await safeSessionTouch(req);
+            
+            res.json({
+                valid: true,
+                user: req.session.user,
+                sessionId: req.sessionID,
+                message: 'Session is valid'
+            });
+        } else {
+            res.json({
+                valid: false,
+                reason: 'no_session_user',
+                message: 'Please log in again'
+            });
+        }
+    } catch (error) {
+        console.error('Real-time session validation error:', error);
+        res.json({
+            valid: false,
+            reason: 'validation_error',
+            message: 'Session validation failed'
+        });
+    }
+});
+
+// OPTIMIZED: Simplified heartbeat endpoint
 app.get('/api/session-heartbeat', (req, res) => {
-    console.log('💓 Heartbeat connection established - Session ID:', req.sessionID);
-    
-    // Set proper SSE headers
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -942,7 +868,6 @@ app.get('/api/session-heartbeat', (req, res) => {
         'Access-Control-Allow-Credentials': 'true'
     });
 
-    // Send immediate connection confirmation
     res.write('data: ' + JSON.stringify({
         type: 'connected',
         message: 'Heartbeat connection established',
@@ -951,85 +876,101 @@ app.get('/api/session-heartbeat', (req, res) => {
     }) + '\n\n');
 
     let isConnected = true;
+    let heartbeatCount = 0;
 
-    // Check session validity immediately
-    const checkSession = () => {
+    // Send heartbeat every 30 seconds instead of 10
+    const intervalId = setInterval(() => {
         if (!isConnected) return;
 
         try {
-            // Simple session check - don't rely on activeSessions tracking
-            if (!req.session?.user) {
-                console.log('💔 Heartbeat: No user in session');
-                res.write('data: ' + JSON.stringify({
-                    valid: false,
-                    reason: 'no_session_user',
-                    message: 'Please log in again',
-                    timestamp: Date.now()
-                }) + '\n\n');
-                return;
-            }
-
-            // Session is valid
+            heartbeatCount++;
+            
+            const isValid = !!(req.session?.user);
+            
             res.write('data: ' + JSON.stringify({
-                valid: true,
+                valid: isValid,
                 type: 'heartbeat',
-                user: req.session.user.email,
+                count: heartbeatCount,
                 timestamp: Date.now()
             }) + '\n\n');
 
+            // Close connection after 10 minutes to prevent resource leaks
+            if (heartbeatCount > 20) {
+                clearInterval(intervalId);
+                res.end();
+            }
         } catch (error) {
-            console.error('💔 Heartbeat error:', error);
+            console.error('Heartbeat error:', error);
         }
-    };
+    }, 30000); // 30 seconds
 
-    // Check immediately and then every 10 seconds
-    checkSession();
-    const intervalId = setInterval(checkSession, 10000);
-
-    // Handle client disconnect
     req.on('close', () => {
-        console.log('💓 Heartbeat connection closed');
         isConnected = false;
         clearInterval(intervalId);
     });
 
     req.on('error', (error) => {
-        console.error('💓 Heartbeat connection error:', error);
+        console.error('Heartbeat connection error:', error);
         isConnected = false;
         clearInterval(intervalId);
     });
 });
 
-// NEW: Get available databases for current user
-app.get('/api/user-databases', isAuthenticated, (req, res) => {
-    safeSessionTouch(req);
-    const email = req.session.user.email;
-    
-    const sql = `SELECT u.db_name, u.Access FROM users u WHERE u.Email = ?`;
-    
-    mainPool.query(sql, [email], (err, results) => {
-        if (err) {
-            console.error('Error querying user databases:', err);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Internal Server Error' 
-            });
-        }
-
-        const databases = results.map(row => ({
-            db_name: row.db_name,
-            access: row.Access
-        }));
-
+// Get current user info
+app.get('/api/current-user', isAuthenticated, async (req, res) => {
+    try {
+        await safeSessionTouch(req);
         res.json({
             success: true,
-            databases: databases,
-            currentDb: req.session.user.dbName
+            user: req.session.user
         });
-    });
+    } catch (error) {
+        console.error('Current user error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Failed to get user info' 
+        });
+    }
 });
 
-// FIXED: Switch database endpoint with proper session handling
+// Get available databases
+app.get('/api/user-databases', isAuthenticated, async (req, res) => {
+    try {
+        await safeSessionTouch(req);
+        const email = req.session.user.email;
+        
+        const sql = `SELECT u.db_name, u.Access FROM users u WHERE u.Email = ?`;
+        
+        mainPool.query(sql, [email], (err, results) => {
+            if (err) {
+                console.error('Error querying user databases:', err);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Internal Server Error' 
+                });
+            }
+
+            const databases = results.map(row => ({
+                db_name: row.db_name,
+                access: row.Access
+            }));
+
+            res.json({
+                success: true,
+                databases: databases,
+                currentDb: req.session.user.dbName
+            });
+        });
+    } catch (error) {
+        console.error('User databases error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
+
+// OPTIMIZED: Switch database
 app.post('/api/switch-database', isAuthenticated, async (req, res) => {
     const { dbName } = req.body;
     const email = req.session.user.email;
@@ -1042,7 +983,8 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
     }
 
     try {
-        // Verify user has access to the requested database
+        await safeSessionTouch(req);
+        
         const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
         mainPool.query(verifySql, [email, dbName], (err, results) => {
@@ -1062,8 +1004,6 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
             }
 
             const userDetails = results[0];
-            
-            // Get user info from the new company database
             const companyPool = getPool(dbName);
             const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
             
@@ -1083,24 +1023,15 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                     });
                 }
 
-                const name = companyResults[0].name;
-                const lastName = companyResults[0].lastName;
-
-                // Store the current session ID before updating
-                const oldSessionId = req.sessionID;
-                
-                // Update session with new database info - KEEP THE SAME SESSION
+                // Update session
                 req.session.user = {
                     email: email,
                     role: userDetails.Access,
-                    name: name,
-                    lastName: lastName,
+                    name: companyResults[0].name,
+                    lastName: companyResults[0].lastName,
                     dbName: dbName,
                 };
 
-                console.log('🔄 Database switching - Updated session user:', req.session.user);
-
-                // Save session and maintain the same session ID
                 req.session.save((err) => {
                     if (err) {
                         console.error('Error saving session after database switch:', err);
@@ -1110,14 +1041,11 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                         });
                     }
 
-                    console.log('✅ Database switched successfully to:', dbName);
-                    console.log('🔄 Session maintained with ID:', req.sessionID);
-
                     res.json({
                         success: true,
                         message: 'Database switched successfully',
                         user: req.session.user,
-                        sessionId: req.sessionID // Return the same session ID
+                        sessionId: req.sessionID
                     });
                 });
             });
@@ -1131,10 +1059,10 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
     }
 });
 
-// ENHANCED: iOS session restoration with proper session handling
+// OPTIMIZED: iOS session restoration
 app.post('/api/ios-restore-session', async (req, res) => {
-    safeSessionTouch(req);
     try {
+        await safeSessionTouch(req);
         const { email, dbName, accessToken, sessionId } = req.body;
         
         if (!email || !dbName || !accessToken) {
@@ -1144,9 +1072,9 @@ app.post('/api/ios-restore-session', async (req, res) => {
             });
         }
 
-        // Verify the access token first
+        // Verify the access token
         try {
-            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+            const decoded = jwt.verify(accessToken, JWT_SECRET);
             if (decoded.email !== email || decoded.dbName !== dbName) {
                 return res.status(401).json({ 
                     success: false, 
@@ -1160,7 +1088,6 @@ app.post('/api/ios-restore-session', async (req, res) => {
             });
         }
 
-        // Then proceed with user verification
         const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
         mainPool.query(verifySql, [email, dbName], (err, results) => {
@@ -1180,8 +1107,6 @@ app.post('/api/ios-restore-session', async (req, res) => {
             }
 
             const userDetails = results[0];
-            
-            // Get user info from company database
             const companyPool = getPool(dbName);
             const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
             
@@ -1209,14 +1134,11 @@ app.post('/api/ios-restore-session', async (req, res) => {
                     dbName: dbName,
                 };
 
-                console.log('✅ iOS session restoration successful for user:', userInfo);
-
                 // Use existing session or create new one
                 if (sessionId) {
                     req.sessionID = sessionId;
                 }
                 
-                // Set user data - this is critical
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
@@ -1226,34 +1148,20 @@ app.post('/api/ios-restore-session', async (req, res) => {
                 }
                 activeSessions.get(email).add(req.sessionID);
                 
-                // Force save with callback to ensure it's persisted
                 req.session.save((err) => {
                     if (err) {
-                        console.error('❌ Error saving iOS session:', err);
+                        console.error('Error saving iOS session:', err);
                         return res.status(500).json({ 
                             success: false, 
                             error: 'Failed to save session' 
                         });
                     }
 
-                    console.log('✅ iOS session saved/updated with ID:', req.sessionID);
-                    
-                    // Verify the session was actually saved
-                    req.sessionStore.get(req.sessionID, (verifyErr, savedSession) => {
-                        if (verifyErr) {
-                            console.error('❌ Error verifying session save:', verifyErr);
-                        } else if (savedSession && savedSession.user) {
-                            console.log('✅ Session verification passed - user data persisted');
-                        } else {
-                            console.error('❌ Session verification failed - no user data in stored session');
-                        }
-                        
-                        res.json({ 
-                            success: true, 
-                            user: userInfo,
-                            sessionId: req.sessionID,
-                            accessToken: accessToken
-                        });
+                    res.json({ 
+                        success: true, 
+                        user: userInfo,
+                        sessionId: req.sessionID,
+                        accessToken: accessToken
                     });
                 });
             });
@@ -1268,13 +1176,11 @@ app.post('/api/ios-restore-session', async (req, res) => {
     }
 });
 
-// Enhanced session recovery endpoint
+// OPTIMIZED: Session recovery
 app.post('/api/recover-session', async (req, res) => {
-    safeSessionTouch(req);
     try {
+        await safeSessionTouch(req);
         const { email, dbName, accessToken } = req.body;
-        
-        console.log('🔄 Attempting session recovery for:', { email, dbName });
         
         if (!email || !dbName || !accessToken) {
             return res.status(400).json({ 
@@ -1283,9 +1189,9 @@ app.post('/api/recover-session', async (req, res) => {
             });
         }
 
-        // Verify access token first
+        // Verify access token
         try {
-            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+            const decoded = jwt.verify(accessToken, JWT_SECRET);
             if (decoded.email !== email || decoded.dbName !== dbName) {
                 return res.status(401).json({ 
                     success: false, 
@@ -1299,7 +1205,6 @@ app.post('/api/recover-session', async (req, res) => {
             });
         }
 
-        // Verify user has access to this database
         const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
         mainPool.query(verifySql, [email, dbName], (err, results) => {
@@ -1319,8 +1224,6 @@ app.post('/api/recover-session', async (req, res) => {
             }
 
             const userDetails = results[0];
-            
-            // Get user info from company database
             const companyPool = getPool(dbName);
             const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
             
@@ -1348,13 +1251,9 @@ app.post('/api/recover-session', async (req, res) => {
                     dbName: dbName,
                 };
 
-                console.log('✅ Session recovery successful for user:', userInfo);
-
-                // Assign user data to existing session
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
-                // Track this session
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
@@ -1368,8 +1267,6 @@ app.post('/api/recover-session', async (req, res) => {
                             error: 'Failed to restore session' 
                         });
                     }
-
-                    console.log('✅ Recovered session saved with ID:', req.sessionID);
 
                     res.json({ 
                         success: true, 
@@ -1389,150 +1286,39 @@ app.post('/api/recover-session', async (req, res) => {
     }
 });
 
-// FIXED: Session initialization endpoint for iOS
-app.get('/api/init-session', (req, res) => {
-    console.log('🔄 Initializing session');
-    
-    // Ensure session is created and marked as initialized
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-    }
-    
-    // Touch the session to ensure it's saved
-    safeSessionTouch(req);
-    
-    req.session.save((err) => {
-        if (err) {
-            console.error('Error saving session:', err);
-            return res.status(500).json({ success: false, error: 'Session initialization failed' });
+// OPTIMIZED: Authentication middleware
+async function isAuthenticated(req, res, next) {
+    try {
+        // Simple check - only validate session user data
+        if (req.session?.user && req.session.user.dbName && req.session.user.email) {
+            await safeSessionTouch(req);
+            return next();
         }
         
-        console.log('✅ Session initialized with ID:', req.sessionID);
-        
-        res.json({
-            success: true,
-            sessionId: req.sessionID,
-            message: 'Session initialized successfully'
-        });
-    });
-});
-
-// ENHANCED: Secure authentication middleware with session validation
-function isAuthenticated(req, res, next) {
-    console.log('=== AUTH CHECK ===');
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    
-    // Only allow access with valid session user data
-    if (req.session?.user && req.session.user.dbName && req.session.user.email) {
-        // CRITICAL: Check if this session is still in active sessions
-        const email = req.session.user.email;
-        const activeSessionIds = activeSessions.get(email);
-        
-        if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
-            console.log('🚫 Session no longer active - user was force logged out');
-            
-            // Destroy the invalid session
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error('Error destroying invalid session:', err);
-                }
-                console.log('✅ Invalid session destroyed');
-                
-                // Send proper auth error
-                const userAgent = req.headers['user-agent'] || '';
-                const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
-                return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
+        // For API calls, return JSON error
+        if (req.path.startsWith('/api/') || req.xhr) {
+            return res.status(401).json({ 
+                success: false, 
+                error: 'Unauthorized',
+                message: 'Please log in again',
+                requiresLogin: true
             });
-            return;
         }
         
-        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
+        // For HTML pages, redirect to login
+        res.redirect('/');
+    } catch (error) {
+        console.error('Auth middleware error:', error);
         
-        // Use safe session extension
-        if (req.session.touch && typeof req.session.touch === 'function') {
-            req.session.touch();
+        if (req.path.startsWith('/api/') || req.xhr) {
+            res.status(500).json({ 
+                success: false, 
+                error: 'Authentication error'
+            });
         } else {
-            // Manual session extension by updating maxAge
-            req.session.cookie.maxAge = req.session.cookie.originalMaxAge;
+            res.redirect('/');
         }
-        
-        return next();
     }
-    
-    console.log('❌ Authentication FAILED - No valid user in session');
-    
-    // For iOS apps, try to load session from URL parameter as fallback
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
-    const sessionIdFromUrl = req.query.sessionId;
-    
-    if (isIOS && sessionIdFromUrl && req.sessionStore) {
-        console.log('📱 iOS - Attempting session recovery from URL parameter');
-        
-        req.sessionStore.get(sessionIdFromUrl, (err, sessionData) => {
-            if (err) {
-                console.error('❌ Error loading iOS session from URL:', err);
-                return sendAuthError(res, isIOS, req);
-            }
-            
-            if (sessionData && sessionData.user) {
-                console.log('✅ iOS session recovery successful');
-                
-                // Check if the recovered session is still active
-                const recoveredEmail = sessionData.user.email;
-                const recoveredActiveSessions = activeSessions.get(recoveredEmail);
-                
-                if (!recoveredActiveSessions || !recoveredActiveSessions.has(sessionIdFromUrl)) {
-                    console.log('🚫 Recovered session no longer active');
-                    return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
-                }
-                
-                // Regenerate session with loaded data
-                req.session.regenerate((err) => {
-                    if (err) {
-                        console.error('❌ Error regenerating session during recovery:', err);
-                        return sendAuthError(res, isIOS, req);
-                    }
-                    
-                    Object.assign(req.session, sessionData);
-                    req.sessionID = sessionIdFromUrl;
-                    
-                    // Safe session extension
-                    if (req.session.touch && typeof req.session.touch === 'function') {
-                        req.session.touch();
-                    }
-                    
-                    return next();
-                });
-            } else {
-                console.log('❌ No valid session data found for recovery');
-                sendAuthError(res, isIOS, req);
-            }
-        });
-    } else {
-        sendAuthError(res, isIOS, req);
-    }
-}
-
-// Enhanced sendAuthError function with custom message support
-function sendAuthError(res, isIOS, req, customMessage = null) {
-    const defaultMessage = 'Please log in again';
-    const message = customMessage || defaultMessage;
-    
-    if (isIOS || req.path.startsWith('/api/') || req.xhr) {
-        return res.status(401).json({ 
-            success: false, 
-            error: 'Unauthorized',
-            message: message,
-            requiresLogin: true
-        });
-    }
-    
-    // For HTML pages, you might want to show a message before redirecting
-    // You can either redirect to login with a message or show an error page
-    res.redirect('/?error=' + encodeURIComponent(message));
 }
 
 // Role-based middleware
@@ -1584,11 +1370,8 @@ function isUser(req, res, next) {
     res.redirect('/');
 }
 
-// Enhanced database selection with force logout support
+// OPTIMIZED: Database selection
 app.post('/submit-database', async (req, res) => {
-    console.log('=== DATABASE SELECTION ===');
-    console.log('Session ID:', req.sessionID);
-    
     const { email, password, dbName, forceLogout } = req.body;
 
     if (!email || !password || !dbName) {
@@ -1599,7 +1382,6 @@ app.post('/submit-database', async (req, res) => {
     }
 
     try {
-        // First verify the user credentials
         const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
         mainPool.query(sql, [email, dbName], async (err, results) => {
@@ -1618,11 +1400,9 @@ app.post('/submit-database', async (req, res) => {
                 });
             }
 
-            // Verify password
             const row = results[0];
-            const storedPassword = row.Password;
             try {
-                const isMatch = await bcrypt.compare(password, storedPassword);
+                const isMatch = await bcrypt.compare(password, row.Password);
                 if (!isMatch) {
                     return res.status(401).json({ 
                         success: false,
@@ -1639,53 +1419,29 @@ app.post('/submit-database', async (req, res) => {
 
             // Check for active sessions
             const activeSessionIds = activeSessions.get(email);
-            let hasActiveSessions = false;
-            
-            if (activeSessionIds && activeSessionIds.size > 0) {
-                for (const sessionId of activeSessionIds) {
-                    await new Promise((resolve) => {
-                        sessionStore.get(sessionId, (err, sessionData) => {
-                            if (!err && sessionData && sessionData.user) {
-                                hasActiveSessions = true;
-                            }
-                            resolve();
-                        });
-                    });
-                    if (hasActiveSessions) break;
-                }
-            }
+            const hasActiveSessions = activeSessionIds && activeSessionIds.size > 0;
 
-            // If user has active sessions and hasn't chosen to force logout, return warning
             if (hasActiveSessions && forceLogout !== true) {
                 return res.status(409).json({
                     success: false,
                     message: 'already_logged_in',
-                    activeSessions: activeSessionIds ? activeSessionIds.size : 0
+                    activeSessions: activeSessionIds.size
                 });
             }
 
-            // If force logout is requested, destroy other sessions
             if (hasActiveSessions && forceLogout === true) {
-                console.log('🔄 Force logout requested for database selection:', email);
                 for (const sessionId of activeSessionIds) {
                     if (sessionId !== req.sessionID) {
                         await new Promise((resolve) => {
                             sessionStore.destroy(sessionId, (err) => {
-                                if (err) {
-                                    console.error('Error destroying session:', err);
-                                } else {
-                                    console.log(`✅ Destroyed previous session: ${sessionId}`);
-                                }
                                 resolve();
                             });
                         });
                     }
                 }
-                // Clear tracking and only keep current session
                 activeSessions.set(email, new Set([req.sessionID]));
             }
 
-            // Continue with login
             const companyPool = getPool(dbName);
             const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
 
@@ -1705,39 +1461,25 @@ app.post('/submit-database', async (req, res) => {
                     });
                 }
 
-                const name = companyResults[0].name;
-                const lastName = companyResults[0].lastName;
-
                 const userInfo = {
                     email: email,
                     role: row.Access,
-                    name: name,
-                    lastName: lastName,
+                    name: companyResults[0].name,
+                    lastName: companyResults[0].lastName,
                     dbName: dbName,
                 };
 
-                console.log('✅ Database selection successful, creating session for user:', userInfo);
-
-                // Set session data
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
-                // Track this session
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
                 activeSessions.get(email).add(req.sessionID);
                 
-                // Generate tokens
                 const authToken = generateToken(userInfo);
                 const refreshToken = jwt.sign(
-                    {
-                        email: userInfo.email,
-                        role: userInfo.role,
-                        name: userInfo.name,
-                        lastName: userInfo.lastName,
-                        dbName: userInfo.dbName
-                    },
+                    userInfo,
                     process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
                     { expiresIn: '30d' }
                 );
@@ -1754,7 +1496,6 @@ app.post('/submit-database', async (req, res) => {
                     redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
-                // Save session and then respond
                 req.session.save((err) => {
                     if (err) {
                         console.error('Error saving session:', err);
@@ -1763,8 +1504,6 @@ app.post('/submit-database', async (req, res) => {
                             error: 'Failed to create session'
                         });
                     }
-
-                    console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
                     res.json({
                         success: true,
@@ -1787,11 +1526,8 @@ app.post('/submit-database', async (req, res) => {
     }
 });
 
-// FIXED: Login route with proper duplicate session prevention
+// OPTIMIZED: Login route
 app.post('/submit', async (req, res) => {
-    console.log('=== LOGIN ATTEMPT ===');
-    console.log('Session ID at login start:', req.sessionID);
-    
     const { email, password, dbName, forceLogout } = req.body;
 
     if (!email || !password) {
@@ -1802,7 +1538,6 @@ app.post('/submit', async (req, res) => {
     }
 
     try {
-        // First verify the user credentials
         const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
         
         mainPool.query(sql, [email], async (err, results) => {
@@ -1823,9 +1558,8 @@ app.post('/submit', async (req, res) => {
 
             let matchingDatabases = [];
             for (const row of results) {
-                const storedPassword = row.Password;
                 try {
-                    const isMatch = await bcrypt.compare(password, storedPassword);
+                    const isMatch = await bcrypt.compare(password, row.Password);
                     if (isMatch) {
                         matchingDatabases.push({
                             db_name: row.db_name,
@@ -1848,56 +1582,30 @@ app.post('/submit', async (req, res) => {
                 });
             }
 
-            // NOW check for active sessions (after we know credentials are valid)
             const activeSessionIds = activeSessions.get(email);
-            let hasActiveSessions = false;
-            
-            if (activeSessionIds && activeSessionIds.size > 0) {
-                // Verify sessions are still valid
-                for (const sessionId of activeSessionIds) {
-                    await new Promise((resolve) => {
-                        sessionStore.get(sessionId, (err, sessionData) => {
-                            if (!err && sessionData && sessionData.user) {
-                                hasActiveSessions = true;
-                            }
-                            resolve();
-                        });
-                    });
-                    if (hasActiveSessions) break;
-                }
-            }
+            const hasActiveSessions = activeSessionIds && activeSessionIds.size > 0;
 
-            // If user has active sessions and hasn't chosen to force logout, return warning
             if (hasActiveSessions && forceLogout !== true) {
                 return res.status(409).json({
                     success: false,
                     message: 'already_logged_in',
-                    activeSessions: activeSessionIds ? activeSessionIds.size : 0
+                    activeSessions: activeSessionIds.size
                 });
             }
 
-            // If force logout is requested, destroy other sessions
             if (hasActiveSessions && forceLogout === true) {
-                console.log('🔄 Force logout requested for:', email);
                 for (const sessionId of activeSessionIds) {
                     if (sessionId !== req.sessionID) {
                         await new Promise((resolve) => {
                             sessionStore.destroy(sessionId, (err) => {
-                                if (err) {
-                                    console.error('Error destroying session:', err);
-                                } else {
-                                    console.log(`✅ Destroyed previous session: ${sessionId}`);
-                                }
                                 resolve();
                             });
                         });
                     }
                 }
-                // Clear tracking and only keep current session
                 activeSessions.set(email, new Set([req.sessionID]));
             }
 
-            // Continue with database selection or login
             if (matchingDatabases.length > 1 && !dbName) {
                 return res.status(200).json({
                     success: true,
@@ -1936,39 +1644,25 @@ app.post('/submit', async (req, res) => {
                     });
                 }
 
-                const name = companyResults[0].name;
-                const lastName = companyResults[0].lastName;
-
                 const userInfo = {
                     email: email,
                     role: userDetails.access,
-                    name: name,
-                    lastName: lastName,
+                    name: companyResults[0].name,
+                    lastName: companyResults[0].lastName,
                     dbName: userDetails.db_name,
                 };
 
-                console.log('✅ Login successful, creating session for user:', userInfo);
-
-                // Set session data
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
-                // Track this session
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
                 activeSessions.get(email).add(req.sessionID);
                 
-                // Generate tokens
                 const authToken = generateToken(userInfo);
                 const refreshToken = jwt.sign(
-                    {
-                        email: userInfo.email,
-                        role: userInfo.role,
-                        name: userInfo.name,
-                        lastName: userInfo.lastName,
-                        dbName: userInfo.dbName
-                    },
+                    userInfo,
                     process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
                     { expiresIn: '30d' }
                 );
@@ -1985,7 +1679,6 @@ app.post('/submit', async (req, res) => {
                     redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
-                // Save session and then respond
                 req.session.save((err) => {
                     if (err) {
                         console.error('Error saving session:', err);
@@ -1994,8 +1687,6 @@ app.post('/submit', async (req, res) => {
                             error: 'Failed to create session'
                         });
                     }
-
-                    console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
                     res.json({
                         success: true,
@@ -2018,7 +1709,7 @@ app.post('/submit', async (req, res) => {
     }
 });
 
-// Protected routes - ALWAYS desktop versions for browsers
+// Protected routes
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
@@ -2044,113 +1735,118 @@ app.get('/SupervisorApp.html', isAuthenticated, isSupervisor, (req, res) => {
 });
 
 // Endpoint to get employees on shift today
-app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
-    safeSessionTouch(req);
-    const dbName = req.session.user.dbName;
-    if (!dbName) return res.status(401).json({ success: false, message: 'User not authenticated' });
+app.get('/api/employees-on-shift', isAuthenticated, async (req, res) => {
+    try {
+        await safeSessionTouch(req);
+        const dbName = req.session.user.dbName;
+        if (!dbName) return res.status(401).json({ success: false, message: 'User not authenticated' });
 
-    const pool = getPool(dbName);
-    const today = new Date();
-    const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
-    const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()} (${dayName})`;
-    
-    pool.query(
-        `SELECT name, lastName, startTime, endTime, designation 
-         FROM rota 
-         WHERE day = ?
-         ORDER BY designation DESC, lastName, name, startTime`,
-        [formattedDate],
-        (error, results) => {
-            if (error) {
-                console.error('Database error:', error);
-                return res.status(500).json({ success: false, error: 'Database error' });
-            }
+        const pool = getPool(dbName);
+        const today = new Date();
+        const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
+        const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()} (${dayName})`;
+        
+        pool.query(
+            `SELECT name, lastName, startTime, endTime, designation 
+             FROM rota 
+             WHERE day = ?
+             ORDER BY designation DESC, lastName, name, startTime`,
+            [formattedDate],
+            (error, results) => {
+                if (error) {
+                    console.error('Database error:', error);
+                    return res.status(500).json({ success: false, error: 'Database error' });
+                }
 
-            const employeeMap = new Map();
-            const now = new Date();
-            const currentTime = now.getHours() * 60 + now.getMinutes();
-            
-            results.forEach(row => {
-                const key = `${row.name} ${row.lastName}`;
-                if (!employeeMap.has(key)) {
-                    employeeMap.set(key, {
-                        name: row.name,
-                        lastName: row.lastName,
-                        designation: row.designation,
-                        timeFrames: []
+                const employeeMap = new Map();
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes();
+                
+                results.forEach(row => {
+                    const key = `${row.name} ${row.lastName}`;
+                    if (!employeeMap.has(key)) {
+                        employeeMap.set(key, {
+                            name: row.name,
+                            lastName: row.lastName,
+                            designation: row.designation,
+                            timeFrames: []
+                        });
+                    }
+                    
+                    const [startH, startM] = row.startTime.split(':').map(Number);
+                    const [endH, endM] = row.endTime.split(':').map(Number);
+                    const startMinutes = startH * 60 + startM;
+                    const endMinutes = endH * 60 + endM;
+                    
+                    employeeMap.get(key).timeFrames.push({
+                        start: row.startTime,
+                        end: row.endTime,
+                        startMinutes,
+                        endMinutes
                     });
-                }
-                
-                const [startH, startM] = row.startTime.split(':').map(Number);
-                const [endH, endM] = row.endTime.split(':').map(Number);
-                const startMinutes = startH * 60 + startM;
-                const endMinutes = endH * 60 + endM;
-                
-                employeeMap.get(key).timeFrames.push({
-                    start: row.startTime,
-                    end: row.endTime,
-                    startMinutes,
-                    endMinutes
                 });
-            });
 
-            const employees = Array.from(employeeMap.values()).map(emp => {
-                emp.timeFrames.sort((a, b) => a.startMinutes - b.startMinutes);
-                
-                let currentStatus = 'Not started';
-                let nextEvent = '';
-                let activeFrame = null;
-                
-                for (const frame of emp.timeFrames) {
-                    if (currentTime < frame.startMinutes) {
-                        const minsLeft = frame.startMinutes - currentTime;
-                        const hoursLeft = Math.floor(minsLeft / 60);
-                        const remainingMins = minsLeft % 60;
-                        nextEvent = `Starts in ${hoursLeft}h ${remainingMins}m`;
-                        break;
-                    } else if (currentTime <= frame.endMinutes) {
-                        currentStatus = 'Working now';
-                        const minsLeft = frame.endMinutes - currentTime;
-                        const hoursLeft = Math.floor(minsLeft / 60);
-                        const remainingMins = minsLeft % 60;
-                        nextEvent = `Ends in ${hoursLeft}h ${remainingMins}m`;
-                        activeFrame = frame;
-                        break;
+                const employees = Array.from(employeeMap.values()).map(emp => {
+                    emp.timeFrames.sort((a, b) => a.startMinutes - b.startMinutes);
+                    
+                    let currentStatus = 'Not started';
+                    let nextEvent = '';
+                    let activeFrame = null;
+                    
+                    for (const frame of emp.timeFrames) {
+                        if (currentTime < frame.startMinutes) {
+                            const minsLeft = frame.startMinutes - currentTime;
+                            const hoursLeft = Math.floor(minsLeft / 60);
+                            const remainingMins = minsLeft % 60;
+                            nextEvent = `Starts in ${hoursLeft}h ${remainingMins}m`;
+                            break;
+                        } else if (currentTime <= frame.endMinutes) {
+                            currentStatus = 'Working now';
+                            const minsLeft = frame.endMinutes - currentTime;
+                            const hoursLeft = Math.floor(minsLeft / 60);
+                            const remainingMins = minsLeft % 60;
+                            nextEvent = `Ends in ${hoursLeft}h ${remainingMins}m`;
+                            activeFrame = frame;
+                            break;
+                        }
                     }
-                }
-                
-                if (!nextEvent && emp.timeFrames.length > 0) {
-                    const lastFrame = emp.timeFrames[emp.timeFrames.length - 1];
-                    const minsAgo = currentTime - lastFrame.endMinutes;
-                    if (minsAgo > 0) {
-                        const hoursAgo = Math.floor(minsAgo / 60);
-                        const remainingMins = minsAgo % 60;
-                        nextEvent = `Ended ${hoursAgo}h ${remainingMins}m ago`;
-                        currentStatus = 'Shift ended';
+                    
+                    if (!nextEvent && emp.timeFrames.length > 0) {
+                        const lastFrame = emp.timeFrames[emp.timeFrames.length - 1];
+                        const minsAgo = currentTime - lastFrame.endMinutes;
+                        if (minsAgo > 0) {
+                            const hoursAgo = Math.floor(minsAgo / 60);
+                            const remainingMins = minsAgo % 60;
+                            nextEvent = `Ended ${hoursAgo}h ${remainingMins}m ago`;
+                            currentStatus = 'Shift ended';
+                        }
                     }
-                }
 
-                return {
-                    employeeName: `${emp.name} ${emp.lastName}`,
-                    designation: emp.designation,
-                    timeFrames: emp.timeFrames.map(f => ({ start: f.start, end: f.end })),
-                    status: currentStatus,
-                    nextEvent,
-                    currentFrame: activeFrame ? {
-                        endMinutes: activeFrame.endMinutes,
-                        currentTime: currentTime
-                    } : null
-                };
-            });
+                    return {
+                        employeeName: `${emp.name} ${emp.lastName}`,
+                        designation: emp.designation,
+                        timeFrames: emp.timeFrames.map(f => ({ start: f.start, end: f.end })),
+                        status: currentStatus,
+                        nextEvent,
+                        currentFrame: activeFrame ? {
+                            endMinutes: activeFrame.endMinutes,
+                            currentTime: currentTime
+                        } : null
+                    };
+                });
 
-            res.json({
-                success: true,
-                count: employeeMap.size,
-                employees,
-                serverTime: currentTime 
-            });
-        }
-    );
+                res.json({
+                    success: true,
+                    count: employeeMap.size,
+                    employees,
+                    serverTime: currentTime 
+                });
+            }
+        );
+    } catch (error) {
+        console.error('Employees on shift error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
 });
 
 // Helper function to get current Monday's date
@@ -2163,56 +1859,61 @@ function getCurrentMonday() {
 }
 
 // Function to get labor cost
-app.get('/api/labor-cost', isAuthenticated, (req, res) => {
-    safeSessionTouch(req);
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
+app.get('/api/labor-cost', isAuthenticated, async (req, res) => {
+    try {
+        await safeSessionTouch(req);
+        const dbName = req.session.user.dbName;
+        if (!dbName) {
+            return res.status(401).json({ success: false, message: 'User not authenticated' });
+        }
 
-    const pool = getPool(dbName);
-    const mondayDate = getCurrentMonday();
-    
-    pool.query(
-        `SELECT Weekly_Cost_Before FROM Data WHERE WeekStart = ?`,
-        [mondayDate],
-        (error, results) => {
-            if (error) {
-                console.error('Database error:', error);
-                return res.status(500).json({ success: false, error: 'Database error' });
-            }
-            
-            if (results.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'No data found for current week',
+        const pool = getPool(dbName);
+        const mondayDate = getCurrentMonday();
+        
+        pool.query(
+            `SELECT Weekly_Cost_Before FROM Data WHERE WeekStart = ?`,
+            [mondayDate],
+            (error, results) => {
+                if (error) {
+                    console.error('Database error:', error);
+                    return res.status(500).json({ success: false, error: 'Database error' });
+                }
+                
+                if (results.length === 0) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'No data found for current week',
+                        week_start_date: mondayDate
+                    });
+                }
+                
+                res.json({
+                    success: true,
+                    cost: results[0].Weekly_Cost_Before,
                     week_start_date: mondayDate
                 });
             }
-            
-            res.json({
-                success: true,
-                cost: results[0].Weekly_Cost_Before,
-                week_start_date: mondayDate
-            });
-        }
-    );
+        );
+    } catch (error) {
+        console.error('Labor cost error:', error);
+        res.status(500).json({ success: false, error: 'Server error' });
+    }
 });
 
 // API routes
 app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
-    safeSessionTouch(req);
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
-
     try {
+        await safeSessionTouch(req);
+        const dbName = req.session.user.dbName;
+        if (!dbName) {
+            return res.status(401).json({ success: false, message: 'User not authenticated' });
+        }
+
+        const pool = getPool(dbName);
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        const currentYear = today.getFullYear();
+
         const yesterday = new Date(today);
         yesterday.setDate(today.getDate() - 1);
         const daysToCheck = yesterday.getDate();
@@ -2253,18 +1954,18 @@ app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
 });
 
 app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
-    safeSessionTouch(req);
-    const dbName = req.session.user.dbName;
-    if (!dbName) {
-        return res.status(401).json({ success: false, message: 'User not authenticated' });
-    }
-
-    const pool = getPool(dbName);
-    const today = new Date();
-    const currentMonth = today.getMonth() + 1;
-    const currentYear = today.getFullYear();
-
     try {
+        await safeSessionTouch(req);
+        const dbName = req.session.user.dbName;
+        if (!dbName) {
+            return res.status(401).json({ success: false, message: 'User not authenticated' });
+        }
+
+        const pool = getPool(dbName);
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        const currentYear = today.getFullYear();
+
         const yesterday = new Date(today);
         yesterday.setDate(today.getDate() - 1);
         const daysToCheck = yesterday.getDate();
@@ -2303,7 +2004,7 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     }
 });
 
-// Enhanced logout route with session cleanup
+// Enhanced logout route
 app.get('/logout', (req, res) => {
     if (req.session) {
         const sessionId = req.sessionID;
@@ -2312,10 +2013,8 @@ app.get('/logout', (req, res) => {
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to destroy session:', err);
-                return res.redirect('/');
             }
             
-            // Remove from active sessions tracking
             if (userEmail && activeSessions.has(userEmail)) {
                 activeSessions.get(userEmail).delete(sessionId);
                 if (activeSessions.get(userEmail).size === 0) {
@@ -2323,7 +2022,6 @@ app.get('/logout', (req, res) => {
                 }
             }
             
-            // Clear the cookie with proper settings
             res.clearCookie('solura.session', {
                 path: '/',
                 httpOnly: true,
@@ -2331,7 +2029,6 @@ app.get('/logout', (req, res) => {
                 sameSite: 'lax'
             });
             
-            console.log('✅ Logout successful for session:', sessionId);
             res.redirect('/');
         });
     } else {
@@ -2352,7 +2049,7 @@ app.get('*', (req, res) => {
     }
 });
 
-// Clean up active sessions tracking when sessions are destroyed
+// Clean up active sessions tracking
 sessionStore.on('destroy', (sessionId) => {
     for (const [email, sessionIds] of activeSessions.entries()) {
         if (sessionIds.has(sessionId)) {
@@ -2360,11 +2057,42 @@ sessionStore.on('destroy', (sessionId) => {
             if (sessionIds.size === 0) {
                 activeSessions.delete(email);
             }
-            console.log(`🧹 Cleaned up destroyed session: ${sessionId}`);
             break;
         }
     }
+    sessionValidationCache.delete(sessionId);
+    iosSessionCache.delete(sessionId);
 });
+
+// Clean up caches periodically
+setInterval(() => {
+    const now = Date.now();
+    
+    // Clean session validation cache (5 minute TTL)
+    for (const [key, value] of sessionValidationCache.entries()) {
+        if (now - value.timestamp > 300000) {
+            sessionValidationCache.delete(key);
+        }
+    }
+    
+    // Clean iOS session cache (30 second TTL)
+    for (const [key, value] of iosSessionCache.entries()) {
+        if (now - value.timestamp > 30000) {
+            iosSessionCache.delete(key);
+        }
+    }
+    
+    // Clean rate limit map (15 minute TTL)
+    for (const [ip, attempts] of rateLimitMap.entries()) {
+        const windowStart = now - (15 * 60 * 1000);
+        const filtered = attempts.filter(time => time > windowStart);
+        if (filtered.length === 0) {
+            rateLimitMap.delete(ip);
+        } else {
+            rateLimitMap.set(ip, filtered);
+        }
+    }
+}, 60000); // Run every minute
 
 // Test session store connection
 sessionStore.on('connected', () => {
@@ -2380,4 +2108,4 @@ app.listen(port, () => {
     console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
     const databaseNames = ['bbuonaoxford', '100%pastaoxford'];
     scheduleTestUpdates(databaseNames);
-}); 
+});
