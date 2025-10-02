@@ -54,6 +54,9 @@ const SESSION_SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
+// Track active sessions for duplicate login prevention
+const activeSessions = new Map(); // email -> sessionIds
+
 // Safe session touch utility
 function safeSessionTouch(req) {
     if (req.session && req.session.touch && typeof req.session.touch === 'function') {
@@ -195,6 +198,41 @@ app.use(session({
     }
 }));
 
+// Session recovery middleware for heartbeat issues
+app.use('/api/session-heartbeat', (req, res, next) => {
+    // Force session reload for heartbeat
+    if (req.session && typeof req.session.reload === 'function') {
+        req.session.reload((err) => {
+            if (err) {
+                console.log('🔄 Heartbeat session reload failed, continuing anyway');
+            }
+            next();
+        });
+    } else {
+        next();
+    }
+});
+
+// Enhanced session tracking middleware
+app.use((req, res, next) => {
+    // Override session.save to track active sessions
+    const originalSave = req.session.save;
+    req.session.save = function(callback) {
+        originalSave.call(this, (err) => {
+            if (!err && req.session.user && req.session.user.email) {
+                const email = req.session.user.email;
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                console.log(`✅ Session tracked for ${email}: ${req.sessionID}`);
+            }
+            if (callback) callback(err);
+        });
+    };
+    next();
+});
+
 // FIXED: iOS-specific middleware - MUST come after session middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
@@ -260,6 +298,21 @@ app.use((req, res, next) => {
     }
     
     next();
+});
+
+// Session reloading middleware for API endpoints
+app.use('/api/', (req, res, next) => {
+    // Force session reload for API calls
+    if (req.session && typeof req.session.reload === 'function') {
+        req.session.reload((err) => {
+            if (err) {
+                console.error('Error reloading session:', err);
+            }
+            next();
+        });
+    } else {
+        next();
+    }
 });
 
 // Add CORS headers manually for additional security
@@ -355,6 +408,33 @@ app.use((req, res, next) => {
     next();
 });
 
+// Track session creation times for better management
+const sessionCreationTime = new Map(); // sessionId -> creation timestamp
+
+// Enhanced session tracking middleware
+app.use((req, res, next) => {
+    const originalSave = req.session.save;
+    req.session.save = function(callback) {
+        originalSave.call(this, (err) => {
+            if (!err && req.session.user && req.session.user.email) {
+                const email = req.session.user.email;
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                
+                // Track creation time
+                if (!sessionCreationTime.has(req.sessionID)) {
+                    sessionCreationTime.set(req.sessionID, Date.now());
+                    console.log(`✅ Session tracked: ${req.sessionID} for ${email}`);
+                }
+            }
+            if (callback) callback(err);
+        });
+    };
+    next();
+});
+
 // Health check endpoint with session info
 app.get('/health', (req, res) => {
     res.json({
@@ -399,6 +479,139 @@ app.use('/insertpayslip', insertpayslip);
 app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
+
+// NEW: Check if user already has active session
+app.post('/api/check-active-session', async (req, res) => {
+    const { email } = req.body;
+    
+    if (!email) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Email is required' 
+        });
+    }
+
+    try {
+        const activeSessionIds = activeSessions.get(email);
+        
+        if (activeSessionIds && activeSessionIds.size > 0) {
+            // Check which sessions are still valid
+            const validSessions = [];
+            
+            for (const sessionId of activeSessionIds) {
+                await new Promise((resolve) => {
+                    sessionStore.get(sessionId, (err, sessionData) => {
+                        if (err) {
+                            console.error('Error checking session:', err);
+                            resolve();
+                            return;
+                        }
+                        
+                        if (sessionData && sessionData.user && sessionData.user.email === email) {
+                            validSessions.push({
+                                sessionId: sessionId,
+                                lastAccess: sessionData.cookie?.originalMaxAge ? 
+                                    new Date(Date.now() - (24 * 60 * 60 * 1000 - sessionData.cookie.originalMaxAge)) : 
+                                    new Date()
+                            });
+                        }
+                        resolve();
+                    });
+                });
+            }
+            
+            // Remove invalid sessions from tracking
+            if (validSessions.length === 0) {
+                activeSessions.delete(email);
+            } else {
+                activeSessions.set(email, new Set(validSessions.map(s => s.sessionId)));
+            }
+            
+            if (validSessions.length > 0) {
+                return res.json({
+                    success: true,
+                    hasActiveSession: true,
+                    activeSessions: validSessions.length,
+                    message: `You are already logged in on ${validSessions.length} device(s).`
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            hasActiveSession: false
+        });
+        
+    } catch (error) {
+        console.error('Error checking active sessions:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
+
+// Enhanced force logout with immediate effect
+app.post('/api/force-logout-others', async (req, res) => {
+    const { email, keepCurrentSession } = req.body;
+    
+    if (!email) {
+        return res.status(400).json({ 
+            success: false, 
+            error: 'Email is required' 
+        });
+    }
+
+    try {
+        const activeSessionIds = activeSessions.get(email);
+        let loggedOutCount = 0;
+
+        if (activeSessionIds) {
+            const sessionsToDestroy = [];
+            
+            for (const sessionId of activeSessionIds) {
+                if (keepCurrentSession && req.sessionID === sessionId) {
+                    continue;
+                }
+                sessionsToDestroy.push(sessionId);
+            }
+            
+            console.log(`🔄 Force logging out ${sessionsToDestroy.length} sessions for ${email}`);
+            
+            for (const sessionId of sessionsToDestroy) {
+                await new Promise((resolve) => {
+                    sessionStore.destroy(sessionId, (err) => {
+                        if (!err) {
+                            loggedOutCount++;
+                            sessionCreationTime.delete(sessionId);
+                            console.log(`✅ Immediately destroyed session: ${sessionId}`);
+                        }
+                        resolve();
+                    });
+                });
+            }
+            
+            if (keepCurrentSession && req.sessionID) {
+                activeSessions.set(email, new Set([req.sessionID]));
+            } else {
+                activeSessions.delete(email);
+            }
+        }
+
+        res.json({
+            success: true,
+            loggedOutCount: loggedOutCount,
+            message: `Immediately logged out from ${loggedOutCount} other session(s)`
+        });
+
+    } catch (error) {
+        console.error('Error force logging out:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error' 
+        });
+    }
+});
 
 // Biometric authentication verification endpoint
 app.post('/api/verify-biometric', async (req, res) => {
@@ -487,6 +700,12 @@ app.post('/api/verify-biometric', async (req, res) => {
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
+                // Track this session
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                
                 // Generate new tokens
                 const authToken = generateToken(userInfo);
                 const refreshToken = jwt.sign(
@@ -501,17 +720,15 @@ app.post('/api/verify-biometric', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
-                const userAgent = req.headers['user-agent'] || '';
-                const isMobileDevice = /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
-
+                // ALWAYS use desktop versions for browsers
                 let redirectUrl = '';
 
                 if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                    redirectUrl = isMobileDevice ? '/AdminApp.html' : '/Admin.html';
+                    redirectUrl = '/Admin.html';
                 } else if (userDetails.Access === 'user') {
-                    redirectUrl = isMobileDevice ? '/UserApp.html' : '/User.html';
+                    redirectUrl = '/User.html';
                 } else if (userDetails.Access === 'supervisor') {
-                    redirectUrl = isMobileDevice ? '/SupervisorApp.html' : '/Supervisor.html';
+                    redirectUrl = '/Supervisor.html';
                 }
 
                 req.session.save((err) => {
@@ -622,6 +839,138 @@ app.get('/api/validate-session', (req, res) => {
             message: 'No active session'
         });
     }
+});
+
+// FIXED: Real-time session validation endpoint
+app.get('/api/validate-session-real-time', async (req, res) => {
+    console.log('=== REAL-TIME SESSION VALIDATION ===');
+    console.log('Session ID from cookie:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    
+    // Ensure session is loaded
+    if (!req.session) {
+        return res.json({
+            valid: false,
+            reason: 'session_not_loaded',
+            message: 'Session not loaded'
+        });
+    }
+
+    if (!req.session.user) {
+        return res.json({
+            valid: false,
+            reason: 'no_session_user',
+            message: 'No user in session'
+        });
+    }
+
+    const email = req.session.user.email;
+    const activeSessionIds = activeSessions.get(email);
+    
+    console.log('Active sessions for user:', activeSessionIds ? Array.from(activeSessionIds) : 'None');
+    console.log('Current session in active sessions:', activeSessionIds?.has(req.sessionID));
+    
+    // Check if this session is still active
+    if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
+        console.log('🚫 Session terminated - no longer in active sessions');
+        
+        // Destroy the invalid session
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error destroying invalid session:', err);
+            }
+        });
+        
+        return res.json({
+            valid: false,
+            reason: 'session_terminated',
+            message: 'Your session was terminated from another device',
+            terminated: true
+        });
+    }
+
+    // Session is valid - update last access
+    safeSessionTouch(req);
+    
+    res.json({
+        valid: true,
+        user: req.session.user,
+        sessionId: req.sessionID,
+        activeSessions: activeSessionIds ? Array.from(activeSessionIds) : [],
+        message: 'Session is valid'
+    });
+});
+
+// FIXED: Simplified heartbeat endpoint
+app.get('/api/session-heartbeat', (req, res) => {
+    console.log('💓 Heartbeat connection established - Session ID:', req.sessionID);
+    
+    // Set proper SSE headers
+    res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': req.headers.origin || '*',
+        'Access-Control-Allow-Credentials': 'true'
+    });
+
+    // Send immediate connection confirmation
+    res.write('data: ' + JSON.stringify({
+        type: 'connected',
+        message: 'Heartbeat connection established',
+        sessionId: req.sessionID,
+        timestamp: Date.now()
+    }) + '\n\n');
+
+    let isConnected = true;
+
+    // Check session validity immediately
+    const checkSession = () => {
+        if (!isConnected) return;
+
+        try {
+            // Simple session check - don't rely on activeSessions tracking
+            if (!req.session?.user) {
+                console.log('💔 Heartbeat: No user in session');
+                res.write('data: ' + JSON.stringify({
+                    valid: false,
+                    reason: 'no_session_user',
+                    message: 'Please log in again',
+                    timestamp: Date.now()
+                }) + '\n\n');
+                return;
+            }
+
+            // Session is valid
+            res.write('data: ' + JSON.stringify({
+                valid: true,
+                type: 'heartbeat',
+                user: req.session.user.email,
+                timestamp: Date.now()
+            }) + '\n\n');
+
+        } catch (error) {
+            console.error('💔 Heartbeat error:', error);
+        }
+    };
+
+    // Check immediately and then every 10 seconds
+    checkSession();
+    const intervalId = setInterval(checkSession, 10000);
+
+    // Handle client disconnect
+    req.on('close', () => {
+        console.log('💓 Heartbeat connection closed');
+        isConnected = false;
+        clearInterval(intervalId);
+    });
+
+    req.on('error', (error) => {
+        console.error('💓 Heartbeat connection error:', error);
+        isConnected = false;
+        clearInterval(intervalId);
+    });
 });
 
 // NEW: Get available databases for current user
@@ -844,6 +1193,12 @@ app.post('/api/ios-restore-session', async (req, res) => {
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
+                // Track this session
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                
                 // Force save with callback to ensure it's persisted
                 req.session.save((err) => {
                     if (err) {
@@ -972,6 +1327,12 @@ app.post('/api/recover-session', async (req, res) => {
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
+                // Track this session
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                
                 req.session.save((err) => {
                     if (err) {
                         console.error('Error saving recovered session:', err);
@@ -1029,7 +1390,7 @@ app.get('/api/init-session', (req, res) => {
     });
 });
 
-// FIXED: Secure authentication middleware
+// ENHANCED: Secure authentication middleware with session validation
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
@@ -1038,9 +1399,31 @@ function isAuthenticated(req, res, next) {
     
     // Only allow access with valid session user data
     if (req.session?.user && req.session.user.dbName && req.session.user.email) {
+        // CRITICAL: Check if this session is still in active sessions
+        const email = req.session.user.email;
+        const activeSessionIds = activeSessions.get(email);
+        
+        if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
+            console.log('🚫 Session no longer active - user was force logged out');
+            
+            // Destroy the invalid session
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error('Error destroying invalid session:', err);
+                }
+                console.log('✅ Invalid session destroyed');
+                
+                // Send proper auth error
+                const userAgent = req.headers['user-agent'] || '';
+                const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
+                return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
+            });
+            return;
+        }
+        
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
         
-        // Use safe session extension - don't call touch() if it doesn't exist
+        // Use safe session extension
         if (req.session.touch && typeof req.session.touch === 'function') {
             req.session.touch();
         } else {
@@ -1070,6 +1453,15 @@ function isAuthenticated(req, res, next) {
             if (sessionData && sessionData.user) {
                 console.log('✅ iOS session recovery successful');
                 
+                // Check if the recovered session is still active
+                const recoveredEmail = sessionData.user.email;
+                const recoveredActiveSessions = activeSessions.get(recoveredEmail);
+                
+                if (!recoveredActiveSessions || !recoveredActiveSessions.has(sessionIdFromUrl)) {
+                    console.log('🚫 Recovered session no longer active');
+                    return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
+                }
+                
                 // Regenerate session with loaded data
                 req.session.regenerate((err) => {
                     if (err) {
@@ -1097,17 +1489,23 @@ function isAuthenticated(req, res, next) {
     }
 }
 
-function sendAuthError(res, isIOS, req) {
+// Enhanced sendAuthError function with custom message support
+function sendAuthError(res, isIOS, req, customMessage = null) {
+    const defaultMessage = 'Please log in again';
+    const message = customMessage || defaultMessage;
+    
     if (isIOS || req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized',
-            message: 'Please log in again',
+            message: message,
             requiresLogin: true
         });
     }
     
-    res.redirect('/');
+    // For HTML pages, you might want to show a message before redirecting
+    // You can either redirect to login with a message or show an error page
+    res.redirect('/?error=' + encodeURIComponent(message));
 }
 
 // Role-based middleware
@@ -1159,12 +1557,213 @@ function isUser(req, res, next) {
     res.redirect('/');
 }
 
-// Function to detect mobile devices
-function isMobile(userAgent) {
-    return /android|iphone|ipad|ipod/i.test(userAgent.toLowerCase());
-}
+// Enhanced database selection with force logout support
+app.post('/submit-database', async (req, res) => {
+    console.log('=== DATABASE SELECTION ===');
+    console.log('Session ID:', req.sessionID);
+    
+    const { email, password, dbName, forceLogout } = req.body;
 
-// FIXED: Main route with session initialization
+    if (!email || !password || !dbName) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'Email, password, and database name are required' 
+        });
+    }
+
+    try {
+        // First verify the user credentials
+        const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
+        
+        mainPool.query(sql, [email, dbName], async (err, results) => {
+            if (err) {
+                console.error('Error querying database:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Internal Server Error'
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(401).json({ 
+                    success: false,
+                    message: 'Invalid database selection' 
+                });
+            }
+
+            // Verify password
+            const row = results[0];
+            const storedPassword = row.Password;
+            try {
+                const isMatch = await bcrypt.compare(password, storedPassword);
+                if (!isMatch) {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'Invalid credentials' 
+                    });
+                }
+            } catch (err) {
+                console.error('Error comparing passwords:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Internal Server Error'
+                });
+            }
+
+            // Check for active sessions
+            const activeSessionIds = activeSessions.get(email);
+            let hasActiveSessions = false;
+            
+            if (activeSessionIds && activeSessionIds.size > 0) {
+                for (const sessionId of activeSessionIds) {
+                    await new Promise((resolve) => {
+                        sessionStore.get(sessionId, (err, sessionData) => {
+                            if (!err && sessionData && sessionData.user) {
+                                hasActiveSessions = true;
+                            }
+                            resolve();
+                        });
+                    });
+                    if (hasActiveSessions) break;
+                }
+            }
+
+            // If user has active sessions and hasn't chosen to force logout, return warning
+            if (hasActiveSessions && forceLogout !== true) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'already_logged_in',
+                    activeSessions: activeSessionIds ? activeSessionIds.size : 0
+                });
+            }
+
+            // If force logout is requested, destroy other sessions
+            if (hasActiveSessions && forceLogout === true) {
+                console.log('🔄 Force logout requested for database selection:', email);
+                for (const sessionId of activeSessionIds) {
+                    if (sessionId !== req.sessionID) {
+                        await new Promise((resolve) => {
+                            sessionStore.destroy(sessionId, (err) => {
+                                if (err) {
+                                    console.error('Error destroying session:', err);
+                                } else {
+                                    console.log(`✅ Destroyed previous session: ${sessionId}`);
+                                }
+                                resolve();
+                            });
+                        });
+                    }
+                }
+                // Clear tracking and only keep current session
+                activeSessions.set(email, new Set([req.sessionID]));
+            }
+
+            // Continue with login
+            const companyPool = getPool(dbName);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Internal Server Error'
+                    });
+                }
+
+                if (companyResults.length === 0) {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'User not found in company database' 
+                    });
+                }
+
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                const userInfo = {
+                    email: email,
+                    role: row.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+
+                console.log('✅ Database selection successful, creating session for user:', userInfo);
+
+                // Set session data
+                req.session.user = userInfo;
+                req.session.initialized = true;
+                
+                // Track this session
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                
+                // Generate tokens
+                const authToken = generateToken(userInfo);
+                const refreshToken = jwt.sign(
+                    {
+                        email: userInfo.email,
+                        role: userInfo.role,
+                        name: userInfo.name,
+                        lastName: userInfo.lastName,
+                        dbName: userInfo.dbName
+                    },
+                    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                    { expiresIn: '30d' }
+                );
+
+                let redirectUrl = '';
+
+                if (row.Access === 'admin' || row.Access === 'AM') {
+                    redirectUrl = '/Admin.html';
+                } else if (row.Access === 'user') {
+                    redirectUrl = '/User.html';
+                } else if (row.Access === 'supervisor') {
+                    redirectUrl = '/Supervisor.html';
+                } else {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'Invalid access level' 
+                    });
+                }
+
+                // Save session and then respond
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            error: 'Failed to create session'
+                        });
+                    }
+
+                    console.log('✅ Session saved successfully. Session ID:', req.sessionID);
+
+                    res.json({
+                        success: true,
+                        message: 'Login successful',
+                        redirectUrl: redirectUrl,
+                        user: userInfo,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Database selection error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Internal server error'
+        });
+    }
+});
+
+// FIXED: Main route - ALWAYS show Login.html for browsers
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     console.log('Root route - User-Agent:', userAgent);
@@ -1180,23 +1779,17 @@ app.get('/', (req, res) => {
         });
     }
 
-    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(userAgent);
-    
-    if (isMobileDevice) {
-        console.log('📱 Serving mobile version');
-        res.sendFile(path.join(__dirname, 'LoginApp.html'));
-    } else {
-        console.log('💻 Serving desktop version');
-        res.sendFile(path.join(__dirname, 'Login.html'));
-    }
+    // ALWAYS serve Login.html for browsers, regardless of device
+    console.log('💻 Serving desktop Login.html (browser detected)');
+    res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
-// FIXED: Login route with robust session handling
+// FIXED: Login route with proper duplicate session prevention
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     console.log('Session ID at login start:', req.sessionID);
     
-    const { email, password, dbName } = req.body;
+    const { email, password, dbName, forceLogout } = req.body;
 
     if (!email || !password) {
         return res.status(400).json({ 
@@ -1206,6 +1799,7 @@ app.post('/submit', async (req, res) => {
     }
 
     try {
+        // First verify the user credentials
         const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
         
         mainPool.query(sql, [email], async (err, results) => {
@@ -1251,6 +1845,56 @@ app.post('/submit', async (req, res) => {
                 });
             }
 
+            // NOW check for active sessions (after we know credentials are valid)
+            const activeSessionIds = activeSessions.get(email);
+            let hasActiveSessions = false;
+            
+            if (activeSessionIds && activeSessionIds.size > 0) {
+                // Verify sessions are still valid
+                for (const sessionId of activeSessionIds) {
+                    await new Promise((resolve) => {
+                        sessionStore.get(sessionId, (err, sessionData) => {
+                            if (!err && sessionData && sessionData.user) {
+                                hasActiveSessions = true;
+                            }
+                            resolve();
+                        });
+                    });
+                    if (hasActiveSessions) break;
+                }
+            }
+
+            // If user has active sessions and hasn't chosen to force logout, return warning
+            if (hasActiveSessions && forceLogout !== true) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'already_logged_in',
+                    activeSessions: activeSessionIds ? activeSessionIds.size : 0
+                });
+            }
+
+            // If force logout is requested, destroy other sessions
+            if (hasActiveSessions && forceLogout === true) {
+                console.log('🔄 Force logout requested for:', email);
+                for (const sessionId of activeSessionIds) {
+                    if (sessionId !== req.sessionID) {
+                        await new Promise((resolve) => {
+                            sessionStore.destroy(sessionId, (err) => {
+                                if (err) {
+                                    console.error('Error destroying session:', err);
+                                } else {
+                                    console.log(`✅ Destroyed previous session: ${sessionId}`);
+                                }
+                                resolve();
+                            });
+                        });
+                    }
+                }
+                // Clear tracking and only keep current session
+                activeSessions.set(email, new Set([req.sessionID]));
+            }
+
+            // Continue with database selection or login
             if (matchingDatabases.length > 1 && !dbName) {
                 return res.status(200).json({
                     success: true,
@@ -1302,9 +1946,15 @@ app.post('/submit', async (req, res) => {
 
                 console.log('✅ Login successful, creating session for user:', userInfo);
 
-                // FIXED: Use existing session instead of regenerating
+                // Set session data
                 req.session.user = userInfo;
                 req.session.initialized = true;
+                
+                // Track this session
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
                 
                 // Generate tokens
                 const authToken = generateToken(userInfo);
@@ -1320,17 +1970,14 @@ app.post('/submit', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
-                const userAgent = req.headers['user-agent'] || '';
-                const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(userAgent.toLowerCase());
-
                 let redirectUrl = '';
 
                 if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    redirectUrl = isMobileDevice ? '/AdminApp.html' : '/Admin.html';
+                    redirectUrl = '/Admin.html';
                 } else if (userDetails.access === 'user') {
-                    redirectUrl = isMobileDevice ? '/UserApp.html' : '/User.html';
+                    redirectUrl = '/User.html';
                 } else if (userDetails.access === 'supervisor') {
-                    redirectUrl = isMobileDevice ? '/SupervisorApp.html' : '/Supervisor.html';
+                    redirectUrl = '/Supervisor.html';
                 } else {
                     return res.status(401).json({ 
                         success: false,
@@ -1371,7 +2018,7 @@ app.post('/submit', async (req, res) => {
     }
 });
 
-// Protected routes - NO URL PARAMETERS ALLOWED
+// Protected routes - ALWAYS desktop versions for browsers
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
@@ -1656,15 +2303,24 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     }
 });
 
-// Route to handle logout - REDIRECTS TO LOGIN PAGE
+// Enhanced logout route with session cleanup
 app.get('/logout', (req, res) => {
     if (req.session) {
         const sessionId = req.sessionID;
+        const userEmail = req.session.user?.email;
+        
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to destroy session:', err);
-                // Even on error, redirect to login page
                 return res.redirect('/');
+            }
+            
+            // Remove from active sessions tracking
+            if (userEmail && activeSessions.has(userEmail)) {
+                activeSessions.get(userEmail).delete(sessionId);
+                if (activeSessions.get(userEmail).size === 0) {
+                    activeSessions.delete(userEmail);
+                }
             }
             
             // Clear the cookie with proper settings
@@ -1676,11 +2332,9 @@ app.get('/logout', (req, res) => {
             });
             
             console.log('✅ Logout successful for session:', sessionId);
-            // Redirect to login page instead of JSON response
             res.redirect('/');
         });
     } else {
-        // No session exists, just redirect to login page
         res.redirect('/');
     }
 });
@@ -1695,6 +2349,20 @@ app.get('*', (req, res) => {
         res.status(404).json({ error: 'API endpoint not found' });
     } else {
         res.redirect('/');
+    }
+});
+
+// Clean up active sessions tracking when sessions are destroyed
+sessionStore.on('destroy', (sessionId) => {
+    for (const [email, sessionIds] of activeSessions.entries()) {
+        if (sessionIds.has(sessionId)) {
+            sessionIds.delete(sessionId);
+            if (sessionIds.size === 0) {
+                activeSessions.delete(email);
+            }
+            console.log(`🧹 Cleaned up destroyed session: ${sessionId}`);
+            break;
+        }
     }
 });
 
