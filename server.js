@@ -435,20 +435,20 @@ app.use((req, res, next) => {
     next();
 });
 
+// ENHANCED: Root route with mobile/desktop detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
+    const isMobileApp = req.query.mobile === 'true';
     
-    // Enhanced device detection
-    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-    const isAndroid = /Android/i.test(userAgent);
-    const isMobile = isIOS || isAndroid; // ← THIS IS THE PROBLEM
+    console.log('User-Agent:', userAgent);
+    console.log('Mobile app parameter:', isMobileApp);
     
-    if (isMobile) {
-        console.log('📱 Mobile device detected');
-        res.sendFile(path.join(__dirname, 'LoginApp.html')); // ← SERVING MOBILE VERSION
+    if (isMobileApp) {
+        console.log('📱 Mobile APP detected via parameter - serving LoginApp.html');
+        res.sendFile(path.join(__dirname, 'LoginApp.html'));
     } else {
-        console.log('💻 Desktop device detected');
-        res.sendFile(path.join(__dirname, 'Login.html')); // ← SERVING DESKTOP VERSION
+        console.log('🌐 Browser detected - serving Login.html');
+        res.sendFile(path.join(__dirname, 'Login.html'));
     }
 });
 
