@@ -81,7 +81,7 @@ function generateToken(user) {
     );
 }
 
-// ENHANCED CORS: Added iOS app origins
+// Enhanced CORS configuration for iOS compatibility
 const corsOptions = {
     origin: function (origin, callback) {
         const allowedOrigins = [
@@ -92,14 +92,14 @@ const corsOptions = {
             'capacitor://localhost',
             'ionic://localhost',
             'http://localhost',
-            'file://'
+            'https://localhost'
         ];
         
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin) return callback(null, true);
         
-        // Allow all iOS app origins
-        if (origin.includes('capacitor://') || origin.includes('ionic://') || origin.includes('file://')) {
+        // Allow Capacitor/Ionic origins
+        if (origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
             return callback(null, true);
         }
         
@@ -152,20 +152,18 @@ app.use((req, res, next) => {
     next();
 });
 
-// REDUCED: Session debugging middleware (only log first request)
-const loggedSessions = new Set();
+// Session debugging middleware
 app.use((req, res, next) => {
-    const sessionId = req.sessionID;
-    
-    if (!loggedSessions.has(sessionId)) {
-        console.log('=== NEW SESSION ===');
-        console.log('URL:', req.url);
-        console.log('Method:', req.method);
-        console.log('Session ID:', sessionId);
-        console.log('User Agent:', req.headers['user-agent']);
-        console.log('Origin:', req.headers.origin);
-        loggedSessions.add(sessionId);
-    }
+    console.log('=== SESSION DEBUG ===');
+    console.log('URL:', req.url);
+    console.log('Method:', req.method);
+    console.log('Origin:', req.headers.origin);
+    console.log('User-Agent:', req.headers['user-agent']);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    console.log('Cookies:', req.headers.cookie);
+    console.log('=== END DEBUG ===');
     next();
 });
 
@@ -190,18 +188,18 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// CRITICAL FIX: Session configuration optimized for iOS apps
+// FIXED: Session configuration with iOS compatibility - CRITICAL CHANGES
 app.use(session({
     secret: SESSION_SECRET,
-    resave: false, // Changed to false to prevent race conditions
-    saveUninitialized: false, // Changed to false - only save when we have user data
+    resave: true, // Changed to true for better iOS compatibility
+    saveUninitialized: true, // Changed to true to ensure session is always created
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // FORCE to false for iOS apps - they can't handle secure cookies
-        httpOnly: false, // Set to false for iOS app compatibility
-        sameSite: 'lax', // Use 'lax' for better iOS compatibility
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        secure: isProduction,
+        httpOnly: true,
+        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
+        maxAge: 10 * 60 * 1000, // 10 minutes in milliseconds
         domain: isProduction ? '.solura.uk' : undefined
     },
     rolling: true,
@@ -211,37 +209,78 @@ app.use(session({
     }
 }));
 
-// ENHANCED: iOS app detection and session handling
+// Session recovery middleware for heartbeat issues
+app.use('/api/session-heartbeat', (req, res, next) => {
+    // Force session reload for heartbeat
+    if (req.session && typeof req.session.reload === 'function') {
+        req.session.reload((err) => {
+            if (err) {
+                console.log('🔄 Heartbeat session reload failed, continuing anyway');
+            }
+            next();
+        });
+    } else {
+        next();
+    }
+});
+
+// Enhanced session tracking middleware
+app.use((req, res, next) => {
+    // Override session.save to track active sessions
+    const originalSave = req.session.save;
+    req.session.save = function(callback) {
+        originalSave.call(this, (err) => {
+            if (!err && req.session.user && req.session.user.email) {
+                const email = req.session.user.email;
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                console.log(`✅ Session tracked for ${email}: ${req.sessionID}`);
+            }
+            if (callback) callback(err);
+        });
+    };
+    next();
+});
+
+// FIXED: iOS-specific middleware - MUST come after session middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
-    const origin = req.headers.origin || '';
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     
-    // Detect iOS Capacitor app
-    const isIOSCapacitor = origin.includes('capacitor://') || 
-                          origin.includes('ionic://') ||
-                          req.headers['x-capacitor'] === 'true' ||
-                          userAgent.includes('Capacitor') ||
-                          userAgent.includes('iOS');
-    
-    if (isIOSCapacitor) {
-        req.isIOSApp = true;
-        console.log('📱 iOS Capacitor App Detected');
+    if (isIOS) {
+        console.log('📱 iOS Device Detected');
         
-        // Handle session ID from headers for iOS app
+        // Handle session ID from various sources for iOS
+        const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
-        if (sessionIdFromHeader && req.sessionID !== sessionIdFromHeader) {
-            console.log('🔄 iOS App - Attempting to use session ID from header:', sessionIdFromHeader);
+        
+        console.log('📱 Session ID from URL:', sessionIdFromUrl);
+        console.log('📱 Session ID from Header:', sessionIdFromHeader);
+        console.log('📱 Current Session ID:', req.sessionID);
+        
+        // Ensure session is initialized for iOS
+        if (!req.session.initialized) {
+            req.session.initialized = true;
+            console.log('📱 Initializing session for iOS');
+        }
+        
+        // If we have a session ID from URL/header, try to use it
+        const externalSessionId = sessionIdFromUrl || sessionIdFromHeader;
+        if (externalSessionId && req.sessionID !== externalSessionId) {
+            console.log('🔄 Attempting to use external session ID for iOS:', externalSessionId);
             
-            req.sessionStore.get(sessionIdFromHeader, (err, sessionData) => {
+            req.sessionStore.get(externalSessionId, (err, sessionData) => {
                 if (err) {
-                    console.error('❌ Error loading iOS app session:', err);
+                    console.error('❌ Error loading external session:', err);
                     return next();
                 }
                 
                 if (sessionData && sessionData.user) {
-                    console.log('✅ iOS app session data found');
+                    console.log('✅ External session data found, merging...');
+                    // Merge the external session data with current session
                     Object.assign(req.session, sessionData);
-                    req.sessionID = sessionIdFromHeader;
                 }
                 next();
             });
@@ -272,31 +311,33 @@ app.use((req, res, next) => {
     next();
 });
 
+// Session reloading middleware for API endpoints
+app.use('/api/', (req, res, next) => {
+    // Force session reload for API calls
+    if (req.session && typeof req.session.reload === 'function') {
+        req.session.reload((err) => {
+            if (err) {
+                console.error('Error reloading session:', err);
+            }
+            next();
+        });
+    } else {
+        next();
+    }
+});
+
 // Add CORS headers manually for additional security
 app.use((req, res, next) => {
     const origin = req.headers.origin;
-    const allowedOrigins = [
-        'https://www.solura.uk', 
-        'https://solura.uk', 
-        'http://localhost:8080', 
-        'http://localhost:3000',
-        'capacitor://localhost',
-        'ionic://localhost'
-    ];
+    const allowedOrigins = ['https://www.solura.uk', 'https://solura.uk', 'http://localhost:8080', 'http://localhost:3000'];
     
-    if (origin && (allowedOrigins.includes(origin) || origin.includes('capacitor://') || origin.includes('ionic://'))) {
+    if (origin && allowedOrigins.includes(origin)) {
         res.header('Access-Control-Allow-Origin', origin);
     }
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID, X-Capacitor');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID');
     res.header('Access-Control-Expose-Headers', 'Set-Cookie, X-Session-ID');
-    
-    // Special handling for iOS app cookies
-    if (req.isIOSApp) {
-        res.header('Access-Control-Allow-Origin', '*');
-        res.header('Access-Control-Allow-Credentials', 'true');
-    }
     
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
@@ -307,6 +348,14 @@ app.use((req, res, next) => {
 // ENHANCED: Global error handler
 app.use((error, req, res, next) => {
     console.error('🚨 Global error handler:', error);
+    
+    // Log additional context
+    console.error('Error context:', {
+        url: req.url,
+        method: req.method,
+        userAgent: req.headers['user-agent'],
+        ip: req.ip
+    });
     
     if (error.message && error.message.includes('touch')) {
         console.log('🔄 Recovering from session touch error');
@@ -324,6 +373,7 @@ app.use((error, req, res, next) => {
     }
     
     // Don't leak error details in production
+    const isProduction = process.env.NODE_ENV === 'production';
     const errorMessage = isProduction ? 'Internal server error' : error.message;
     
     if (req.path.startsWith('/api/')) {
@@ -369,6 +419,9 @@ app.use((req, res, next) => {
     next();
 });
 
+// Track session creation times for better management
+const sessionCreationTime = new Map(); // sessionId -> creation timestamp
+
 // Enhanced session tracking middleware
 app.use((req, res, next) => {
     const originalSave = req.session.save;
@@ -381,7 +434,11 @@ app.use((req, res, next) => {
                 }
                 activeSessions.get(email).add(req.sessionID);
                 
-                console.log(`✅ Session tracked: ${req.sessionID} for ${email}`);
+                // Track creation time
+                if (!sessionCreationTime.has(req.sessionID)) {
+                    sessionCreationTime.set(req.sessionID, Date.now());
+                    console.log(`✅ Session tracked: ${req.sessionID} for ${email}`);
+                }
             }
             if (callback) callback(err);
         });
@@ -392,19 +449,26 @@ app.use((req, res, next) => {
 // ENHANCED: Root route with mobile/desktop detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
+    const referer = req.headers.referer || '';
     const origin = req.headers.origin || '';
 
-    // Detect iOS Capacitor app
-    const isIOSCapacitor = origin.includes('capacitor://') || 
-                          origin.includes('ionic://') ||
-                          req.headers['x-capacitor'] === 'true';
+    // Capacitor apps often run from file:// URLs or can set a custom header
+    const isCapacitorApp = 
+        /Capacitor/.test(userAgent) ||            // Capacitor UA string
+        /ionic/.test(userAgent) ||                // Ionic UA string
+        referer.startsWith('file://') ||          // Capacitor uses file:// for local assets
+        origin.startsWith('capacitor://') ||      // Capacitor origin
+        origin.startsWith('ionic://') ||          // Ionic origin
+        req.headers['x-capacitor'] === 'true' ||  // Optional: custom header
+        req.query.capacitor === 'true';           // Optional: query parameter
 
-    console.log('Root route - Origin:', origin);
-    console.log('Root route - User-Agent:', userAgent);
-    console.log('iOS Capacitor App detected:', isIOSCapacitor);
+    console.log('User-Agent:', userAgent);
+    console.log('Referer:', referer);
+    console.log('Origin:', origin);
+    console.log('Capacitor app detected:', isCapacitorApp);
 
     // Serve the correct HTML file
-    const fileToServe = isIOSCapacitor ? 'LoginApp.html' : 'Login.html';
+    const fileToServe = isCapacitorApp ? 'LoginApp.html' : 'Login.html';
     console.log('Serving file:', fileToServe);
 
     res.sendFile(path.join(__dirname, fileToServe));
@@ -455,36 +519,6 @@ app.use('/modify', modify);
 app.use('/endday', endday);
 app.use('/financialsummary', financialsummary);
 
-// NEW: iOS App initialization endpoint
-app.get('/api/ios-app-init', (req, res) => {
-    console.log('📱 iOS App Initialization');
-    
-    // Initialize session for iOS app
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-        req.session.isIOSApp = true;
-    }
-    
-    req.session.save((err) => {
-        if (err) {
-            console.error('Error saving iOS app session:', err);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Session initialization failed' 
-            });
-        }
-        
-        console.log('✅ iOS App session initialized with ID:', req.sessionID);
-        
-        res.json({
-            success: true,
-            sessionId: req.sessionID,
-            message: 'iOS app initialized successfully',
-            requiresLogin: !req.session?.user
-        });
-    });
-});
-
 // NEW: Check if user already has active session
 app.post('/api/check-active-session', async (req, res) => {
     const { email } = req.body;
@@ -500,12 +534,46 @@ app.post('/api/check-active-session', async (req, res) => {
         const activeSessionIds = activeSessions.get(email);
         
         if (activeSessionIds && activeSessionIds.size > 0) {
-            return res.json({
-                success: true,
-                hasActiveSession: true,
-                activeSessions: activeSessionIds.size,
-                message: `You are already logged in on ${activeSessionIds.size} device(s).`
-            });
+            // Check which sessions are still valid
+            const validSessions = [];
+            
+            for (const sessionId of activeSessionIds) {
+                await new Promise((resolve) => {
+                    sessionStore.get(sessionId, (err, sessionData) => {
+                        if (err) {
+                            console.error('Error checking session:', err);
+                            resolve();
+                            return;
+                        }
+                        
+                        if (sessionData && sessionData.user && sessionData.user.email === email) {
+                            validSessions.push({
+                                sessionId: sessionId,
+                                lastAccess: sessionData.cookie?.originalMaxAge ? 
+                                    new Date(Date.now() - (24 * 60 * 60 * 1000 - sessionData.cookie.originalMaxAge)) : 
+                                    new Date()
+                            });
+                        }
+                        resolve();
+                    });
+                });
+            }
+            
+            // Remove invalid sessions from tracking
+            if (validSessions.length === 0) {
+                activeSessions.delete(email);
+            } else {
+                activeSessions.set(email, new Set(validSessions.map(s => s.sessionId)));
+            }
+            
+            if (validSessions.length > 0) {
+                return res.json({
+                    success: true,
+                    hasActiveSession: true,
+                    activeSessions: validSessions.length,
+                    message: `You are already logged in on ${validSessions.length} device(s).`
+                });
+            }
         }
         
         res.json({
@@ -554,6 +622,7 @@ app.post('/api/force-logout-others', async (req, res) => {
                     sessionStore.destroy(sessionId, (err) => {
                         if (!err) {
                             loggedOutCount++;
+                            sessionCreationTime.delete(sessionId);
                             console.log(`✅ Immediately destroyed session: ${sessionId}`);
                         }
                         resolve();
@@ -583,7 +652,7 @@ app.post('/api/force-logout-others', async (req, res) => {
     }
 });
 
-// ENHANCED: Biometric authentication for iOS app
+// Biometric authentication verification endpoint
 app.post('/api/verify-biometric', async (req, res) => {
     safeSessionTouch(req);
     try {
@@ -669,7 +738,6 @@ app.post('/api/verify-biometric', async (req, res) => {
                 // Create session
                 req.session.user = userInfo;
                 req.session.initialized = true;
-                req.session.isIOSApp = true;
                 
                 // Track this session
                 if (!activeSessions.has(email)) {
@@ -691,16 +759,17 @@ app.post('/api/verify-biometric', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
-                // For iOS app, always use app versions
+                // ALWAYS use desktop versions for browsers
                 let redirectUrl = '';
-                const isIOSApp = req.isIOSApp;
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                    redirectUrl = isIOSApp ? '/AdminApp.html' : '/Admin.html';
+                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
                 } else if (userDetails.Access === 'user') {
-                    redirectUrl = isIOSApp ? '/UserApp.html' : '/User.html';
+                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
                 } else if (userDetails.Access === 'supervisor') {
-                    redirectUrl = isIOSApp ? '/SupervisorApp.html' : '/Supervisor.html';
+                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
                 req.session.save((err) => {
@@ -712,22 +781,15 @@ app.post('/api/verify-biometric', async (req, res) => {
                         });
                     }
 
-                    // For iOS app, include session ID in response
-                    const response = {
+                    res.json({
                         success: true,
                         message: 'Biometric authentication successful',
                         redirectUrl: redirectUrl,
                         user: userInfo,
                         accessToken: authToken,
-                        refreshToken: refreshToken
-                    };
-
-                    // Add session ID for iOS app
-                    if (req.isIOSApp) {
-                        response.sessionId = req.sessionID;
-                    }
-
-                    res.json(response);
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID
+                    });
                 });
             });
         });
@@ -790,21 +852,13 @@ app.post('/api/refresh-token', async (req, res) => {
 // NEW: Get current user info endpoint for frontend
 app.get('/api/current-user', isAuthenticated, (req, res) => {
     safeSessionTouch(req);
-    
-    const response = {
+    res.json({
         success: true,
         user: req.session.user
-    };
-
-    // Include session ID for iOS app
-    if (req.isIOSApp) {
-        response.sessionId = req.sessionID;
-    }
-
-    res.json(response);
+    });
 });
 
-// ENHANCED: Session validation for iOS app
+// Session validation endpoint with safe touch
 app.get('/api/validate-session', (req, res) => {
     console.log('=== VALIDATE SESSION ===');
     console.log('Session ID:', req.sessionID);
@@ -814,18 +868,11 @@ app.get('/api/validate-session', (req, res) => {
     if (req.session?.user) {
         // Safe session extension
         safeSessionTouch(req);
-        
-        const response = { 
+        res.json({ 
             valid: true, 
-            user: req.session.user
-        };
-
-        // Include session ID for iOS app
-        if (req.isIOSApp) {
-            response.sessionId = req.sessionID;
-        }
-
-        res.json(response);
+            user: req.session.user,
+            sessionId: req.sessionID 
+        });
     } else {
         console.log('Session validation failed - no user in session');
         res.status(401).json({ 
@@ -838,6 +885,9 @@ app.get('/api/validate-session', (req, res) => {
 // FIXED: Real-time session validation endpoint
 app.get('/api/validate-session-real-time', async (req, res) => {
     console.log('=== REAL-TIME SESSION VALIDATION ===');
+    console.log('Session ID from cookie:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
     
     // Ensure session is loaded
     if (!req.session) {
@@ -858,6 +908,9 @@ app.get('/api/validate-session-real-time', async (req, res) => {
 
     const email = req.session.user.email;
     const activeSessionIds = activeSessions.get(email);
+    
+    console.log('Active sessions for user:', activeSessionIds ? Array.from(activeSessionIds) : 'None');
+    console.log('Current session in active sessions:', activeSessionIds?.has(req.sessionID));
     
     // Check if this session is still active
     if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
@@ -881,21 +934,16 @@ app.get('/api/validate-session-real-time', async (req, res) => {
     // Session is valid - update last access
     safeSessionTouch(req);
     
-    const response = {
+    res.json({
         valid: true,
         user: req.session.user,
+        sessionId: req.sessionID,
+        activeSessions: activeSessionIds ? Array.from(activeSessionIds) : [],
         message: 'Session is valid'
-    };
-
-    // Include session ID for iOS app
-    if (req.isIOSApp) {
-        response.sessionId = req.sessionID;
-    }
-
-    res.json(response);
+    });
 });
 
-// FIXED: Simplified heartbeat endpoint for iOS app
+// FIXED: Simplified heartbeat endpoint
 app.get('/api/session-heartbeat', (req, res) => {
     console.log('💓 Heartbeat connection established - Session ID:', req.sessionID);
     
@@ -948,9 +996,9 @@ app.get('/api/session-heartbeat', (req, res) => {
         }
     };
 
-    // Check immediately and then every 30 seconds for iOS app
+    // Check immediately and then every 10 seconds
     checkSession();
-    const intervalId = setInterval(checkSession, 30000);
+    const intervalId = setInterval(checkSession, 10000);
 
     // Handle client disconnect
     req.on('close', () => {
@@ -987,18 +1035,11 @@ app.get('/api/user-databases', isAuthenticated, (req, res) => {
             access: row.Access
         }));
 
-        const response = {
+        res.json({
             success: true,
             databases: databases,
             currentDb: req.session.user.dbName
-        };
-
-        // Include session ID for iOS app
-        if (req.isIOSApp) {
-            response.sessionId = req.sessionID;
-        }
-
-        res.json(response);
+        });
     });
 });
 
@@ -1059,6 +1100,9 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                 const name = companyResults[0].name;
                 const lastName = companyResults[0].lastName;
 
+                // Store the current session ID before updating
+                const oldSessionId = req.sessionID;
+                
                 // Update session with new database info - KEEP THE SAME SESSION
                 req.session.user = {
                     email: email,
@@ -1081,19 +1125,14 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                     }
 
                     console.log('✅ Database switched successfully to:', dbName);
+                    console.log('🔄 Session maintained with ID:', req.sessionID);
 
-                    const response = {
+                    res.json({
                         success: true,
                         message: 'Database switched successfully',
-                        user: req.session.user
-                    };
-
-                    // Include session ID for iOS app
-                    if (req.isIOSApp) {
-                        response.sessionId = req.sessionID;
-                    }
-
-                    res.json(response);
+                        user: req.session.user,
+                        sessionId: req.sessionID // Return the same session ID
+                    });
                 });
             });
         });
@@ -1194,7 +1233,6 @@ app.post('/api/ios-restore-session', async (req, res) => {
                 // Set user data - this is critical
                 req.session.user = userInfo;
                 req.session.initialized = true;
-                req.session.isIOSApp = true;
                 
                 // Track this session
                 if (!activeSessions.has(email)) {
@@ -1214,11 +1252,22 @@ app.post('/api/ios-restore-session', async (req, res) => {
 
                     console.log('✅ iOS session saved/updated with ID:', req.sessionID);
                     
-                    res.json({ 
-                        success: true, 
-                        user: userInfo,
-                        sessionId: req.sessionID,
-                        accessToken: accessToken
+                    // Verify the session was actually saved
+                    req.sessionStore.get(req.sessionID, (verifyErr, savedSession) => {
+                        if (verifyErr) {
+                            console.error('❌ Error verifying session save:', verifyErr);
+                        } else if (savedSession && savedSession.user) {
+                            console.log('✅ Session verification passed - user data persisted');
+                        } else {
+                            console.error('❌ Session verification failed - no user data in stored session');
+                        }
+                        
+                        res.json({ 
+                            success: true, 
+                            user: userInfo,
+                            sessionId: req.sessionID,
+                            accessToken: accessToken
+                        });
                     });
                 });
             });
@@ -1318,7 +1367,6 @@ app.post('/api/recover-session', async (req, res) => {
                 // Assign user data to existing session
                 req.session.user = userInfo;
                 req.session.initialized = true;
-                req.session.isIOSApp = true;
                 
                 // Track this session
                 if (!activeSessions.has(email)) {
@@ -1362,7 +1410,6 @@ app.get('/api/init-session', (req, res) => {
     // Ensure session is created and marked as initialized
     if (!req.session.initialized) {
         req.session.initialized = true;
-        req.session.isIOSApp = req.isIOSApp || false;
     }
     
     // Touch the session to ensure it's saved
@@ -1376,48 +1423,130 @@ app.get('/api/init-session', (req, res) => {
         
         console.log('✅ Session initialized with ID:', req.sessionID);
         
-        const response = {
+        res.json({
             success: true,
             sessionId: req.sessionID,
             message: 'Session initialized successfully'
-        };
-
-        res.json(response);
+        });
     });
 });
 
-// ENHANCED: Secure authentication middleware with iOS app support
+// ENHANCED: Secure authentication middleware with session validation
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
-    console.log('Is iOS App:', req.isIOSApp);
     
     // Only allow access with valid session user data
     if (req.session?.user && req.session.user.dbName && req.session.user.email) {
+        // CRITICAL: Check if this session is still in active sessions
+        const email = req.session.user.email;
+        const activeSessionIds = activeSessions.get(email);
+        
+        if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
+            console.log('🚫 Session no longer active - user was force logged out');
+            
+            // Destroy the invalid session
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error('Error destroying invalid session:', err);
+                }
+                console.log('✅ Invalid session destroyed');
+                
+                // Send proper auth error
+                const userAgent = req.headers['user-agent'] || '';
+                const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
+                return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
+            });
+            return;
+        }
+        
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
         
         // Use safe session extension
-        safeSessionTouch(req);
+        if (req.session.touch && typeof req.session.touch === 'function') {
+            req.session.touch();
+        } else {
+            // Manual session extension by updating maxAge
+            req.session.cookie.maxAge = req.session.cookie.originalMaxAge;
+        }
         
         return next();
     }
     
     console.log('❌ Authentication FAILED - No valid user in session');
     
-    // For iOS apps, return JSON error
-    if (req.isIOSApp || req.path.startsWith('/api/') || req.xhr) {
+    // For iOS apps, try to load session from URL parameter as fallback
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
+    const sessionIdFromUrl = req.query.sessionId;
+    
+    if (isIOS && sessionIdFromUrl && req.sessionStore) {
+        console.log('📱 iOS - Attempting session recovery from URL parameter');
+        
+        req.sessionStore.get(sessionIdFromUrl, (err, sessionData) => {
+            if (err) {
+                console.error('❌ Error loading iOS session from URL:', err);
+                return sendAuthError(res, isIOS, req);
+            }
+            
+            if (sessionData && sessionData.user) {
+                console.log('✅ iOS session recovery successful');
+                
+                // Check if the recovered session is still active
+                const recoveredEmail = sessionData.user.email;
+                const recoveredActiveSessions = activeSessions.get(recoveredEmail);
+                
+                if (!recoveredActiveSessions || !recoveredActiveSessions.has(sessionIdFromUrl)) {
+                    console.log('🚫 Recovered session no longer active');
+                    return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
+                }
+                
+                // Regenerate session with loaded data
+                req.session.regenerate((err) => {
+                    if (err) {
+                        console.error('❌ Error regenerating session during recovery:', err);
+                        return sendAuthError(res, isIOS, req);
+                    }
+                    
+                    Object.assign(req.session, sessionData);
+                    req.sessionID = sessionIdFromUrl;
+                    
+                    // Safe session extension
+                    if (req.session.touch && typeof req.session.touch === 'function') {
+                        req.session.touch();
+                    }
+                    
+                    return next();
+                });
+            } else {
+                console.log('❌ No valid session data found for recovery');
+                sendAuthError(res, isIOS, req);
+            }
+        });
+    } else {
+        sendAuthError(res, isIOS, req);
+    }
+}
+
+// Enhanced sendAuthError function with custom message support
+function sendAuthError(res, isIOS, req, customMessage = null) {
+    const defaultMessage = 'Please log in again';
+    const message = customMessage || defaultMessage;
+    
+    if (isIOS || req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized',
-            message: 'Please log in again',
+            message: message,
             requiresLogin: true
         });
     }
     
-    // For HTML pages, redirect to login
-    res.redirect('/');
+    // For HTML pages, you might want to show a message before redirecting
+    // You can either redirect to login with a message or show an error page
+    res.redirect('/?error=' + encodeURIComponent(message));
 }
 
 // Role-based middleware
@@ -1524,7 +1653,21 @@ app.post('/submit-database', async (req, res) => {
 
             // Check for active sessions
             const activeSessionIds = activeSessions.get(email);
-            const hasActiveSessions = activeSessionIds && activeSessionIds.size > 0;
+            let hasActiveSessions = false;
+            
+            if (activeSessionIds && activeSessionIds.size > 0) {
+                for (const sessionId of activeSessionIds) {
+                    await new Promise((resolve) => {
+                        sessionStore.get(sessionId, (err, sessionData) => {
+                            if (!err && sessionData && sessionData.user) {
+                                hasActiveSessions = true;
+                            }
+                            resolve();
+                        });
+                    });
+                    if (hasActiveSessions) break;
+                }
+            }
 
             // If user has active sessions and hasn't chosen to force logout, return warning
             if (hasActiveSessions && forceLogout !== true) {
@@ -1592,7 +1735,6 @@ app.post('/submit-database', async (req, res) => {
                 // Set session data
                 req.session.user = userInfo;
                 req.session.initialized = true;
-                req.session.isIOSApp = req.isIOSApp || false;
                 
                 // Track this session
                 if (!activeSessions.has(email)) {
@@ -1615,14 +1757,15 @@ app.post('/submit-database', async (req, res) => {
                 );
 
                 let redirectUrl = '';
-                const isIOSApp = req.isIOSApp;
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (row.Access === 'admin' || row.Access === 'AM') {
-                    redirectUrl = isIOSApp ? '/AdminApp.html' : '/Admin.html';
+                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
                 } else if (row.Access === 'user') {
-                    redirectUrl = isIOSApp ? '/UserApp.html' : '/User.html';
+                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
                 } else if (row.Access === 'supervisor') {
-                    redirectUrl = isIOSApp ? '/SupervisorApp.html' : '/Supervisor.html';
+                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
                 // Save session and then respond
@@ -1637,21 +1780,15 @@ app.post('/submit-database', async (req, res) => {
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
-                    const response = {
+                    res.json({
                         success: true,
                         message: 'Login successful',
                         redirectUrl: redirectUrl,
                         user: userInfo,
                         accessToken: authToken,
-                        refreshToken: refreshToken
-                    };
-
-                    // Include session ID for iOS app
-                    if (req.isIOSApp) {
-                        response.sessionId = req.sessionID;
-                    }
-
-                    res.json(response);
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID
+                    });
                 });
             });
         });
@@ -1727,7 +1864,22 @@ app.post('/submit', async (req, res) => {
 
             // NOW check for active sessions (after we know credentials are valid)
             const activeSessionIds = activeSessions.get(email);
-            const hasActiveSessions = activeSessionIds && activeSessionIds.size > 0;
+            let hasActiveSessions = false;
+            
+            if (activeSessionIds && activeSessionIds.size > 0) {
+                // Verify sessions are still valid
+                for (const sessionId of activeSessionIds) {
+                    await new Promise((resolve) => {
+                        sessionStore.get(sessionId, (err, sessionData) => {
+                            if (!err && sessionData && sessionData.user) {
+                                hasActiveSessions = true;
+                            }
+                            resolve();
+                        });
+                    });
+                    if (hasActiveSessions) break;
+                }
+            }
 
             // If user has active sessions and hasn't chosen to force logout, return warning
             if (hasActiveSessions && forceLogout !== true) {
@@ -1814,7 +1966,6 @@ app.post('/submit', async (req, res) => {
                 // Set session data
                 req.session.user = userInfo;
                 req.session.initialized = true;
-                req.session.isIOSApp = req.isIOSApp || false;
                 
                 // Track this session
                 if (!activeSessions.has(email)) {
@@ -1837,14 +1988,15 @@ app.post('/submit', async (req, res) => {
                 );
 
                 let redirectUrl = '';
-                const isIOSApp = req.isIOSApp;
+                const userAgent = req.headers['user-agent'] || '';
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    redirectUrl = isIOSApp ? '/AdminApp.html' : '/Admin.html';
+                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
                 } else if (userDetails.access === 'user') {
-                    redirectUrl = isIOSApp ? '/UserApp.html' : '/User.html';
+                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
                 } else if (userDetails.access === 'supervisor') {
-                    redirectUrl = isIOSApp ? '/SupervisorApp.html' : '/Supervisor.html';
+                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
                 // Save session and then respond
@@ -1859,21 +2011,15 @@ app.post('/submit', async (req, res) => {
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
-                    const response = {
+                    res.json({
                         success: true,
                         message: 'Login successful',
                         redirectUrl: redirectUrl,
                         user: userInfo,
                         accessToken: authToken,
-                        refreshToken: refreshToken
-                    };
-
-                    // Include session ID for iOS app
-                    if (req.isIOSApp) {
-                        response.sessionId = req.sessionID;
-                    }
-
-                    res.json(response);
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID
+                    });
                 });
             });
         });
@@ -1886,10 +2032,9 @@ app.post('/submit', async (req, res) => {
     }
 });
 
-// Protected routes - Serve correct version based on device
+// Protected routes - ALWAYS desktop versions for browsers
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
-    const fileToServe = req.isIOSApp ? 'AdminApp.html' : 'Admin.html';
-    res.sendFile(path.join(__dirname, fileToServe));
+    res.sendFile(path.join(__dirname, 'Admin.html'));
 });
 
 app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
@@ -1897,8 +2042,7 @@ app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
 });
 
 app.get('/User.html', isAuthenticated, isUser, (req, res) => {
-    const fileToServe = req.isIOSApp ? 'UserApp.html' : 'User.html';
-    res.sendFile(path.join(__dirname, fileToServe));
+    res.sendFile(path.join(__dirname, 'User.html'));
 });
 
 app.get('/UserApp.html', isAuthenticated, isUser, (req, res) => {
@@ -1906,8 +2050,7 @@ app.get('/UserApp.html', isAuthenticated, isUser, (req, res) => {
 });
 
 app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
-    const fileToServe = req.isIOSApp ? 'SupervisorApp.html' : 'Supervisor.html';
-    res.sendFile(path.join(__dirname, fileToServe));
+    res.sendFile(path.join(__dirname, 'Supervisor.html'));
 });
 
 app.get('/SupervisorApp.html', isAuthenticated, isSupervisor, (req, res) => {
@@ -2014,19 +2157,12 @@ app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
                 };
             });
 
-            const response = {
+            res.json({
                 success: true,
                 count: employeeMap.size,
                 employees,
                 serverTime: currentTime 
-            };
-
-            // Include session ID for iOS app
-            if (req.isIOSApp) {
-                response.sessionId = req.sessionID;
-            }
-
-            res.json(response);
+            });
         }
     );
 });
@@ -2068,18 +2204,11 @@ app.get('/api/labor-cost', isAuthenticated, (req, res) => {
                 });
             }
             
-            const response = {
+            res.json({
                 success: true,
                 cost: results[0].Weekly_Cost_Before,
                 week_start_date: mondayDate
-            };
-
-            // Include session ID for iOS app
-            if (req.isIOSApp) {
-                response.sessionId = req.sessionID;
-            }
-
-            res.json(response);
+            });
         }
     );
 });
@@ -2125,18 +2254,11 @@ app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
             }
         }
 
-        const response = {
+        res.json({
             success: true,
             count: missingDaysCount,
             checkedDays: daysToCheck
-        };
-
-        // Include session ID for iOS app
-        if (req.isIOSApp) {
-            response.sessionId = req.sessionID;
-        }
-
-        res.json(response);
+        });
 
     } catch (error) {
         console.error('Error:', error);
@@ -2183,18 +2305,11 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
             }
         }
 
-        const response = {
+        res.json({
             success: true,
             count: missingDaysCount,
             checkedDays: daysToCheck
-        };
-
-        // Include session ID for iOS app
-        if (req.isIOSApp) {
-            response.sessionId = req.sessionID;
-        }
-
-        res.json(response);
+        });
 
     } catch (error) {
         console.error('Error:', error);
@@ -2231,26 +2346,9 @@ app.get('/logout', (req, res) => {
             });
             
             console.log('✅ Logout successful for session:', sessionId);
-            
-            // For iOS app, return JSON response
-            if (req.isIOSApp) {
-                return res.json({
-                    success: true,
-                    message: 'Logout successful',
-                    redirectUrl: '/'
-                });
-            }
-            
             res.redirect('/');
         });
     } else {
-        if (req.isIOSApp) {
-            return res.json({
-                success: true,
-                message: 'Logout successful',
-                redirectUrl: '/'
-            });
-        }
         res.redirect('/');
     }
 });
@@ -2296,4 +2394,4 @@ app.listen(port, () => {
     console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
     const databaseNames = ['bbuonaoxford', '100%pastaoxford'];
     scheduleTestUpdates(databaseNames);
-});
+}); 
