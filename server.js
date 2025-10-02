@@ -438,13 +438,22 @@ app.use((req, res, next) => {
 // ENHANCED: Root route with mobile/desktop detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
-    const isMobileApp = req.query.mobile === 'true';
+    
+    // Detect Capacitor app patterns
+    const isCapacitorApp = 
+        userAgent.includes('Capacitor') ||
+        userAgent.includes('ionic') ||
+        userAgent.includes('Ionic') ||
+        /file:\/\//.test(req.headers.referer || '') || // Capacitor often uses file:// protocol
+        req.headers['x-capacitor'] === 'true' || // Custom header you can set
+        req.query.capacitor === 'true'; // Query parameter
     
     console.log('User-Agent:', userAgent);
-    console.log('Mobile app parameter:', isMobileApp);
+    console.log('Referer:', req.headers.referer);
+    console.log('Capacitor app detected:', isCapacitorApp);
     
-    if (isMobileApp) {
-        console.log('📱 Mobile APP detected via parameter - serving LoginApp.html');
+    if (isCapacitorApp) {
+        console.log('📱 Capacitor APP detected - serving LoginApp.html');
         res.sendFile(path.join(__dirname, 'LoginApp.html'));
     } else {
         console.log('🌐 Browser detected - serving Login.html');
