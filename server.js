@@ -172,8 +172,8 @@ const sessionStore = new MySQLStore({
             data: 'data'
         }
     },
-    checkExpirationInterval: 900000,
-    expiration: 86400000,
+    checkExpirationInterval: 60000,
+    expiration: 600000,
     clearExpired: true
 }, mainPool);
 
@@ -188,7 +188,7 @@ app.use(session({
         secure: isProduction,
         httpOnly: true,
         sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 10 * 60 * 1000, // 10 minutes in milliseconds
         domain: isProduction ? '.solura.uk' : undefined
     },
     rolling: true,
