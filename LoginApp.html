@@ -160,8 +160,29 @@
         </form>
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
-
+    <div id="emergencyDebug" style="position: fixed; top: 10px; left: 10px; background: red; color: white; padding: 10px; z-index: 10000; font-size: 12px;">
+        iOS App Loaded - Checking JavaScript...
+    </div>
 <script>
+            // Emergency debug script - runs immediately
+        console.log('🚨 EMERGENCY: HTML body loaded');
+        document.getElementById('emergencyDebug').textContent = 'Body loaded - Running JS...';
+        
+        // Test if basic JavaScript works
+        setTimeout(() => {
+            document.getElementById('emergencyDebug').textContent = 'JS Running - Checking DOM...';
+            
+            // Test DOM access
+            const loginContainer = document.querySelector('.login-container');
+            if (loginContainer) {
+                loginContainer.style.display = 'flex';
+                loginContainer.style.opacity = '1';
+                document.getElementById('emergencyDebug').textContent = 'DOM OK - Page should show';
+            } else {
+                document.getElementById('emergencyDebug').textContent = 'ERROR: No login container';
+            }
+        }, 100);
+
     // Add this at the VERY TOP of your script section
     console.log('✅ HTML file loaded successfully');
     console.log('✅ JavaScript executing');
