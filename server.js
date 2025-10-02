@@ -438,30 +438,21 @@ app.use((req, res, next) => {
 // ENHANCED: Root route with mobile/desktop detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
-    console.log('Root route - User-Agent:', userAgent);
-    console.log('Session ID at root:', req.sessionID);
-
-    // Ensure session is initialized
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving root session:', err);
-            }
-        });
-    }
-
+    const forceDesktop = req.query.desktop === 'true';
+    
+    console.log('User-Agent:', userAgent);
+    console.log('Force desktop:', forceDesktop);
+    
     // Enhanced device detection
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     const isAndroid = /Android/i.test(userAgent);
-    const isMobile = isIOS || isAndroid;
+    const isMobile = (isIOS || isAndroid) && !forceDesktop;
     
     if (isMobile) {
-        console.log('📱 Mobile device detected:', isIOS ? 'iOS' : 'Android');
-        console.log('📱 Serving LoginApp.html for mobile');
+        console.log('📱 Mobile device detected - serving LoginApp.html');
         res.sendFile(path.join(__dirname, 'LoginApp.html'));
     } else {
-        console.log('💻 Desktop device detected, serving Login.html');
+        console.log('💻 Desktop browser detected - serving Login.html');
         res.sendFile(path.join(__dirname, 'Login.html'));
     }
 });
