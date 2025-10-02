@@ -177,25 +177,30 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// FIXED: Session configuration with iOS compatibility - CRITICAL CHANGES
+// FIXED: Session configuration with iOS App compatibility
 app.use(session({
     secret: SESSION_SECRET,
-    resave: true, // Changed to true for better iOS compatibility
-    saveUninitialized: true, // Changed to true to ensure session is always created
+    resave: true,
+    saveUninitialized: true,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
         secure: isProduction,
         httpOnly: true,
-        sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
-        maxAge: 10 * 60 * 1000, // 10 minutes in milliseconds
-        domain: isProduction ? '.solura.uk' : undefined
+        sameSite: isProduction ? 'none' : 'lax',
+        maxAge: 10 * 60 * 1000,
+        domain: isProduction ? '.solura.uk' : undefined,
+        // ADD these for iOS app compatibility:
+        path: '/',
+        partitioned: false // Important for iOS
     },
     rolling: true,
     proxy: true,
     genid: function(req) {
         return require('crypto').randomBytes(16).toString('hex');
-    }
+    },
+    // ADD this for better iOS compatibility:
+    unset: 'keep'
 }));
 
 // Session recovery middleware for heartbeat issues
@@ -233,36 +238,46 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED: iOS-specific middleware - MUST come after session middleware
+// ENHANCED: iOS-specific middleware with better session handling
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     
     if (isIOS) {
-        console.log('📱 iOS Device Detected');
+        console.log('📱 iOS Device Detected - Full User Agent:', userAgent);
         
-        // Handle session ID from various sources for iOS
+        // Enhanced session ID handling for iOS
         const sessionIdFromUrl = req.query.sessionId;
         const sessionIdFromHeader = req.headers['x-session-id'];
+        const sessionIdFromBody = req.body?.sessionId;
         
-        console.log('📱 Session ID from URL:', sessionIdFromUrl);
-        console.log('📱 Session ID from Header:', sessionIdFromHeader);
+        console.log('📱 Session ID sources - URL:', sessionIdFromUrl, 'Header:', sessionIdFromHeader, 'Body:', sessionIdFromBody);
         console.log('📱 Current Session ID:', req.sessionID);
         
-        // Ensure session is initialized for iOS
+        // CRITICAL: Force session initialization for iOS
         if (!req.session.initialized) {
             req.session.initialized = true;
-            console.log('📱 Initializing session for iOS');
+            console.log('📱 Force-initializing session for iOS');
+            
+            // Ensure session is saved immediately
+            req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Error saving iOS session during init:', err);
+                } else {
+                    console.log('✅ iOS session initialized and saved with ID:', req.sessionID);
+                }
+            });
         }
         
-        // If we have a session ID from URL/header, try to use it
-        const externalSessionId = sessionIdFromUrl || sessionIdFromHeader;
+        // Handle external session ID with better error handling
+        const externalSessionId = sessionIdFromUrl || sessionIdFromHeader || sessionIdFromBody;
         if (externalSessionId && req.sessionID !== externalSessionId) {
             console.log('🔄 Attempting to use external session ID for iOS:', externalSessionId);
             
             req.sessionStore.get(externalSessionId, (err, sessionData) => {
                 if (err) {
                     console.error('❌ Error loading external session:', err);
+                    // Continue with current session even if external load fails
                     return next();
                 }
                 
@@ -270,8 +285,21 @@ app.use((req, res, next) => {
                     console.log('✅ External session data found, merging...');
                     // Merge the external session data with current session
                     Object.assign(req.session, sessionData);
+                    req.session.initialized = true;
+                    
+                    // Save the merged session
+                    req.session.save((saveErr) => {
+                        if (saveErr) {
+                            console.error('❌ Error saving merged session:', saveErr);
+                        } else {
+                            console.log('✅ Merged session saved successfully');
+                        }
+                        next();
+                    });
+                } else {
+                    console.log('ℹ️ No valid external session data found, using current session');
+                    next();
                 }
-                next();
             });
         } else {
             next();
@@ -435,34 +463,51 @@ app.use((req, res, next) => {
     next();
 });
 
-// ENHANCED: Root route with mobile/desktop detection
+// ENHANCED: Root route with better iOS session handling
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     console.log('Root route - User-Agent:', userAgent);
     console.log('Session ID at root:', req.sessionID);
-
-    // Ensure session is initialized
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving root session:', err);
-            }
-        });
-    }
+    console.log('Session initialized:', req.session?.initialized);
 
     // Enhanced device detection
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     const isAndroid = /Android/i.test(userAgent);
     const isMobile = isIOS || isAndroid;
     
-    if (isMobile) {
-        console.log('📱 Mobile device detected:', isIOS ? 'iOS' : 'Android');
-        console.log('📱 Serving LoginApp.html for mobile');
-        res.sendFile(path.join(__dirname, 'LoginApp.html'));
+    // CRITICAL: For iOS, ensure session is properly initialized and saved
+    if (isIOS && (!req.session.initialized || !req.sessionID)) {
+        console.log('🔄 iOS: Ensuring session is properly initialized');
+        req.session.initialized = true;
+        
+        // Force save session before sending response
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Error saving iOS root session:', err);
+            } else {
+                console.log('✅ iOS root session saved with ID:', req.sessionID);
+            }
+            
+            // Serve the appropriate page after session is saved
+            if (isMobile) {
+                console.log('📱 Mobile device detected:', isIOS ? 'iOS' : 'Android');
+                console.log('📱 Serving LoginApp.html for mobile');
+                res.sendFile(path.join(__dirname, 'LoginApp.html'));
+            } else {
+                console.log('💻 Desktop device detected, serving Login.html');
+                res.sendFile(path.join(__dirname, 'Login.html'));
+            }
+        });
     } else {
-        console.log('💻 Desktop device detected, serving Login.html');
-        res.sendFile(path.join(__dirname, 'Login.html'));
+        // Normal flow for other devices
+        if (isMobile) {
+            console.log('📱 Mobile device detected:', isIOS ? 'iOS' : 'Android');
+            console.log('📱 Serving LoginApp.html for mobile');
+            res.sendFile(path.join(__dirname, 'LoginApp.html'));
+        } else {
+            console.log('💻 Desktop device detected, serving Login.html');
+            res.sendFile(path.join(__dirname, 'Login.html'));
+        }
     }
 });
 
@@ -847,6 +892,64 @@ app.get('/api/current-user', isAuthenticated, (req, res) => {
     res.json({
         success: true,
         user: req.session.user
+    });
+});
+
+// iOS-specific session recovery endpoint
+app.post('/api/ios-session-recover', (req, res) => {
+    const { sessionId } = req.body;
+    const userAgent = req.headers['user-agent'] || '';
+    
+    console.log('🔄 iOS Session Recovery Request:', { sessionId, userAgent });
+    
+    if (!sessionId) {
+        return res.status(400).json({
+            success: false,
+            error: 'Session ID is required'
+        });
+    }
+    
+    // Try to load the session
+    req.sessionStore.get(sessionId, (err, sessionData) => {
+        if (err) {
+            console.error('❌ Error recovering iOS session:', err);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to recover session'
+            });
+        }
+        
+        if (sessionData && sessionData.user) {
+            console.log('✅ iOS session recovered successfully');
+            
+            // Assign the recovered session data
+            Object.assign(req.session, sessionData);
+            req.session.initialized = true;
+            
+            // Save to ensure persistence
+            req.session.save((saveErr) => {
+                if (saveErr) {
+                    console.error('❌ Error saving recovered session:', saveErr);
+                    return res.status(500).json({
+                        success: false,
+                        error: 'Failed to persist recovered session'
+                    });
+                }
+                
+                res.json({
+                    success: true,
+                    message: 'Session recovered successfully',
+                    sessionId: req.sessionID,
+                    user: req.session.user
+                });
+            });
+        } else {
+            console.log('❌ No session data found for recovery');
+            res.status(404).json({
+                success: false,
+                error: 'Session not found or expired'
+            });
+        }
     });
 });
 
