@@ -438,28 +438,27 @@ app.use((req, res, next) => {
 // ENHANCED: Root route with mobile/desktop detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
-    
-    // Detect Capacitor app patterns
+    const referer = req.headers.referer || '';
+
+    // Capacitor apps often run from file:// URLs or can set a custom header
     const isCapacitorApp = 
-        userAgent.includes('Capacitor') ||
-        userAgent.includes('ionic') ||
-        userAgent.includes('Ionic') ||
-        /file:\/\//.test(req.headers.referer || '') || // Capacitor often uses file:// protocol
-        req.headers['x-capacitor'] === 'true' || // Custom header you can set
-        req.query.capacitor === 'true'; // Query parameter
-    
+        /Capacitor/.test(userAgent) ||            // Capacitor UA string
+        /ionic/.test(userAgent) ||                // Ionic UA string
+        referer.startsWith('file://') ||          // Capacitor uses file:// for local assets
+        req.headers['x-capacitor'] === 'true' ||  // Optional: custom header
+        req.query.capacitor === 'true';           // Optional: query parameter
+
     console.log('User-Agent:', userAgent);
-    console.log('Referer:', req.headers.referer);
+    console.log('Referer:', referer);
     console.log('Capacitor app detected:', isCapacitorApp);
-    
-    if (isCapacitorApp) {
-        console.log('📱 Capacitor APP detected - serving LoginApp.html');
-        res.sendFile(path.join(__dirname, 'LoginApp.html'));
-    } else {
-        console.log('🌐 Browser detected - serving Login.html');
-        res.sendFile(path.join(__dirname, 'Login.html'));
-    }
+
+    // Serve the correct HTML file
+    const fileToServe = isCapacitorApp ? 'LoginApp.html' : 'Login.html';
+    console.log('Serving file:', fileToServe);
+
+    res.sendFile(path.join(__dirname, fileToServe));
 });
+
 
 // Health check endpoint with session info
 app.get('/health', (req, res) => {
