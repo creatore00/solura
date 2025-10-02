@@ -77,7 +77,6 @@ function generateToken(user) {
             dbName: user.dbName 
         },
         JWT_SECRET,
-        { expiresIn: '7d' }
     );
 }
 
@@ -450,21 +449,17 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const referer = req.headers.referer || '';
-    const origin = req.headers.origin || '';
 
     // Capacitor apps often run from file:// URLs or can set a custom header
     const isCapacitorApp = 
         /Capacitor/.test(userAgent) ||            // Capacitor UA string
         /ionic/.test(userAgent) ||                // Ionic UA string
         referer.startsWith('file://') ||          // Capacitor uses file:// for local assets
-        origin.startsWith('capacitor://') ||      // Capacitor origin
-        origin.startsWith('ionic://') ||          // Ionic origin
         req.headers['x-capacitor'] === 'true' ||  // Optional: custom header
         req.query.capacitor === 'true';           // Optional: query parameter
 
     console.log('User-Agent:', userAgent);
     console.log('Referer:', referer);
-    console.log('Origin:', origin);
     console.log('Capacitor app detected:', isCapacitorApp);
 
     // Serve the correct HTML file
@@ -473,6 +468,7 @@ app.get('/', (req, res) => {
 
     res.sendFile(path.join(__dirname, fileToServe));
 });
+
 
 // Health check endpoint with session info
 app.get('/health', (req, res) => {
