@@ -275,32 +275,34 @@ app.use(session({
     }
 }));
 
-// Enhanced iOS detection middleware - MUST come after session middleware
+// FIXED: Enhanced iOS detection middleware - MUST come after session middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const origin = req.headers.origin || '';
     const referer = req.headers.referer || '';
     
-    // Enhanced iOS Capacitor detection
+    // Enhanced iOS Capacitor detection - more flexible detection
+    const isIOSDevice = /iPhone|iPad|iPod/i.test(userAgent);
     const isIOSCapacitor = 
         origin.includes('capacitor://') || 
         origin.includes('ionic://') ||
         req.headers['x-capacitor'] === 'true' ||
         userAgent.includes('Capacitor') ||
-        userAgent.includes('iOS') ||
-        userAgent.includes('iPhone') ||
-        userAgent.includes('iPad') ||
+        userAgent.includes('ionic') ||
         referer.includes('capacitor://') ||
-        referer.includes('ionic://');
+        referer.includes('ionic://') ||
+        (isIOSDevice && !userAgent.includes('Safari')); // iOS app often doesn't have Safari in UA
     
-    if (isIOSCapacitor) {
+    if (isIOSCapacitor || isIOSDevice) {
         req.isIOSApp = true;
-        logIOS('iOS Capacitor App Detected', {
+        logIOS('iOS App Detected', {
             origin,
             userAgent,
             referer,
             xCapacitor: req.headers['x-capacitor'],
-            xSessionId: req.headers['x-session-id']
+            xSessionId: req.headers['x-session-id'],
+            isIOSDevice,
+            isIOSCapacitor
         });
         
         // Force session initialization for iOS
@@ -560,21 +562,24 @@ app.get('/', (req, res) => {
     const origin = req.headers.origin || '';
     const referer = req.headers.referer || '';
 
-    // Enhanced Capacitor detection
+    // Enhanced Capacitor detection - prioritize iOS detection
+    const isIOSDevice = /iPhone|iPad|iPod/i.test(userAgent);
     const isCapacitorApp = 
-        /Capacitor/.test(userAgent) ||
-        /ionic/.test(userAgent) ||
+        /Capacitor/i.test(userAgent) ||
+        /ionic/i.test(userAgent) ||
         origin.startsWith('capacitor://') ||
         origin.startsWith('ionic://') ||
         referer.startsWith('file://') ||
         req.headers['x-capacitor'] === 'true' ||
-        req.query.capacitor === 'true';
+        req.query.capacitor === 'true' ||
+        (isIOSDevice && !userAgent.includes('Safari')); // iOS app often doesn't have Safari
 
     const detectionInfo = {
         userAgent,
         origin,
         referer,
         'x-capacitor': req.headers['x-capacitor'],
+        isIOSDevice,
         isCapacitorApp,
         sessionId: req.sessionID,
         sessionInitialized: req.session?.initialized
@@ -582,8 +587,8 @@ app.get('/', (req, res) => {
 
     logIOS('Root route accessed', detectionInfo);
 
-    // Serve the correct HTML file
-    const fileToServe = isCapacitorApp ? 'LoginApp.html' : 'Login.html';
+    // Serve the correct HTML file - prioritize iOS app detection
+    const fileToServe = (isCapacitorApp || isIOSDevice) ? 'LoginApp.html' : 'Login.html';
     
     // Check if the file exists
     const filePath = path.join(__dirname, fileToServe);
@@ -593,7 +598,8 @@ app.get('/', (req, res) => {
         fileToServe,
         filePath,
         fileExists,
-        dirExists: fs.existsSync(__dirname)
+        dirExists: fs.existsSync(__dirname),
+        finalDecision: fileToServe
     });
 
     if (!fileExists) {
