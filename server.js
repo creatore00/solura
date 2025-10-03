@@ -74,7 +74,7 @@ function generateToken(user) {
             role: user.role, 
             name: user.name, 
             lastName: user.lastName, 
-            dbName: user.dbName 
+            dbName: user.dbName  // This is CRITICAL
         },
         JWT_SECRET,
         { expiresIn: '7d' }
@@ -650,10 +650,26 @@ app.post('/api/verify-biometric', async (req, res) => {
                 error: 'Invalid or expired token' 
             });
         }
-
-        // Get user info from database
+        // Verify the access token
+        try {
+            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
+            if (decoded.email !== email) {
+                return res.status(401).json({ 
+                    success: false,
+                    error: 'Invalid token' 
+                });
+            }
+            // Store the decoded token for later use
+            req.decodedToken = decoded;
+        } catch (tokenError) {
+            return res.status(401).json({ 
+                success: false,
+                error: 'Invalid or expired token' 
+            });
+        }
+        // Get user info from database - include ALL databases for this user
         const sql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
-        
+
         mainPool.query(sql, [email], (err, results) => {
             if (err) {
                 console.error('Error querying database:', err);
@@ -670,7 +686,14 @@ app.post('/api/verify-biometric', async (req, res) => {
                 });
             }
 
-            const userDetails = results[0];
+            // Find the database that matches the token's dbName
+            const userDetails = results.find(row => row.db_name === decoded.dbName);
+            if (!userDetails) {
+                return res.status(401).json({ 
+                    success: false,
+                    message: 'User not authorized for this database' 
+                });
+            }
             
             // Get user info from company database
             const companyPool = getPool(userDetails.db_name);
@@ -1144,10 +1167,10 @@ app.post('/api/ios-restore-session', async (req, res) => {
             });
         }
 
-        // Then proceed with user verification
-        const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
-        
-        mainPool.query(verifySql, [email, dbName], (err, results) => {
+        // Then proceed with user verification - get ALL databases first
+        const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
+
+        mainPool.query(verifySql, [email], (err, results) => {
             if (err) {
                 console.error('Error verifying user access:', err);
                 return res.status(500).json({ 
@@ -1159,11 +1182,18 @@ app.post('/api/ios-restore-session', async (req, res) => {
             if (results.length === 0) {
                 return res.status(403).json({ 
                     success: false, 
-                    error: 'User not authorized for this database' 
+                    error: 'User not found' 
                 });
             }
 
-            const userDetails = results[0];
+            // Find the specific database the user is trying to access
+            const userDetails = results.find(row => row.db_name === dbName);
+            if (!userDetails) {
+                return res.status(403).json({ 
+                    success: false, 
+                    error: 'User not authorized for this database' 
+                });
+            }
             
             // Get user info from company database
             const companyPool = getPool(dbName);
