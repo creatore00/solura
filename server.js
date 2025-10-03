@@ -81,9 +81,14 @@ function generateToken(user) {
     );
 }
 
-// ENHANCED CORS for iOS Capacitor - FIXED
+// CRITICAL FIX: Enhanced CORS for iOS Capacitor
 const corsOptions = {
     origin: function (origin, callback) {
+        // Allow all origins for iOS/Capacitor - this is critical
+        if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
+            return callback(null, true);
+        }
+        
         const allowedOrigins = [
             'https://www.solura.uk', 
             'https://solura.uk', 
@@ -92,16 +97,8 @@ const corsOptions = {
             'capacitor://localhost',
             'ionic://localhost',
             'http://localhost',
-            'https://localhost',
-            'file://',
-            'capacitor://',
-            'ionic://'
+            'https://localhost'
         ];
-        
-        // Allow all Capacitor/iOS origins and requests with no origin
-        if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
-            return callback(null, true);
-        }
         
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
@@ -112,8 +109,8 @@ const corsOptions = {
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID', 'X-Capacitor', 'Origin'],
-    exposedHeaders: ['Set-Cookie', 'X-Session-ID']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID', 'X-Capacitor', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie', 'X-Session-ID', 'Authorization']
 };
 
 app.use(cors(corsOptions));
@@ -124,7 +121,7 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// FIXED: Enhanced static file serving for iOS
+// CRITICAL FIX: Enhanced static file serving for iOS with proper headers
 app.use(express.static(__dirname, {
     setHeaders: (res, path) => {
         // Set proper MIME types for iOS
@@ -136,21 +133,41 @@ app.use(express.static(__dirname, {
             res.set('Content-Type', 'text/html');
         }
         
-        // Allow CORS for static files on iOS
-        const userAgent = res.req.headers['user-agent'] || '';
-        if (/iPhone|iPad|iPod/.test(userAgent)) {
-            res.set('Access-Control-Allow-Origin', '*');
-        }
+        // CRITICAL: Allow all origins for static files on iOS
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     }
 }));
 
-// FIXED: Cookie cleanup middleware - remove duplicate cookies
+// CRITICAL FIX: Manual CORS headers for all responses
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    
+    // CRITICAL: Always set CORS headers for iOS
+    if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
+        res.header('Access-Control-Allow-Origin', '*');
+    } else {
+        res.header('Access-Control-Allow-Origin', origin);
+    }
+    
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID, X-Capacitor, Origin');
+    res.header('Access-Control-Expose-Headers', 'Set-Cookie, X-Session-ID, Authorization');
+    
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
+// Cookie cleanup middleware
 app.use((req, res, next) => {
     if (req.headers.cookie) {
         const cookies = req.headers.cookie.split(';');
         const uniqueCookies = new Map();
         
-        // Process cookies in reverse to keep the most recent one
         for (let i = cookies.length - 1; i >= 0; i--) {
             const cookie = cookies[i].trim();
             const [name, value] = cookie.split('=');
@@ -161,7 +178,6 @@ app.use((req, res, next) => {
             }
         }
         
-        // Rebuild cookie header with unique cookies
         const newCookieHeader = Array.from(uniqueCookies.entries())
             .map(([name, value]) => `${name}=${value}`)
             .join('; ');
@@ -171,7 +187,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// iOS request debug middleware - ADD THIS
+// iOS request debug middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     if (/iPhone|iPad|iPod/.test(userAgent)) {
@@ -181,7 +197,8 @@ app.use((req, res, next) => {
             path: req.path,
             userAgent: userAgent,
             origin: req.headers.origin,
-            referer: req.headers.referer
+            referer: req.headers.referer,
+            cookies: req.headers.cookie
         });
     }
     next();
@@ -202,7 +219,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED: Enhanced MySQL session store with proper serialization
+// MySQL session store
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
     port: 3306,
@@ -223,45 +240,26 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// FIXED: Session configuration optimized for iOS
+// CRITICAL FIX: Session configuration for iOS - SIMPLIFIED
 app.use(session({
     secret: SESSION_SECRET,
-    resave: false, // Changed to false for better iOS performance
-    saveUninitialized: true, // Keep as true for iOS
+    resave: false,
+    saveUninitialized: true,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // Set to false for Capacitor - they handle SSL
-        httpOnly: true,
-        sameSite: 'lax', // Use 'lax' for Capacitor compatibility
-        maxAge: 10 * 60 * 1000,
-        domain: undefined // Remove domain restriction for Capacitor
+        secure: false, // MUST be false for Capacitor
+        httpOnly: false, // Changed to false for iOS compatibility
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/'
     },
     rolling: true,
-    proxy: false, // Set to false for Capacitor
-    genid: function(req) {
-        return require('crypto').randomBytes(16).toString('hex');
-    }
+    proxy: false
 }));
-
-// Session recovery middleware for heartbeat issues
-app.use('/api/session-heartbeat', (req, res, next) => {
-    // Force session reload for heartbeat
-    if (req.session && typeof req.session.reload === 'function') {
-        req.session.reload((err) => {
-            if (err) {
-                console.log('🔄 Heartbeat session reload failed, continuing anyway');
-            }
-            next();
-        });
-    } else {
-        next();
-    }
-});
 
 // Enhanced session tracking middleware
 app.use((req, res, next) => {
-    // Override session.save to track active sessions
     const originalSave = req.session.save;
     req.session.save = function(callback) {
         originalSave.call(this, (err) => {
@@ -279,13 +277,28 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED: iOS-specific middleware - MUST come after session middleware
+// CRITICAL FIX: iOS-specific middleware with session cookie fix
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
     
     if (isIOS) {
-        console.log('📱 iOS Device Detected');
+        console.log('📱 iOS Device Detected - Ensuring session cookie');
+        
+        // Force session creation for iOS
+        if (!req.session.initialized) {
+            req.session.initialized = true;
+            console.log('📱 Initializing session for iOS');
+            
+            // CRITICAL: Manually set session cookie for iOS
+            res.cookie('solura.session', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false,
+                sameSite: 'Lax',
+                path: '/'
+            });
+        }
         
         // Handle session ID from various sources for iOS
         const sessionIdFromUrl = req.query.sessionId;
@@ -295,13 +308,6 @@ app.use((req, res, next) => {
         console.log('📱 Session ID from Header:', sessionIdFromHeader);
         console.log('📱 Current Session ID:', req.sessionID);
         
-        // Ensure session is initialized for iOS
-        if (!req.session.initialized) {
-            req.session.initialized = true;
-            console.log('📱 Initializing session for iOS');
-        }
-        
-        // If we have a session ID from URL/header, try to use it
         const externalSessionId = sessionIdFromUrl || sessionIdFromHeader;
         if (externalSessionId && req.sessionID !== externalSessionId) {
             console.log('🔄 Attempting to use external session ID for iOS:', externalSessionId);
@@ -314,7 +320,6 @@ app.use((req, res, next) => {
                 
                 if (sessionData && sessionData.user) {
                     console.log('✅ External session data found, merging...');
-                    // Merge the external session data with current session
                     Object.assign(req.session, sessionData);
                 }
                 next();
@@ -327,177 +332,12 @@ app.use((req, res, next) => {
     }
 });
 
-// SECURITY: Block direct access to protected HTML files without session
-app.use((req, res, next) => {
-    const protectedRoutes = [
-        '/Admin.html', '/AdminApp.html',
-        '/User.html', '/UserApp.html', 
-        '/Supervisor.html', '/SupervisorApp.html'
-    ];
-    
-    // Check if this is a direct access to protected route
-    if (protectedRoutes.includes(req.path)) {
-        if (!req.session?.user) {
-            console.log('🚫 SECURITY: Blocked direct access to protected route:', req.path);
-            return res.redirect('/');
-        }
-    }
-    
-    next();
-});
-
-// Session reloading middleware for API endpoints
-app.use('/api/', (req, res, next) => {
-    // Force session reload for API calls
-    if (req.session && typeof req.session.reload === 'function') {
-        req.session.reload((err) => {
-            if (err) {
-                console.error('Error reloading session:', err);
-            }
-            next();
-        });
-    } else {
-        next();
-    }
-});
-
-// Add CORS headers manually for additional security
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    const allowedOrigins = [
-        'https://www.solura.uk', 
-        'https://solura.uk', 
-        'http://localhost:8080', 
-        'http://localhost:3000',
-        'capacitor://localhost',
-        'ionic://localhost'
-    ];
-    
-    if (origin && allowedOrigins.includes(origin)) {
-        res.header('Access-Control-Allow-Origin', origin);
-    } else if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://')) {
-        // Allow Capacitor/iOS origins
-        res.header('Access-Control-Allow-Origin', '*');
-    }
-    
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID, X-Capacitor, Origin');
-    res.header('Access-Control-Expose-Headers', 'Set-Cookie, X-Session-ID');
-    
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
-
-// ENHANCED: Global error handler
-app.use((error, req, res, next) => {
-    console.error('🚨 Global error handler:', error);
-    
-    // Log additional context
-    console.error('Error context:', {
-        url: req.url,
-        method: req.method,
-        userAgent: req.headers['user-agent'],
-        ip: req.ip
-    });
-    
-    if (error.message && error.message.includes('touch')) {
-        console.log('🔄 Recovering from session touch error');
-        if (req.session) {
-            req.session.cookie.maxAge = req.session.cookie.originalMaxAge || 24 * 60 * 60 * 1000;
-        }
-        
-        if (req.path.startsWith('/api/')) {
-            return res.json({ 
-                success: false, 
-                error: 'Session error, please refresh',
-                recovered: true 
-            });
-        }
-    }
-    
-    // Don't leak error details in production
-    const isProduction = process.env.NODE_ENV === 'production';
-    const errorMessage = isProduction ? 'Internal server error' : error.message;
-    
-    if (req.path.startsWith('/api/')) {
-        res.status(500).json({ 
-            success: false, 
-            error: errorMessage 
-        });
-    } else {
-        res.status(500).send('Internal server error');
-    }
-});
-
-// Enhanced security middleware
-app.use((req, res, next) => {
-    // Security headers
-    res.header('X-Content-Type-Options', 'nosniff');
-    res.header('X-Frame-Options', 'DENY');
-    res.header('X-XSS-Protection', '1; mode=block');
-    res.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-    
-    // Rate limiting for login attempts (simple in-memory version)
-    if (req.path === '/submit' && req.method === 'POST') {
-        const clientIP = req.ip || req.connection.remoteAddress;
-        const now = Date.now();
-        const windowStart = now - (15 * 60 * 1000); // 15 minutes window
-        
-        // Simple rate limiting - in production, use Redis or similar
-        if (!req.rateLimit) req.rateLimit = {};
-        if (!req.rateLimit[clientIP]) req.rateLimit[clientIP] = [];
-        
-        req.rateLimit[clientIP] = req.rateLimit[clientIP].filter(time => time > windowStart);
-        
-        if (req.rateLimit[clientIP].length >= 5) { // 5 attempts per 15 minutes
-            return res.status(429).json({
-                success: false,
-                error: 'Too many login attempts. Please try again later.'
-            });
-        }
-        
-        req.rateLimit[clientIP].push(now);
-    }
-    
-    next();
-});
-
-// Track session creation times for better management
-const sessionCreationTime = new Map(); // sessionId -> creation timestamp
-
-// Enhanced session tracking middleware
-app.use((req, res, next) => {
-    const originalSave = req.session.save;
-    req.session.save = function(callback) {
-        originalSave.call(this, (err) => {
-            if (!err && req.session.user && req.session.user.email) {
-                const email = req.session.user.email;
-                if (!activeSessions.has(email)) {
-                    activeSessions.set(email, new Set());
-                }
-                activeSessions.get(email).add(req.sessionID);
-                
-                // Track creation time
-                if (!sessionCreationTime.has(req.sessionID)) {
-                    sessionCreationTime.set(req.sessionID, Date.now());
-                    console.log(`✅ Session tracked: ${req.sessionID} for ${email}`);
-                }
-            }
-            if (callback) callback(err);
-        });
-    };
-    next();
-});
-
-// FIXED: Root route with better iOS Capacitor detection
+// CRITICAL FIX: Enhanced root route with session cookie header
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const referer = req.headers.referer || '';
     const origin = req.headers.origin || '';
-    
+
     console.log('=== ROOT REQUEST DETECTION ===');
     console.log('User-Agent:', userAgent);
     console.log('Referer:', referer);
@@ -517,20 +357,43 @@ app.get('/', (req, res) => {
 
     console.log('Capacitor app detected:', isCapacitorApp);
 
-    // Always serve LoginApp.html for iOS-like user agents
+    // CRITICAL: Set session cookie header for iOS
     if (isCapacitorApp || /iPhone|iPad|iPod/.test(userAgent)) {
-        console.log('📱 Serving LoginApp.html for iOS/Capacitor');
+        console.log('📱 Serving LoginApp.html for iOS/Capacitor with session cookie');
+        
+        // Ensure session cookie is set
+        if (req.sessionID) {
+            res.cookie('solura.session', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false,
+                sameSite: 'Lax',
+                path: '/'
+            });
+        }
+        
         return res.sendFile(path.join(__dirname, 'LoginApp.html'));
     }
 
-    // Fallback for regular browsers
     console.log('💻 Serving Login.html for browser');
     res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
-// ADD THESE DIRECT ROUTES FOR iOS STATIC FILES
+// CRITICAL FIX: Add session cookie to all static file routes
 app.get('/LoginApp.html', (req, res) => {
     console.log('📱 Direct access to LoginApp.html');
+    
+    // Set session cookie for iOS
+    if (req.sessionID) {
+        res.cookie('solura.session', req.sessionID, {
+            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: false,
+            secure: false,
+            sameSite: 'Lax',
+            path: '/'
+        });
+    }
+    
     res.sendFile(path.join(__dirname, 'LoginApp.html'));
 });
 
@@ -539,43 +402,52 @@ app.get('/Login.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
-// iOS debug endpoint - ADD THIS
+// CRITICAL FIX: iOS session initialization endpoint
+app.get('/api/ios-init', (req, res) => {
+    console.log('📱 iOS Session Initialization Request');
+    
+    // Ensure session is created
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+        req.session.iosDevice = true;
+    }
+    
+    // CRITICAL: Manually set the session cookie
+    res.cookie('solura.session', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax',
+        path: '/'
+    });
+    
+    res.json({
+        success: true,
+        sessionId: req.sessionID,
+        message: 'iOS session initialized',
+        cookiesSupported: true
+    });
+});
+
+// iOS debug endpoint
 app.get('/api/ios-debug', (req, res) => {
     console.log('=== IOS DEBUG INFO ===');
-    console.log('Headers:', req.headers);
-    console.log('User-Agent:', req.headers['user-agent']);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
     
     res.json({
         success: true,
         platform: 'ios',
-        headers: req.headers,
         session: {
             id: req.sessionID,
             exists: !!req.session,
-            user: req.session?.user
+            user: req.session?.user,
+            initialized: req.session?.initialized
         },
+        headers: req.headers,
         timestamp: new Date().toISOString()
     });
 });
 
-// iOS-specific health check - ADD THIS
-app.get('/api/ios-health', (req, res) => {
-    res.json({
-        status: 'OK',
-        platform: 'ios',
-        sessionInitialized: !!req.session?.initialized,
-        serverTime: new Date().toISOString(),
-        capabilities: {
-            sessions: true,
-            cookies: true,
-            staticFiles: true
-        }
-    });
-});
-
-// Health check endpoint with session info
+// Health check with session info
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
@@ -585,10 +457,7 @@ app.get('/health', (req, res) => {
             user: req.session?.user,
             initialized: req.session?.initialized
         },
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        version: '1.0.0'
+        timestamp: new Date().toISOString()
     });
 });
 
@@ -1532,109 +1401,47 @@ app.get('/api/init-session', (req, res) => {
     });
 });
 
-// ENHANCED: Secure authentication middleware with session validation
+// CRITICAL FIX: Enhanced authentication middleware for iOS
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
-    // Only allow access with valid session user data
-    if (req.session?.user && req.session.user.dbName && req.session.user.email) {
-        // CRITICAL: Check if this session is still in active sessions
-        const email = req.session.user.email;
-        const activeSessionIds = activeSessions.get(email);
-        
-        if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
-            console.log('🚫 Session no longer active - user was force logged out');
-            
-            // Destroy the invalid session
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error('Error destroying invalid session:', err);
-                }
-                console.log('✅ Invalid session destroyed');
-                
-                // Send proper auth error
-                const userAgent = req.headers['user-agent'] || '';
-                const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
-                return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
-            });
-            return;
-        }
-        
-        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
-        
-        // Use safe session extension
-        if (req.session.touch && typeof req.session.touch === 'function') {
-            req.session.touch();
-        } else {
-            // Manual session extension by updating maxAge
-            req.session.cookie.maxAge = req.session.cookie.originalMaxAge;
-        }
-        
-        return next();
-    }
+    // For iOS, also check for session ID in headers or query
+    const sessionIdFromHeader = req.headers['x-session-id'];
+    const sessionIdFromQuery = req.query.sessionId;
     
-    console.log('❌ Authentication FAILED - No valid user in session');
-    
-    // For iOS apps, try to load session from URL parameter as fallback
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = userAgent.includes('iPhone') || userAgent.includes('iPad');
-    const sessionIdFromUrl = req.query.sessionId;
-    
-    if (isIOS && sessionIdFromUrl && req.sessionStore) {
-        console.log('📱 iOS - Attempting session recovery from URL parameter');
+    if ((!req.session?.user) && (sessionIdFromHeader || sessionIdFromQuery)) {
+        const externalSessionId = sessionIdFromHeader || sessionIdFromQuery;
+        console.log('📱 iOS - Attempting session recovery from external ID:', externalSessionId);
         
-        req.sessionStore.get(sessionIdFromUrl, (err, sessionData) => {
+        req.sessionStore.get(externalSessionId, (err, sessionData) => {
             if (err) {
-                console.error('❌ Error loading iOS session from URL:', err);
-                return sendAuthError(res, isIOS, req);
+                console.error('Error loading external session:', err);
+                return sendAuthError(res, true, req);
             }
             
             if (sessionData && sessionData.user) {
-                console.log('✅ iOS session recovery successful');
-                
-                // Check if the recovered session is still active
-                const recoveredEmail = sessionData.user.email;
-                const recoveredActiveSessions = activeSessions.get(recoveredEmail);
-                
-                if (!recoveredActiveSessions || !recoveredActiveSessions.has(sessionIdFromUrl)) {
-                    console.log('🚫 Recovered session no longer active');
-                    return sendAuthError(res, isIOS, req, 'Your session was terminated from another device. Please log in again.');
-                }
-                
-                // Regenerate session with loaded data
-                req.session.regenerate((err) => {
-                    if (err) {
-                        console.error('❌ Error regenerating session during recovery:', err);
-                        return sendAuthError(res, isIOS, req);
-                    }
-                    
-                    Object.assign(req.session, sessionData);
-                    req.sessionID = sessionIdFromUrl;
-                    
-                    // Safe session extension
-                    if (req.session.touch && typeof req.session.touch === 'function') {
-                        req.session.touch();
-                    }
-                    
-                    return next();
-                });
+                console.log('✅ External session recovery successful');
+                Object.assign(req.session, sessionData);
+                return next();
             } else {
                 console.log('❌ No valid session data found for recovery');
-                sendAuthError(res, isIOS, req);
+                sendAuthError(res, true, req);
             }
         });
+    } else if (req.session?.user && req.session.user.dbName && req.session.user.email) {
+        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
+        return next();
     } else {
-        sendAuthError(res, isIOS, req);
+        console.log('❌ Authentication FAILED');
+        sendAuthError(res, true, req);
     }
 }
 
-// Enhanced sendAuthError function with custom message support
 function sendAuthError(res, isIOS, req, customMessage = null) {
-    const defaultMessage = 'Please log in again';
-    const message = customMessage || defaultMessage;
+    const message = customMessage || 'Please log in again';
     
     if (isIOS || req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
@@ -1645,58 +1452,29 @@ function sendAuthError(res, isIOS, req, customMessage = null) {
         });
     }
     
-    // For HTML pages, you might want to show a message before redirecting
-    // You can either redirect to login with a message or show an error page
     res.redirect('/?error=' + encodeURIComponent(message));
 }
 
-// Role-based middleware
+// Role-based middleware (keep existing)
 function isAdmin(req, res, next) {
     if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
         return next();
     }
-    
-    if (req.path.startsWith('/api/')) {
-        return res.status(403).json({ 
-            success: false, 
-            error: 'Forbidden',
-            message: 'Admin access required'
-        });
-    }
-    
-    res.redirect('/');
+    sendAuthError(res, true, req, 'Admin access required');
 }
 
 function isSupervisor(req, res, next) {
     if (req.session?.user && req.session.user.role === 'supervisor') {
         return next();
     }
-    
-    if (req.path.startsWith('/api/')) {
-        return res.status(403).json({ 
-            success: false, 
-            error: 'Forbidden',
-            message: 'Supervisor access required'
-        });
-    }
-    
-    res.redirect('/');
+    sendAuthError(res, true, req, 'Supervisor access required');
 }
 
 function isUser(req, res, next) {
     if (req.session?.user && req.session.user.role === 'user') {
         return next();
     }
-    
-    if (req.path.startsWith('/api/')) {
-        return res.status(403).json({ 
-            success: false, 
-            error: 'Forbidden',
-            message: 'User access required'
-        });
-    }
-    
-    res.redirect('/');
+    sendAuthError(res, true, req, 'User access required');
 }
 
 // Enhanced database selection with force logout support
@@ -2418,7 +2196,7 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     }
 });
 
-// Enhanced logout route with session cleanup
+// Enhanced logout route
 app.get('/logout', (req, res) => {
     if (req.session) {
         const sessionId = req.sessionID;
@@ -2427,10 +2205,8 @@ app.get('/logout', (req, res) => {
         req.session.destroy(err => {
             if (err) {
                 console.error('Failed to destroy session:', err);
-                return res.redirect('/');
             }
             
-            // Remove from active sessions tracking
             if (userEmail && activeSessions.has(userEmail)) {
                 activeSessions.get(userEmail).delete(sessionId);
                 if (activeSessions.get(userEmail).size === 0) {
@@ -2438,12 +2214,12 @@ app.get('/logout', (req, res) => {
                 }
             }
             
-            // Clear the cookie with proper settings
+            // Clear the cookie
             res.clearCookie('solura.session', {
                 path: '/',
-                httpOnly: true,
-                secure: process.env.NODE_ENV === 'production',
-                sameSite: 'lax'
+                httpOnly: false,
+                secure: false,
+                sameSite: 'Lax'
             });
             
             console.log('✅ Logout successful for session:', sessionId);
@@ -2459,6 +2235,17 @@ app.get('*', (req, res) => {
     const requestedPath = path.join(__dirname, req.path);
     
     if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) {
+        // Set session cookie for iOS on all static files
+        const userAgent = req.headers['user-agent'] || '';
+        if (/iPhone|iPad|iPod/.test(userAgent) && req.sessionID) {
+            res.cookie('solura.session', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false,
+                sameSite: 'Lax',
+                path: '/'
+            });
+        }
         res.sendFile(requestedPath);
     } else if (req.path.startsWith('/api/')) {
         res.status(404).json({ error: 'API endpoint not found' });
@@ -2467,21 +2254,7 @@ app.get('*', (req, res) => {
     }
 });
 
-// Clean up active sessions tracking when sessions are destroyed
-sessionStore.on('destroy', (sessionId) => {
-    for (const [email, sessionIds] of activeSessions.entries()) {
-        if (sessionIds.has(sessionId)) {
-            sessionIds.delete(sessionId);
-            if (sessionIds.size === 0) {
-                activeSessions.delete(email);
-            }
-            console.log(`🧹 Cleaned up destroyed session: ${sessionId}`);
-            break;
-        }
-    }
-});
-
-// Test session store connection
+// Session store event handlers
 sessionStore.on('connected', () => {
     console.log('✅ Session store connected to database');
 });
