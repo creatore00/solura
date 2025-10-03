@@ -258,18 +258,25 @@ app.use(session({
     proxy: false
 }));
 
-// Enhanced session tracking middleware
+// FIXED: Enhanced session tracking middleware with duplicate prevention
 app.use((req, res, next) => {
     const originalSave = req.session.save;
+    let hasBeenTracked = false; // Prevent multiple tracking
+    
     req.session.save = function(callback) {
         originalSave.call(this, (err) => {
-            if (!err && req.session.user && req.session.user.email) {
+            if (!err && req.session.user && req.session.user.email && !hasBeenTracked) {
                 const email = req.session.user.email;
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
-                activeSessions.get(email).add(req.sessionID);
-                console.log(`✅ Session tracked for ${email}: ${req.sessionID}`);
+                
+                // Only track if this session ID isn't already tracked
+                if (!activeSessions.get(email).has(req.sessionID)) {
+                    activeSessions.get(email).add(req.sessionID);
+                    hasBeenTracked = true; // Mark as tracked
+                    console.log(`✅ Session tracked for ${email}: ${req.sessionID}`);
+                }
             }
             if (callback) callback(err);
         });
@@ -736,7 +743,11 @@ app.post('/api/verify-biometric', async (req, res) => {
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
-                activeSessions.get(email).add(req.sessionID);
+                // Only add if not already present
+                if (!activeSessions.get(email).has(req.sessionID)) {
+                    activeSessions.get(email).add(req.sessionID);
+                    console.log(`✅ Login session tracked for ${email}: ${req.sessionID}`);
+                }
                 
                 // Generate new tokens
                 const authToken = generateToken(userInfo);
@@ -1238,7 +1249,11 @@ app.post('/api/ios-restore-session', async (req, res) => {
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
-                activeSessions.get(email).add(req.sessionID);
+                // Only add if not already present
+                if (!activeSessions.get(email).has(req.sessionID)) {
+                    activeSessions.get(email).add(req.sessionID);
+                    console.log(`✅ Login session tracked for ${email}: ${req.sessionID}`);
+                }
                 
                 // Force save with callback to ensure it's persisted
                 req.session.save((err) => {
@@ -1372,7 +1387,11 @@ app.post('/api/recover-session', async (req, res) => {
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
-                activeSessions.get(email).add(req.sessionID);
+                // Only add if not already present
+                if (!activeSessions.get(email).has(req.sessionID)) {
+                    activeSessions.get(email).add(req.sessionID);
+                    console.log(`✅ Login session tracked for ${email}: ${req.sessionID}`);
+                }
                 
                 req.session.save((err) => {
                     if (err) {
@@ -1649,7 +1668,11 @@ app.post('/submit-database', async (req, res) => {
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
-                activeSessions.get(email).add(req.sessionID);
+                // Only add if not already present
+                if (!activeSessions.get(email).has(req.sessionID)) {
+                    activeSessions.get(email).add(req.sessionID);
+                    console.log(`✅ Login session tracked for ${email}: ${req.sessionID}`);
+                }
                 
                 // Generate tokens
                 const authToken = generateToken(userInfo);
@@ -1876,12 +1899,15 @@ app.post('/submit', async (req, res) => {
                 req.session.user = userInfo;
                 req.session.initialized = true;
                 
-                // Track this session
+                // Track this session - with duplicate prevention
                 if (!activeSessions.has(email)) {
                     activeSessions.set(email, new Set());
                 }
-                activeSessions.get(email).add(req.sessionID);
-                
+                // Only add if not already present
+                if (!activeSessions.get(email).has(req.sessionID)) {
+                    activeSessions.get(email).add(req.sessionID);
+                    console.log(`✅ Login session tracked for ${email}: ${req.sessionID}`);
+                }
                 // Generate tokens
                 const authToken = generateToken(userInfo);
                 const refreshToken = jwt.sign(
