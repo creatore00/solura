@@ -616,19 +616,30 @@
     let biometricSupported = false;
     let biometricType = 'unknown';
     let hasStoredCredentials = false;
+    let isAutoLoginAttempted = false;
 
     // Initialize everything when DOM is ready
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('🚀 Initializing enhanced login system...');
         
+        // Emergency CSS fix first
+        document.body.style.backgroundColor = '#ffffff';
+        document.body.style.minHeight = '100vh';
+        
+        const loginContainer = document.querySelector('.login-container');
+        if (loginContainer) {
+            loginContainer.style.display = 'flex';
+            loginContainer.style.opacity = '1';
+        }
+        
         // Initialize event listeners
         initializeEventListeners();
         
-        // Check for existing session and try auto-login
-        await tryAutoLogin();
-        
-        // Check biometric support and setup
+        // Check biometric support and setup FIRST
         await initializeBiometricSystem();
+        
+        // Then check for existing session and try auto-login
+        await tryAutoLogin();
     });
 
     function initializeEventListeners() {
@@ -656,14 +667,6 @@
         await checkBiometricSupport();
         await checkStoredCredentials();
         updateBiometricUI();
-        
-        // Try biometric auto-login if credentials are stored
-        if (hasStoredCredentials && biometricSupported) {
-            console.log('🔑 Attempting biometric auto-login...');
-            setTimeout(() => {
-                handleBiometricLogin();
-            }, 1000);
-        }
     }
 
     async function checkBiometricSupport() {
@@ -706,6 +709,7 @@
             // Check localStorage for web credentials
             const stored = localStorage.getItem('biometricCredentials');
             hasStoredCredentials = !!stored;
+            console.log('📋 Web stored credentials:', hasStoredCredentials);
             return;
         }
 
@@ -715,9 +719,12 @@
                 server: 'https://solura.uk' 
             });
             hasStoredCredentials = !!(credentials && credentials.username && credentials.password);
-            console.log('📋 Stored credentials found:', hasStoredCredentials);
+            console.log('📋 Native stored credentials found:', hasStoredCredentials);
+            if (hasStoredCredentials) {
+                console.log('🔑 Credentials available for:', credentials.username);
+            }
         } catch (error) {
-            console.log('No stored credentials found');
+            console.log('No stored credentials found:', error.message);
             hasStoredCredentials = false;
         }
     }
@@ -757,6 +764,77 @@
         }
     }
 
+    // Enhanced auto-login system
+    async function tryAutoLogin() {
+        if (isAutoLoginAttempted) {
+            console.log('🔄 Auto-login already attempted, skipping');
+            return;
+        }
+        
+        isAutoLoginAttempted = true;
+        
+        console.log('🔐 Starting auto-login process...');
+        
+        // First, check if we have a valid session
+        const hasValidSession = await checkExistingSession();
+        if (hasValidSession) {
+            console.log('✅ Valid session found, user is already logged in');
+            return;
+        }
+
+        // If no session but we have biometric credentials, try auto-login
+        if (hasStoredCredentials && biometricSupported) {
+            console.log('🔑 No session found, but biometric credentials available - attempting auto-login');
+            
+            // Show loading state
+            const loadingDiv = document.getElementById('loading');
+            loadingDiv.style.display = 'block';
+            loadingDiv.innerHTML = `
+                <div class="loading-spinner"></div>
+                <p style="color: var(--light-text);">Restoring your session...</p>
+            `;
+            
+            // Wait a moment for UI to update, then attempt biometric login
+            setTimeout(async () => {
+                try {
+                    await handleBiometricLogin();
+                } catch (error) {
+                    console.log('❌ Auto-login failed, showing login form');
+                    loadingDiv.style.display = 'none';
+                }
+            }, 1000);
+        } else {
+            console.log('🔐 No auto-login credentials available, showing login form');
+        }
+    }
+
+    async function checkExistingSession() {
+        try {
+            console.log('🔍 Checking for existing session...');
+            const response = await fetch('/api/validate-session', {
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.valid && data.user) {
+                    console.log('✅ Existing session found for user:', data.user.email);
+                    redirectToDashboard(data.user);
+                    return true;
+                }
+            }
+            console.log('❌ No valid session found');
+            return false;
+        } catch (error) {
+            console.log('❌ Session check failed:', error.message);
+            return false;
+        }
+    }
+
     // Enhanced biometric login handler
     async function handleBiometricLogin() {
         const btn = document.getElementById('biometricBtn');
@@ -785,7 +863,9 @@
             
             if (!hasStoredCredentials) {
                 // No stored credentials - this should setup biometric
+                console.log('📝 No stored credentials, showing setup prompt');
                 showBiometricPrompt();
+                resetBiometricButton();
                 return;
             }
 
@@ -829,8 +909,6 @@
             setTimeout(() => {
                 resetBiometricButton();
             }, 3000);
-        } finally {
-            // Don't reset button here - let the success/error flow handle it
         }
     }
 
@@ -842,15 +920,15 @@
         }
 
         const credentials = JSON.parse(stored);
+        console.log('🔑 Using web credentials for:', credentials.username);
         
         // For web, we'll just use the stored credentials directly
-        // In a real implementation, you'd use WebAuthn here
         await restoreSessionWithToken(credentials.username, credentials.password);
     }
 
     async function restoreSessionWithToken(email, accessToken) {
         try {
-            console.log('🔄 Restoring session with token...');
+            console.log('🔄 Restoring session with token for:', email);
             
             const response = await fetch('/api/verify-biometric', {
                 method: 'POST',
@@ -873,10 +951,15 @@
                 // Store the updated session data
                 storeSessionData(data);
                 
+                // Show success and redirect
+                const successDiv = document.getElementById('biometricSuccess');
+                successDiv.textContent = 'Welcome back! Redirecting...';
+                successDiv.style.display = 'block';
+                
                 // Redirect to dashboard
                 setTimeout(() => {
                     window.location.replace(data.redirectUrl);
-                }, 500);
+                }, 1000);
                 
             } else {
                 throw new Error(data.error || 'Failed to restore session');
@@ -884,47 +967,6 @@
         } catch (error) {
             console.error('❌ Session restoration failed:', error);
             throw new Error('Failed to restore your session. Please try logging in manually.');
-        }
-    }
-
-    // Enhanced auto-login system
-    async function tryAutoLogin() {
-        // First, check if we have a valid session
-        const hasValidSession = await checkExistingSession();
-        if (hasValidSession) {
-            console.log('✅ Valid session found, user is already logged in');
-            return;
-        }
-
-        // If no session but we have biometric credentials, try auto-login
-        if (hasStoredCredentials && biometricSupported) {
-            console.log('🔑 No session found, but biometric credentials available - attempting auto-login');
-            // Auto-login will be triggered by the biometric button initialization
-        }
-    }
-
-    async function checkExistingSession() {
-        try {
-            const response = await fetch('/api/validate-session', {
-                credentials: 'include',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.valid && data.user) {
-                    console.log('✅ Existing session found for user:', data.user.email);
-                    redirectToDashboard(data.user);
-                    return true;
-                }
-            }
-            return false;
-        } catch (error) {
-            console.log('No existing session:', error.message);
-            return false;
         }
     }
 
@@ -1168,10 +1210,13 @@
             } else if (data.redirectUrl) {
                 // Store credentials if biometric is enabled
                 const enableBiometric = document.getElementById('enableBiometric').checked;
-                if (enableBiometric && isCapacitor) {
-                    await storeBiometricCredentials(email, data.accessToken);
-                } else if (enableBiometric) {
-                    storeWebCredentials(email, data.accessToken);
+                if (enableBiometric) {
+                    if (isCapacitor) {
+                        await storeBiometricCredentials(email, data.accessToken);
+                    } else {
+                        storeWebCredentials(email, data.accessToken);
+                    }
+                    console.log('✅ Biometric credentials stored for future auto-login');
                 }
                 
                 // Store session info for recovery
@@ -1220,6 +1265,9 @@
             });
             
             console.log('✅ Biometric credentials stored successfully');
+            // Update the stored credentials flag
+            hasStoredCredentials = true;
+            updateBiometricUI();
         } catch (error) {
             console.error('Error storing biometric credentials:', error);
         }
@@ -1236,6 +1284,9 @@
             
             localStorage.setItem('biometricCredentials', JSON.stringify(credentials));
             console.log('✅ Web credentials stored successfully');
+            // Update the stored credentials flag
+            hasStoredCredentials = true;
+            updateBiometricUI();
         } catch (error) {
             console.error('Error storing web credentials:', error);
         }
@@ -1330,10 +1381,12 @@
             if (data.redirectUrl) {
                 // Store credentials if biometric is enabled
                 const enableBiometric = document.getElementById('enableBiometric').checked;
-                if (enableBiometric && isCapacitor) {
-                    await storeBiometricCredentials(currentUserData.email, data.accessToken);
-                } else if (enableBiometric) {
-                    storeWebCredentials(currentUserData.email, data.accessToken);
+                if (enableBiometric) {
+                    if (isCapacitor) {
+                        await storeBiometricCredentials(currentUserData.email, data.accessToken);
+                    } else {
+                        storeWebCredentials(currentUserData.email, data.accessToken);
+                    }
                 }
                 
                 // Store all session data for recovery
@@ -1378,6 +1431,7 @@
                 server: 'https://solura.uk'
             });
             
+            console.log('✅ Biometric login enabled');
             document.getElementById('biometricPrompt').style.display = 'none';
             if (currentUserData.redirectUrl) {
                 window.location.replace(currentUserData.redirectUrl);
@@ -1398,22 +1452,9 @@
 
     // Show biometric prompt
     function showBiometricPrompt() {
+        console.log('📋 Showing biometric setup prompt');
         document.getElementById('biometricPrompt').style.display = 'block';
     }
-
-    // Emergency CSS fix for white screen issues
-    document.addEventListener('DOMContentLoaded', function() {
-        // Emergency background color to ensure something shows
-        document.body.style.backgroundColor = '#ffffff';
-        document.body.style.minHeight = '100vh';
-        
-        // Force show login container
-        const loginContainer = document.querySelector('.login-container');
-        if (loginContainer) {
-            loginContainer.style.display = 'flex';
-            loginContainer.style.opacity = '1';
-        }
-    });
 </script>
 
 </body>
