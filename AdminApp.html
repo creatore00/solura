@@ -511,13 +511,13 @@
         <button class="mobile-menu-btn" id="menuToggle">
             <i class="fas fa-bars"></i>
         </button>
-        <!-- Database Switcher - Add to your header/navigation -->
-<div id="databaseSwitcher" style="display: inline-block; margin-left: 15px;">
-    <select id="databaseSelect" onchange="switchDatabase(this.value)" 
-            style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: white;">
-        <option value="">Loading databases...</option>
-    </select>
-</div>
+        <!-- Database Switcher -->
+        <div id="databaseSwitcher" style="display: inline-block; margin-left: 15px;">
+            <select id="databaseSelect" onchange="switchDatabase(this.value)" 
+                    style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+                <option value="">Loading databases...</option>
+            </select>
+        </div>
     </header>
     
     <!-- Mobile Menu -->
@@ -781,27 +781,7 @@
     let accessToken = null;
     let isIOSApp = false;
     let availableDatabases = [];
-    // Add this to your JavaScript to detect and apply safe areas
-    document.addEventListener('DOMContentLoaded', function() {
-        // Detect if we're on an iOS device with a notch
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-        const hasNotch = isIOS && (window.screen.height >= 812 || window.screen.width >= 812);
-        
-        if (hasNotch) {
-            document.body.style.paddingTop = '44px';
-            document.body.style.paddingBottom = '34px';
-            
-            const header = document.querySelector('.mobile-header');
-            if (header) {
-                header.style.paddingTop = 'calc(1rem + 44px)';
-            }
-            
-            const content = document.querySelector('.mobile-content');
-            if (content) {
-                content.style.marginTop = 'calc(4rem + 44px)';
-            }
-        }
-    });
+    let sessionInitialized = false;
 
     // Initialize the application
     document.addEventListener('DOMContentLoaded', async function() {
@@ -815,20 +795,18 @@
 
         console.log('📱 iOS App detected:', isIOSApp);
         console.log('User Agent:', navigator.userAgent);
-        console.log('Standalone mode:', window.navigator.standalone);
-        console.log('Display mode:', window.matchMedia('(display-mode: standalone)').matches);
         
         // Get session data from multiple sources
         const urlParams = new URLSearchParams(window.location.search);
         sessionId = urlParams.get('sessionId') || localStorage.getItem('sessionId');
         accessToken = localStorage.getItem('accessToken');
         
-        // For iOS Apps, be more lenient with initial authentication
+        // CRITICAL: Initialize session first for iOS
         if (isIOSApp) {
-            console.log('📱 iOS App - Using relaxed authentication check');
-            await initializeIOSApp();
+            console.log('📱 iOS App - Initializing session first');
+            await initializeIOSSession();
         } else {
-            // Regular browsers use strict authentication
+            // Regular browsers use standard authentication
             const hasValidSession = await checkInitialAuthentication();
             if (!hasValidSession) {
                 console.log('❌ No valid session found, redirecting to login');
@@ -837,22 +815,19 @@
             }
         }
         
-        // Setup UI components first
+        // Setup UI components
         initializeUI();
         
         // Validate session and load data
         await initializeSession();
     });
 
-    // Special initialization for iOS Apps
-    async function initializeIOSApp() {
-        console.log('📱 iOS App initialization...');
-        
-        // Try to get user from multiple sources
-        const urlParams = new URLSearchParams(window.location.search);
-        const storedUser = localStorage.getItem('userInfo');
+    // CRITICAL: iOS-specific session initialization
+    async function initializeIOSSession() {
+        console.log('📱 iOS App session initialization...');
         
         // Method 1: Check URL parameters (from login redirect)
+        const urlParams = new URLSearchParams(window.location.search);
         const name = urlParams.get('name');
         const lastName = urlParams.get('lastName');
         const email = urlParams.get('email');
@@ -868,30 +843,85 @@
             };
             localStorage.setItem('userInfo', JSON.stringify(currentUser));
             localStorage.setItem('lastDb', dbName);
+            sessionInitialized = true;
             return;
         }
         
         // Method 2: Check localStorage
+        const storedUser = localStorage.getItem('userInfo');
         if (storedUser) {
             console.log('📱 Found stored user data');
             currentUser = JSON.parse(storedUser);
+            sessionInitialized = true;
             return;
         }
         
-        // Method 3: Try to validate session
-        console.log('📱 No immediate user data, trying session validation...');
-        const isValid = await validateIOSSession();
-        if (!isValid) {
-            console.log('📱 iOS App session validation failed');
-            // Don't redirect immediately - let the session initialization handle it
+        // Method 3: Try to initialize session with server
+        console.log('📱 No immediate user data, initializing session with server...');
+        await initializeSessionWithServer();
+    }
+
+    // Initialize session with server for iOS
+    async function initializeSessionWithServer() {
+        try {
+            console.log('📱 Initializing session with server...');
+            
+            // First, try to get current session
+            const response = await fetch('/api/current-user', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    'X-Session-ID': sessionId || ''
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.user) {
+                    console.log('✅ Server session found');
+                    currentUser = data.user;
+                    localStorage.setItem('userInfo', JSON.stringify(data.user));
+                    sessionInitialized = true;
+                    return;
+                }
+            }
+            
+            // If no session, try to initialize one
+            console.log('📱 No existing session, creating new one...');
+            const initResponse = await fetch('/api/ios-init', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (initResponse.ok) {
+                const initData = await initResponse.json();
+                console.log('✅ iOS session initialized:', initData);
+                
+                // Update session ID if provided
+                if (initData.sessionId) {
+                    sessionId = initData.sessionId;
+                    localStorage.setItem('sessionId', initData.sessionId);
+                }
+                
+                sessionInitialized = true;
+            } else {
+                console.log('❌ Failed to initialize iOS session');
+            }
+            
+        } catch (error) {
+            console.error('🚨 Error initializing session with server:', error);
         }
     }
 
-    // CRITICAL: Check initial authentication before loading page
+    // Check initial authentication
     async function checkInitialAuthentication() {
         console.log('🔐 Checking initial authentication...');
         
-        // Try to get current user from API first
         try {
             const response = await fetch('/api/current-user', {
                 method: 'GET',
@@ -912,58 +942,6 @@
             }
         } catch (error) {
             console.log('❌ Initial authentication failed:', error);
-        }
-        
-        // If API fails, check localStorage as fallback
-        const storedUser = localStorage.getItem('userInfo');
-        if (storedUser) {
-            console.log('🔄 Trying stored user data...');
-            currentUser = JSON.parse(storedUser);
-            
-            // For iOS Apps, don't validate stored user immediately
-            if (isIOSApp) {
-                console.log('📱 iOS App - Using stored user without immediate validation');
-                return true;
-            }
-            
-            // Verify stored user is still valid (for regular browsers)
-            const isValid = await validateStoredUser();
-            if (isValid) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-
-    // Validate stored user data
-    async function validateStoredUser() {
-        if (!currentUser || !currentUser.email) return false;
-        
-        try {
-            const response = await fetch('/api/recover-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    email: currentUser.email,
-                    dbName: currentUser.dbName,
-                    accessToken: localStorage.getItem('accessToken')
-                })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    currentUser = data.user;
-                    return true;
-                }
-            }
-        } catch (error) {
-            console.error('Error validating stored user:', error);
         }
         
         return false;
@@ -1030,7 +1008,7 @@
         updateLiveDateTime();
         setInterval(updateLiveDateTime, 1000);
         
-        // Initialize database switcher if element exists
+        // Initialize database switcher
         initializeDatabaseSwitcher();
     }
 
@@ -1040,7 +1018,6 @@
         if (!dbSwitcher) return;
         
         try {
-            // Load available databases
             const response = await fetchWithRecovery('/api/user-databases');
             if (response.ok) {
                 const data = await response.json();
@@ -1099,7 +1076,6 @@
                 currentUser = data.user;
                 localStorage.setItem('userInfo', JSON.stringify(data.user));
                 
-                // Show success message and reload
                 showNotification('Database switched successfully', 'success');
                 setTimeout(() => {
                     location.reload();
@@ -1117,7 +1093,6 @@
 
     // Show notification
     function showNotification(message, type = 'info') {
-        // Create notification element if it doesn't exist
         let notification = document.getElementById('globalNotification');
         if (!notification) {
             notification = document.createElement('div');
@@ -1138,7 +1113,6 @@
             document.body.appendChild(notification);
         }
         
-        // Set style based on type
         const styles = {
             success: 'background: #4CAF50;',
             error: 'background: #f44336;',
@@ -1149,7 +1123,6 @@
         notification.textContent = message;
         notification.style.display = 'block';
         
-        // Auto-hide after 3 seconds
         setTimeout(() => {
             notification.style.display = 'none';
         }, 3000);
@@ -1185,41 +1158,19 @@
         try {
             console.log('📱 Validating iOS App session...');
             
-            // Method 1: Try with access token
-            if (accessToken) {
-                console.log('🔄 Trying access token authentication');
-                const response = await fetch('/api/validate-session', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
-                    },
-                    credentials: 'include'
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.valid) {
-                        console.log('✅ iOS App session valid with access token');
-                        currentUser = data.user;
-                        updateStoredUserData(data.user, data.sessionId);
-                        return true;
-                    }
-                }
+            // Method 1: Try with current user data
+            if (currentUser && sessionInitialized) {
+                console.log('✅ Using existing session data');
+                return true;
             }
             
-            // Method 2: Try iOS-specific session restoration
-            if (currentUser) {
-                console.log('🔄 Trying iOS-specific session restoration');
-                const restored = await restoreIOSSession();
-                if (restored) {
-                    return true;
-                }
+            // Method 2: Try session restoration
+            const restored = await restoreIOSSession();
+            if (restored) {
+                return true;
             }
             
-            // Method 3: Try regular session recovery as fallback
-            console.log('🔄 Falling back to regular session recovery');
+            // Method 3: Try session recovery
             return await attemptSessionRecovery();
             
         } catch (error) {
@@ -1261,7 +1212,7 @@
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ iOS App session restored successfully:', data);
+                console.log('✅ iOS App session restored successfully');
                 
                 currentUser = data.user;
                 if (data.sessionId) {
@@ -1273,6 +1224,7 @@
                     localStorage.setItem('accessToken', data.accessToken);
                 }
                 localStorage.setItem('userInfo', JSON.stringify(data.user));
+                sessionInitialized = true;
                 
                 return true;
             }
@@ -1328,6 +1280,7 @@
             sessionId = newSessionId;
             localStorage.setItem('sessionId', newSessionId);
         }
+        sessionInitialized = true;
     }
 
     // Enhanced session recovery for all platforms
@@ -1379,7 +1332,7 @@
         return false;
     }
 
-    // Enhanced fetch with session ID synchronization
+    // CRITICAL: Enhanced fetch with session ID synchronization for iOS
     async function fetchWithRecovery(url, options = {}) {
         try {
             const config = {
@@ -1458,20 +1411,18 @@
         }
     }
         
-    // SECURE Navigation function - prevents unauthorized access
+    // SECURE Navigation function
     function navigateTo(url) {
-        if (!currentUser) {
+        if (!currentUser && !sessionInitialized) {
             console.log('❌ No user data available, redirecting to login');
             redirectToLogin();
             return;
         }
 
-        // Build secure URL without sensitive parameters in URL
+        // Build secure URL
         let targetUrl = url.startsWith('/') ? url.substring(1) : url;
         
-        // Only include minimal non-sensitive parameters
         const params = new URLSearchParams({
-            // Don't include sensitive user data in URL
             t: Date.now() // Cache buster only
         });
 
