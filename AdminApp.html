@@ -17,6 +17,11 @@
             --dark-gray: #333;
             --white: #ffffff;
             --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            /* Safe area variables for easier use */
+            --safe-area-top: max(env(safe-area-inset-top), constant(safe-area-inset-top), 20px);
+            --safe-area-bottom: max(env(safe-area-inset-bottom), constant(safe-area-inset-bottom), 20px);
+            --safe-area-left: max(env(safe-area-inset-left), constant(safe-area-inset-left), 0px);
+            --safe-area-right: max(env(safe-area-inset-right), constant(safe-area-inset-right), 0px);
         }
         
         * {
@@ -33,18 +38,14 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            /* Critical: Use constant() for older iOS and env() for newer */
-            padding-top: constant(safe-area-inset-top); /* iOS 11.0 */
-            padding-top: env(safe-area-inset-top); /* iOS 11.2+ */
-            padding-bottom: constant(safe-area-inset-bottom);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: constant(safe-area-inset-left);
-            padding-left: env(safe-area-inset-left);
-            padding-right: constant(safe-area-inset-right);
-            padding-right: env(safe-area-inset-right);
+            /* Enhanced safe area handling */
+            padding-top: var(--safe-area-top);
+            padding-bottom: var(--safe-area-bottom);
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
         
-        /* Mobile Header - Fixed positioning to avoid notch */
+        /* Mobile Header - Enhanced for notch devices */
         .mobile-header {
             background-color: var(--white);
             padding: 1rem;
@@ -57,13 +58,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            /* Critical: Add safe area padding to top */
-            padding-top: calc(1rem + constant(safe-area-inset-top));
-            padding-top: calc(1rem + env(safe-area-inset-top));
-            padding-left: calc(1rem + constant(safe-area-inset-left));
-            padding-left: calc(1rem + env(safe-area-inset-left));
-            padding-right: calc(1rem + constant(safe-area-inset-right));
-            padding-right: calc(1rem + env(safe-area-inset-right));
+            /* Enhanced safe area padding for notch */
+            padding-top: calc(1rem + var(--safe-area-top));
+            padding-bottom: 1rem;
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
+            /* Add extra height for status bar area */
+            min-height: calc(60px + var(--safe-area-top));
         }
         
         .mobile-title {
@@ -73,6 +74,8 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            /* Ensure text doesn't get too close to notch */
+            margin-left: var(--safe-area-left);
         }
 
         .mobile-menu-btn {
@@ -81,22 +84,23 @@
             font-size: 1.5rem;
             color: var(--primary-color);
             cursor: pointer;
-            padding: 0.25rem;
+            padding: 0.5rem;
+            /* Ensure button is properly spaced from edge */
+            margin-right: var(--safe-area-right);
         }
 
-        /* Main Content Area - Add margin top to account for fixed header */
+        /* Main Content Area - Enhanced spacing for notch */
         .mobile-content {
             flex: 1;
             padding: 1rem;
             overflow-y: auto;
-            margin-top: calc(4rem + constant(safe-area-inset-top)); /* header height + safe area */
-            margin-top: calc(4rem + env(safe-area-inset-top));
-            margin-bottom: constant(safe-area-inset-bottom);
-            margin-bottom: env(safe-area-inset-bottom);
-            padding-left: calc(1rem + constant(safe-area-inset-left));
-            padding-left: calc(1rem + env(safe-area-inset-left));
-            padding-right: calc(1rem + constant(safe-area-inset-right));
-            padding-right: calc(1rem + env(safe-area-inset-right));
+            /* Enhanced margin to account for fixed header + notch */
+            margin-top: calc(80px + var(--safe-area-top));
+            margin-bottom: var(--safe-area-bottom);
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
+            /* Ensure content doesn't get hidden behind home indicator */
+            padding-bottom: calc(1rem + var(--safe-area-bottom));
         }
 
         .content-header {
@@ -104,6 +108,9 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.5rem;
+            /* Add safe area awareness */
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
         
         .content-title {
@@ -130,9 +137,12 @@
         
         .mobile-widget {
             background: var(--white);
-            border-radius: 8px;
-            padding: 1rem;
+            border-radius: 12px;
+            padding: 1.25rem;
             box-shadow: var(--shadow);
+            /* Safe area awareness */
+            margin-left: var(--safe-area-left);
+            margin-right: var(--safe-area-right);
         }
         
         .widget-header {
@@ -169,6 +179,8 @@
             font-size: 1.1rem;
             color: var(--primary-color);
             margin-bottom: 1rem;
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
         
         .mobile-actions {
@@ -176,12 +188,14 @@
             grid-template-columns: repeat(2, 1fr);
             gap: 1rem;
             margin-bottom: 1.5rem;
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
         
         .mobile-action {
             background: var(--white);
-            border-radius: 8px;
-            padding: 1rem;
+            border-radius: 12px;
+            padding: 1.25rem;
             box-shadow: var(--shadow);
             display: flex;
             flex-direction: column;
@@ -190,17 +204,20 @@
             text-align: center;
             text-decoration: none;
             color: var(--dark-gray);
-            transition: transform 0.2s ease;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
         }
         
         .mobile-action:active {
             transform: scale(0.98);
+            background-color: #f8f9fa;
+            border-color: var(--accent-color);
         }
         
         .action-icon {
-            font-size: 1.5rem;
+            font-size: 1.75rem;
             color: var(--secondary-color);
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.75rem;
         }
         
         .action-label {
@@ -212,13 +229,22 @@
         .mobile-table-container {
             overflow-x: auto;
             margin-bottom: 1.5rem;
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
+            /* Hide scrollbars but keep functionality */
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        .mobile-table-container::-webkit-scrollbar {
+            display: none;
         }
         
         .mobile-table {
             width: 100%;
             min-width: 500px;
             background: var(--white);
-            border-radius: 8px;
+            border-radius: 12px;
             box-shadow: var(--shadow);
             overflow: hidden;
         }
@@ -226,14 +252,16 @@
         .mobile-table th {
             background-color: var(--primary-color);
             color: var(--white);
-            padding: 0.75rem;
+            padding: 1rem;
             text-align: left;
             font-weight: 500;
             font-size: 0.9rem;
+            position: sticky;
+            left: 0;
         }
         
         .mobile-table td {
-            padding: 0.75rem;
+            padding: 1rem;
             border-bottom: 1px solid #eee;
             font-size: 0.9rem;
         }
@@ -246,44 +274,52 @@
             background-color: #ffebee;
             color: #c62828;
             font-weight: bold;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
         }
 
         .foh-cell {
             background-color: #e8f5e9;
             color: #2e7d32;
             font-weight: bold;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
         }
 
         .status-indicator {
-            padding: 4px 8px;
-            border-radius: 12px;
+            padding: 6px 12px;
+            border-radius: 16px;
             display: inline-block;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
+            font-weight: 500;
         }
 
         .status-indicator.working {
             background-color: #e3f2fd;
             color: #1565c0;
+            border: 1px solid #1565c0;
         }
 
         .status-indicator.inactive {
             background-color: #f5f5f5;
             color: #616161;
+            border: 1px solid #e0e0e0;
         }
         
-        /* Footer */
+        /* Footer - Enhanced for home indicator */
         .mobile-footer {
             background: var(--primary-color);
             color: var(--white);
-            padding: 1rem;
+            padding: 1.5rem;
             text-align: center;
             font-size: 0.8rem;
-            /* Safe area for home indicator */
-            padding-bottom: calc(1rem + constant(safe-area-inset-bottom));
-            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+            /* Enhanced safe area for home indicator */
+            padding-bottom: calc(1.5rem + var(--safe-area-bottom));
+            padding-left: calc(1.5rem + var(--safe-area-left));
+            padding-right: calc(1.5rem + var(--safe-area-right));
         }
 
-        /* Mobile Menu - Fixed positioning */
+        /* Mobile Menu - Enhanced safe area handling */
         .mobile-menu {
             position: fixed;
             top: 0;
@@ -295,11 +331,11 @@
             transition: left 0.3s ease;
             overflow-y: auto;
             box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-            /* Safe area padding */
-            padding-top: constant(safe-area-inset-top);
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: constant(safe-area-inset-bottom);
-            padding-bottom: env(safe-area-inset-bottom);
+            /* Enhanced safe area padding */
+            padding-top: var(--safe-area-top);
+            padding-bottom: var(--safe-area-bottom);
+            padding-left: var(--safe-area-left);
+            padding-right: var(--safe-area-right);
         }
 
         .mobile-menu.active {
@@ -307,15 +343,16 @@
         }
 
         .menu-header {
-            padding: 1.5rem 1rem;
+            padding: 1.5rem;
             background: var(--primary-color);
             color: white;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            /* Safe area padding */
-            padding-top: calc(1.5rem + constant(safe-area-inset-top));
-            padding-top: calc(1.5rem + env(safe-area-inset-top));
+            /* Enhanced safe area padding */
+            padding-top: calc(1.5rem + var(--safe-area-top));
+            padding-left: calc(1.5rem + var(--safe-area-left));
+            padding-right: calc(1.5rem + var(--safe-area-right));
         }
 
         .close-menu {
@@ -324,6 +361,7 @@
             color: white;
             font-size: 1.5rem;
             cursor: pointer;
+            padding: 0.5rem;
         }
 
         .mobile-nav {
@@ -335,23 +373,29 @@
         }
         
         .mobile-nav-title {
-            padding: 0.75rem 1rem;
+            padding: 1rem 1.5rem;
             font-size: 0.9rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--primary-color);
             font-weight: 600;
             background: rgba(0, 122, 204, 0.1);
+            /* Safe area awareness */
+            padding-left: calc(1.5rem + var(--safe-area-left));
         }
         
         .mobile-nav-link {
             display: flex;
             align-items: center;
-            padding: 1rem 1.5rem;
+            padding: 1.25rem 1.5rem;
             color: var(--dark-gray);
             text-decoration: none;
             border-bottom: 1px solid #eee;
             gap: 0.75rem;
+            transition: background-color 0.2s ease;
+            /* Safe area awareness */
+            padding-left: calc(1.5rem + var(--safe-area-left));
+            padding-right: calc(1.5rem + var(--safe-area-right));
         }
         
         .mobile-nav-link i {
@@ -363,26 +407,30 @@
         .mobile-nav-link.active {
             background-color: rgba(0, 122, 204, 0.1);
             color: var(--primary-color);
-            border-left: 3px solid var(--primary-color);
+            border-left: 4px solid var(--primary-color);
+        }
+        
+        .mobile-nav-link:active {
+            background-color: rgba(0, 122, 204, 0.05);
         }
         
         .notification-badge {
             display: inline-block;
             width: 8px;
             height: 8px;
-            background-color: #ff0000;
+            background-color: #ff4757;
             border-radius: 50%;
             margin-left: auto;
             animation: pulse 1.5s infinite;
         }
         
         @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 5px rgba(255, 0, 0, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 71, 87, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
         }
 
-        /* Modal */
+        /* Modal - Enhanced for safe areas */
         .mobile-modal {
             display: none;
             position: fixed;
@@ -395,36 +443,41 @@
             justify-content: center;
             align-items: center;
             padding: 1rem;
-            /* Safe area padding */
-            padding-top: calc(1rem + constant(safe-area-inset-top));
-            padding-top: calc(1rem + env(safe-area-inset-top));
-            padding-bottom: calc(1rem + constant(safe-area-inset-bottom));
-            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+            /* Enhanced safe area padding */
+            padding-top: calc(1rem + var(--safe-area-top));
+            padding-bottom: calc(1rem + var(--safe-area-bottom));
+            padding-left: calc(1rem + var(--safe-area-left));
+            padding-right: calc(1rem + var(--safe-area-right));
         }
         
         .mobile-modal-content {
             background: white;
-            border-radius: 8px;
+            border-radius: 16px;
             width: 100%;
             max-width: 500px;
             max-height: 80vh;
             overflow: auto;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            /* Safe area margin */
+            margin-top: var(--safe-area-top);
+            margin-bottom: var(--safe-area-bottom);
         }
         
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 1rem;
+            padding: 1.5rem;
             border-bottom: 1px solid #eee;
             background: #f8f9fa;
+            border-radius: 16px 16px 0 0;
         }
         
         .modal-title {
             margin: 0;
             font-size: 1.1rem;
             color: #004f9e;
+            font-weight: 600;
         }
         
         .close-modal {
@@ -433,10 +486,11 @@
             font-size: 1.5rem;
             cursor: pointer;
             color: #666;
+            padding: 0.25rem;
         }
         
         .modal-body {
-            padding: 1rem;
+            padding: 1.5rem;
         }
 
         /* Overlay for menu */
@@ -458,33 +512,87 @@
         /* Loading and Error States */
         .loading-state {
             text-align: center;
-            padding: 2rem;
+            padding: 3rem 2rem;
             color: #666;
+            font-size: 1rem;
         }
 
         .error-state {
             text-align: center;
-            padding: 2rem;
+            padding: 3rem 2rem;
             color: #d32f2f;
+            font-size: 1rem;
         }
 
         .session-error {
             text-align: center;
-            padding: 2rem;
+            padding: 3rem 2rem;
+            background: var(--white);
+            border-radius: 12px;
+            margin: 1rem;
+            box-shadow: var(--shadow);
         }
 
         .btn-primary {
             background: var(--primary-color);
             color: white;
             border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 4px;
+            padding: 1rem 2rem;
+            border-radius: 8px;
             font-size: 1rem;
             cursor: pointer;
             margin-top: 1rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
         }
 
-        /* Fallback for older browsers */
+        .btn-primary:active {
+            background: var(--secondary-color);
+        }
+
+        /* Database Switcher Styles */
+        #databaseSwitcher {
+            margin-left: 1rem;
+        }
+
+        #databaseSelect {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            font-size: 0.8rem;
+            color: var(--dark-gray);
+            min-width: 120px;
+        }
+
+        /* Enhanced touch targets for mobile */
+        @media (max-width: 768px) {
+            .mobile-action,
+            .mobile-nav-link,
+            .btn-primary {
+                min-height: 44px; /* Apple's recommended minimum touch target */
+            }
+            
+            .mobile-menu-btn,
+            .close-menu,
+            .close-modal {
+                min-width: 44px;
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+
+        /* iPhone X and later specific optimizations */
+        @supports (padding: max(0px)) {
+            body {
+                padding-top: max(var(--safe-area-top), 20px);
+                padding-bottom: max(var(--safe-area-bottom), 20px);
+            }
+        }
+
+        /* Fallback for older browsers without safe area support */
         @supports not (padding: env(safe-area-inset-top)) {
             body {
                 padding-top: 20px;
@@ -493,10 +601,27 @@
             
             .mobile-header {
                 padding-top: 1rem;
+                min-height: 60px;
             }
             
             .mobile-content {
-                margin-top: 4rem;
+                margin-top: 80px;
+                padding-bottom: 1rem;
+            }
+            
+            .mobile-footer {
+                padding-bottom: 1.5rem;
+            }
+        }
+
+        /* Extra large notch devices (iPhone 14 Pro, etc.) */
+        @media (max-width: 430px) and (min-height: 932px) {
+            .mobile-header {
+                min-height: calc(70px + var(--safe-area-top));
+            }
+            
+            .mobile-content {
+                margin-top: calc(90px + var(--safe-area-top));
             }
         }
     </style>
