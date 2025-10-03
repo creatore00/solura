@@ -258,25 +258,34 @@ app.use(session({
     proxy: false
 }));
 
-// FIXED: Enhanced session tracking middleware with duplicate prevention
+// FIXED: Session tracking ONLY on initial login/session creation
 app.use((req, res, next) => {
     const originalSave = req.session.save;
-    let hasBeenTracked = false; // Prevent multiple tracking
+    let isNewSessionTracked = false;
     
     req.session.save = function(callback) {
         originalSave.call(this, (err) => {
-            if (!err && req.session.user && req.session.user.email && !hasBeenTracked) {
+            if (!err && req.session.user && req.session.user.email) {
                 const email = req.session.user.email;
-                if (!activeSessions.has(email)) {
-                    activeSessions.set(email, new Set());
+                
+                // ONLY track if this is a NEW session (no user data before)
+                const hadUserBefore = req.session.previousUser === email;
+                
+                if (!hadUserBefore && !isNewSessionTracked) {
+                    if (!activeSessions.has(email)) {
+                        activeSessions.set(email, new Set());
+                    }
+                    
+                    // Only track if this session ID isn't already tracked
+                    if (!activeSessions.get(email).has(req.sessionID)) {
+                        activeSessions.get(email).add(req.sessionID);
+                        isNewSessionTracked = true;
+                        console.log(`✅ NEW Session tracked for ${email}: ${req.sessionID}`);
+                    }
                 }
                 
-                // Only track if this session ID isn't already tracked
-                if (!activeSessions.get(email).has(req.sessionID)) {
-                    activeSessions.get(email).add(req.sessionID);
-                    hasBeenTracked = true; // Mark as tracked
-                    console.log(`✅ Session tracked for ${email}: ${req.sessionID}`);
-                }
+                // Store current user for next comparison
+                req.session.previousUser = email;
             }
             if (callback) callback(err);
         });
