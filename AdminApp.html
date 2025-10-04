@@ -803,16 +803,24 @@
         await initializeSession();
     });
 
-    // CRITICAL: iOS-specific session initialization
+    // Enhanced iOS session initialization
     async function initializeIOSSession() {
         console.log('📱 iOS App session initialization...');
         
-        // Method 1: Check URL parameters (from login redirect)
+        // Check URL parameters first (this is CRITICAL for database switch)
         const urlParams = new URLSearchParams(window.location.search);
+        const sessionIdFromUrl = urlParams.get('sessionId');
         const name = urlParams.get('name');
         const lastName = urlParams.get('lastName');
         const email = urlParams.get('email');
         const dbName = urlParams.get('dbName');
+        
+        // If we have a session ID from URL (from database switch), use it
+        if (sessionIdFromUrl) {
+            console.log('📱 Found session ID in URL parameters:', sessionIdFromUrl);
+            sessionId = sessionIdFromUrl;
+            localStorage.setItem('sessionId', sessionIdFromUrl);
+        }
         
         if (name && lastName && email && dbName) {
             console.log('📱 Found user data in URL parameters');
@@ -841,7 +849,7 @@
         console.log('📱 No immediate user data, initializing session with server...');
         await initializeSessionWithServer();
     }
-
+    
     // Initialize session with server for iOS
     async function initializeSessionWithServer() {
         try {
@@ -992,23 +1000,7 @@
         // Initialize database switcher
         initializeDatabaseSwitcher();
     }
-// Check if session persists after database switch
-async function verifySessionAfterSwitch() {
-    try {
-        const response = await fetchWithRecovery('/api/current-user');
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.user) {
-                console.log('✅ Session verified after switch:', data.user.dbName);
-                return data.user;
-            }
-        }
-        return null;
-    } catch (error) {
-        console.error('❌ Session verification failed:', error);
-        return null;
-    }
-}
+
     // Initialize database switcher
     async function initializeDatabaseSwitcher() {
         const dbSwitcher = document.getElementById('databaseSwitcher');
@@ -1056,7 +1048,7 @@ async function verifySessionAfterSwitch() {
         console.log('✅ Database switcher populated with', databases.length, 'databases');
     }
 
-    // Switch database function
+    // FIXED: Database switch function for iOS
     async function switchDatabase(newDbName) {
         if (!newDbName || !currentUser) return;
         
@@ -1081,20 +1073,23 @@ async function verifySessionAfterSwitch() {
             if (data.success) {
                 console.log('✅ Database switched successfully');
                 
-                // CRITICAL: Update currentUser immediately
+                // CRITICAL: Update currentUser and session ID
                 currentUser = data.user;
+                sessionId = data.sessionId; // Update the session ID
                 localStorage.setItem('userInfo', JSON.stringify(data.user));
+                localStorage.setItem('sessionId', data.sessionId);
                 
-                // For iOS: Use a more reliable reload approach
+                console.log('🆕 New session ID:', data.sessionId);
+                
+                // For iOS: Use the NEW session ID in the reload
                 if (isIOSApp) {
-                    console.log('📱 iOS App - Using enhanced reload');
-                    // Small delay to ensure session is saved
+                    console.log('📱 iOS App - Reloading with new session ID');
+                    // Use the NEW session ID in the URL
+                    const newUrl = `${window.location.pathname}?sessionId=${encodeURIComponent(data.sessionId)}&t=${Date.now()}`;
                     setTimeout(() => {
-                        // Use location.replace to avoid caching issues
-                        window.location.replace(window.location.pathname + '?t=' + Date.now());
+                        window.location.replace(newUrl);
                     }, 500);
                 } else {
-                    // Regular browsers can use normal reload
                     setTimeout(() => {
                         location.reload();
                     }, 1000);
@@ -1107,6 +1102,12 @@ async function verifySessionAfterSwitch() {
         } catch (error) {
             console.error('❌ Error switching database:', error);
             showNotification('Error switching database', 'error');
+            
+            // Reset the dropdown to current database
+            const dbSelect = document.getElementById('databaseSelect');
+            if (dbSelect && currentUser) {
+                dbSelect.value = currentUser.dbName;
+            }
         }
     }
         
@@ -1351,7 +1352,7 @@ async function verifySessionAfterSwitch() {
         return false;
     }
 
-    // CRITICAL: Enhanced fetch with session ID synchronization for iOS
+    // Enhanced fetch with session ID management
     async function fetchWithRecovery(url, options = {}) {
         try {
             const config = {
@@ -1380,17 +1381,17 @@ async function verifySessionAfterSwitch() {
             let response = await fetch(targetUrl, config);
             console.log(`📨 Response status: ${response.status} for ${targetUrl}`);
             
+            // Check if response contains a new session ID
+            const responseSessionId = response.headers.get('X-Session-ID');
+            if (responseSessionId && responseSessionId !== sessionId) {
+                console.log('🔄 Updating session ID from response:', responseSessionId);
+                sessionId = responseSessionId;
+                localStorage.setItem('sessionId', responseSessionId);
+            }
+            
             // Handle unauthorized responses
             if (response.status === 401) {
                 console.log('🔄 Request unauthorized, attempting recovery...');
-                
-                // Update session ID from response if provided
-                const responseSessionId = response.headers.get('X-Session-ID');
-                if (responseSessionId && responseSessionId !== sessionId) {
-                    console.log('🔄 Updating session ID from response:', responseSessionId);
-                    sessionId = responseSessionId;
-                    localStorage.setItem('sessionId', responseSessionId);
-                }
                 
                 const recovered = isIOSApp ? await restoreIOSSession() : await attemptSessionRecovery();
                 
@@ -1428,8 +1429,8 @@ async function verifySessionAfterSwitch() {
             
             throw error;
         }
-    }
-        
+    }   
+    
     // SECURE Navigation function
     function navigateTo(url) {
         if (!currentUser && !sessionInitialized) {

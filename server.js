@@ -219,6 +219,23 @@ app.use((req, res, next) => {
     next();
 });
 
+// Add this middleware to send session ID in headers
+app.use((req, res, next) => {
+    // Store the original json method
+    const originalJson = res.json;
+    
+    // Override res.json to include session ID in headers for iOS
+    res.json = function(data) {
+        // Add session ID to headers for iOS requests
+        const userAgent = req.headers['user-agent'] || '';
+        if (/iPhone|iPad|iPod/i.test(userAgent) && req.sessionID) {
+            res.setHeader('X-Session-ID', req.sessionID);
+        }
+        return originalJson.call(this, data);
+    };
+    next();
+});
+
 // MySQL session store
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
@@ -1056,7 +1073,7 @@ app.get('/api/user-databases', isAuthenticated, (req, res) => {
     });
 });
 
-// FIXED: Switch database endpoint with proper iOS session handling
+// FIXED: Switch database endpoint - ensure session ID consistency
 app.post('/api/switch-database', isAuthenticated, async (req, res) => {
     const { dbName } = req.body;
     const email = req.session.user.email;
@@ -1113,47 +1130,58 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                 const name = companyResults[0].name;
                 const lastName = companyResults[0].lastName;
 
-                // Store the current session ID before updating
+                // Store the current session ID for tracking
                 const oldSessionId = req.sessionID;
                 
-                // CRITICAL: Update session with new database info
-                req.session.user = {
-                    email: email,
-                    role: userDetails.Access,
-                    name: name,
-                    lastName: lastName,
-                    dbName: dbName,
-                };
-
-                console.log('🔄 Database switching - Updated session user:', req.session.user);
-
-                // CRITICAL FOR iOS: Force session save with callback
-                req.session.save((err) => {
+                // CRITICAL: Regenerate session to get a new session ID
+                req.session.regenerate((err) => {
                     if (err) {
-                        console.error('Error saving session after database switch:', err);
+                        console.error('Error regenerating session:', err);
                         return res.status(500).json({ 
                             success: false, 
                             error: 'Failed to update session' 
                         });
                     }
 
-                    console.log('✅ Database switched successfully to:', dbName);
-                    console.log('🔄 Session maintained with ID:', req.sessionID);
+                    // Update session with new database info
+                    req.session.user = {
+                        email: email,
+                        role: userDetails.Access,
+                        name: name,
+                        lastName: lastName,
+                        dbName: dbName,
+                    };
 
-                    // CRITICAL: For iOS, also update the session cookie
-                    res.cookie('solura.session', req.sessionID, {
-                        maxAge: 24 * 60 * 60 * 1000,
-                        httpOnly: false,
-                        secure: false,
-                        sameSite: 'Lax',
-                        path: '/'
-                    });
+                    console.log('🔄 Database switching - New session ID:', req.sessionID);
+                    console.log('🔄 Updated session user:', req.session.user);
 
-                    res.json({
-                        success: true,
-                        message: 'Database switched successfully',
-                        user: req.session.user,
-                        sessionId: req.sessionID
+                    // Save the new session
+                    req.session.save((err) => {
+                        if (err) {
+                            console.error('Error saving session after database switch:', err);
+                            return res.status(500).json({ 
+                                success: false, 
+                                error: 'Failed to update session' 
+                            });
+                        }
+
+                        console.log('✅ Database switched successfully to:', dbName);
+                        console.log('🆕 New session ID:', req.sessionID);
+
+                        // Update session tracking
+                        if (activeSessions.has(email)) {
+                            activeSessions.get(email).delete(oldSessionId);
+                            if (!activeSessions.get(email).has(req.sessionID)) {
+                                activeSessions.get(email).add(req.sessionID);
+                            }
+                        }
+
+                        res.json({
+                            success: true,
+                            message: 'Database switched successfully',
+                            user: req.session.user,
+                            sessionId: req.sessionID // Return the NEW session ID
+                        });
                     });
                 });
             });
