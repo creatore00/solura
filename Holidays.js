@@ -178,7 +178,9 @@ app.get('/', isAuthenticatedWithIOS, (req, res) => {
                 dbName: req.session.user.dbName,
                 name: req.session.user.name || '',
                 lastName: req.session.user.lastName || '',
-                sessionId: req.sessionID
+                sessionId: req.sessionID,
+                mobile: 'true',
+                timestamp: Date.now()
             });
             
             // Redirect to the mobile app with session parameters
@@ -259,7 +261,7 @@ app.get('/health', (req, res) => {
     res.json(healthData);
 });
 
-// Session recovery endpoint for iOS
+// Enhanced Session recovery endpoint for iOS
 app.get('/recover', (req, res) => {
     const { sessionId, email, dbName, name, lastName } = req.query;
     
@@ -284,7 +286,11 @@ app.get('/recover', (req, res) => {
             res.json({ 
                 success: true, 
                 message: 'Session recovered',
-                redirect: '/userholidays'
+                newSessionId: req.sessionID,
+                user: {
+                    email: req.session.user.email,
+                    name: req.session.user.name
+                }
             });
         });
     } else {

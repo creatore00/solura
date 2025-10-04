@@ -326,7 +326,7 @@
             <i class="fas fa-umbrella-beach"></i>
             <span>Holiday Request</span>
         </div>
-        <button class="mobile-menu-btn" onclick="navigateTo('/UserApp.html')">
+        <button class="mobile-menu-btn" id="backButton">
             <i class="fas fa-arrow-left"></i>
         </button>
     </header>
@@ -391,12 +391,14 @@
     </footer>
 
 <script>
-    // SIMPLIFIED Session management for Mobile App
+    // Enhanced Session Management for Mobile App
     let currentUser = null;
 
-    // Simple session check for mobile app
+    // Enhanced session check for mobile app
     async function checkMobileSession() {
         try {
+            console.log('🔍 Checking mobile session...');
+            
             // First check URL parameters (from redirect)
             const urlParams = new URLSearchParams(window.location.search);
             const email = urlParams.get('email');
@@ -411,13 +413,23 @@
                     email: email,
                     dbName: dbName,
                     name: name || '',
-                    lastName: lastName || ''
+                    lastName: lastName || '',
+                    sessionId: sessionId || ''
                 };
+                
+                // Store in localStorage for persistence
                 localStorage.setItem('userInfo', JSON.stringify(currentUser));
                 localStorage.setItem('lastDb', dbName);
                 if (sessionId) {
                     localStorage.setItem('sessionId', sessionId);
                 }
+                
+                // Clean URL to remove parameters for cleaner navigation
+                if (window.history.replaceState) {
+                    const cleanUrl = window.location.pathname;
+                    window.history.replaceState({}, document.title, cleanUrl);
+                }
+                
                 return true;
             }
             
@@ -426,7 +438,16 @@
             if (storedUser) {
                 console.log('📱 Mobile app - Found stored user info');
                 currentUser = JSON.parse(storedUser);
-                return true;
+                
+                // Verify session is still valid
+                const isValid = await verifySession();
+                if (isValid) {
+                    return true;
+                } else {
+                    console.log('❌ Stored session is invalid');
+                    clearStoredSession();
+                    return false;
+                }
             }
             
             console.log('❌ Mobile app - No session found');
@@ -438,59 +459,134 @@
         }
     }
 
-    // Enhanced fetch for mobile app
+    // Verify session with server
+    async function verifySession() {
+        try {
+            const response = await fetch('/userholidays/health', {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            
+            const data = await response.json();
+            return data.status === 'healthy' || data.status === 'needs_recovery';
+        } catch (error) {
+            console.error('Session verification failed:', error);
+            return false;
+        }
+    }
+
+    // Get authentication headers
+    function getAuthHeaders() {
+        const headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'X-Mobile-App': 'true'
+        };
+        
+        if (currentUser) {
+            headers['X-User-Email'] = currentUser.email;
+            headers['X-DB-Name'] = currentUser.dbName;
+        }
+        
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) {
+            headers['X-Session-ID'] = sessionId;
+        }
+        
+        return headers;
+    }
+
+    // Enhanced fetch for mobile app with session recovery
     async function fetchWithMobileAuth(url, options = {}) {
         try {
             const config = {
                 ...options,
                 credentials: 'include',
                 headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache',
+                    ...getAuthHeaders(),
                     ...options.headers
                 }
             };
-            
-            // Add session ID if available
-            const sessionId = localStorage.getItem('sessionId');
-            if (sessionId) {
-                config.headers['X-Session-ID'] = sessionId;
-            }
-            
-            // Add user info for recovery
-            if (currentUser) {
-                config.headers['X-User-Email'] = currentUser.email;
-                config.headers['X-DB-Name'] = currentUser.dbName;
-            }
             
             console.log(`📱 Mobile fetch: ${url}`);
             const response = await fetch(url, config);
             
             if (response.status === 401) {
-                console.log('📱 Mobile app - Session expired');
-                redirectToMobileLogin();
-                throw new Error('Session expired');
+                console.log('📱 Mobile app - Session expired, attempting recovery');
+                const recovered = await attemptSessionRecovery();
+                if (recovered) {
+                    // Retry the request with recovered session
+                    return fetchWithMobileAuth(url, options);
+                } else {
+                    throw new Error('Session recovery failed');
+                }
             }
             
             return response;
             
         } catch (error) {
             console.error(`📱 Mobile fetch error: ${error.message}`);
-            if (error.message === 'Session expired') {
+            if (error.message === 'Session recovery failed') {
                 redirectToMobileLogin();
             }
             throw error;
         }
     }
 
-    function redirectToMobileLogin() {
-        // Clear mobile app storage
+    // Attempt to recover session
+    async function attemptSessionRecovery() {
+        try {
+            if (!currentUser) {
+                console.log('❌ No current user for recovery');
+                return false;
+            }
+            
+            console.log('🔄 Attempting session recovery for:', currentUser.email);
+            
+            const recoveryParams = new URLSearchParams({
+                email: currentUser.email,
+                dbName: currentUser.dbName,
+                name: currentUser.name,
+                lastName: currentUser.lastName,
+                sessionId: currentUser.sessionId || localStorage.getItem('sessionId') || ''
+            });
+            
+            const response = await fetch(`/userholidays/recover?${recoveryParams.toString()}`, {
+                method: 'GET',
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('✅ Session recovery successful');
+                // Update session ID if provided
+                if (data.newSessionId) {
+                    localStorage.setItem('sessionId', data.newSessionId);
+                    currentUser.sessionId = data.newSessionId;
+                    localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                }
+                return true;
+            } else {
+                console.log('❌ Session recovery failed');
+                return false;
+            }
+        } catch (error) {
+            console.error('Session recovery error:', error);
+            return false;
+        }
+    }
+
+    function clearStoredSession() {
         localStorage.removeItem('userInfo');
         localStorage.removeItem('lastDb');
         localStorage.removeItem('sessionId');
-        
-        // Redirect to main login
+        currentUser = null;
+    }
+
+    function redirectToMobileLogin() {
+        clearStoredSession();
         window.location.href = '/';
     }
 
@@ -509,14 +605,35 @@
         }
     }
 
-    // Navigation function
-    function navigateTo(url) {
-        window.location.href = url;
+    // Enhanced navigation function with session persistence
+    function navigateBack() {
+        console.log('🔙 Navigating back with session persistence');
+        
+        if (currentUser) {
+            // Navigate back with session parameters to maintain context
+            const params = new URLSearchParams({
+                email: currentUser.email,
+                dbName: currentUser.dbName,
+                name: currentUser.name,
+                lastName: currentUser.lastName,
+                sessionId: currentUser.sessionId || localStorage.getItem('sessionId') || '',
+                mobile: 'true',
+                timestamp: Date.now() // Prevent caching
+            });
+            
+            window.location.href = `/UserApp.html?${params.toString()}`;
+        } else {
+            // Fallback to direct navigation
+            window.location.href = '/UserApp.html';
+        }
     }
 
     // Initialize mobile app
     document.addEventListener('DOMContentLoaded', async () => {
         console.log('📱 Holiday Mobile App loading...');
+        
+        // Set up back button with enhanced navigation
+        document.getElementById('backButton').addEventListener('click', navigateBack);
         
         const hasSession = await checkMobileSession();
         if (!hasSession) {
@@ -526,6 +643,7 @@
         }
         
         console.log('✅ Mobile session valid, initializing app...');
+        console.log('👤 Current user:', currentUser);
         initializeHolidayForm();
     });
 
@@ -566,10 +684,6 @@
             try {
                 const response = await fetchWithMobileAuth('/userholidays/submitHolidayRequest', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    'X-Mobile-App': 'true'
-                    },
                     body: JSON.stringify({
                         startDate: startDate,
                         endDate: endDate
@@ -587,6 +701,9 @@
                     // Reset form on success
                     document.getElementById('holidayRequestForm').reset();
                     document.getElementById('holidayPreview').style.display = 'none';
+                    
+                    // Reset to suggested dates
+                    setTimeout(resetToSuggestedDates, 2000);
                 } else {
                     showMessage(data.message || 'Error submitting request', 'error');
                 }
@@ -680,22 +797,32 @@
             document.getElementById('submitBtn').disabled = false;
         }
         
-        // Initialize date inputs with a suggested date (14 days from today)
-        const suggestedStartDate = new Date();
-        suggestedStartDate.setDate(today.getDate() + 14);
-        document.getElementById('startDate').valueAsDate = suggestedStartDate;
+        function resetToSuggestedDates() {
+            const today = new Date();
+            const suggestedStartDate = new Date();
+            suggestedStartDate.setDate(today.getDate() + 14);
+            document.getElementById('startDate').valueAsDate = suggestedStartDate;
+            
+            const suggestedEndDate = new Date();
+            suggestedEndDate.setDate(suggestedStartDate.getDate() + 6);
+            document.getElementById('endDate').valueAsDate = suggestedEndDate;
+            
+            updateHolidayPreview();
+        }
         
-        const suggestedEndDate = new Date();
-        suggestedEndDate.setDate(suggestedStartDate.getDate() + 6); // 1 week
-        document.getElementById('endDate').valueAsDate = suggestedEndDate;
-        
-        // Trigger initial preview
-        updateHolidayPreview();
+        // Initialize with suggested dates
+        resetToSuggestedDates();
     }
+
+    // Prevent accidental navigation
+    window.addEventListener('beforeunload', function() {
+        console.log('💾 Saving session before navigation...');
+        // Session is already persisted in localStorage
+    });
 
     // Export functions for global access
     window.redirectToMobileLogin = redirectToMobileLogin;
-    window.navigateTo = navigateTo;
+    window.navigateBack = navigateBack;
 </script>
 </body>
 </html>
