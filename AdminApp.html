@@ -992,7 +992,23 @@
         // Initialize database switcher
         initializeDatabaseSwitcher();
     }
-
+// Check if session persists after database switch
+async function verifySessionAfterSwitch() {
+    try {
+        const response = await fetchWithRecovery('/api/current-user');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.user) {
+                console.log('✅ Session verified after switch:', data.user.dbName);
+                return data.user;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('❌ Session verification failed:', error);
+        return null;
+    }
+}
     // Initialize database switcher
     async function initializeDatabaseSwitcher() {
         const dbSwitcher = document.getElementById('databaseSwitcher');
