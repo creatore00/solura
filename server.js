@@ -1056,7 +1056,7 @@ app.get('/api/user-databases', isAuthenticated, (req, res) => {
     });
 });
 
-// FIXED: Switch database endpoint with proper session handling
+// FIXED: Switch database endpoint with proper iOS session handling
 app.post('/api/switch-database', isAuthenticated, async (req, res) => {
     const { dbName } = req.body;
     const email = req.session.user.email;
@@ -1116,7 +1116,7 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                 // Store the current session ID before updating
                 const oldSessionId = req.sessionID;
                 
-                // Update session with new database info - KEEP THE SAME SESSION
+                // CRITICAL: Update session with new database info
                 req.session.user = {
                     email: email,
                     role: userDetails.Access,
@@ -1127,7 +1127,7 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
 
                 console.log('🔄 Database switching - Updated session user:', req.session.user);
 
-                // Save session and maintain the same session ID
+                // CRITICAL FOR iOS: Force session save with callback
                 req.session.save((err) => {
                     if (err) {
                         console.error('Error saving session after database switch:', err);
@@ -1140,11 +1140,20 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                     console.log('✅ Database switched successfully to:', dbName);
                     console.log('🔄 Session maintained with ID:', req.sessionID);
 
+                    // CRITICAL: For iOS, also update the session cookie
+                    res.cookie('solura.session', req.sessionID, {
+                        maxAge: 24 * 60 * 60 * 1000,
+                        httpOnly: false,
+                        secure: false,
+                        sameSite: 'Lax',
+                        path: '/'
+                    });
+
                     res.json({
                         success: true,
                         message: 'Database switched successfully',
                         user: req.session.user,
-                        sessionId: req.sessionID // Return the same session ID
+                        sessionId: req.sessionID
                     });
                 });
             });

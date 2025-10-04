@@ -1005,13 +1005,23 @@
                 if (data.success) {
                     availableDatabases = data.databases;
                     populateDatabaseSwitcher(data.databases, data.currentDb);
+                    
+                    // For iOS: Add change event listener
+                    const dbSelect = document.getElementById('databaseSelect');
+                    if (dbSelect && isIOSApp) {
+                        dbSelect.addEventListener('change', function(e) {
+                            if (e.target.value && e.target.value !== currentUser?.dbName) {
+                                switchDatabase(e.target.value);
+                            }
+                        });
+                    }
                 }
             }
         } catch (error) {
             console.error('Error loading databases:', error);
         }
     }
-
+        
     // Populate database switcher dropdown
     function populateDatabaseSwitcher(databases, currentDb) {
         const dbSelect = document.getElementById('databaseSelect');
