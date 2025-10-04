@@ -1,12 +1,9 @@
 const express = require('express');
 const mysql = require('mysql2');
 const bodyParser = require('body-parser');
-const nodemailer = require('nodemailer');
-const http = require('http');
-const fs = require('fs');
 const path = require('path');
 const { getPool, mainPool } = require('./db.js');
-const { sessionMiddleware, isAuthenticated, isAdmin, isSupervisor } = require('./sessionConfig');
+const { sessionMiddleware } = require('./sessionConfig');
 
 const app = express();
 
@@ -106,7 +103,6 @@ app.use((req, res, next) => {
     next();
 });
 
-
 // Enhanced authentication middleware with iOS support
 const isAuthenticatedWithIOS = (req, res, next) => {
     console.log('=== AUTH MIDDLEWARE DEBUG ===');
@@ -171,7 +167,18 @@ app.get('/', isAuthenticatedWithIOS, (req, res) => {
         // For mobile/tablet, serve mobile app with session parameters
         if (deviceType === 'mobile' || deviceType === 'tablet') {
             console.log('📱 Serving mobile confirmrota app');
-            res.sendFile(path.join(__dirname, 'ConfirmRotaApp.html'));
+            
+            // CRITICAL: Pass session data via URL parameters for iOS
+            const sessionParams = new URLSearchParams({
+                email: req.session.user.email,
+                dbName: req.session.user.dbName,
+                name: req.session.user.name || '',
+                lastName: req.session.user.lastName || '',
+                sessionId: req.sessionID
+            });
+            
+            // Redirect to the mobile app with session parameters
+            res.redirect(`/confirmrota/mobile?${sessionParams.toString()}`);
         } else {
             console.log('💻 Serving desktop confirmrota app');
             res.sendFile(path.join(__dirname, 'ConfirmRota.html'));
@@ -182,9 +189,25 @@ app.get('/', isAuthenticatedWithIOS, (req, res) => {
     }
 });
 
-// Route to serve mobile confirmrota app directly
+// Route to serve mobile confirmrota app directly with session handling
 app.get('/mobile', isAuthenticatedWithIOS, (req, res) => {
     if (req.session.user.role === 'admin' || req.session.user.role === 'AM') {
+        console.log('📱 Direct mobile access - serving ConfirmRotaApp.html');
+        
+        // Add session parameters to the response for the mobile app
+        const sessionData = {
+            email: req.session.user.email,
+            dbName: req.session.user.dbName,
+            name: req.session.user.name || '',
+            lastName: req.session.user.lastName || '',
+            sessionId: req.sessionID
+        };
+        
+        // Set headers for mobile
+        res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.header('Pragma', 'no-cache');
+        res.header('Expires', '0');
+        
         res.sendFile(path.join(__dirname, 'ConfirmRotaApp.html'));
     } else {
         res.status(403).json({ error: 'Access denied' });
@@ -312,7 +335,6 @@ const generateUniqueId = async (pool) => {
 
 // ALL API ROUTES - use enhanced authentication
 app.use('/api', isAuthenticatedWithIOS);
-
 
 // API endpoint to get rota data for a specific day
 app.get('/api/rota', (req, res) => {
@@ -447,7 +469,7 @@ app.get('/api/confirmed-rota', (req, res) => {
 });
 
 // Function to remove Employee from Rota
-app.delete('/delete-employee', isAuthenticated, (req, res) => {
+app.delete('/delete-employee', isAuthenticatedWithIOS, (req, res) => {
     const dbName = req.session.user.dbName;
 
     if (!dbName) {
@@ -515,7 +537,7 @@ app.delete('/delete-employee', isAuthenticated, (req, res) => {
 });
 
 // Function to Confirm Rota
-app.post('/confirm-rota', isAuthenticated, async (req, res) => {
+app.post('/confirm-rota', isAuthenticatedWithIOS, async (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
         console.error('No dbName in session for /confirm-rota');
@@ -603,7 +625,7 @@ app.post('/confirm-rota', isAuthenticated, async (req, res) => {
 });
 
 // Function to Update Values in Rota table and ConfirmedRota table
-app.post('/updateRotaData', isAuthenticated, async (req, res) => {
+app.post('/updateRotaData', isAuthenticatedWithIOS, async (req, res) => {
     const dbName = req.session.user.dbName;
 
     if (!dbName) {
@@ -675,7 +697,7 @@ app.post('/updateRotaData', isAuthenticated, async (req, res) => {
 });
 
 // Route to fetch employees' name, last name, and designation
-app.get('/api/employees', isAuthenticated, (req, res) => {
+app.get('/api/employees', isAuthenticatedWithIOS, (req, res) => {
     const dbName = req.session.user.dbName;
 
     if (!dbName) {
@@ -699,7 +721,7 @@ app.get('/api/employees', isAuthenticated, (req, res) => {
 });
 
 // API endpoint to get confirmed rota data by month/year
-app.get('/api/confirmed-rota-month', isAuthenticated, (req, res) => {
+app.get('/api/confirmed-rota-month', isAuthenticatedWithIOS, (req, res) => {
     const dbName = req.session.user.dbName;
 
     if (!dbName) {
