@@ -68,6 +68,9 @@
             color: var(--white);
             cursor: pointer;
             padding: 0.25rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
         }
 
         /* Main Content */
@@ -505,6 +508,19 @@
             color: var(--white);
             border-color: var(--secondary-color);
         }
+
+        /* Loading State */
+        .loading-state {
+            text-align: center;
+            padding: 2rem;
+            display: none;
+        }
+
+        .loading-state i {
+            font-size: 2rem;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
     </style>
 </head>
 <body>
@@ -514,9 +530,9 @@
             <i class="fas fa-users"></i>
             <span>Employees</span>
         </div>
-        <a class="mobile-menu-btn" href="javascript:history.back()">
+        <button class="mobile-menu-btn" id="backButton">
             <i class="fas fa-arrow-left"></i>
-        </a>
+        </button>
     </header>
 
     <!-- Main Content -->
@@ -558,11 +574,15 @@
         </div>
 
         <!-- Loading State -->
-        <div id="loadingState" style="text-align: center; padding: 2rem; display: none;">
-            <div style="font-size: 2rem; color: var(--secondary-color); margin-bottom: 1rem;">
-                <i class="fas fa-spinner fa-spin"></i>
-            </div>
+        <div id="loadingState" class="loading-state">
+            <i class="fas fa-spinner fa-spin"></i>
             <p>Loading employees...</p>
+        </div>
+
+        <!-- No Data State -->
+        <div id="noDataState" class="loading-state" style="display: none;">
+            <i class="fas fa-users"></i>
+            <p>No employees found</p>
         </div>
     </main>
 
@@ -668,552 +688,475 @@
         <p>Solura Ltd &copy; 2024</p>
     </footer>
 
-<script>
-    // Enhanced Mobile Session Management
-    let currentUser = null;
-    let allEmployees = [];
+    <script>
+        // Mobile Session Management
+        let currentUser = null;
+        let allEmployees = [];
 
-    // Check and initialize mobile session
-    async function initializeMobileSession() {
-        try {
-            console.log('🔍 Initializing mobile session...');
-            
-            // First check URL parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const email = urlParams.get('email');
-            const dbName = urlParams.get('dbName');
-            const name = urlParams.get('name');
-            const lastName = urlParams.get('lastName');
-            const sessionId = urlParams.get('sessionId');
-            
-            if (email && dbName) {
-                console.log('📱 Found session parameters in URL');
-                currentUser = {
-                    email: email,
-                    dbName: dbName,
-                    name: name || '',
-                    lastName: lastName || '',
-                    sessionId: sessionId || ''
-                };
+        // Check mobile session
+        async function checkMobileSession() {
+            try {
+                console.log('🔍 Checking mobile session...');
                 
-                // Store for persistence
-                localStorage.setItem('userInfo', JSON.stringify(currentUser));
-                localStorage.setItem('lastDb', dbName);
-                if (sessionId) {
-                    localStorage.setItem('sessionId', sessionId);
-                }
+                // Check URL parameters first
+                const urlParams = new URLSearchParams(window.location.search);
+                const email = urlParams.get('email');
+                const dbName = urlParams.get('dbName');
+                const name = urlParams.get('name');
+                const lastName = urlParams.get('lastName');
+                const sessionId = urlParams.get('sessionId');
                 
-                // Verify session with server
-                const sessionValid = await verifyAndRecoverSession();
-                if (sessionValid) {
-                    console.log('✅ Mobile session initialized successfully');
+                if (email && dbName) {
+                    console.log('📱 Found session parameters in URL');
+                    currentUser = {
+                        email: email,
+                        dbName: dbName,
+                        name: name || '',
+                        lastName: lastName || '',
+                        sessionId: sessionId || ''
+                    };
+                    
+                    // Store for persistence
+                    localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                    localStorage.setItem('lastDb', dbName);
+                    if (sessionId) {
+                        localStorage.setItem('sessionId', sessionId);
+                    }
+                    
                     return true;
                 }
-            }
-            
-            // Check localStorage for existing session
-            const storedUser = localStorage.getItem('userInfo');
-            if (storedUser) {
-                console.log('📱 Found stored user session');
-                currentUser = JSON.parse(storedUser);
-                const sessionValid = await verifyAndRecoverSession();
-                if (sessionValid) {
+                
+                // Check localStorage
+                const storedUser = localStorage.getItem('userInfo');
+                if (storedUser) {
+                    console.log('📱 Found stored user session');
+                    currentUser = JSON.parse(storedUser);
                     return true;
                 }
+                
+                console.log('❌ No valid session found');
+                return false;
+                
+            } catch (error) {
+                console.error('Mobile session check error:', error);
+                return false;
             }
-            
-            console.log('❌ No valid session found');
-            return false;
-            
-        } catch (error) {
-            console.error('Session initialization error:', error);
-            return false;
         }
-    }
 
-    // Verify session and recover if needed
-    async function verifyAndRecoverSession() {
-        try {
-            console.log('🔐 Verifying session...');
-            const response = await fetch('/updateinfo/health', {
-                method: 'GET',
-                credentials: 'include',
-                headers: getAuthHeaders()
-            });
+        function getAuthHeaders() {
+            const headers = {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Mobile-App': 'true'
+            };
             
-            if (!response.ok) {
-                throw new Error('Health check failed');
-            }
-            
-            const data = await response.json();
-            console.log('🏥 Health check result:', data);
-            
-            if (data.status === 'healthy') {
-                return true;
-            } else if (data.status === 'unauthenticated' && currentUser) {
-                console.log('🔄 Session needs recovery');
-                return await recoverSession();
-            }
-            
-            return false;
-            
-        } catch (error) {
-            console.error('Session verification failed:', error);
             if (currentUser) {
-                return await recoverSession();
+                headers['X-User-Email'] = currentUser.email;
+                headers['X-DB-Name'] = currentUser.dbName;
             }
-            return false;
+            
+            const sessionId = localStorage.getItem('sessionId');
+            if (sessionId) {
+                headers['X-Session-ID'] = sessionId;
+            }
+            
+            return headers;
         }
-    }
 
-    // Recover session using POST endpoint
-    async function recoverSession() {
-        try {
-            console.log('🔄 Attempting session recovery...');
-            const response = await fetch('/updateinfo/recover-session', {
-                method: 'POST',
+        async function fetchWithMobileAuth(url, options = {}) {
+            const config = {
+                ...options,
                 credentials: 'include',
                 headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+                    ...getAuthHeaders(),
+                    ...options.headers
+                }
+            };
+            
+            console.log(`📱 Fetching: ${url}`);
+            const response = await fetch(url, config);
+            
+            if (response.status === 401) {
+                throw new Error('Session expired');
+            }
+            
+            return response;
+        }
+
+        function clearStoredSession() {
+            localStorage.removeItem('userInfo');
+            localStorage.removeItem('lastDb');
+            localStorage.removeItem('sessionId');
+            currentUser = null;
+        }
+
+        function redirectToMobileLogin() {
+            clearStoredSession();
+            window.location.href = '/';
+        }
+
+        function showSessionError() {
+            const mainContent = document.querySelector('.mobile-content');
+            mainContent.innerHTML = `
+                <div style="text-align: center; padding: 2rem;">
+                    <h2 style="color: var(--primary-color); margin-bottom: 1rem;">Session Expired</h2>
+                    <p style="margin-bottom: 1.5rem;">Please log in again to continue.</p>
+                    <button onclick="redirectToMobileLogin()" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </div>
+            `;
+        }
+
+        // Navigation
+        function navigateBack() {
+            if (currentUser) {
+                const params = new URLSearchParams({
                     email: currentUser.email,
                     dbName: currentUser.dbName,
                     name: currentUser.name,
                     lastName: currentUser.lastName,
-                    sessionId: currentUser.sessionId || localStorage.getItem('sessionId')
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error('Recovery request failed');
-            }
-            
-            const data = await response.json();
-            console.log('🔄 Session recovery response:', data);
-            
-            if (data.success) {
-                // Update session ID if provided
-                if (data.sessionId) {
-                    currentUser.sessionId = data.sessionId;
-                    localStorage.setItem('sessionId', data.sessionId);
-                    localStorage.setItem('userInfo', JSON.stringify(currentUser));
-                }
-                console.log('✅ Session recovered successfully');
-                return true;
+                    sessionId: currentUser.sessionId || localStorage.getItem('sessionId') || '',
+                    mobile: 'true',
+                    timestamp: Date.now()
+                });
+                window.location.href = `/Admin.html?${params.toString()}`;
             } else {
-                throw new Error(data.error || 'Recovery failed');
+                window.location.href = '/Admin.html';
+            }
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Initializing mobile employee app...');
+            
+            const hasSession = await checkMobileSession();
+            if (!hasSession) {
+                console.log('❌ No valid session, showing error');
+                showSessionError();
+                return;
             }
             
-        } catch (error) {
-            console.error('Session recovery failed:', error);
-            return false;
-        }
-    }
-
-    function getAuthHeaders() {
-        const headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'X-Mobile-App': 'true'
-        };
-        
-        if (currentUser) {
-            headers['X-User-Email'] = currentUser.email;
-            headers['X-DB-Name'] = currentUser.dbName;
-            if (currentUser.name) headers['X-User-Name'] = currentUser.name;
-            if (currentUser.lastName) headers['X-User-LastName'] = currentUser.lastName;
-        }
-        
-        const sessionId = localStorage.getItem('sessionId');
-        if (sessionId) {
-            headers['X-Session-ID'] = sessionId;
-        }
-        
-        return headers;
-    }
-
-    async function fetchWithMobileAuth(url, options = {}) {
-        const config = {
-            ...options,
-            credentials: 'include',
-            headers: {
-                ...getAuthHeaders(),
-                ...options.headers
-            }
-        };
-        
-        console.log(`📱 Fetching: ${url}`);
-        const response = await fetch(url, config);
-        
-        if (response.status === 401) {
-            console.log('🔐 Session expired, attempting recovery...');
-            const recovered = await recoverSession();
-            if (recovered) {
-                // Retry the request with recovered session
-                return fetchWithMobileAuth(url, options);
-            } else {
-                throw new Error('Session recovery failed');
-            }
-        }
-        
-        return response;
-    }
-
-    function clearStoredSession() {
-        localStorage.removeItem('userInfo');
-        localStorage.removeItem('lastDb');
-        localStorage.removeItem('sessionId');
-        currentUser = null;
-    }
-
-    function redirectToMobileLogin() {
-        clearStoredSession();
-        window.location.href = '/';
-    }
-
-    function showSessionError() {
-        const mainContent = document.querySelector('.mobile-content');
-        mainContent.innerHTML = `
-            <div style="text-align: center; padding: 2rem;">
-                <h2 style="color: var(--primary-color); margin-bottom: 1rem;">Session Expired</h2>
-                <p style="margin-bottom: 1.5rem;">Please log in again to continue.</p>
-                <button onclick="redirectToMobileLogin()" class="btn btn-primary">
-                    <i class="fas fa-sign-in-alt"></i> Login
-                </button>
-            </div>
-        `;
-    }
-
-    // Navigation with session persistence
-    function navigateBack() {
-        if (currentUser) {
-            const params = new URLSearchParams({
-                email: currentUser.email,
-                dbName: currentUser.dbName,
-                name: currentUser.name,
-                lastName: currentUser.lastName,
-                sessionId: currentUser.sessionId || localStorage.getItem('sessionId') || '',
-                mobile: 'true',
-                timestamp: Date.now()
-            });
-            window.location.href = `/Admin.html?${params.toString()}`;
-        } else {
-            window.location.href = '/Admin.html';
-        }
-    }
-
-    // Initialize app components
-    function initializeApp() {
-        console.log('🚀 Initializing mobile app components...');
-        
-        // Set up event listeners
-        document.getElementById('backButton').addEventListener('click', navigateBack);
-        document.getElementById('refreshButton').addEventListener('click', loadEmployees);
-        document.getElementById('showFormButton').addEventListener('click', showAddModal);
-        
-        // Search functionality
-        document.getElementById('searchInput').addEventListener('input', filterEmployees);
-        
-        // Filter buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                e.target.classList.add('active');
-                filterEmployees();
-            });
+            console.log('✅ Session valid, initializing app...');
+            initializeApp();
         });
-        
-        // Modal functionality
-        document.querySelectorAll('.modal-close').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.modal').forEach(modal => {
-                    modal.style.display = 'none';
+
+        function initializeApp() {
+            console.log('🚀 Initializing mobile app components...');
+            
+            // Set up event listeners
+            document.getElementById('backButton').addEventListener('click', navigateBack);
+            document.getElementById('refreshButton').addEventListener('click', loadEmployees);
+            document.getElementById('showFormButton').addEventListener('click', showAddModal);
+            
+            // Search functionality
+            document.getElementById('searchInput').addEventListener('input', filterEmployees);
+            
+            // Filter buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    filterEmployees();
                 });
             });
-        });
-        
-        // Close modal when clicking outside
-        window.addEventListener('click', (event) => {
-            if (event.target === document.getElementById('employeeModal')) {
-                document.getElementById('employeeModal').style.display = 'none';
-            }
-        });
-        
-        // Form submission
-        document.getElementById('employeeForm').addEventListener('submit', handleAddEmployee);
-        
-        // Load initial data
-        loadEmployees();
-        
-        console.log('✅ Mobile app initialized successfully');
-    }
-
-    async function loadEmployees() {
-        showLoading(true);
-        
-        try {
-            const response = await fetchWithMobileAuth('/updateinfo/employees');
-            const employees = await response.json();
             
-            allEmployees = employees;
-            displayEmployees(employees);
-            showLoading(false);
+            // Modal functionality
+            document.querySelectorAll('.modal-close').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.modal').forEach(modal => {
+                        modal.style.display = 'none';
+                    });
+                });
+            });
             
-        } catch (error) {
-            console.error('Error loading employees:', error);
-            showAlert('Failed to load employees', 'error');
-            showLoading(false);
+            // Close modal when clicking outside
+            window.addEventListener('click', (event) => {
+                if (event.target === document.getElementById('employeeModal')) {
+                    document.getElementById('employeeModal').style.display = 'none';
+                }
+            });
+            
+            // Form submission
+            document.getElementById('employeeForm').addEventListener('submit', handleAddEmployee);
+            
+            // Load initial data
+            loadEmployees();
+            
+            console.log('✅ Mobile app initialized successfully');
         }
-    }
 
-    function displayEmployees(employees) {
-        const container = document.getElementById('employeeCards');
-        
-        if (employees.length === 0) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 2rem; color: #666;">
-                    <i class="fas fa-users" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                    <p>No employees found</p>
+        async function loadEmployees() {
+            showLoading(true);
+            hideNoData();
+            
+            try {
+                console.log('📱 Loading employees...');
+                const response = await fetchWithMobileAuth('/updateinfo/employees');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const employees = await response.json();
+                console.log('✅ Employees loaded:', employees);
+                
+                allEmployees = employees;
+                displayEmployees(employees);
+                showLoading(false);
+                
+            } catch (error) {
+                console.error('❌ Error loading employees:', error);
+                showAlert('Failed to load employees: ' + error.message, 'error');
+                showLoading(false);
+                showNoData();
+            }
+        }
+
+        function displayEmployees(employees) {
+            const container = document.getElementById('employeeCards');
+            
+            if (!employees || employees.length === 0) {
+                showNoData();
+                return;
+            }
+            
+            hideNoData();
+            
+            container.innerHTML = employees.map(employee => `
+                <div class="employee-card" data-designation="${employee.designation}" data-position="${employee.position}">
+                    <div class="employee-header">
+                        <div>
+                            <div class="employee-name">
+                                ${employee.name} ${employee.lastName}
+                                <span class="badge badge-${employee.designation.toLowerCase()}">${employee.designation}</span>
+                                <span class="badge badge-${employee.position}">${employee.position}</span>
+                            </div>
+                            <div class="employee-contact">
+                                <div>📧 ${employee.email}</div>
+                                <div>📱 ${employee.phone}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="employee-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Wage</span>
+                            <span class="detail-value">£${employee.wage}/hr</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Contract Hours</span>
+                            <span class="detail-value">${employee.contractHours}h</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Start Date</span>
+                            <span class="detail-value">${formatDate(employee.dateStart)}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Holidays</span>
+                            <span class="detail-value">${employee.TotalHoliday || 0} left</span>
+                        </div>
+                    </div>
+                    
+                    <div class="employee-actions">
+                        <button class="btn btn-success btn-sm" onclick="downloadPassport(${employee.id})">
+                            <i class="fas fa-passport"></i> Passport
+                        </button>
+                        ${employee.visa ? `
+                        <button class="btn btn-success btn-sm" onclick="downloadVisa(${employee.id})">
+                            <i class="fas fa-file-alt"></i> Visa
+                        </button>
+                        ` : ''}
+                        <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterEmployees() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
+            
+            const filtered = allEmployees.filter(employee => {
+                const matchesSearch = 
+                    employee.name.toLowerCase().includes(searchTerm) ||
+                    employee.lastName.toLowerCase().includes(searchTerm) ||
+                    employee.email.toLowerCase().includes(searchTerm);
+                
+                const matchesFilter = 
+                    activeFilter === 'all' ||
+                    employee.designation === activeFilter ||
+                    employee.position === activeFilter;
+                
+                return matchesSearch && matchesFilter;
+            });
+            
+            displayEmployees(filtered);
+        }
+
+        function showAddModal() {
+            document.getElementById('employeeModal').style.display = 'block';
+        }
+
+        async function handleAddEmployee(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            const spinner = document.getElementById('formSpinner');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            spinner.style.display = 'block';
+            
+            try {
+                const response = await fetchWithMobileAuth('/updateinfo', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Employee added successfully!', 'success');
+                    event.target.reset();
+                    document.getElementById('employeeModal').style.display = 'none';
+                    loadEmployees();
+                } else {
+                    throw new Error(data.message || 'Failed to add employee');
+                }
+            } catch (error) {
+                showAlert(error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        }
+
+        function editEmployee(id) {
+            // For mobile, redirect to desktop version for editing
+            if (currentUser) {
+                const params = new URLSearchParams({
+                    email: currentUser.email,
+                    dbName: currentUser.dbName,
+                    edit: id,
+                    mobile: 'true'
+                });
+                window.location.href = `/updateinfo/desktop?${params.toString()}`;
+            }
+        }
+
+        async function deleteEmployee(id) {
+            if (!confirm('Are you sure you want to remove this employee?')) return;
+            
+            const leavingDate = prompt('Enter last working date (DD/MM/YYYY):');
+            if (!leavingDate) return;
+            
+            try {
+                const response = await fetchWithMobileAuth(`/updateinfo/employee/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ended: leavingDate })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Employee removed successfully', 'success');
+                    loadEmployees();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                showAlert(error.message, 'error');
+            }
+        }
+
+        async function downloadPassport(id) {
+            try {
+                const response = await fetchWithMobileAuth(`/updateinfo/api/download-file/${id}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `passport_${id}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                showAlert('Failed to download passport', 'error');
+            }
+        }
+
+        async function downloadVisa(id) {
+            try {
+                const response = await fetchWithMobileAuth(`/updateinfo/api/download-visa/${id}`);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `visa_${id}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                showAlert('Failed to download visa', 'error');
+            }
+        }
+
+        function formatDate(dateString) {
+            try {
+                return new Date(dateString).toLocaleDateString('en-GB');
+            } catch (error) {
+                return dateString;
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('alertMessage');
+            alertDiv.innerHTML = `
+                <div class="alert alert-${type}">
+                    <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
+                    ${message}
                 </div>
             `;
-            return;
-        }
-        
-        container.innerHTML = employees.map(employee => `
-            <div class="employee-card" data-designation="${employee.designation}" data-position="${employee.position}">
-                <div class="employee-header">
-                    <div>
-                        <div class="employee-name">
-                            ${employee.name} ${employee.lastName}
-                            <span class="badge badge-${employee.designation.toLowerCase()}">${employee.designation}</span>
-                            <span class="badge badge-${employee.position}">${employee.position}</span>
-                        </div>
-                        <div class="employee-contact">
-                            <div>📧 ${employee.email}</div>
-                            <div>📱 ${employee.phone}</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="employee-details">
-                    <div class="detail-item">
-                        <span class="detail-label">Wage</span>
-                        <span class="detail-value">£${employee.wage}/hr</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Contract Hours</span>
-                        <span class="detail-value">${employee.contractHours}h</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Start Date</span>
-                        <span class="detail-value">${formatDate(employee.dateStart)}</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-label">Holidays</span>
-                        <span class="detail-value">${employee.TotalHoliday || 0} left</span>
-                    </div>
-                </div>
-                
-                <div class="employee-actions">
-                    <button class="btn btn-success btn-sm" onclick="downloadPassport(${employee.id})">
-                        <i class="fas fa-passport"></i> Passport
-                    </button>
-                    ${employee.visa ? `
-                    <button class="btn btn-success btn-sm" onclick="downloadVisa(${employee.id})">
-                        <i class="fas fa-file-alt"></i> Visa
-                    </button>
-                    ` : ''}
-                    <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.id})">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.id})">
-                        <i class="fas fa-trash"></i> Remove
-                    </button>
-                </div>
-            </div>
-        `).join('');
-    }
-
-    function filterEmployees() {
-        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-        const activeFilter = document.querySelector('.filter-btn.active').dataset.filter;
-        
-        const filtered = allEmployees.filter(employee => {
-            const matchesSearch = 
-                employee.name.toLowerCase().includes(searchTerm) ||
-                employee.lastName.toLowerCase().includes(searchTerm) ||
-                employee.email.toLowerCase().includes(searchTerm);
+            alertDiv.style.display = 'block';
             
-            const matchesFilter = 
-                activeFilter === 'all' ||
-                employee.designation === activeFilter ||
-                employee.position === activeFilter;
-            
-            return matchesSearch && matchesFilter;
-        });
-        
-        displayEmployees(filtered);
-    }
-
-    function showAddModal() {
-        document.getElementById('employeeModal').style.display = 'block';
-    }
-
-    async function handleAddEmployee(event) {
-        event.preventDefault();
-        
-        const formData = new FormData(event.target);
-        const submitBtn = event.target.querySelector('button[type="submit"]');
-        const spinner = document.getElementById('formSpinner');
-        
-        // Show loading state
-        submitBtn.disabled = true;
-        spinner.style.display = 'block';
-        
-        try {
-            const response = await fetchWithMobileAuth('/updateinfo', {
-                method: 'POST',
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showAlert('Employee added successfully!', 'success');
-                event.target.reset();
-                document.getElementById('employeeModal').style.display = 'none';
-                loadEmployees();
-            } else {
-                throw new Error(data.message || 'Failed to add employee');
-            }
-        } catch (error) {
-            showAlert(error.message, 'error');
-        } finally {
-            submitBtn.disabled = false;
-            spinner.style.display = 'none';
+            setTimeout(() => {
+                alertDiv.style.display = 'none';
+            }, 5000);
         }
-    }
 
-    function editEmployee(id) {
-        // For mobile, redirect to desktop version for editing
-        if (currentUser) {
-            const params = new URLSearchParams({
-                email: currentUser.email,
-                dbName: currentUser.dbName,
-                edit: id,
-                mobile: 'true'
-            });
-            window.location.href = `/updateinfo/desktop?${params.toString()}`;
+        function showLoading(show) {
+            document.getElementById('loadingState').style.display = show ? 'block' : 'none';
+            document.getElementById('employeeCards').style.display = show ? 'none' : 'block';
         }
-    }
 
-    async function deleteEmployee(id) {
-        if (!confirm('Are you sure you want to remove this employee?')) return;
-        
-        const leavingDate = prompt('Enter last working date (DD/MM/YYYY):');
-        if (!leavingDate) return;
-        
-        try {
-            const response = await fetchWithMobileAuth(`/updateinfo/employee/${id}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ended: leavingDate })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showAlert('Employee removed successfully', 'success');
-                loadEmployees();
-            } else {
-                throw new Error(data.message);
-            }
-        } catch (error) {
-            showAlert(error.message, 'error');
+        function showNoData() {
+            document.getElementById('noDataState').style.display = 'block';
+            document.getElementById('employeeCards').style.display = 'none';
+            document.getElementById('loadingState').style.display = 'none';
         }
-    }
 
-    async function downloadPassport(id) {
-        try {
-            const response = await fetchWithMobileAuth(`/updateinfo/api/download-file/${id}`);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `passport_${id}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } catch (error) {
-            showAlert('Failed to download passport', 'error');
+        function hideNoData() {
+            document.getElementById('noDataState').style.display = 'none';
+            document.getElementById('employeeCards').style.display = 'block';
         }
-    }
 
-    async function downloadVisa(id) {
-        try {
-            const response = await fetchWithMobileAuth(`/updateinfo/api/download-visa/${id}`);
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `visa_${id}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } catch (error) {
-            showAlert('Failed to download visa', 'error');
-        }
-    }
-
-    function formatDate(dateString) {
-        return new Date(dateString).toLocaleDateString('en-GB');
-    }
-
-    function showAlert(message, type) {
-        const alertDiv = document.getElementById('alertMessage');
-        alertDiv.innerHTML = `
-            <div class="alert alert-${type}">
-                <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
-                ${message}
-            </div>
-        `;
-        alertDiv.style.display = 'block';
-        
-        setTimeout(() => {
-            alertDiv.style.display = 'none';
-        }, 5000);
-    }
-
-    function showLoading(show) {
-        document.getElementById('loadingState').style.display = show ? 'block' : 'none';
-        document.getElementById('employeeCards').style.display = show ? 'none' : 'block';
-    }
-
-    // Initialize app when DOM is loaded
-    document.addEventListener('DOMContentLoaded', async () => {
-        console.log('🚀 Initializing mobile employee app...');
-        
-        const hasSession = await initializeMobileSession();
-        if (!hasSession) {
-            console.log('❌ No valid session, showing error');
-            showSessionError();
-            return;
-        }
-        
-        console.log('✅ Session valid, initializing app...');
-        initializeApp();
-    });
-
-    // Export functions for global access
-    window.navigateBack = navigateBack;
-    window.downloadPassport = downloadPassport;
-    window.downloadVisa = downloadVisa;
-    window.editEmployee = editEmployee;
-    window.deleteEmployee = deleteEmployee;
-    window.showAddModal = showAddModal;
-</script>
+        // Export functions for global access
+        window.navigateBack = navigateBack;
+        window.downloadPassport = downloadPassport;
+        window.downloadVisa = downloadVisa;
+        window.editEmployee = editEmployee;
+        window.deleteEmployee = deleteEmployee;
+        window.showAddModal = showAddModal;
+    </script>
 </body>
 </html>
