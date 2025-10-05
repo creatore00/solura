@@ -52,7 +52,7 @@ function getDeviceType(userAgent) {
     }
 }
 
-// SIMPLIFIED authentication middleware
+// SIMPLIFIED authentication middleware - like the working holiday app
 const isAuthenticatedWithIOS = (req, res, next) => {
     console.log('=== AUTH DEBUG ===');
     console.log('Session exists:', !!req.session);
@@ -60,21 +60,20 @@ const isAuthenticatedWithIOS = (req, res, next) => {
     console.log('Path:', req.path);
     console.log('=== END DEBUG ===');
 
-    if (req.session && req.session.user) {
-        return next();
-    }
-
-    // For mobile, try to recover from URL parameters
     const userAgent = req.headers['user-agent'] || '';
-    const isMobileDevice = isMobile(userAgent);
-    
-    if (isMobileDevice) {
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+
+    // For iOS, check if we have a session but missing user data
+    if (isIOS && req.session && !req.session.user) {
+        console.log('📱 iOS detected with session but no user data');
+        
+        // Try to recover from URL parameters
         const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
         const email = urlParams.get('email');
         const dbName = urlParams.get('dbName');
         
         if (email && dbName) {
-            console.log('🔄 Mobile session recovery from URL');
+            console.log('🔄 Attempting iOS session recovery from URL');
             req.session.user = {
                 email: email,
                 dbName: dbName,
@@ -85,16 +84,23 @@ const isAuthenticatedWithIOS = (req, res, next) => {
             
             return req.session.save((err) => {
                 if (err) {
-                    console.error('Session save error:', err);
-                    return sendAuthError(res, isMobileDevice);
+                    console.error('❌ Failed to save recovered session:', err);
+                    return sendAuthError(res, true);
                 }
-                console.log('✅ Mobile session recovered');
+                console.log('✅ iOS session recovered successfully');
                 next();
             });
         }
     }
-    
-    sendAuthError(res, isMobileDevice);
+
+    // Normal authentication check
+    if (req.session && req.session.user) {
+        console.log('✅ Authentication SUCCESS');
+        next();
+    } else {
+        console.log('❌ Authentication FAILED: No valid session');
+        sendAuthError(res, isMobile(userAgent));
+    }
 };
 
 function sendAuthError(res, isMobile) {
@@ -108,15 +114,61 @@ function sendAuthError(res, isMobile) {
     }
 }
 
-// Health check endpoint
+// Health check endpoint - no authentication required
 app.get('/health', (req, res) => {
-    res.json({
+    const userAgent = req.headers['user-agent'] || '';
+    
+    const healthData = {
         status: req.session?.user ? 'healthy' : 'unauthenticated',
+        deviceType: getDeviceType(userAgent),
+        isMobile: isMobile(userAgent),
+        session: !!req.session,
         user: req.session?.user ? {
             email: req.session.user.email,
-            role: req.session.user.role
-        } : null
-    });
+            role: req.session.user.role,
+            name: req.session.user.name
+        } : null,
+        timestamp: new Date().toISOString()
+    };
+    
+    res.json(healthData);
+});
+
+// Session recovery endpoint - like the working holiday app
+app.get('/recover', (req, res) => {
+    const { sessionId, email, dbName, name, lastName } = req.query;
+    
+    console.log('🔄 Session recovery request:', { email, dbName });
+    
+    if (email && dbName) {
+        req.session.user = {
+            email: email,
+            dbName: dbName,
+            name: name || '',
+            lastName: lastName || '',
+            role: 'admin'
+        };
+        
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session recovery failed:', err);
+                return res.status(500).json({ error: 'Recovery failed' });
+            }
+            
+            console.log('✅ Session recovered successfully');
+            res.json({ 
+                success: true, 
+                message: 'Session recovered',
+                newSessionId: req.sessionID,
+                user: {
+                    email: req.session.user.email,
+                    name: req.session.user.name
+                }
+            });
+        });
+    } else {
+        res.status(400).json({ error: 'Missing recovery parameters' });
+    }
 });
 
 // Route to serve appropriate version based on device
@@ -124,9 +176,14 @@ app.get('/', isAuthenticatedWithIOS, isAdmin, (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const deviceType = getDeviceType(userAgent);
     
-    console.log('Personal Info route - Device Type:', deviceType);
+    console.log('Personal Info route - Device Type:', deviceType, 'User:', req.session.user.email);
 
-    // For mobile/tablet, serve mobile app
+    // Add mobile-specific headers
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+    
+    // For mobile/tablet, serve mobile app with session parameters
     if (deviceType === 'mobile' || deviceType === 'tablet') {
         console.log('📱 Serving mobile personal info app');
         
@@ -136,9 +193,11 @@ app.get('/', isAuthenticatedWithIOS, isAdmin, (req, res) => {
             name: req.session.user.name || '',
             lastName: req.session.user.lastName || '',
             sessionId: req.sessionID,
-            mobile: 'true'
+            mobile: 'true',
+            timestamp: Date.now()
         });
         
+        // Redirect to the mobile app with session parameters
         res.redirect(`/updateinfo/mobile?${sessionParams.toString()}`);
     } else {
         console.log('💻 Serving desktop personal info app');
@@ -148,12 +207,14 @@ app.get('/', isAuthenticatedWithIOS, isAdmin, (req, res) => {
 
 // Route to serve mobile app directly
 app.get('/mobile', isAuthenticatedWithIOS, isAdmin, (req, res) => {
-    console.log('📱 Direct mobile access');
+    console.log('📱 Direct mobile access - serving PersonalInfoApp.html');
     
+    // Set mobile-specific headers
     res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.header('Pragma', 'no-cache');
     res.header('Expires', '0');
     
+    // Send the mobile app HTML
     res.sendFile(path.join(__dirname, 'PersonalInfoApp.html'));
 });
 
@@ -184,6 +245,7 @@ app.post('/', isAuthenticatedWithIOS, isAdmin, upload, (req, res) => {
 
     const pool = getPool(dbName);
 
+    console.log('Request Body:', req.body);
     const { name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart, pension_payer } = req.body;
     const passportImageFile = req.files['passportImage'] ? req.files['passportImage'][0] : null;
     const visaFile = req.files['visa'] ? req.files['visa'][0] : null;
