@@ -9,6 +9,9 @@ const { sessionMiddleware, isAuthenticated, isAdmin } = require('./sessionConfig
 
 const app = express();
 
+// Apply session middleware FIRST
+app.use(sessionMiddleware);
+
 // Enhanced CORS and security headers for mobile
 app.use((req, res, next) => {
     // Allow credentials for mobile apps
@@ -27,73 +30,6 @@ app.use((req, res, next) => {
     }
     next();
 });
-
-// Enhanced session middleware with mobile support
-app.use((req, res, next) => {
-    // Log all requests for debugging
-    console.log('📱 Request:', {
-        method: req.method,
-        url: req.url,
-        path: req.path,
-        userAgent: req.headers['user-agent'],
-        origin: req.headers.origin,
-        referer: req.headers.referer,
-        cookies: req.headers.cookie
-    });
-    
-    // Enhanced session restoration for mobile
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
-    const isMobile = /mobile|android|iphone|ipod/i.test(userAgent.toLowerCase());
-    
-    // Check for mobile session parameters in URL or headers
-    const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
-    const sessionId = urlParams.get('sessionId') || req.headers['x-session-id'];
-    const email = urlParams.get('email') || req.headers['x-user-email'];
-    const dbName = urlParams.get('dbName') || req.headers['x-db-name'];
-    const name = urlParams.get('name') || req.headers['x-user-name'];
-    const lastName = urlParams.get('lastName') || req.headers['x-user-lastname'];
-    
-    console.log('🔍 Session Restoration Check:', {
-        isIOS,
-        isMobile,
-        sessionId: !!sessionId,
-        email: !!email,
-        dbName: !!dbName,
-        hasSession: !!req.session,
-        hasUser: !!(req.session && req.session.user)
-    });
-    
-    // If we have mobile parameters but no session, create one
-    if ((isMobile || isIOS) && email && dbName && (!req.session || !req.session.user)) {
-        console.log('🔄 Creating mobile session for:', email);
-        
-        // Initialize session if it doesn't exist
-        if (!req.session) {
-            req.session = {};
-        }
-        
-        req.session.user = {
-            email: email,
-            dbName: dbName,
-            name: name || '',
-            lastName: lastName || '',
-            role: 'admin' // Default for personal info access
-        };
-        
-        // Use provided session ID if available
-        if (sessionId) {
-            req.sessionID = sessionId;
-        }
-        
-        console.log('✅ Mobile session created:', req.session.user);
-    }
-    
-    next();
-});
-
-// Apply session middleware after our custom mobile handling
-app.use(sessionMiddleware);
 
 // Enhanced body parsing
 app.use(bodyParser.json({ limit: '10mb' }));
@@ -116,146 +52,70 @@ function getDeviceType(userAgent) {
     }
 }
 
-// Enhanced authentication middleware with mobile support
+// SIMPLIFIED authentication middleware
 const isAuthenticatedWithIOS = (req, res, next) => {
-    console.log('=== AUTH MIDDLEWARE DEBUG ===');
-    console.log('Session ID:', req.sessionID);
+    console.log('=== AUTH DEBUG ===');
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     console.log('Path:', req.path);
-    console.log('Method:', req.method);
-    console.log('User Agent:', req.headers['user-agent']);
     console.log('=== END DEBUG ===');
 
+    if (req.session && req.session.user) {
+        return next();
+    }
+
+    // For mobile, try to recover from URL parameters
     const userAgent = req.headers['user-agent'] || '';
     const isMobileDevice = isMobile(userAgent);
-
-    // For mobile devices, be more lenient with session checks
+    
     if (isMobileDevice) {
-        console.log('📱 Mobile device detected in auth middleware');
+        const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
         
-        if (req.session && req.session.user) {
-            console.log('✅ Mobile session validated');
-            return next();
-        } else {
-            console.log('❌ No valid mobile session');
+        if (email && dbName) {
+            console.log('🔄 Mobile session recovery from URL');
+            req.session.user = {
+                email: email,
+                dbName: dbName,
+                name: urlParams.get('name') || '',
+                lastName: urlParams.get('lastName') || '',
+                role: 'admin'
+            };
             
-            // Try to recover from URL parameters as last resort
-            const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
-            const email = urlParams.get('email');
-            const dbName = urlParams.get('dbName');
-            
-            if (email && dbName) {
-                console.log('🔄 Attempting last-resort session creation from URL');
-                req.session.user = {
-                    email: email,
-                    dbName: dbName,
-                    name: urlParams.get('name') || '',
-                    lastName: urlParams.get('lastName') || '',
-                    role: 'admin'
-                };
-                
-                return req.session.save((err) => {
-                    if (err) {
-                        console.error('❌ Failed to save recovered session:', err);
-                        return sendAuthError(res, isMobileDevice);
-                    }
-                    console.log('✅ Session recovered from URL parameters');
-                    next();
-                });
-            }
-            
-            return sendAuthError(res, isMobileDevice);
+            return req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return sendAuthError(res, isMobileDevice);
+                }
+                console.log('✅ Mobile session recovered');
+                next();
+            });
         }
     }
-
-    // Standard authentication for desktop
-    if (req.session && req.session.user) {
-        next();
-    } else {
-        sendAuthError(res, false);
-    }
+    
+    sendAuthError(res, isMobileDevice);
 };
 
 function sendAuthError(res, isMobile) {
     if (isMobile) {
         return res.status(401).json({ 
             error: 'Authentication required',
-            requiresReauth: true,
-            message: 'Please log in again'
+            requiresReauth: true
         });
     } else {
         res.redirect('/');
     }
 }
 
-// Health check endpoint - no authentication required
+// Health check endpoint
 app.get('/health', (req, res) => {
-    const userAgent = req.headers['user-agent'] || '';
-    const isMobileDevice = isMobile(userAgent);
-    
-    const healthData = {
+    res.json({
         status: req.session?.user ? 'healthy' : 'unauthenticated',
-        deviceType: getDeviceType(userAgent),
-        isMobile: isMobileDevice,
-        session: !!req.session,
         user: req.session?.user ? {
             email: req.session.user.email,
-            role: req.session.user.role,
-            name: req.session.user.name
-        } : null,
-        timestamp: new Date().toISOString()
-    };
-    
-    res.json(healthData);
-});
-
-// Session recovery endpoint
-app.post('/recover-session', express.json(), (req, res) => {
-    const { email, dbName, name, lastName, sessionId } = req.body;
-    
-    console.log('🔄 Session recovery request:', { email, dbName });
-    
-    if (!email || !dbName) {
-        return res.status(400).json({ 
-            success: false, 
-            error: 'Email and database name are required' 
-        });
-    }
-    
-    // Create or update session
-    if (!req.session) {
-        req.session = {};
-    }
-    
-    req.session.user = {
-        email: email,
-        dbName: dbName,
-        name: name || '',
-        lastName: lastName || '',
-        role: 'admin'
-    };
-    
-    if (sessionId) {
-        req.sessionID = sessionId;
-    }
-    
-    req.session.save((err) => {
-        if (err) {
-            console.error('❌ Session recovery failed:', err);
-            return res.status(500).json({ 
-                success: false, 
-                error: 'Failed to recover session' 
-            });
-        }
-        
-        console.log('✅ Session recovered successfully for:', email);
-        res.json({ 
-            success: true, 
-            message: 'Session recovered',
-            sessionId: req.sessionID,
-            user: req.session.user
-        });
+            role: req.session.user.role
+        } : null
     });
 });
 
@@ -264,14 +124,9 @@ app.get('/', isAuthenticatedWithIOS, isAdmin, (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const deviceType = getDeviceType(userAgent);
     
-    console.log('Personal Info route - Device Type:', deviceType, 'User:', req.session.user.email);
+    console.log('Personal Info route - Device Type:', deviceType);
 
-    // Add mobile-specific headers
-    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
-    res.header('Pragma', 'no-cache');
-    res.header('Expires', '0');
-    
-    // For mobile/tablet, serve mobile app with session parameters
+    // For mobile/tablet, serve mobile app
     if (deviceType === 'mobile' || deviceType === 'tablet') {
         console.log('📱 Serving mobile personal info app');
         
@@ -281,11 +136,9 @@ app.get('/', isAuthenticatedWithIOS, isAdmin, (req, res) => {
             name: req.session.user.name || '',
             lastName: req.session.user.lastName || '',
             sessionId: req.sessionID,
-            mobile: 'true',
-            timestamp: Date.now()
+            mobile: 'true'
         });
         
-        // For mobile, we'll serve the HTML directly with embedded session data
         res.redirect(`/updateinfo/mobile?${sessionParams.toString()}`);
     } else {
         console.log('💻 Serving desktop personal info app');
@@ -295,15 +148,12 @@ app.get('/', isAuthenticatedWithIOS, isAdmin, (req, res) => {
 
 // Route to serve mobile app directly
 app.get('/mobile', isAuthenticatedWithIOS, isAdmin, (req, res) => {
-    console.log('📱 Direct mobile access - serving PersonalInfoApp.html');
+    console.log('📱 Direct mobile access');
     
-    // Set mobile-specific headers
     res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.header('Pragma', 'no-cache');
     res.header('Expires', '0');
-    res.header('Content-Type', 'text/html; charset=utf-8');
     
-    // Send the mobile app HTML
     res.sendFile(path.join(__dirname, 'PersonalInfoApp.html'));
 });
 
@@ -334,7 +184,6 @@ app.post('/', isAuthenticatedWithIOS, isAdmin, upload, (req, res) => {
 
     const pool = getPool(dbName);
 
-    console.log('Request Body:', req.body);
     const { name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart, pension_payer } = req.body;
     const passportImageFile = req.files['passportImage'] ? req.files['passportImage'][0] : null;
     const visaFile = req.files['visa'] ? req.files['visa'][0] : null;
@@ -406,8 +255,7 @@ app.get('/edit-employee/:id', isAuthenticatedWithIOS, isAdmin, (req, res) => {
                 console.error('Error fetching employee data:', err);
                 return res.status(500).json({ 
                     success: false, 
-                    message: 'Server error',
-                    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+                    message: 'Server error'
                 });
             }
 
@@ -446,8 +294,7 @@ app.post('/edit-employee/:id', isAuthenticatedWithIOS, isAdmin, upload, (req, re
             console.error('Error fetching current employee data:', err);
             return res.status(500).json({ 
                 success: false, 
-                message: 'Server error fetching current employee data',
-                error: process.env.NODE_ENV === 'development' ? err.message : undefined
+                message: 'Server error fetching current employee data'
             });
         }
 
@@ -492,18 +339,13 @@ app.post('/edit-employee/:id', isAuthenticatedWithIOS, isAdmin, upload, (req, re
                 console.error('Error updating employee:', err);
                 return res.status(500).json({ 
                     success: false, 
-                    message: 'Server error',
-                    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+                    message: 'Server error'
                 });
             }
 
             res.json({ 
                 success: true, 
-                message: 'Employee updated successfully',
-                data: {
-                    startHoliday: newHoliday,
-                    TotalHoliday: updatedTotalHoliday
-                }
+                message: 'Employee updated successfully'
             });
         });
     });
@@ -610,8 +452,7 @@ app.delete('/employee/:id', isAuthenticatedWithIOS, isAdmin, async (req, res) =>
         console.error('Error during employee status update:', err);
         res.status(500).json({ 
             success: false, 
-            message: 'Server error during employee status update',
-            error: process.env.NODE_ENV === 'development' ? err.message : undefined
+            message: 'Server error during employee status update'
         });
     }
 });
