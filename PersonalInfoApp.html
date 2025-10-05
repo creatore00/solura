@@ -669,207 +669,254 @@
     </footer>
 
     <script>
-        // Mobile Session Management
-        let currentUser = null;
-        let allEmployees = [];
+    // Enhanced Mobile Session Management
+    let currentUser = null;
+    let allEmployees = [];
 
-        // Check mobile session
-        async function checkMobileSession() {
-            try {
-                // Check URL parameters first
-                const urlParams = new URLSearchParams(window.location.search);
-                const email = urlParams.get('email');
-                const dbName = urlParams.get('dbName');
-                const name = urlParams.get('name');
-                const lastName = urlParams.get('lastName');
-                const sessionId = urlParams.get('sessionId');
+    // Check and initialize mobile session
+    async function initializeMobileSession() {
+        try {
+            console.log('🔍 Initializing mobile session...');
+            
+            // First check URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const email = urlParams.get('email');
+            const dbName = urlParams.get('dbName');
+            const name = urlParams.get('name');
+            const lastName = urlParams.get('lastName');
+            const sessionId = urlParams.get('sessionId');
+            
+            if (email && dbName) {
+                console.log('📱 Found session parameters in URL');
+                currentUser = {
+                    email: email,
+                    dbName: dbName,
+                    name: name || '',
+                    lastName: lastName || '',
+                    sessionId: sessionId || ''
+                };
                 
-                if (email && dbName) {
-                    currentUser = {
-                        email: email,
-                        dbName: dbName,
-                        name: name || '',
-                        lastName: lastName || '',
-                        sessionId: sessionId || ''
-                    };
-                    
-                    localStorage.setItem('userInfo', JSON.stringify(currentUser));
-                    localStorage.setItem('lastDb', dbName);
-                    if (sessionId) {
-                        localStorage.setItem('sessionId', sessionId);
-                    }
-                    
-                    // Clean URL
-                    if (window.history.replaceState) {
-                        const cleanUrl = window.location.pathname;
-                        window.history.replaceState({}, document.title, cleanUrl);
-                    }
-                    
+                // Store for persistence
+                localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                localStorage.setItem('lastDb', dbName);
+                if (sessionId) {
+                    localStorage.setItem('sessionId', sessionId);
+                }
+                
+                // Verify session with server
+                const sessionValid = await verifyAndRecoverSession();
+                if (sessionValid) {
+                    console.log('✅ Mobile session initialized successfully');
                     return true;
                 }
-                
-                // Check localStorage
-                const storedUser = localStorage.getItem('userInfo');
-                if (storedUser) {
-                    currentUser = JSON.parse(storedUser);
-                    const isValid = await verifySession();
-                    if (isValid) {
-                        return true;
-                    } else {
-                        clearStoredSession();
-                        return false;
-                    }
+            }
+            
+            // Check localStorage for existing session
+            const storedUser = localStorage.getItem('userInfo');
+            if (storedUser) {
+                console.log('📱 Found stored user session');
+                currentUser = JSON.parse(storedUser);
+                const sessionValid = await verifyAndRecoverSession();
+                if (sessionValid) {
+                    return true;
                 }
-                
-                return false;
-                
-            } catch (error) {
-                console.error('Mobile session check error:', error);
-                return false;
             }
-        }
-
-        async function verifySession() {
-            try {
-                const response = await fetch('/updateinfo/health', {
-                    method: 'GET',
-                    headers: getAuthHeaders()
-                });
-                const data = await response.json();
-                return data.status === 'healthy';
-            } catch (error) {
-                return false;
-            }
-        }
-
-        function getAuthHeaders() {
-            const headers = {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'X-Mobile-App': 'true'
-            };
             
+            console.log('❌ No valid session found');
+            return false;
+            
+        } catch (error) {
+            console.error('Session initialization error:', error);
+            return false;
+        }
+    }
+
+    // Verify session and recover if needed
+    async function verifyAndRecoverSession() {
+        try {
+            console.log('🔐 Verifying session...');
+            const response = await fetch('/updateinfo/health', {
+                method: 'GET',
+                credentials: 'include',
+                headers: getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                throw new Error('Health check failed');
+            }
+            
+            const data = await response.json();
+            console.log('🏥 Health check result:', data);
+            
+            if (data.status === 'healthy') {
+                return true;
+            } else if (data.status === 'unauthenticated' && currentUser) {
+                console.log('🔄 Session needs recovery');
+                return await recoverSession();
+            }
+            
+            return false;
+            
+        } catch (error) {
+            console.error('Session verification failed:', error);
             if (currentUser) {
-                headers['X-User-Email'] = currentUser.email;
-                headers['X-DB-Name'] = currentUser.dbName;
+                return await recoverSession();
             }
-            
-            const sessionId = localStorage.getItem('sessionId');
-            if (sessionId) {
-                headers['X-Session-ID'] = sessionId;
-            }
-            
-            return headers;
+            return false;
         }
+    }
 
-        async function fetchWithMobileAuth(url, options = {}) {
-            const config = {
-                ...options,
+    // Recover session using POST endpoint
+    async function recoverSession() {
+        try {
+            console.log('🔄 Attempting session recovery...');
+            const response = await fetch('/updateinfo/recover-session', {
+                method: 'POST',
                 credentials: 'include',
                 headers: {
-                    ...getAuthHeaders(),
-                    ...options.headers
-                }
-            };
-            
-            const response = await fetch(url, config);
-            
-            if (response.status === 401) {
-                redirectToMobileLogin();
-                throw new Error('Session expired');
-            }
-            
-            return response;
-        }
-
-        function clearStoredSession() {
-            localStorage.removeItem('userInfo');
-            localStorage.removeItem('lastDb');
-            localStorage.removeItem('sessionId');
-            currentUser = null;
-        }
-
-        function redirectToMobileLogin() {
-            clearStoredSession();
-            window.location.href = '/';
-        }
-
-        function showSessionError() {
-            const mainContent = document.querySelector('.mobile-content');
-            mainContent.innerHTML = `
-                <div style="text-align: center; padding: 2rem;">
-                    <h2 style="color: var(--primary-color); margin-bottom: 1rem;">Session Expired</h2>
-                    <p style="margin-bottom: 1.5rem;">Please log in again to continue.</p>
-                    <button onclick="redirectToMobileLogin()" class="btn btn-primary">
-                        <i class="fas fa-sign-in-alt"></i> Login
-                    </button>
-                </div>
-            `;
-        }
-
-        // Navigation
-        function navigateBack() {
-            if (currentUser) {
-                const params = new URLSearchParams({
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
                     email: currentUser.email,
                     dbName: currentUser.dbName,
                     name: currentUser.name,
                     lastName: currentUser.lastName,
-                    sessionId: currentUser.sessionId || localStorage.getItem('sessionId') || '',
-                    mobile: 'true',
-                    timestamp: Date.now()
-                });
-                window.location.href = `/Admin.html?${params.toString()}`;
+                    sessionId: currentUser.sessionId || localStorage.getItem('sessionId')
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Recovery request failed');
+            }
+            
+            const data = await response.json();
+            console.log('🔄 Session recovery response:', data);
+            
+            if (data.success) {
+                // Update session ID if provided
+                if (data.sessionId) {
+                    currentUser.sessionId = data.sessionId;
+                    localStorage.setItem('sessionId', data.sessionId);
+                    localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                }
+                console.log('✅ Session recovered successfully');
+                return true;
             } else {
-                window.location.href = '/Admin.html';
+                throw new Error(data.error || 'Recovery failed');
+            }
+            
+        } catch (error) {
+            console.error('Session recovery failed:', error);
+            return false;
+        }
+    }
+
+    function getAuthHeaders() {
+        const headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-Mobile-App': 'true'
+        };
+        
+        if (currentUser) {
+            headers['X-User-Email'] = currentUser.email;
+            headers['X-DB-Name'] = currentUser.dbName;
+            if (currentUser.name) headers['X-User-Name'] = currentUser.name;
+            if (currentUser.lastName) headers['X-User-LastName'] = currentUser.lastName;
+        }
+        
+        const sessionId = localStorage.getItem('sessionId');
+        if (sessionId) {
+            headers['X-Session-ID'] = sessionId;
+        }
+        
+        return headers;
+    }
+
+    async function fetchWithMobileAuth(url, options = {}) {
+        const config = {
+            ...options,
+            credentials: 'include',
+            headers: {
+                ...getAuthHeaders(),
+                ...options.headers
+            }
+        };
+        
+        console.log(`📱 Fetching: ${url}`);
+        const response = await fetch(url, config);
+        
+        if (response.status === 401) {
+            console.log('🔐 Session expired, attempting recovery...');
+            const recovered = await recoverSession();
+            if (recovered) {
+                // Retry the request with recovered session
+                return fetchWithMobileAuth(url, options);
+            } else {
+                throw new Error('Session recovery failed');
             }
         }
+        
+        return response;
+    }
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', async () => {
-            const hasSession = await checkMobileSession();
-            if (!hasSession) {
-                showSessionError();
-                return;
-            }
+    function clearStoredSession() {
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('lastDb');
+        localStorage.removeItem('sessionId');
+        currentUser = null;
+    }
 
-            initializeApp();
-        });
+    function redirectToMobileLogin() {
+        clearStoredSession();
+        window.location.href = '/';
+    }
 
-        function initializeApp() {
-            // Set up event listeners
-            document.getElementById('backButton').addEventListener('click', navigateBack);
-            document.getElementById('refreshButton').addEventListener('click', loadEmployees);
-            document.getElementById('showFormButton').addEventListener('click', showAddModal);
-            
-            // Search functionality
-            document.getElementById('searchInput').addEventListener('input', filterEmployees);
-            
-            // Filter buttons
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    filterEmployees();
-                });
+    function showSessionError() {
+        const mainContent = document.querySelector('.mobile-content');
+        mainContent.innerHTML = `
+            <div style="text-align: center; padding: 2rem;">
+                <h2 style="color: var(--primary-color); margin-bottom: 1rem;">Session Expired</h2>
+                <p style="margin-bottom: 1.5rem;">Please log in again to continue.</p>
+                <button onclick="redirectToMobileLogin()" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </div>
+        `;
+    }
+
+    // Navigation with session persistence
+    function navigateBack() {
+        if (currentUser) {
+            const params = new URLSearchParams({
+                email: currentUser.email,
+                dbName: currentUser.dbName,
+                name: currentUser.name,
+                lastName: currentUser.lastName,
+                sessionId: currentUser.sessionId || localStorage.getItem('sessionId') || '',
+                mobile: 'true',
+                timestamp: Date.now()
             });
-            
-            // Modal functionality
-            document.querySelectorAll('.modal-close').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.querySelectorAll('.modal').forEach(modal => {
-                        modal.style.display = 'none';
-                    });
-                });
-            });
-            
-            // Form submission
-            document.getElementById('employeeForm').addEventListener('submit', handleAddEmployee);
-            
-            // Load initial data
-            loadEmployees();
+            window.location.href = `/Admin.html?${params.toString()}`;
+        } else {
+            window.location.href = '/Admin.html';
         }
+    }
 
+    // Initialize app
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('🚀 Initializing mobile employee app...');
+        
+        const hasSession = await initializeMobileSession();
+        if (!hasSession) {
+            console.log('❌ No valid session, showing error');
+            showSessionError();
+            return;
+        }
+        
+        console.log('✅ Session valid, initializing app...');
+        initializeApp();
+    });
         async function loadEmployees() {
             showLoading(true);
             
