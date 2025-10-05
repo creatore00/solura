@@ -4,8 +4,8 @@ const bodyParser = require('body-parser');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { getPool, mainPool } = require('./db.js'); // Import the connection pool functions
-const { sessionMiddleware, isAuthenticated, isAdmin } = require('./sessionConfig'); // Adjust the path as needed
+const { getPool, mainPool } = require('./db.js');
+const { sessionMiddleware, isAuthenticated, isAdmin } = require('./sessionConfig');
 
 const app = express();
 
@@ -14,6 +14,215 @@ app.use(sessionMiddleware);
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Enhanced mobile detection
+function isMobile(userAgent) {
+    return /android|iphone|ipad|ipod|mobile/i.test(userAgent.toLowerCase());
+}
+
+function getDeviceType(userAgent) {
+    const ua = userAgent.toLowerCase();
+    
+    if (/mobile|android|iphone|ipod/.test(ua)) {
+        return 'mobile';
+    } else if (/ipad|tablet/.test(ua)) {
+        return 'tablet';
+    } else {
+        return 'desktop';
+    }
+}
+
+// Enhanced session restoration for iOS
+app.use((req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    if (isIOS && req.session && !req.session.user) {
+        console.log('📱 iOS Session Restoration - Personal Info');
+        
+        const urlParams = new URLSearchParams(req.url.includes('?') ? req.url.split('?')[1] : '');
+        const sessionId = urlParams.get('sessionId');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        
+        const headerSessionId = req.headers['x-session-id'];
+        const headerEmail = req.headers['x-user-email'];
+        const headerDbName = req.headers['x-db-name'];
+        
+        const recoveryEmail = email || headerEmail;
+        const recoveryDbName = dbName || headerDbName;
+        const recoverySessionId = sessionId || headerSessionId;
+        
+        if (recoveryEmail && recoveryDbName) {
+            console.log('✅ Restoring session for:', recoveryEmail);
+            
+            req.session.user = {
+                email: recoveryEmail,
+                dbName: recoveryDbName,
+                name: name || '',
+                lastName: lastName || '',
+                role: 'admin'
+            };
+            
+            if (recoverySessionId && req.sessionID !== recoverySessionId) {
+                req.sessionID = recoverySessionId;
+            }
+            
+            return req.session.save((err) => {
+                if (err) {
+                    console.error('❌ Failed to save restored session:', err);
+                } else {
+                    console.log('✅ Session restored successfully');
+                }
+                next();
+            });
+        }
+    }
+    next();
+});
+
+// Enhanced authentication middleware
+const isAuthenticatedWithIOS = (req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+
+    if (isIOS && req.session && !req.session.user) {
+        console.log('📱 iOS detected with session but no user data');
+        
+        if (req.path.startsWith('/api/')) {
+            return res.status(401).json({ 
+                error: 'Session recovery needed',
+                requiresReauth: true,
+                sessionId: req.sessionID
+            });
+        }
+    }
+
+    if (req.session && req.session.user) {
+        next();
+    } else {
+        if (req.path.startsWith('/api/')) {
+            return res.status(401).json({ 
+                error: 'Authentication required',
+                requiresReauth: true
+            });
+        } else {
+            res.redirect('/');
+        }
+    }
+};
+
+// Route to serve appropriate version based on device
+app.get('/', isAuthenticatedWithIOS, isAdmin, (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const deviceType = getDeviceType(userAgent);
+    
+    console.log('Personal Info route - Device Type:', deviceType, 'User:', req.session.user.email);
+
+    // Add mobile-specific headers
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+    
+    // For mobile/tablet, serve mobile app with session parameters
+    if (deviceType === 'mobile' || deviceType === 'tablet') {
+        console.log('📱 Serving mobile personal info app');
+        
+        const sessionParams = new URLSearchParams({
+            email: req.session.user.email,
+            dbName: req.session.user.dbName,
+            name: req.session.user.name || '',
+            lastName: req.session.user.lastName || '',
+            sessionId: req.sessionID,
+            mobile: 'true',
+            timestamp: Date.now()
+        });
+        
+        res.redirect(`/updateinfo/mobile?${sessionParams.toString()}`);
+    } else {
+        console.log('💻 Serving desktop personal info app');
+        res.sendFile(path.join(__dirname, 'PersonalInfo.html'));
+    }
+});
+
+// Route to serve mobile app directly
+app.get('/mobile', isAuthenticatedWithIOS, isAdmin, (req, res) => {
+    console.log('📱 Direct mobile access - serving PersonalInfoApp.html');
+    
+    const sessionData = {
+        email: req.session.user.email,
+        dbName: req.session.user.dbName,
+        name: req.session.user.name || '',
+        lastName: req.session.user.lastName || '',
+        sessionId: req.sessionID
+    };
+    
+    res.header('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.header('Pragma', 'no-cache');
+    res.header('Expires', '0');
+    
+    res.sendFile(path.join(__dirname, 'PersonalInfoApp.html'));
+});
+
+// Route to serve desktop app directly
+app.get('/desktop', isAuthenticatedWithIOS, isAdmin, (req, res) => {
+    res.sendFile(path.join(__dirname, 'PersonalInfo.html'));
+});
+
+// Health endpoint for mobile
+app.get('/health', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/.test(userAgent);
+    
+    const healthData = {
+        status: req.session?.user ? 'healthy' : 'unauthenticated',
+        deviceType: getDeviceType(userAgent),
+        isIOS: isIOS,
+        session: !!req.session,
+        user: req.session?.user ? {
+            email: req.session.user.email,
+            role: req.session.user.role,
+            name: req.session.user.name
+        } : null,
+        timestamp: new Date().toISOString()
+    };
+    
+    res.json(healthData);
+});
+
+// Session recovery endpoint
+app.get('/recover', (req, res) => {
+    const { sessionId, email, dbName, name, lastName } = req.query;
+    
+    console.log('🔄 Session recovery request:', { email, dbName });
+    
+    if (email && dbName) {
+        req.session.user = {
+            email: email,
+            dbName: dbName,
+            name: name || '',
+            lastName: lastName || '',
+            role: 'admin'
+        };
+        
+        req.session.save((err) => {
+            if (err) {
+                return res.status(500).json({ error: 'Recovery failed' });
+            }
+            
+            res.json({ 
+                success: true, 
+                message: 'Session recovered',
+                newSessionId: req.sessionID
+            });
+        });
+    } else {
+        res.status(400).json({ error: 'Missing recovery parameters' });
+    }
+});
+
+// File upload configuration
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage }).fields([
     { name: 'passportImage', maxCount: 1 },
@@ -21,31 +230,27 @@ const upload = multer({ storage: storage }).fields([
 ]);
 
 // Endpoint to Send Data
-app.post('/', isAuthenticated, upload, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+app.post('/', isAuthenticatedWithIOS, isAdmin, upload, (req, res) => {
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
+    const pool = getPool(dbName);
 
     console.log('Request Body:', req.body);
-    // Destructure fields from req.body
     const { name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart, pension_payer } = req.body;
     const passportImageFile = req.files['passportImage'] ? req.files['passportImage'][0] : null;
     const visaFile = req.files['visa'] ? req.files['visa'][0] : null;
 
-    // Check if required files were uploaded
     if (!passportImageFile) {
-        return res.status(400).json({ success: false, message: 'Both passport image and visa files are required' });
+        return res.status(400).json({ success: false, message: 'Passport image is required' });
     }
 
-    // Extract file content (buffer) and MIME type
     const passportImageContent = passportImageFile.buffer;
-    const visaContent = visaFile ? visaFile.buffer : null;  // Visa can be null
+    const visaContent = visaFile ? visaFile.buffer : null;
 
-    // Insert data into the database
     const query = 'INSERT INTO Employees (name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, passportImage, visa, TotalHoliday, startHoliday, dateStart, pension_payer) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
     pool.query(query, [name, lastName, email, phone, address, nin, wage, designation, position, contractHours, Salary, SalaryPrice, passportImageContent, visaContent, holiday, holiday, dateStart, pension_payer], (err, result) => {
@@ -59,14 +264,14 @@ app.post('/', isAuthenticated, upload, (req, res) => {
 });
 
 // Endpoint to Retrieve Data
-app.get('/employees', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+app.get('/employees', isAuthenticatedWithIOS, isAdmin, (req, res) => {
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
+    const pool = getPool(dbName);
 
     const query = `
         SELECT id, name, lastName, email, phone, address, nin, wage, designation, 
@@ -86,8 +291,8 @@ app.get('/employees', isAuthenticated, (req, res) => {
     });
 });
 
-// GET endpoint to fetch employee data for editing (using callbacks)
-app.get('/edit-employee/:id', isAuthenticated, (req, res) => {
+// GET endpoint to fetch employee data for editing
+app.get('/edit-employee/:id', isAuthenticatedWithIOS, isAdmin, (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -117,7 +322,6 @@ app.get('/edit-employee/:id', isAuthenticated, (req, res) => {
 
             const employeeData = rows[0];
             
-            // Format date if needed
             if (employeeData.dateStart instanceof Date) {
                 employeeData.dateStart = employeeData.dateStart.toISOString().split('T')[0];
             }
@@ -130,8 +334,8 @@ app.get('/edit-employee/:id', isAuthenticated, (req, res) => {
     );
 });
 
-// POST endpoint to update employee data (using callbacks)
-app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
+// POST endpoint to update employee data
+app.post('/edit-employee/:id', isAuthenticatedWithIOS, isAdmin, upload, (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
@@ -142,7 +346,6 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
     const { name, lastName, email, phone, address, nin, wage, 
            designation, position, contractHours, Salary, SalaryPrice, holiday, dateStart, pension_payer } = req.body;
 
-    // First get the current employee data to compare holiday values
     pool.query('SELECT startHoliday, TotalHoliday FROM Employees WHERE id = ?', [id], (err, currentData) => {
         if (err) {
             console.error('Error fetching current employee data:', err);
@@ -163,11 +366,9 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
         const currentTotalHoliday = parseFloat(currentData[0].TotalHoliday) || 0;
         const updatedTotalHoliday = currentTotalHoliday + holidayDifference;
 
-        // Handle file uploads - these will be undefined if not provided
         const passportImageFile = req.files['passportImage'] ? req.files['passportImage'][0] : null;
         const visaFile = req.files['visa'] ? req.files['visa'][0] : null;
 
-        // Build the dynamic query based on what's being updated
         let query = `UPDATE Employees SET 
             name = ?, lastName = ?, email = ?, phone = ?, address = ?,
             nin = ?, wage = ?, designation = ?, position = ?, contractHours = ?, Salary = ?, SalaryPrice =?,
@@ -179,7 +380,6 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
             dateStart, holiday, updatedTotalHoliday, pension_payer
         ];
 
-        // Add file updates if provided
         if (passportImageFile) {
             query += ', passportImage = ?';
             queryParams.push(passportImageFile.buffer);
@@ -214,19 +414,18 @@ app.post('/edit-employee/:id', isAuthenticated, upload, (req, res) => {
     });
 });
 
-// Endpoint to download a specific passport file based on employee ID
-app.get('/api/download-file/:id', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+// Endpoint to download passport file
+app.get('/api/download-file/:id', isAuthenticatedWithIOS, isAdmin, (req, res) => {
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
+    const pool = getPool(dbName);
+    const { id } = req.params;
 
-    const { id } = req.params; // Extract employee ID from URL parameter
-
-    const query = 'SELECT passportImage FROM Employees WHERE id = ?'; // SQL query to retrieve passportImage
+    const query = 'SELECT passportImage FROM Employees WHERE id = ?';
     pool.query(query, [id], (err, results) => {
         if (err) {
             console.error('Error fetching data:', err);
@@ -237,30 +436,26 @@ app.get('/api/download-file/:id', isAuthenticated, (req, res) => {
             res.status(404).json({ error: 'Passport not found' });
             return;
         }
-        const passportImage = results[0].passportImage; // Retrieve passportImage from query results
+        const passportImage = results[0].passportImage;
 
-        // Set appropriate headers for file download
-        res.setHeader('Content-Type', 'application/pdf'); // Set Content-Type as PDF
-        res.setHeader('Content-Disposition', `attachment; filename=Passport_${id}.pdf`); // Set filename for download
-
-        // Send the file content as response
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=Passport_${id}.pdf`);
         res.send(passportImage);
     });
 });
 
-// Endpoint to download a specific visa file based on employee ID
-app.get('/api/download-visa/:id', isAuthenticated, (req, res) => {
-    const dbName = req.session.user.dbName; // Get the database name from the session
+// Endpoint to download visa file
+app.get('/api/download-visa/:id', isAuthenticatedWithIOS, isAdmin, (req, res) => {
+    const dbName = req.session.user.dbName;
 
     if (!dbName) {
         return res.status(401).json({ success: false, message: 'User not authenticated' });
     }
 
-    const pool = getPool(dbName); // Get the correct connection pool
+    const pool = getPool(dbName);
+    const { id } = req.params;
 
-    const { id } = req.params; // Extract employee ID from URL parameter
-
-    const query = 'SELECT visa FROM Employees WHERE id = ?'; // SQL query to retrieve visa
+    const query = 'SELECT visa FROM Employees WHERE id = ?';
     pool.query(query, [id], (err, results) => {
         if (err) {
             console.error('Error fetching data:', err);
@@ -271,19 +466,16 @@ app.get('/api/download-visa/:id', isAuthenticated, (req, res) => {
             res.status(404).json({ error: 'Visa not found' });
             return;
         }
-        const visa = results[0].visa; // Retrieve visa from query results
+        const visa = results[0].visa;
 
-        // Set appropriate headers for file download
-        res.setHeader('Content-Type', 'application/pdf'); // Set Content-Type as PDF
-        res.setHeader('Content-Disposition', `attachment; filename=Visa_${id}.pdf`); // Set filename for download
-
-        // Send the file content as response
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename=Visa_${id}.pdf`);
         res.send(visa);
     });
 });
 
-// DELETE endpoint to remove an employee and their system access
-app.delete('/employee/:id', isAuthenticated, async (req, res) => {
+// DELETE endpoint to remove an employee
+app.delete('/employee/:id', isAuthenticatedWithIOS, isAdmin, async (req, res) => {
     const dbName = req.session.user.dbName;
 
     if (!dbName) {
@@ -292,10 +484,9 @@ app.delete('/employee/:id', isAuthenticated, async (req, res) => {
 
     const pool = getPool(dbName);
     const { id } = req.params;
-    const { ended } = req.body; // get date from frontend
+    const { ended } = req.body;
 
     try {
-        // First get employee email before updating
         const getEmployeeQuery = 'SELECT email FROM Employees WHERE id = ?';
         const [employeeRows] = await pool.promise().query(getEmployeeQuery, [id]);
 
@@ -305,11 +496,9 @@ app.delete('/employee/:id', isAuthenticated, async (req, res) => {
 
         const employeeEmail = employeeRows[0].email;
 
-        // Update employee situation and ended date
         const updateQuery = 'UPDATE Employees SET situation = ?, ended = ? WHERE id = ?';
         await pool.promise().query(updateQuery, ['past', ended, id]);
 
-        // Delete from main users table if exists
         const deleteUserQuery = 'DELETE FROM users WHERE email = ?';
         const [result] = await mainPool.promise().query(deleteUserQuery, [employeeEmail]);
 
@@ -332,9 +521,4 @@ app.delete('/employee/:id', isAuthenticated, async (req, res) => {
     }
 });
 
-// Route to serve the PersonalInfo.html file
-app.get('/', isAuthenticated, isAdmin, (req, res) => {
-    res.sendFile(path.join(__dirname, 'PersonalInfo.html'));
-});
-
-module.exports = app; // Export the entire Express application
+module.exports = app;
