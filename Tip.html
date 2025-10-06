@@ -372,6 +372,230 @@
             border-radius: 4px;
             transition: width 0.5s;
         }
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+
+        /* Ensure the PDF button is always visible */
+        #pdfBtn {
+            display: inline-flex !important;
+        }
+                /* Professional Calendar Styles - Exact 2cm Cells */
+        .calendar-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 0.8rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #e8ecef;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.6rem;
+        }
+
+        .calendar-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: -0.01em;
+        }
+
+        .calendar-controls {
+            display: flex;
+            gap: 0.2rem;
+        }
+
+        .calendar-btn {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 0.4rem;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .calendar-btn:hover {
+            background: #2980b9;
+            transform: translateY(-1px);
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            margin-bottom: 0.4rem;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            font-weight: 600;
+            padding: 0.4rem 0;
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .calendar-day {
+            width: 2cm;
+            height: 2cm;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            border: 1px solid transparent;
+            background-color: #fafbfc;
+            font-weight: 500;
+        }
+
+        .calendar-day:hover {
+            background-color: #e3f2fd;
+            border-color: var(--secondary);
+            transform: scale(1.03);
+        }
+
+        .day-number {
+            font-size: 1rem;
+            color: #2c3e50;
+            line-height: 1;
+            font-weight: 600;
+        }
+
+        .day-status {
+            position: absolute;
+            bottom: 6px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            border: 1px solid white;
+        }
+
+        .status-confirmed {
+            background-color: #10b981;
+        }
+
+        .status-pending {
+            background-color: #ef4444;
+        }
+
+        .status-no-data {
+            background-color: #9ca3af;
+        }
+
+        .calendar-day.today {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+        }
+
+        .calendar-day.today .day-number {
+            color: white;
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .calendar-day.today .day-status {
+            background-color: white;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            width: 8px;
+            height: 8px;
+        }
+
+        .calendar-legend {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 0.8rem;
+            font-size: 0.75rem;
+            padding-top: 0.8rem;
+            border-top: 1px solid #f1f3f4;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.6rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .legend-color {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+            border: 1px solid white;
+        }
+
+        .legend-confirmed {
+            background-color: #10b981;
+        }
+
+        .legend-pending {
+            background-color: #ef4444;
+        }
+
+        .legend-no-data {
+            background-color: #9ca3af;
+        }
+
+        /* Remove empty month display */
+        #calendarMonthYear {
+            display: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .calendar-container {
+                padding: 0.6rem;
+            }
+            
+            .calendar-day {
+                width: 1.5cm;
+                height: 1.5cm;
+            }
+            
+            .day-number {
+                font-size: 0.9rem;
+            }
+            
+            .calendar-title {
+                font-size: 0.9rem;
+            }
+            
+            .day-status {
+                width: 8px;
+                height: 8px;
+                bottom: 4px;
+            }
+            
+            .legend-color {
+                width: 6px;
+                height: 6px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -386,6 +610,33 @@
     </nav>
 
     <div class="container">
+        <!-- Tip Calendar -->
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <div class="calendar-title">Tip Status Calendar</div>
+                <div class="calendar-controls">
+                    <button class="calendar-btn" id="prevMonth"><i class="fas fa-chevron-left"></i></button>
+                    <button class="calendar-btn" id="nextMonth"><i class="fas fa-chevron-right"></i></button>
+                </div>
+            </div>
+            <div id="calendarMonthYear" class="calendar-month-year"></div>
+            <div class="calendar-grid" id="calendarDays"></div>
+            <div class="calendar-legend">
+                <div class="legend-item">
+                    <div class="legend-color legend-confirmed"></div>
+                    <span>Tips Confirmed</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-pending"></div>
+                    <span>Needs Confirmation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color legend-no-data"></div>
+                    <span>No Data</span>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <h1><i class="fas fa-calculator"></i> Daily Tip Calculation</h1>
             
@@ -412,10 +663,12 @@
                 <!-- Details content will be loaded dynamically -->
             </div>
 
-            <div class="action-buttons">
+           <div class="action-buttons">
                 <button id="cancelBtn" onclick="cancelTips()" class="btn btn-danger hidden"><i class="fas fa-times"></i> Cancel Tips</button>
                 <button id="confirmBtn" onclick="confirmTips()" class="btn btn-success hidden"><i class="fas fa-check"></i> Confirm Tips</button>
                 <button id="updateBtn" onclick="updateTips()" class="btn btn-primary hidden"><i class="fas fa-sync-alt"></i> Update Tips</button>
+                <!-- PDF Button - make sure it has the correct ID -->
+                <button id="pdfBtn" onclick="downloadPDF()" class="btn btn-warning hidden"><i class="fas fa-file-pdf"></i> Download PDF</button>
             </div>
         </div>
     </div>
@@ -432,6 +685,8 @@
         let isEditable = false;
         let existingTips = false;
         let detailsVisible = false;
+        let calendarCurrentMonth = new Date().getMonth();
+        let calendarCurrentYear = new Date().getFullYear();
 
         // Function to show notification
         function showNotification(message, type) {
@@ -701,7 +956,287 @@
                 detailsBtn.innerHTML = '<i class="fas fa-chart-pie"></i> Show Calculation Details';
             }
         }
+        // Function to update button visibility based on state
+        function updateButtonVisibility() {
+            const cancelBtn = document.getElementById('cancelBtn');
+            const confirmBtn = document.getElementById('confirmBtn');
+            const updateBtn = document.getElementById('updateBtn');
+            const pdfBtn = document.getElementById('pdfBtn');
+            
+            // PDF button is always visible when there's data
+            if (currentData.length > 0) {
+                pdfBtn.style.display = 'inline-flex';
+            } else {
+                pdfBtn.style.display = 'none';
+            }
+            
+            if (existingTips) {
+                cancelBtn.classList.remove('hidden');
+                updateBtn.classList.remove('hidden');
+                confirmBtn.classList.add('hidden');
+            } else if (currentData.length > 0) {
+                cancelBtn.classList.add('hidden');
+                confirmBtn.classList.remove('hidden');
+                updateBtn.classList.add('hidden');
+            } else {
+                cancelBtn.classList.add('hidden');
+                confirmBtn.classList.add('hidden');
+                updateBtn.classList.add('hidden');
+            }
+        }
 
+        // Function to download PDF
+        async function downloadPDF() {
+            if (!currentData || currentData.length === 0) {
+                showNotification('No tip data available to download', 'error');
+                return;
+            }
+
+            // Show loading state
+            const pdfBtn = document.getElementById('pdfBtn');
+            const originalText = pdfBtn.innerHTML;
+            pdfBtn.disabled = true;
+            pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
+
+            try {
+                const selectedDate = document.getElementById('monthStart').value;
+                const totalTips = currentData.reduce((sum, emp) => sum + emp.tip, 0);
+                const totalHours = currentData.reduce((sum, emp) => sum + emp.hoursWorked, 0);
+                
+                // Format date for display
+                const dateObj = new Date(selectedDate);
+                const formattedDate = dateObj.toLocaleDateString('en-GB', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+
+                // Create clean HTML for PDF
+                const cleanHTML = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Daily Tips Report - ${selectedDate}</title>
+            <style>
+                body { 
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                    margin: 0;
+                    padding: 20px;
+                    color: #333;
+                    line-height: 1.4;
+                }
+                .header {
+                    text-align: center;
+                    margin-bottom: 30px;
+                    border-bottom: 2px solid #2c3e50;
+                    padding-bottom: 15px;
+                }
+                .company-name {
+                    font-size: 24px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin-bottom: 5px;
+                }
+                .report-title {
+                    font-size: 18px;
+                    color: #3498db;
+                    margin-bottom: 10px;
+                }
+                .report-date {
+                    font-size: 16px;
+                    color: #7f8c8d;
+                }
+                .summary-cards {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 25px;
+                    gap: 15px;
+                }
+                .summary-card {
+                    flex: 1;
+                    padding: 15px;
+                    background: #f8f9fa;
+                    border-radius: 8px;
+                    border-left: 4px solid #3498db;
+                    text-align: center;
+                }
+                .summary-value {
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: #2c3e50;
+                    margin: 5px 0;
+                }
+                .summary-label {
+                    font-size: 14px;
+                    color: #7f8c8d;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 20px;
+                    font-size: 14px;
+                }
+                th {
+                    background-color: #2c3e50;
+                    color: white;
+                    font-weight: 600;
+                    padding: 12px 8px;
+                    text-align: left;
+                    border: 1px solid #34495e;
+                }
+                td {
+                    padding: 10px 8px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                }
+                tr:nth-child(even) {
+                    background-color: #f8f9fa;
+                }
+                .total-row {
+                    background-color: #ecf0f1 !important;
+                    font-weight: bold;
+                    border-top: 2px solid #bdc3c7;
+                }
+                .footer {
+                    margin-top: 30px;
+                    text-align: center;
+                    font-size: 12px;
+                    color: #7f8c8d;
+                    border-top: 1px solid #ecf0f1;
+                    padding-top: 15px;
+                }
+                .calculation-info {
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 6px;
+                    margin: 20px 0;
+                    font-size: 13px;
+                }
+                .highlight {
+                    font-weight: bold;
+                    color: #2c3e50;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <div class="company-name">SOLURA</div>
+                <div class="report-title">Daily Tip Distribution Report</div>
+                <div class="report-date">${formattedDate}</div>
+            </div>
+
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="summary-label">Total Tips</div>
+                    <div class="summary-value">£${totalTips.toFixed(2)}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Total Hours</div>
+                    <div class="summary-value">${totalHours.toFixed(2)}</div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-label">Employees</div>
+                    <div class="summary-value">${currentData.length}</div>
+                </div>
+            </div>
+
+            <div class="calculation-info">
+                <strong>Calculation Method:</strong> Tips distributed 100% to employees based on hours worked.<br>
+                <strong>Tip Rate:</strong> £${(totalHours > 0 ? totalTips / totalHours : 0).toFixed(2)} per hour
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employee Name</th>
+                        <th>Hours Worked</th>
+                        <th>Tip Amount (£)</th>
+                        <th>Percentage</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${currentData.map(emp => {
+                        const percentage = totalHours > 0 ? (emp.hoursWorked / totalHours) * 100 : 0;
+                        return `
+                        <tr>
+                            <td>${emp.firstName} ${emp.lastName}</td>
+                            <td>${emp.hoursWorked.toFixed(2)}</td>
+                            <td>£${emp.tip.toFixed(2)}</td>
+                            <td>${percentage.toFixed(1)}%</td>
+                        </tr>
+                        `;
+                    }).join('')}
+                    <tr class="total-row">
+                        <td><strong>Total</strong></td>
+                        <td><strong>${totalHours.toFixed(2)}</strong></td>
+                        <td><strong>£${totalTips.toFixed(2)}</strong></td>
+                        <td><strong>100%</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <p>Generated on ${new Date().toLocaleDateString('en-GB', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })}</p>
+                <p>SOLURA Tip Management System</p>
+            </div>
+        </body>
+        </html>`;
+
+                // Send the HTML to the server to generate the PDF
+                const response = await fetch('/tip/generate-pdf', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + (localStorage.getItem('token') || '')
+                    },
+                    body: JSON.stringify({
+                        htmlContent: cleanHTML,
+                        date: selectedDate,
+                        totalTips: totalTips
+                    })
+                });
+
+                // Handle errors from the server
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to generate PDF');
+                }
+
+                // Create a download link for the PDF
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Daily_Tips_${selectedDate}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up the created link after download
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+
+                showNotification('PDF downloaded successfully', 'success');
+
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                showNotification('Error generating PDF: ' + error.message, 'error');
+            } finally {
+                // Reset loading state
+                pdfBtn.disabled = false;
+                pdfBtn.innerHTML = originalText;
+            }
+        }
         // Function to display detailed calculation breakdown
         function displayCalculationDetails() {
             const container = document.getElementById('detailsContainer');
@@ -868,6 +1403,8 @@
                     showNotification('Tips cancelled successfully', 'success');
                     existingTips = false;
                     loadRota();
+                    // Refresh calendar to reflect the change
+                    renderCalendar();
                 } else {
                     throw new Error(await response.text());
                 }
@@ -910,6 +1447,8 @@
                     showNotification('Tips confirmed successfully', 'success');
                     existingTips = true;
                     loadRota();
+                    // Refresh calendar to reflect the change
+                    renderCalendar();
                     console.log('Submitted data:', {
                         payslips: payslipData,
                         totalHours: parseFloat(totalHours.toFixed(2))
@@ -990,6 +1529,8 @@
                     updateBtn.disabled = false;
                     
                     loadRota();
+                    // Refresh calendar to reflect the change
+                    renderCalendar();
                 } else {
                     throw new Error(await response.text());
                 }
@@ -1027,14 +1568,164 @@
             loadRota();
         }
 
+        // Calendar Functions
+        function renderCalendar() {
+            const monthNames = ["January", "February", "March", "April", "May", "June",
+                               "July", "August", "September", "October", "November", "December"];
+            
+            document.getElementById('calendarMonthYear').textContent = 
+                `${monthNames[calendarCurrentMonth]} ${calendarCurrentYear}`;
+            
+            const firstDay = new Date(calendarCurrentYear, calendarCurrentMonth, 1);
+            const daysInMonth = new Date(calendarCurrentYear, calendarCurrentMonth + 1, 0).getDate();
+            
+            // Adjust to make Monday the first day (0=Sunday, 1=Monday, etc.)
+            let firstDayOfWeek = firstDay.getDay();
+            if (firstDayOfWeek === 0) firstDayOfWeek = 6; // Sunday becomes 6
+            else firstDayOfWeek--; // Other days shift down by 1
+            
+            const calendarGrid = document.getElementById('calendarDays');
+            calendarGrid.innerHTML = '';
+            
+            // Day headers starting with Monday
+            const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            dayNames.forEach(day => {
+                const dayHeader = document.createElement('div');
+                dayHeader.className = 'calendar-day-header';
+                dayHeader.textContent = day;
+                calendarGrid.appendChild(dayHeader);
+            });
+            
+            // Add empty cells for days before the first day of the month
+            for (let i = 0; i < firstDayOfWeek; i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'calendar-day empty-day';
+                calendarGrid.appendChild(emptyDay);
+            }
+            
+            // Add days of the current month
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(calendarCurrentYear, calendarCurrentMonth, day);
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                
+                // Format date as YYYY-MM-DD for the dataset
+                const formattedDate = `${calendarCurrentYear}-${String(calendarCurrentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                dayElement.dataset.date = formattedDate;
+                
+                // Check if this is today
+                const today = new Date();
+                if (date.getDate() === today.getDate() && 
+                    date.getMonth() === today.getMonth() && 
+                    date.getFullYear() === today.getFullYear()) {
+                    dayElement.classList.add('today');
+                }
+                
+                const dayNumber = document.createElement('div');
+                dayNumber.className = 'day-number';
+                dayNumber.textContent = day;
+                dayElement.appendChild(dayNumber);
+                
+                const statusIndicator = document.createElement('div');
+                statusIndicator.className = 'day-status status-no-data';
+                dayElement.appendChild(statusIndicator);
+                
+                calendarGrid.appendChild(dayElement);
+                
+                // Add click handler to load tips for that day
+                dayElement.addEventListener('click', () => {
+                    document.getElementById('monthStart').value = formattedDate;
+                    loadRota();
+                });
+            }
+            
+            // Update statuses for all days
+            updateCalendarStatuses();
+        }
+
+        // Function to Update the Tip status
+        async function updateCalendarStatuses() {
+            try {
+                // Fetch all calendar status data for this month
+                const response = await fetch(`/tip/calendar-status?year=${calendarCurrentYear}&month=${calendarCurrentMonth + 1}`);
+                if (!response.ok) throw new Error('Failed to fetch calendar status');
+                
+                const { data } = await response.json();
+                
+                // Process each calendar day
+                const calendarDays = document.querySelectorAll('.calendar-day:not(.empty-day)');
+                const today = new Date();
+                const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+                
+                calendarDays.forEach(dayElement => {
+                    const date = dayElement.dataset.date; // Format: yyyy-mm-dd
+                    const statusIndicator = dayElement.querySelector('.day-status');
+                    
+                    // Convert calendar date (yyyy-mm-dd) to dd/mm/yyyy format for comparison
+                    const [y, m, d] = date.split('-');
+                    const formattedDate = `${d}/${m}/${y}`;
+                    
+                    // Clear previous classes and tooltip
+                    statusIndicator.className = 'day-status';
+                    dayElement.removeAttribute('style'); // Clear any previous styling
+                    dayElement.title = '';
+                    
+                    if (data.tips[formattedDate]) {
+                        // Tips exist for this date (green)
+                        statusIndicator.classList.add('status-confirmed');
+                        dayElement.title = `Tips confirmed: £${data.tips[formattedDate].toFixed(2)}`;
+                    } else if (data.rotaDays[formattedDate]) {
+                        // Rota exists but no tips (red - needs confirmation)
+                        statusIndicator.classList.add('status-pending');
+                        dayElement.title = 'Tips need confirmation for this day';
+                        
+                        // Highlight today more prominently if it needs confirmation
+                        if (formattedDate === todayFormatted) {
+                            dayElement.style.border = '2px solid var(--warning)';
+                            dayElement.style.backgroundColor = 'rgba(243, 156, 18, 0.1)';
+                        }
+                    } else {
+                        // No data at all (gray)
+                        statusIndicator.classList.add('status-no-data');
+                        dayElement.title = 'No rota data for this day';
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error updating calendar statuses:', error);
+                showNotification('Error loading calendar status', 'error');
+            }
+        }
+
         // Initialize the page
         document.addEventListener('DOMContentLoaded', () => {
             setCurrentDay();
+            renderCalendar();
+            
             // Add event listener for Enter key in tip input
             document.getElementById('tip').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     calculateTip();
                 }
+            });
+            
+            // Calendar navigation
+            document.getElementById('prevMonth').addEventListener('click', () => {
+                calendarCurrentMonth--;
+                if (calendarCurrentMonth < 0) {
+                    calendarCurrentMonth = 11;
+                    calendarCurrentYear--;
+                }
+                renderCalendar();
+            });
+            
+            document.getElementById('nextMonth').addEventListener('click', () => {
+                calendarCurrentMonth++;
+                if (calendarCurrentMonth > 11) {
+                    calendarCurrentMonth = 0;
+                    calendarCurrentYear++;
+                }
+                renderCalendar();
             });
         });
     </script>

@@ -5,6 +5,7 @@ const mysql = require('mysql2');
 const express = require('express');
 const { query } = require('./dbPromise');
 const bodyParser = require('body-parser');
+const puppeteer = require('puppeteer');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { getPool, mainPool } = require('./db.js');
@@ -487,6 +488,65 @@ app.get('/calendar-status', isAuthenticated, (req, res) => {
     });
 });
 
+// Route to generate PDF for tips
+app.post('/generate-pdf', isAuthenticated, async (req, res) => {
+    const { htmlContent, date, totalTips } = req.body;
+    let browser;
+
+    try {
+        const launchOptions = {
+            headless: 'new',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
+        };
+
+        // Dev on Windows
+        if (process.env.NODE_ENV !== 'production' && process.platform === 'win32') {
+            launchOptions.executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+        }
+        // Heroku production
+        else if (process.env.NODE_ENV === 'production') {
+            launchOptions.executablePath = '/app/.chrome-for-testing/chrome-linux64/chrome';
+        }
+
+        browser = await puppeteer.launch(launchOptions);
+        const page = await browser.newPage();
+
+        await page.setContent(htmlContent, {
+            waitUntil: 'networkidle0',
+            timeout: 30000
+        });
+
+        const pdfBuffer = await page.pdf({
+            format: 'A4',
+            landscape: false,
+            printBackground: true,
+            margin: {
+                top: '15mm',
+                right: '10mm',
+                bottom: '15mm',
+                left: '10mm'
+            }
+        });
+
+        // Send PDF as downloadable file
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="Daily_Tips_${date}.pdf"`);
+        res.end(pdfBuffer);
+
+    } catch (error) {
+        console.error('PDF Generation Error:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Failed to generate PDF' });
+        }
+    } finally {
+        if (browser) await browser.close();
+    }
+});
 function processCashReport(report) {
     report.service = parseFloat(report.service) || 0;
     

@@ -468,75 +468,31 @@ app.get('/api/confirmed-rota', (req, res) => {
     });
 });
 
-// Function to remove Employee from Rota
-app.delete('/delete-employee', isAuthenticatedWithIOS, (req, res) => {
-    const dbName = req.session.user.dbName;
-
-    if (!dbName) {
-        console.error('No dbName in session for /delete-employee');
-        return res.status(401).json({ message: 'User not authenticated' });
+// Function to delete tips for a specific day (after rota approval/update)
+async function deleteTipsForDay(pool, day) {
+    try {
+        // Convert day format from "dd/mm/yyyy (DayName)" to "yyyy-mm-dd"
+        const dayParts = day.split(' ');
+        const datePart = dayParts[0]; // "dd/mm/yyyy"
+        const [dayNum, month, year] = datePart.split('/');
+        
+        // Format as yyyy-mm-dd for tip table
+        const formattedDay = `${year}-${month}-${dayNum}`;
+        
+        console.log(`Deleting tips for day: ${formattedDay} (converted from: ${day})`);
+        
+        const deleteQuery = 'DELETE FROM tip WHERE day = ?';
+        const [result] = await pool.promise().query(deleteQuery, [formattedDay]);
+        
+        console.log(`Deleted ${result.affectedRows} tip entries for ${formattedDay}`);
+        return result.affectedRows;
+    } catch (error) {
+        console.error('Error deleting tips for day:', error);
+        throw error;
     }
+}
 
-    const pool = getPool(dbName);
-    const { name, lastName, designation, day } = req.body;
-
-    if (!name || !lastName || !designation || !day) {
-        return res.status(400).send('Missing required parameters.');
-    }
-
-    console.log(`Deleting employee: ${name} ${lastName} (${designation}) from ${day}, db: ${dbName}`);
-
-    const deleteRotaQuery = `
-        DELETE FROM rota
-        WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
-    `;
-    const deleteConfirmedRotaQuery = `
-        DELETE FROM ConfirmedRota
-        WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
-    `;
-    const deleteConfirmedRota2Query = `
-        DELETE FROM ConfirmedRota2
-        WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
-    `;
-
-    pool.query(deleteRotaQuery, [name, lastName, designation, day], (err, results) => {
-        if (err) {
-            console.error('Error deleting from rota:', err);
-            return res.status(500).send('Internal Server Error');
-        }
-
-        if (results.affectedRows === 0) {
-            console.log(`No matching entry found in rota for ${name} ${lastName} (${designation}) on ${day}`);
-        }
-
-        pool.query(deleteConfirmedRotaQuery, [name, lastName, designation, day], (err, results) => {
-            if (err) {
-                console.error('Error deleting from ConfirmedRota:', err);
-                return res.status(500).send('Internal Server Error');
-            }
-
-            if (results.affectedRows === 0) {
-                console.log(`No matching entry found in ConfirmedRota for ${name} ${lastName} (${designation}) on ${day}`);
-            }
-
-            pool.query(deleteConfirmedRota2Query, [name, lastName, designation, day], (err, results) => {
-                if (err) {
-                    console.error('Error deleting from ConfirmedRota2:', err);
-                    return res.status(500).send('Internal Server Error');
-                }
-
-                if (results.affectedRows === 0) {
-                    console.log(`No matching entry found in ConfirmedRota2 for ${name} ${lastName} (${designation}) on ${day}`);
-                }
-
-                console.log(`Successfully deleted entries for ${name} ${lastName} (${designation}) on ${day}`);
-                res.status(200).send('Employee entry successfully removed from all relevant tables.');
-            });
-        });
-    });
-});
-
-// Function to Confirm Rota
+// Function to Confirm Rota (updated with tip cleanup)
 app.post('/confirm-rota', isAuthenticatedWithIOS, async (req, res) => {
     const dbName = req.session.user.dbName;
     if (!dbName) {
@@ -585,6 +541,9 @@ app.post('/confirm-rota', isAuthenticatedWithIOS, async (req, res) => {
             }
 
             try {
+                // DELETE TIPS FOR THIS DAY BEFORE PROCEEDING
+                await deleteTipsForDay(pool, day);
+
                 const rotaValues = await Promise.all(
                     rotaData.flatMap(async entry => {
                         const { name, lastName, day, designation, times } = entry;
@@ -611,8 +570,8 @@ app.post('/confirm-rota', isAuthenticatedWithIOS, async (req, res) => {
                             return res.status(500).send('Internal Server Error');
                         }
 
-                        console.log(`Successfully confirmed rota for ${day} with ${flattenedRotaValues.length} entries`);
-                        res.status(200).send('Rota Confirmed and Updated Successfully.');
+                        console.log(`Successfully confirmed rota for ${day} with ${flattenedRotaValues.length} entries and cleaned up tips`);
+                        res.status(200).send('Rota Confirmed and Updated Successfully. Tips have been reset.');
                     });
                 });
 
@@ -624,7 +583,7 @@ app.post('/confirm-rota', isAuthenticatedWithIOS, async (req, res) => {
     });
 });
 
-// Function to Update Values in Rota table and ConfirmedRota table
+// Function to Update Values in Rota table and ConfirmedRota table (updated with tip cleanup)
 app.post('/updateRotaData', isAuthenticatedWithIOS, async (req, res) => {
     const dbName = req.session.user.dbName;
 
@@ -651,6 +610,9 @@ app.post('/updateRotaData', isAuthenticatedWithIOS, async (req, res) => {
         console.log(`Processing days: ${uniqueDays.join(', ')}`);
 
         for (const day of uniqueDays) {
+            // DELETE TIPS FOR THIS DAY BEFORE PROCEEDING
+            await deleteTipsForDay(pool, day);
+            
             await connection.query(`DELETE FROM rota WHERE day = ?`, [day]);
             await connection.query(`DELETE FROM ConfirmedRota WHERE day = ?`, [day]);
 
@@ -682,8 +644,11 @@ app.post('/updateRotaData', isAuthenticatedWithIOS, async (req, res) => {
         await connection.commit();
         connection.release();
 
-        console.log('Successfully updated rota data');
-        res.send({ success: true });
+        console.log('Successfully updated rota data and cleaned up tips');
+        res.send({ 
+            success: true, 
+            message: 'Rota updated successfully. Tips have been reset for the updated days.' 
+        });
     } catch (err) {
         console.error('Error updating rota data:', err);
 
@@ -693,6 +658,95 @@ app.post('/updateRotaData', isAuthenticatedWithIOS, async (req, res) => {
         }
 
         res.status(500).send({ success: false, message: 'An error occurred while updating rota data.' });
+    }
+});
+
+// Also update the delete-employee endpoint to clean up tips when removing employees
+app.delete('/delete-employee', isAuthenticatedWithIOS, async (req, res) => {
+    const dbName = req.session.user.dbName;
+
+    if (!dbName) {
+        console.error('No dbName in session for /delete-employee');
+        return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    const pool = getPool(dbName);
+    const { name, lastName, designation, day } = req.body;
+
+    if (!name || !lastName || !designation || !day) {
+        return res.status(400).send('Missing required parameters.');
+    }
+
+    console.log(`Deleting employee: ${name} ${lastName} (${designation}) from ${day}, db: ${dbName}`);
+
+    const deleteRotaQuery = `
+        DELETE FROM rota
+        WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
+    `;
+    const deleteConfirmedRotaQuery = `
+        DELETE FROM ConfirmedRota
+        WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
+    `;
+    const deleteConfirmedRota2Query = `
+        DELETE FROM ConfirmedRota2
+        WHERE name = ? AND lastName = ? AND designation = ? AND day = ?
+    `;
+
+    try {
+        // Check if this was the last employee for this day
+        const [remainingEmployees] = await pool.promise().query(
+            'SELECT COUNT(*) as count FROM ConfirmedRota WHERE day = ?',
+            [day]
+        );
+
+        pool.query(deleteRotaQuery, [name, lastName, designation, day], (err, results) => {
+            if (err) {
+                console.error('Error deleting from rota:', err);
+                return res.status(500).send('Internal Server Error');
+            }
+
+            if (results.affectedRows === 0) {
+                console.log(`No matching entry found in rota for ${name} ${lastName} (${designation}) on ${day}`);
+            }
+
+            pool.query(deleteConfirmedRotaQuery, [name, lastName, designation, day], (err, results) => {
+                if (err) {
+                    console.error('Error deleting from ConfirmedRota:', err);
+                    return res.status(500).send('Internal Server Error');
+                }
+
+                if (results.affectedRows === 0) {
+                    console.log(`No matching entry found in ConfirmedRota for ${name} ${lastName} (${designation}) on ${day}`);
+                }
+
+                pool.query(deleteConfirmedRota2Query, [name, lastName, designation, day], async (err, results) => {
+                    if (err) {
+                        console.error('Error deleting from ConfirmedRota2:', err);
+                        return res.status(500).send('Internal Server Error');
+                    }
+
+                    if (results.affectedRows === 0) {
+                        console.log(`No matching entry found in ConfirmedRota2 for ${name} ${lastName} (${designation}) on ${day}`);
+                    }
+
+                    // If this was the last employee for the day, delete tips for that day
+                    if (remainingEmployees[0].count === 1 && results.affectedRows > 0) {
+                        try {
+                            await deleteTipsForDay(pool, day);
+                            console.log(`Deleted tips for ${day} as it was the last employee`);
+                        } catch (tipError) {
+                            console.error('Error deleting tips after removing last employee:', tipError);
+                        }
+                    }
+
+                    console.log(`Successfully deleted entries for ${name} ${lastName} (${designation}) on ${day}`);
+                    res.status(200).send('Employee entry successfully removed from all relevant tables.');
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Error checking remaining employees:', error);
+        res.status(500).send('Internal Server Error');
     }
 });
 
