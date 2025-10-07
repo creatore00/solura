@@ -84,7 +84,7 @@ function generateToken(user) {
 // CRITICAL FIX: Enhanced CORS for iOS Capacitor
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow all origins for iOS/Capacitor - this is critical
+        // Allow all origins for iPad - this is critical
         if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
             return callback(null, true);
         }
@@ -100,7 +100,7 @@ const corsOptions = {
             'https://localhost'
         ];
         
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
             callback(null, true);
         } else {
             console.log('Blocked by CORS:', origin);
@@ -257,17 +257,17 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// CRITICAL FIX: Session configuration for iOS - SIMPLIFIED
+// UPDATED Session configuration for iPad
 app.use(session({
     secret: SESSION_SECRET,
-    resave: false,
+    resave: true, // Changed to true for iPad
     saveUninitialized: true,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // MUST be false for Capacitor
-        httpOnly: false, // Changed to false for iOS compatibility
-        sameSite: 'lax',
+        secure: false, // MUST be false for iPad
+        httpOnly: false, // Must be false for iPad compatibility
+        sameSite: 'None', // Changed to None for iPad
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/'
     },
@@ -307,6 +307,34 @@ app.use((req, res, next) => {
             if (callback) callback(err);
         });
     };
+    next();
+});
+
+// CRITICAL: iPad/iOS Session Fix Middleware
+app.use((req, res, next) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIPad = /iPad|Macintosh/.test(userAgent) && /Safari/.test(userAgent);
+    
+    if (isIPad) {
+        console.log('📱 iPad Device Detected - Applying session fixes');
+        
+        // Force session cookie for iPad
+        if (req.sessionID) {
+            res.cookie('solura.session', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false,
+                sameSite: 'None', // Changed from 'Lax' to 'None' for iPad
+                path: '/'
+            });
+        }
+        
+        // Ensure session persistence
+        if (!req.session.initialized) {
+            req.session.initialized = true;
+            console.log('📱 Initializing session for iPad');
+        }
+    }
     next();
 });
 
@@ -376,7 +404,8 @@ app.get('/', (req, res) => {
     console.log('Referer:', referer);
     console.log('Origin:', origin);
 
-    // Enhanced Capacitor/iOS detection
+    // Enhanced iPad detection
+    const isIPad = /iPad|Macintosh/.test(userAgent) && /Safari/.test(userAgent);
     const isCapacitorApp = 
         /Capacitor/.test(userAgent) ||
         /iPhone|iPad|iPod/.test(userAgent) ||
@@ -385,22 +414,22 @@ app.get('/', (req, res) => {
         origin.startsWith('capacitor://') ||
         origin.startsWith('ionic://') ||
         req.headers['x-capacitor'] === 'true' ||
-        req.query.capacitor === 'true' ||
-        (userAgent.includes('Mobile') && !userAgent.includes('Safari'));
+        req.query.capacitor === 'true';
 
+    console.log('iPad detected:', isIPad);
     console.log('Capacitor app detected:', isCapacitorApp);
 
-    // CRITICAL: Set session cookie header for iOS
-    if (isCapacitorApp || /iPhone|iPad|iPod/.test(userAgent)) {
-        console.log('📱 Serving LoginApp.html for iOS/Capacitor with session cookie');
+    // CRITICAL: Set session cookie for iPad
+    if (isIPad || isCapacitorApp) {
+        console.log('📱 Serving LoginApp.html for iPad with session cookie');
         
-        // Ensure session cookie is set
+        // Ensure session cookie is set with iPad-specific settings
         if (req.sessionID) {
             res.cookie('solura.session', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
                 httpOnly: false,
                 secure: false,
-                sameSite: 'Lax',
+                sameSite: 'None', // Critical for iPad
                 path: '/'
             });
         }
@@ -410,6 +439,73 @@ app.get('/', (req, res) => {
 
     console.log('💻 Serving Login.html for browser');
     res.sendFile(path.join(__dirname, 'Login.html'));
+});
+
+// iPad-specific session initialization
+app.get('/api/ipad-init', (req, res) => {
+    console.log('📱 iPad Session Initialization Request');
+    
+    // Ensure session is created and persisted
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+        req.session.ipadDevice = true;
+        console.log('📱 Initializing new session for iPad');
+    }
+    
+    // CRITICAL: Set session cookie with iPad-optimized settings
+    res.cookie('solura.session', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'None', // Essential for iPad Safari
+        path: '/'
+    });
+    
+    // Touch session to ensure persistence
+    safeSessionTouch(req);
+    
+    req.session.save((err) => {
+        if (err) {
+            console.error('❌ Error saving iPad session:', err);
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Session initialization failed' 
+            });
+        }
+        
+        console.log('✅ iPad session initialized with ID:', req.sessionID);
+        
+        res.json({
+            success: true,
+            sessionId: req.sessionID,
+            message: 'iPad session initialized successfully',
+            cookiesSupported: true
+        });
+    });
+});
+
+// iPad session debug endpoint
+app.get('/api/ipad-debug', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIPad = /iPad|Macintosh/.test(userAgent) && /Safari/.test(userAgent);
+    
+    res.json({
+        success: true,
+        platform: 'ipad',
+        session: {
+            id: req.sessionID,
+            exists: !!req.session,
+            user: req.session?.user,
+            initialized: req.session?.initialized
+        },
+        headers: {
+            cookie: req.headers.cookie,
+            'user-agent': userAgent,
+            origin: req.headers.origin
+        },
+        isIPad: isIPad,
+        timestamp: new Date().toISOString()
+    });
 });
 
 // CRITICAL FIX: Add session cookie to all static file routes

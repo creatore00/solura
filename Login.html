@@ -1004,6 +1004,34 @@ document.addEventListener('DOMContentLoaded', function() {
         errorDiv.style.display = 'block';
     }
 
+    // Detect iPad and initialize session properly
+    function detectIPad() {
+        const userAgent = navigator.userAgent || '';
+        const isIPad = /iPad|Macintosh/.test(userAgent) && /Safari/.test(userAgent);
+        
+        if (isIPad) {
+            console.log('📱 iPad detected - initializing session');
+            // Call the iPad init endpoint
+            fetch('/api/ipad-init', {
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('📱 iPad session initialized:', data);
+                if (data.success) {
+                    // Store session ID for future requests
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+            })
+            .catch(error => {
+                console.error('📱 iPad session init error:', error);
+            });
+        }
+    }
+
+    // Call this when your app loads
+    document.addEventListener('DOMContentLoaded', detectIPad);
+
     // Store session data for recovery
     function storeSessionData(data) {
         if (data.sessionId) {
