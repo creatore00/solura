@@ -614,281 +614,281 @@
         }
     }
 
-    // Enhanced Real-time Session Monitor
-    class SessionMonitor {
-        constructor() {
-            this.checkInterval = null;
-            this.heartbeatConnection = null;
-            this.isMonitoring = false;
-            this.consecutiveErrors = 0;
-            this.maxConsecutiveErrors = 3;
-        }
+// Enhanced Real-time Session Monitor
+class SessionMonitor {
+    constructor() {
+        this.checkInterval = null;
+        this.heartbeatConnection = null;
+        this.isMonitoring = false;
+        this.consecutiveErrors = 0;
+        this.maxConsecutiveErrors = 3;
+    }
 
-        start() {
-            if (this.isMonitoring) return;
-            
-            console.log('🔄 Starting enhanced real-time session monitoring');
-            this.isMonitoring = true;
-            
-            // Start with an immediate check
-            this.checkSessionValidity();
-            
-            // Then start periodic checking
-            this.startPeriodicChecking();
-            
-            // Try heartbeat connection
-            this.startHeartbeatConnection();
-            
-            // Bind to user activity
-            this.bindActivityEvents();
-        }
+    start() {
+        if (this.isMonitoring) return;
+        
+        console.log('🔄 Starting enhanced real-time session monitoring');
+        this.isMonitoring = true;
+        
+        // Start with an immediate check
+        this.checkSessionValidity();
+        
+        // Then start periodic checking
+        this.startPeriodicChecking();
+        
+        // Try heartbeat connection
+        this.startHeartbeatConnection();
+        
+        // Bind to user activity
+        this.bindActivityEvents();
+    }
 
-        async checkSessionValidity() {
-            try {
-                console.log('🔍 Checking session validity...');
-                
-                const response = await fetch('/api/validate-session-real-time', {
-                    method: 'GET',
-                    credentials: 'include',
-                    headers: {
-                        'Cache-Control': 'no-cache',
-                        'Pragma': 'no-cache',
-                        'X-Session-Check': 'true'
-                    }
-                });
-
-                const data = await response.json();
-                console.log('📨 Session validation response:', data);
-                
-                if (data.valid) {
-                    this.consecutiveErrors = 0; // Reset error counter
-                    console.log('✅ Session is valid');
-                } else {
-                    this.handleSessionTermination(data);
+    async checkSessionValidity() {
+        try {
+            console.log('🔍 Checking session validity...');
+            
+            const response = await fetch('/api/validate-session-real-time', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'X-Session-Check': 'true'
                 }
-            } catch (error) {
-                console.error('❌ Session check failed:', error);
-                this.consecutiveErrors++;
-                
-                if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
-                    this.handleSessionTermination({
-                        reason: 'connection_error',
-                        message: 'Cannot verify session status after multiple attempts'
-                    });
-                }
-            }
-        }
-
-        startPeriodicChecking() {
-            this.checkInterval = setInterval(() => {
-                this.checkSessionValidity();
-            }, 5000); // Check every 5 seconds
-        }
-
-        startHeartbeatConnection() {
-            try {
-                console.log('🔗 Attempting heartbeat connection...');
-                this.heartbeatConnection = new EventSource('/api/session-heartbeat', {
-                    withCredentials: true
-                });
-
-                this.heartbeatConnection.onmessage = (event) => {
-                    console.log('💓 Heartbeat message:', event.data);
-                    try {
-                        const data = JSON.parse(event.data);
-                        if (!data.valid) {
-                            this.handleSessionTermination(data);
-                        } else {
-                            this.consecutiveErrors = 0; // Reset on successful heartbeat
-                        }
-                    } catch (parseError) {
-                        console.error('Error parsing heartbeat data:', parseError);
-                    }
-                };
-
-                this.heartbeatConnection.onerror = (error) => {
-                    console.log('💔 Heartbeat connection error:', error);
-                    this.consecutiveErrors++;
-                    
-                    if (this.heartbeatConnection) {
-                        this.heartbeatConnection.close();
-                        this.heartbeatConnection = null;
-                    }
-                    
-                    // Fall back to periodic checking if SSE fails too many times
-                    if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
-                        console.log('🔄 Falling back to periodic checking only');
-                    }
-                };
-
-                this.heartbeatConnection.onopen = () => {
-                    console.log('✅ Heartbeat connection established');
-                    this.consecutiveErrors = 0;
-                };
-
-            } catch (error) {
-                console.log('❌ SSE not supported:', error);
-            }
-        }
-
-        bindActivityEvents() {
-            const activityEvents = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-            const throttledCheck = this.throttle(() => {
-                this.checkSessionValidity();
-            }, 10000); // Throttle to once every 10 seconds
-
-            activityEvents.forEach(event => {
-                document.addEventListener(event, throttledCheck, { passive: true });
             });
-        }
 
-        throttle(func, limit) {
-            let inThrottle;
-            return function() {
-                const args = arguments;
-                const context = this;
-                if (!inThrottle) {
-                    func.apply(context, args);
-                    inThrottle = true;
-                    setTimeout(() => inThrottle = false, limit);
-                }
-            }
-        }
-
-        handleSessionTermination(data) {
-            console.log('🚫 Session termination detected:', data);
+            const data = await response.json();
+            console.log('📨 Session validation response:', data);
             
-            // Stop all monitoring immediately
-            this.stop();
-            
-            // Show notification
-            this.showTerminationAlert(data);
-            
-            // Redirect after delay
-            setTimeout(() => {
-                this.redirectToLogin(data);
-            }, 3000);
-        }
-
-        showTerminationAlert(data) {
-            // Remove any existing alerts
-            const existingAlert = document.querySelector('.session-termination-alert');
-            if (existingAlert) {
-                existingAlert.remove();
-            }
-
-            const alertDiv = document.createElement('div');
-            alertDiv.className = 'session-termination-alert';
-            alertDiv.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                background: #dc3545;
-                color: white;
-                padding: 20px;
-                text-align: center;
-                font-weight: bold;
-                font-size: 16px;
-                z-index: 10000;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                animation: slideDown 0.5s ease-out;
-            `;
-
-            // Add CSS animation
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes slideDown {
-                    from { transform: translateY(-100%); }
-                    to { transform: translateY(0); }
-                }
-            `;
-            document.head.appendChild(style);
-
-            let message = 'You have been logged out from another device.';
-            if (data.message) {
-                message = data.message;
-            }
-            
-            alertDiv.innerHTML = `
-                <div style="margin-bottom: 8px;">${message}</div>
-                <div style="font-size: 14px; opacity: 0.9;">Redirecting to login page in 3 seconds...</div>
-            `;
-            
-            document.body.prepend(alertDiv);
-            this.disablePageInteraction();
-        }
-
-        disablePageInteraction() {
-            const overlay = document.createElement('div');
-            overlay.className = 'session-block-overlay';
-            overlay.style.cssText = `
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0,0,0,0.7);
-                z-index: 9999;
-                cursor: not-allowed;
-            `;
-            document.body.appendChild(overlay);
-        }
-
-        redirectToLogin(data) {
-            console.log('🔀 Redirecting to login page');
-            
-            // Clear all stored session data
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            // Build redirect URL with message
-            let redirectUrl = '/';
-            if (data.message) {
-                redirectUrl += '?message=' + encodeURIComponent(data.message);
+            if (data.valid) {
+                this.consecutiveErrors = 0; // Reset error counter
+                console.log('✅ Session is valid');
             } else {
-                redirectUrl += '?message=' + encodeURIComponent('You were logged out from another device.');
+                this.handleSessionTermination(data);
             }
+        } catch (error) {
+            console.error('❌ Session check failed:', error);
+            this.consecutiveErrors++;
             
-            // Force redirect
-            window.location.href = redirectUrl;
-        }
-
-        stop() {
-            console.log('🛑 Stopping session monitoring');
-            
-            if (this.checkInterval) {
-                clearInterval(this.checkInterval);
-                this.checkInterval = null;
+            if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+                this.handleSessionTermination({
+                    reason: 'connection_error',
+                    message: 'Cannot verify session status after multiple attempts'
+                });
             }
-            
-            if (this.heartbeatConnection) {
-                this.heartbeatConnection.close();
-                this.heartbeatConnection = null;
-            }
-            
-            this.isMonitoring = false;
         }
     }
 
-    // Initialize session monitoring
-    document.addEventListener('DOMContentLoaded', function() {
-        // Only start on protected pages
-        const protectedPages = ['/Admin', '/User', '/Supervisor', '/AdminApp', '/UserApp', '/SupervisorApp'];
-        const currentPath = window.location.pathname;
-        
-        const isProtectedPage = protectedPages.some(page => currentPath.includes(page));
-        
-        if (isProtectedPage) {
-            const sessionMonitor = new SessionMonitor();
-            sessionMonitor.start();
-            
-            // Make available globally for debugging
-            window.sessionMonitor = sessionMonitor;
-            
-            console.log('✅ Enhanced session monitoring started for:', currentPath);
+    startPeriodicChecking() {
+        this.checkInterval = setInterval(() => {
+            this.checkSessionValidity();
+        }, 5000); // Check every 5 seconds
+    }
+
+    startHeartbeatConnection() {
+        try {
+            console.log('🔗 Attempting heartbeat connection...');
+            this.heartbeatConnection = new EventSource('/api/session-heartbeat', {
+                withCredentials: true
+            });
+
+            this.heartbeatConnection.onmessage = (event) => {
+                console.log('💓 Heartbeat message:', event.data);
+                try {
+                    const data = JSON.parse(event.data);
+                    if (!data.valid) {
+                        this.handleSessionTermination(data);
+                    } else {
+                        this.consecutiveErrors = 0; // Reset on successful heartbeat
+                    }
+                } catch (parseError) {
+                    console.error('Error parsing heartbeat data:', parseError);
+                }
+            };
+
+            this.heartbeatConnection.onerror = (error) => {
+                console.log('💔 Heartbeat connection error:', error);
+                this.consecutiveErrors++;
+                
+                if (this.heartbeatConnection) {
+                    this.heartbeatConnection.close();
+                    this.heartbeatConnection = null;
+                }
+                
+                // Fall back to periodic checking if SSE fails too many times
+                if (this.consecutiveErrors >= this.maxConsecutiveErrors) {
+                    console.log('🔄 Falling back to periodic checking only');
+                }
+            };
+
+            this.heartbeatConnection.onopen = () => {
+                console.log('✅ Heartbeat connection established');
+                this.consecutiveErrors = 0;
+            };
+
+        } catch (error) {
+            console.log('❌ SSE not supported:', error);
         }
-    });
+    }
+
+    bindActivityEvents() {
+        const activityEvents = ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+        const throttledCheck = this.throttle(() => {
+            this.checkSessionValidity();
+        }, 10000); // Throttle to once every 10 seconds
+
+        activityEvents.forEach(event => {
+            document.addEventListener(event, throttledCheck, { passive: true });
+        });
+    }
+
+    throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        }
+    }
+
+    handleSessionTermination(data) {
+        console.log('🚫 Session termination detected:', data);
+        
+        // Stop all monitoring immediately
+        this.stop();
+        
+        // Show notification
+        this.showTerminationAlert(data);
+        
+        // Redirect after delay
+        setTimeout(() => {
+            this.redirectToLogin(data);
+        }, 3000);
+    }
+
+    showTerminationAlert(data) {
+        // Remove any existing alerts
+        const existingAlert = document.querySelector('.session-termination-alert');
+        if (existingAlert) {
+            existingAlert.remove();
+        }
+
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'session-termination-alert';
+        alertDiv.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: #dc3545;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            animation: slideDown 0.5s ease-out;
+        `;
+
+        // Add CSS animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideDown {
+                from { transform: translateY(-100%); }
+                to { transform: translateY(0); }
+            }
+        `;
+        document.head.appendChild(style);
+
+        let message = 'You have been logged out from another device.';
+        if (data.message) {
+            message = data.message;
+        }
+        
+        alertDiv.innerHTML = `
+            <div style="margin-bottom: 8px;">${message}</div>
+            <div style="font-size: 14px; opacity: 0.9;">Redirecting to login page in 3 seconds...</div>
+        `;
+        
+        document.body.prepend(alertDiv);
+        this.disablePageInteraction();
+    }
+
+    disablePageInteraction() {
+        const overlay = document.createElement('div');
+        overlay.className = 'session-block-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 9999;
+            cursor: not-allowed;
+        `;
+        document.body.appendChild(overlay);
+    }
+
+    redirectToLogin(data) {
+        console.log('🔀 Redirecting to login page');
+        
+        // Clear all stored session data
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Build redirect URL with message
+        let redirectUrl = '/';
+        if (data.message) {
+            redirectUrl += '?message=' + encodeURIComponent(data.message);
+        } else {
+            redirectUrl += '?message=' + encodeURIComponent('You were logged out from another device.');
+        }
+        
+        // Force redirect
+        window.location.href = redirectUrl;
+    }
+
+    stop() {
+        console.log('🛑 Stopping session monitoring');
+        
+        if (this.checkInterval) {
+            clearInterval(this.checkInterval);
+            this.checkInterval = null;
+        }
+        
+        if (this.heartbeatConnection) {
+            this.heartbeatConnection.close();
+            this.heartbeatConnection = null;
+        }
+        
+        this.isMonitoring = false;
+    }
+}
+
+// Initialize session monitoring
+document.addEventListener('DOMContentLoaded', function() {
+    // Only start on protected pages
+    const protectedPages = ['/Admin', '/User', '/Supervisor', '/AdminApp', '/UserApp', '/SupervisorApp'];
+    const currentPath = window.location.pathname;
+    
+    const isProtectedPage = protectedPages.some(page => currentPath.includes(page));
+    
+    if (isProtectedPage) {
+        const sessionMonitor = new SessionMonitor();
+        sessionMonitor.start();
+        
+        // Make available globally for debugging
+        window.sessionMonitor = sessionMonitor;
+        
+        console.log('✅ Enhanced session monitoring started for:', currentPath);
+    }
+});
 
     // Handle cancel login
     function handleCancelLogin() {
@@ -1003,34 +1003,6 @@
         errorDiv.textContent = message;
         errorDiv.style.display = 'block';
     }
-
-    // Detect iPad and initialize session properly
-    function detectIPad() {
-        const userAgent = navigator.userAgent || '';
-        const isIPad = /iPad|Macintosh/.test(userAgent) && /Safari/.test(userAgent);
-        
-        if (isIPad) {
-            console.log('📱 iPad detected - initializing session');
-            // Call the iPad init endpoint
-            fetch('/api/ipad-init', {
-                credentials: 'include'
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('📱 iPad session initialized:', data);
-                if (data.success) {
-                    // Store session ID for future requests
-                    localStorage.setItem('sessionId', data.sessionId);
-                }
-            })
-            .catch(error => {
-                console.error('📱 iPad session init error:', error);
-            });
-        }
-    }
-
-    // Call this when your app loads
-    document.addEventListener('DOMContentLoaded', detectIPad);
 
     // Store session data for recovery
     function storeSessionData(data) {
@@ -1168,22 +1140,6 @@
         }
     }
        
-    // Enhanced session validation with cookie support
-    async function validateSession() {
-        try {
-            const response = await fetch('/api/validate-session', {
-                method: 'GET',
-                credentials: 'include' // CRITICAL: This sends cookies
-            });
-            
-            const data = await response.json();
-            return data.valid;
-        } catch (error) {
-            console.error('Session validation error:', error);
-            return false;
-        }
-    }
-    
     // Close popup
     function closePopup() {
         const popup = document.getElementById('databasePopup');
