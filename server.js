@@ -51,8 +51,17 @@ const isProduction = process.env.NODE_ENV === 'production';
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production';
 
-// Trust proxy for Heroku
-app.set('trust proxy', 1);
+// Enhanced trust proxy for Heroku
+app.set('trust proxy', 1); // Trust first proxy
+
+// Add this middleware to handle proxy headers
+app.use((req, res, next) => {
+    // Ensure secure cookies work behind Heroku's proxy
+    if (req.headers['x-forwarded-proto'] === 'https') {
+        req.connection.encrypted = true;
+    }
+    next();
+});
 
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
@@ -257,22 +266,23 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// UPDATED Session configuration for iPad
+// FIXED Session configuration for Heroku
 app.use(session({
     secret: SESSION_SECRET,
-    resave: true, // Changed to true for iPad
+    resave: false,
     saveUninitialized: true,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // MUST be false for iPad
-        httpOnly: false, // Must be false for iPad compatibility
-        sameSite: 'None', // Changed to None for iPad
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        path: '/'
+        secure: true, // MUST be true for HTTPS on Heroku
+        httpOnly: true,
+        sameSite: 'none', // Critical for cross-origin on Heroku
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+        domain: '.solura.uk' // Add this for subdomain cookie sharing
     },
     rolling: true,
-    proxy: false
+    proxy: true // CRITICAL for Heroku
 }));
 
 // FIXED: Session tracking ONLY on initial login/session creation
@@ -309,6 +319,60 @@ app.use((req, res, next) => {
     };
     next();
 });
+
+// CRITICAL: Cookie and session header middleware
+app.use((req, res, next) => {
+    // Store original methods
+    const originalJson = res.json;
+    const originalSend = res.send;
+    const originalEnd = res.end;
+    
+    // Add session cookie to ALL responses
+    if (req.sessionID && req.session?.user) {
+        res.cookie('solura.session', req.sessionID, {
+            secure: true,
+            httpOnly: true,
+            sameSite: 'none',
+            maxAge: 24 * 60 * 60 * 1000,
+            path: '/',
+            domain: '.solura.uk'
+        });
+        
+        // Also send session ID in header for JavaScript access
+        res.setHeader('X-Session-ID', req.sessionID);
+    }
+    
+    // Override response methods to ensure cookies are set
+    res.json = function(data) {
+        setSessionCookie(this, req);
+        return originalJson.call(this, data);
+    };
+    
+    res.send = function(data) {
+        setSessionCookie(this, req);
+        return originalSend.call(this, data);
+    };
+    
+    res.end = function(data, encoding) {
+        setSessionCookie(this, req);
+        return originalEnd.call(this, data, encoding);
+    };
+    
+    next();
+});
+
+function setSessionCookie(res, req) {
+    if (req.sessionID && req.session?.user) {
+        res.cookie('solura.session', req.sessionID, {
+            secure: true,
+            httpOnly: true,
+            sameSite: 'none',
+            maxAge: 24 * 60 * 60 * 1000,
+            path: '/',
+            domain: '.solura.uk'
+        });
+    }
+}
 
 // CRITICAL: iPad/iOS Session Fix Middleware
 app.use((req, res, next) => {
@@ -587,6 +651,38 @@ app.get('/health', (req, res) => {
             initialized: req.session?.initialized
         },
         timestamp: new Date().toISOString()
+    });
+});
+
+// Cookie debug endpoint
+app.get('/api/cookie-debug', (req, res) => {
+    console.log('=== COOKIE DEBUG ===');
+    console.log('Headers:', req.headers);
+    console.log('Cookies received:', req.headers.cookie);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session user:', req.session?.user);
+    
+    // Test setting a cookie
+    res.cookie('debug_test', 'working', {
+        secure: true,
+        httpOnly: false, // Make it accessible to JS for testing
+        sameSite: 'none',
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+        domain: '.solura.uk'
+    });
+    
+    res.json({
+        success: true,
+        cookiesReceived: req.headers.cookie || 'none',
+        sessionId: req.sessionID,
+        sessionExists: !!req.session,
+        sessionUser: req.session?.user,
+        headers: {
+            origin: req.headers.origin,
+            'user-agent': req.headers['user-agent']
+        }
     });
 });
 
@@ -2076,7 +2172,7 @@ app.post('/submit', async (req, res) => {
                     redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
-                // Save session and then respond
+                // In your login success handler, add this before sending response:
                 req.session.save((err) => {
                     if (err) {
                         console.error('Error saving session:', err);
@@ -2087,6 +2183,16 @@ app.post('/submit', async (req, res) => {
                     }
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
+
+                    // CRITICAL: Set cookie in the response
+                    res.cookie('solura.session', req.sessionID, {
+                        secure: true,
+                        httpOnly: true,
+                        sameSite: 'none',
+                        maxAge: 24 * 60 * 60 * 1000,
+                        path: '/',
+                        domain: '.solura.uk'
+                    });
 
                     res.json({
                         success: true,
