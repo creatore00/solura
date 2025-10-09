@@ -162,27 +162,18 @@ app.use((req, res, next) => {
     next();
 });
 
-// Cookie cleanup middleware
+// Cookie parsing middleware - CRITICAL FIX
 app.use((req, res, next) => {
+    // Parse cookies manually if express-session isn't doing it
     if (req.headers.cookie) {
-        const cookies = req.headers.cookie.split(';');
-        const uniqueCookies = new Map();
-        
-        for (let i = cookies.length - 1; i >= 0; i--) {
-            const cookie = cookies[i].trim();
-            const [name, value] = cookie.split('=');
+        const cookies = {};
+        req.headers.cookie.split(';').forEach(cookie => {
+            const [name, value] = cookie.trim().split('=');
             if (name && value) {
-                if (!uniqueCookies.has(name)) {
-                    uniqueCookies.set(name, value);
-                }
+                cookies[name] = value;
             }
-        }
-        
-        const newCookieHeader = Array.from(uniqueCookies.entries())
-            .map(([name, value]) => `${name}=${value}`)
-            .join('; ');
-        
-        req.headers.cookie = newCookieHeader;
+        });
+        req.cookies = cookies;
     }
     next();
 });
@@ -204,38 +195,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Session debugging middleware
-app.use((req, res, next) => {
-    console.log('=== SESSION DEBUG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Origin:', req.headers.origin);
-    console.log('User-Agent:', req.headers['user-agent']);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    console.log('Cookies:', req.headers.cookie);
-    console.log('=== END DEBUG ===');
-    next();
-});
-
-// Add this middleware to send session ID in headers
-app.use((req, res, next) => {
-    // Store the original json method
-    const originalJson = res.json;
-    
-    // Override res.json to include session ID in headers for iOS
-    res.json = function(data) {
-        // Add session ID to headers for iOS requests
-        const userAgent = req.headers['user-agent'] || '';
-        if (/iPhone|iPad|iPod/i.test(userAgent) && req.sessionID) {
-            res.setHeader('X-Session-ID', req.sessionID);
-        }
-        return originalJson.call(this, data);
-    };
-    next();
-});
-
 // MySQL session store
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
@@ -253,59 +212,63 @@ const sessionStore = new MySQLStore({
         }
     },
     checkExpirationInterval: 60000,
-    expiration: 600000,
+    expiration: 24 * 60 * 60 * 1000, // 24 hours
     clearExpired: true
 }, mainPool);
 
-// CRITICAL FIX: Session configuration for iOS - SIMPLIFIED
+// CRITICAL FIX: Session configuration - FIXED VERSION
 app.use(session({
     secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true,
+    resave: true, // Changed to true for better session persistence
+    saveUninitialized: true, // Keep as true to ensure session is created
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // MUST be false for Capacitor
+        secure: false, // MUST be false for Capacitor and HTTP
         httpOnly: false, // Changed to false for iOS compatibility
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/'
     },
-    rolling: true,
-    proxy: false
+    rolling: true, // Refresh session on each request
+    proxy: false,
+    unset: 'keep' // Keep session even when unset
 }));
 
-// FIXED: Session tracking ONLY on initial login/session creation
+// CRITICAL FIX: Session debugging and persistence middleware
 app.use((req, res, next) => {
-    const originalSave = req.session.save;
-    let isNewSessionTracked = false;
+    console.log('=== SESSION DEBUG ===');
+    console.log('URL:', req.url);
+    console.log('Method:', req.method);
+    console.log('Origin:', req.headers.origin);
+    console.log('User-Agent:', req.headers['user-agent']);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    console.log('Cookies:', req.headers.cookie);
+    console.log('=== END DEBUG ===');
     
-    req.session.save = function(callback) {
-        originalSave.call(this, (err) => {
-            if (!err && req.session.user && req.session.user.email) {
-                const email = req.session.user.email;
-                
-                // ONLY track if this is a NEW session (no user data before)
-                const hadUserBefore = req.session.previousUser === email;
-                
-                if (!hadUserBefore && !isNewSessionTracked) {
-                    if (!activeSessions.has(email)) {
-                        activeSessions.set(email, new Set());
-                    }
-                    
-                    // Only track if this session ID isn't already tracked
-                    if (!activeSessions.get(email).has(req.sessionID)) {
-                        activeSessions.get(email).add(req.sessionID);
-                        isNewSessionTracked = true;
-                        console.log(`✅ NEW Session tracked for ${email}: ${req.sessionID}`);
-                    }
-                }
-                
-                // Store current user for next comparison
-                req.session.previousUser = email;
-            }
-            if (callback) callback(err);
-        });
+    // Ensure session is properly initialized
+    if (req.session && !req.session.initialized) {
+        req.session.initialized = true;
+    }
+    
+    next();
+});
+
+// Add this middleware to send session ID in headers
+app.use((req, res, next) => {
+    // Store the original json method
+    const originalJson = res.json;
+    
+    // Override res.json to include session ID in headers for iOS
+    res.json = function(data) {
+        // Add session ID to headers for iOS requests
+        const userAgent = req.headers['user-agent'] || '';
+        if (/iPhone|iPad|iPod/i.test(userAgent) && req.sessionID) {
+            res.setHeader('X-Session-ID', req.sessionID);
+        }
+        return originalJson.call(this, data);
     };
     next();
 });
@@ -354,6 +317,7 @@ app.use((req, res, next) => {
                 if (sessionData && sessionData.user) {
                     console.log('✅ External session data found, merging...');
                     Object.assign(req.session, sessionData);
+                    req.session.touch(); // Update last access
                 }
                 next();
             });
@@ -363,6 +327,25 @@ app.use((req, res, next) => {
     } else {
         next();
     }
+});
+
+// CRITICAL FIX: Session tracking middleware - SIMPLIFIED
+app.use((req, res, next) => {
+    // Track session creation and user assignment
+    if (req.session && req.session.user && req.session.user.email) {
+        const email = req.session.user.email;
+        
+        if (!activeSessions.has(email)) {
+            activeSessions.set(email, new Set());
+        }
+        
+        // Always ensure current session is tracked
+        if (!activeSessions.get(email).has(req.sessionID)) {
+            activeSessions.get(email).add(req.sessionID);
+            console.log(`✅ Session tracked for ${email}: ${req.sessionID}`);
+        }
+    }
+    next();
 });
 
 // CRITICAL FIX: Enhanced root route with session cookie header
@@ -375,6 +358,8 @@ app.get('/', (req, res) => {
     console.log('User-Agent:', userAgent);
     console.log('Referer:', referer);
     console.log('Origin:', origin);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session User:', req.session?.user);
 
     // Enhanced Capacitor/iOS detection
     const isCapacitorApp = 
@@ -625,7 +610,6 @@ app.post('/api/force-logout-others', async (req, res) => {
                     sessionStore.destroy(sessionId, (err) => {
                         if (!err) {
                             loggedOutCount++;
-                            sessionCreationTime.delete(sessionId);
                             console.log(`✅ Immediately destroyed session: ${sessionId}`);
                         }
                         resolve();
@@ -683,23 +667,7 @@ app.post('/api/verify-biometric', async (req, res) => {
                 error: 'Invalid or expired token' 
             });
         }
-        // Verify the access token
-        try {
-            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
-            if (decoded.email !== email) {
-                return res.status(401).json({ 
-                    success: false,
-                    error: 'Invalid token' 
-                });
-            }
-            // Store the decoded token for later use
-            req.decodedToken = decoded;
-        } catch (tokenError) {
-            return res.status(401).json({ 
-                success: false,
-                error: 'Invalid or expired token' 
-            });
-        }
+
         // Get user info from database - include ALL databases for this user
         const sql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
 
@@ -1133,55 +1101,44 @@ app.post('/api/switch-database', isAuthenticated, async (req, res) => {
                 // Store the current session ID for tracking
                 const oldSessionId = req.sessionID;
                 
-                // CRITICAL: Regenerate session to get a new session ID
-                req.session.regenerate((err) => {
+                // CRITICAL: Update session WITHOUT regenerating to maintain session ID
+                req.session.user = {
+                    email: email,
+                    role: userDetails.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+
+                console.log('🔄 Database switching - Same session ID:', req.sessionID);
+                console.log('🔄 Updated session user:', req.session.user);
+
+                // Save the session
+                req.session.save((err) => {
                     if (err) {
-                        console.error('Error regenerating session:', err);
+                        console.error('Error saving session after database switch:', err);
                         return res.status(500).json({ 
                             success: false, 
                             error: 'Failed to update session' 
                         });
                     }
 
-                    // Update session with new database info
-                    req.session.user = {
-                        email: email,
-                        role: userDetails.Access,
-                        name: name,
-                        lastName: lastName,
-                        dbName: dbName,
-                    };
+                    console.log('✅ Database switched successfully to:', dbName);
+                    console.log('🆔 Same session ID maintained:', req.sessionID);
 
-                    console.log('🔄 Database switching - New session ID:', req.sessionID);
-                    console.log('🔄 Updated session user:', req.session.user);
-
-                    // Save the new session
-                    req.session.save((err) => {
-                        if (err) {
-                            console.error('Error saving session after database switch:', err);
-                            return res.status(500).json({ 
-                                success: false, 
-                                error: 'Failed to update session' 
-                            });
+                    // Update session tracking
+                    if (activeSessions.has(email)) {
+                        activeSessions.get(email).delete(oldSessionId);
+                        if (!activeSessions.get(email).has(req.sessionID)) {
+                            activeSessions.get(email).add(req.sessionID);
                         }
+                    }
 
-                        console.log('✅ Database switched successfully to:', dbName);
-                        console.log('🆕 New session ID:', req.sessionID);
-
-                        // Update session tracking
-                        if (activeSessions.has(email)) {
-                            activeSessions.get(email).delete(oldSessionId);
-                            if (!activeSessions.get(email).has(req.sessionID)) {
-                                activeSessions.get(email).add(req.sessionID);
-                            }
-                        }
-
-                        res.json({
-                            success: true,
-                            message: 'Database switched successfully',
-                            user: req.session.user,
-                            sessionId: req.sessionID // Return the NEW session ID
-                        });
+                    res.json({
+                        success: true,
+                        message: 'Database switched successfully',
+                        user: req.session.user,
+                        sessionId: req.sessionID // Return the SAME session ID
                     });
                 });
             });
@@ -1572,7 +1529,7 @@ function isUser(req, res, next) {
     sendAuthError(res, true, req, 'User access required');
 }
 
-// Enhanced database selection with force logout support
+// FIXED: Enhanced database selection with proper session handling
 app.post('/submit-database', async (req, res) => {
     console.log('=== DATABASE SELECTION ===');
     console.log('Session ID:', req.sessionID);
@@ -1779,7 +1736,7 @@ app.post('/submit-database', async (req, res) => {
     }
 });
 
-// FIXED: Login route with proper duplicate session prevention
+// FIXED: Login route with proper session persistence
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     console.log('Session ID at login start:', req.sessionID);
@@ -2363,6 +2320,10 @@ sessionStore.on('connected', () => {
 
 sessionStore.on('error', (error) => {
     console.error('❌ Session store error:', error);
+});
+
+app.get('/support', (req, res) => {
+res.sendFile(path.join(__dirname, '/support.html'));
 });
 
 app.listen(port, () => {
