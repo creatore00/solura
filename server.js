@@ -2038,25 +2038,48 @@ app.post('/submit', async (req, res) => {
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
-                    res.json({
-                        success: true,
-                        message: 'Login successful',
-                        redirectUrl: redirectUrl,
-                        user: userInfo,
-                        accessToken: authToken,
-                        refreshToken: refreshToken,
-                        sessionId: req.sessionID
-                    });
-                });
-            });
+                    // CRITICAL: For iOS/Capacitor, return the session ID and let frontend handle redirect
+                    const userAgent = req.headers['user-agent'] || '';
+                    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+                    const isIPad = /iPad/.test(userAgent) || (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
+                    
+                    if (isIOS || isIPad) {
+                        console.log('📱 iOS/iPad detected - returning session data for frontend redirect');
+                        
+                        res.json({
+                            success: true,
+                            message: 'Login successful',
+                            redirectUrl: redirectUrl,
+                            user: userInfo,
+                            accessToken: authToken,
+                            refreshToken: refreshToken,
+                            sessionId: req.sessionID,
+                            isIOS: true, // Flag for frontend
+                            // Return the actual file path to serve
+                            serveFile: redirectUrl.replace('.html', 'App.html') // Ensure mobile version
+                        });
+                    } else {
+                        // For desktop browsers, set cookie and redirect as before
+                        res.cookie('solura.session', req.sessionID, {
+                            maxAge: 24 * 60 * 60 * 1000,
+                            httpOnly: false,
+                            secure: false,
+                            sameSite: 'Lax',
+                            path: '/',
+                            domain: '.solura.uk'
+                        });
+
+                        res.json({
+                            success: true,
+                            message: 'Login successful',
+                            redirectUrl: redirectUrl,
+                            user: userInfo,
+                            accessToken: authToken,
+                            refreshToken: refreshToken,
+                            sessionId: req.sessionID
+                        });
+                }
         });
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Internal server error'
-        });
-    }
 });
 
 // Protected routes - ALWAYS desktop versions for browsers
