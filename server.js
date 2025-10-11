@@ -57,41 +57,22 @@ app.set('trust proxy', 1);
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
 
-// Session recovery middleware for iOS
-app.use((req, res, next) => {
-    // If no session cookie but we have session ID in URL/headers, try to restore
-    if (!req.headers.cookie && (req.query.sessionId || req.headers['x-session-id'])) {
-        const externalSessionId = req.query.sessionId || req.headers['x-session-id'];
-        console.log('🔄 Attempting session recovery from external ID:', externalSessionId);
-        
-        req.sessionStore.get(externalSessionId, (err, sessionData) => {
-            if (err) {
-                console.error('Error loading external session:', err);
-                return next();
-            }
-            
-            if (sessionData && sessionData.user) {
-                console.log('✅ External session recovery successful');
-                // Manually set the session
-                req.sessionID = externalSessionId;
-                Object.assign(req.session, sessionData);
-                
-                // Set the cookie for future requests
-                res.cookie('solura.session', externalSessionId, {
-                    maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'Lax',
-                    path: '/',
-                    domain: '.solura.uk'
-                });
-            }
-            next();
-        });
-    } else {
-        next();
-    }
-});
+// Enhanced device detection helper - SERVER SAFE
+function isMobileDevice(req) {
+    const userAgent = req.headers['user-agent'] || '';
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+    const isAndroid = /Android/i.test(userAgent);
+    const isMobileApp = req.headers['x-capacitor'] === 'true' || 
+                       req.query.capacitor === 'true' ||
+                       req.headers.origin?.startsWith('capacitor://') ||
+                       req.headers.origin?.startsWith('ionic://');
+
+    // Server-safe iPad detection
+    const isIPad = /iPad/.test(userAgent) || 
+                  (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
+
+    return isIOS || isIPad || isAndroid || isMobileApp;
+}
 
 // Safe session touch utility
 function safeSessionTouch(req) {
@@ -110,17 +91,17 @@ function generateToken(user) {
             role: user.role, 
             name: user.name, 
             lastName: user.lastName, 
-            dbName: user.dbName  // This is CRITICAL
+            dbName: user.dbName
         },
         JWT_SECRET,
         { expiresIn: '7d' }
     );
 }
 
-// ENHANCED CORS for iOS cookie handling
+// ENHANCED CORS for all devices
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow all origins - critical for iOS/Capacitor
+        // Allow all origins for iOS/Capacitor and mobile devices
         if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
             return callback(null, true);
         }
@@ -157,10 +138,10 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// CRITICAL FIX: Enhanced static file serving for iOS with proper headers
+// Enhanced static file serving for all devices
 app.use(express.static(__dirname, {
     setHeaders: (res, path) => {
-        // Set proper MIME types for iOS
+        // Set proper MIME types
         if (path.endsWith('.js')) {
             res.set('Content-Type', 'application/javascript');
         } else if (path.endsWith('.css')) {
@@ -169,18 +150,18 @@ app.use(express.static(__dirname, {
             res.set('Content-Type', 'text/html');
         }
         
-        // CRITICAL: Allow all origins for static files on iOS
+        // Allow all origins for static files
         res.set('Access-Control-Allow-Origin', '*');
         res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
         res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     }
 }));
 
-// CRITICAL FIX: Manual CORS headers for all responses
+// Manual CORS headers for all responses
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     
-    // CRITICAL: Always set CORS headers for iOS
+    // Always set CORS headers
     if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
         res.header('Access-Control-Allow-Origin', '*');
     } else {
@@ -223,19 +204,18 @@ app.use((req, res, next) => {
     next();
 });
 
-// iOS request debug middleware
+// Device detection middleware
 app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
-    if (/iPhone|iPad|iPod/.test(userAgent)) {
-        console.log('📱 iOS Request:', {
-            method: req.method,
-            url: req.url,
-            path: req.path,
-            userAgent: userAgent,
-            origin: req.headers.origin,
-            referer: req.headers.referer,
-            cookies: req.headers.cookie
-        });
+    req.isMobileDevice = isMobileDevice(req);
+    req.isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+    
+    if (req.isIOS) {
+        console.log('📱 iOS Device Detected');
+    } else if (req.isMobileDevice) {
+        console.log('📱 Mobile Device Detected');
+    } else {
+        console.log('💻 Desktop Device Detected');
     }
     next();
 });
@@ -257,14 +237,12 @@ app.use((req, res, next) => {
 
 // Add this middleware to send session ID in headers
 app.use((req, res, next) => {
-    // Store the original json method
     const originalJson = res.json;
     
-    // Override res.json to include session ID in headers for iOS
+    // Override res.json to include session ID in headers for mobile devices
     res.json = function(data) {
-        // Add session ID to headers for iOS requests
-        const userAgent = req.headers['user-agent'] || '';
-        if (/iPhone|iPad|iPod/i.test(userAgent) && req.sessionID) {
+        // Add session ID to headers for mobile requests
+        if (req.isMobileDevice && req.sessionID) {
             res.setHeader('X-Session-ID', req.sessionID);
         }
         return originalJson.call(this, data);
@@ -293,7 +271,7 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// CRITICAL FIX: Session configuration for iOS - UPDATED
+// Session configuration for all devices
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -301,18 +279,18 @@ app.use(session({
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // MUST be false for Capacitor
+        secure: false, // MUST be false for Capacitor and local development
         httpOnly: false, // Changed to false for iOS compatibility
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
-        domain: '.solura.uk' // ADD THIS for cross-subdomain cookies
+        domain: '.solura.uk'
     },
     rolling: true,
     proxy: false
 }));
 
-// CRITICAL: Manual session cookie handler for iOS
+// Manual session cookie handler for all devices
 app.use((req, res, next) => {
     // Store original session save method
     const originalSave = req.session.save;
@@ -323,7 +301,7 @@ app.use((req, res, next) => {
             if (!err && req.sessionID && req.session.user) {
                 console.log('🔐 Setting session cookie for:', req.session.user.email);
                 
-                // CRITICAL: Manually set the session cookie for iOS
+                // Manually set the session cookie
                 res.cookie('solura.session', req.sessionID, {
                     maxAge: 24 * 60 * 60 * 1000,
                     httpOnly: false,
@@ -339,61 +317,43 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: iOS-specific middleware with session cookie fix
+// Session recovery middleware for all devices
 app.use((req, res, next) => {
-    const userAgent = req.headers['user-agent'] || '';
-    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-    
-    if (isIOS) {
-        console.log('📱 iOS Device Detected - Ensuring session cookie');
+    // If no session cookie but we have session ID in URL/headers, try to restore
+    if (!req.headers.cookie && (req.query.sessionId || req.headers['x-session-id'])) {
+        const externalSessionId = req.query.sessionId || req.headers['x-session-id'];
+        console.log('🔄 Attempting session recovery from external ID:', externalSessionId);
         
-        // Force session creation for iOS
-        if (!req.session.initialized) {
-            req.session.initialized = true;
-            console.log('📱 Initializing session for iOS');
+        req.sessionStore.get(externalSessionId, (err, sessionData) => {
+            if (err) {
+                console.error('Error loading external session:', err);
+                return next();
+            }
             
-            // CRITICAL: Manually set session cookie for iOS
-            res.cookie('solura.session', req.sessionID, {
-                maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
-                path: '/'
-            });
-        }
-        
-        // Handle session ID from various sources for iOS
-        const sessionIdFromUrl = req.query.sessionId;
-        const sessionIdFromHeader = req.headers['x-session-id'];
-        
-        console.log('📱 Session ID from URL:', sessionIdFromUrl);
-        console.log('📱 Session ID from Header:', sessionIdFromHeader);
-        console.log('📱 Current Session ID:', req.sessionID);
-        
-        const externalSessionId = sessionIdFromUrl || sessionIdFromHeader;
-        if (externalSessionId && req.sessionID !== externalSessionId) {
-            console.log('🔄 Attempting to use external session ID for iOS:', externalSessionId);
-            
-            req.sessionStore.get(externalSessionId, (err, sessionData) => {
-                if (err) {
-                    console.error('❌ Error loading external session:', err);
-                    return next();
-                }
+            if (sessionData && sessionData.user) {
+                console.log('✅ External session recovery successful');
+                // Manually set the session
+                req.sessionID = externalSessionId;
+                Object.assign(req.session, sessionData);
                 
-                if (sessionData && sessionData.user) {
-                    console.log('✅ External session data found, merging...');
-                    Object.assign(req.session, sessionData);
-                }
-                next();
-            });
-        } else {
+                // Set the cookie for future requests
+                res.cookie('solura.session', externalSessionId, {
+                    maxAge: 24 * 60 * 60 * 1000,
+                    httpOnly: false,
+                    secure: false,
+                    sameSite: 'Lax',
+                    path: '/',
+                    domain: '.solura.uk'
+                });
+            }
             next();
-        }
+        });
     } else {
         next();
     }
 });
 
+// Enhanced root route with proper device detection
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const referer = req.headers.referer || '';
@@ -404,59 +364,45 @@ app.get('/', (req, res) => {
     console.log('Referer:', referer);
     console.log('Origin:', origin);
 
-    // SERVER-SAFE Capacitor/iOS detection
-    const isIPad = /iPad/.test(userAgent) || 
-                   (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
+    // Use the enhanced device detection
+    const useMobileApp = isMobileDevice(req);
 
-    const isCapacitorApp = 
-        /Capacitor/.test(userAgent) ||
-        /iPhone|iPad|iPod/.test(userAgent) ||
-        isIPad ||
-        referer.startsWith('capacitor://') ||
-        referer.startsWith('ionic://') ||
-        origin.startsWith('capacitor://') ||
-        origin.startsWith('ionic://') ||
-        req.headers['x-capacitor'] === 'true' ||
-        req.query.capacitor === 'true' ||
-        (userAgent.includes('Mobile') && !userAgent.includes('Safari'));
+    console.log('Mobile app detected:', useMobileApp);
 
-    console.log('Capacitor app detected:', isCapacitorApp);
-    console.log('iPad detected:', isIPad);
-
-    // CRITICAL: Set session cookie header for iOS
-    if (isCapacitorApp || /iPhone|iPad|iPod/.test(userAgent) || isIPad) {
-        console.log('📱 Serving LoginApp.html for iOS/Capacitor with session cookie');
-        
-        // Ensure session cookie is set
-        if (req.sessionID) {
-            res.cookie('solura.session', req.sessionID, {
-                maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
-                path: '/'
-            });
-        }
-        
-        return res.sendFile(path.join(__dirname, 'LoginApp.html'));
-    }
-
-    console.log('💻 Serving Login.html for browser');
-    res.sendFile(path.join(__dirname, 'Login.html'));
-});
-
-// CRITICAL FIX: Add session cookie to all static file routes
-app.get('/LoginApp.html', (req, res) => {
-    console.log('📱 Direct access to LoginApp.html');
-    
-    // Set session cookie for iOS
+    // Set session cookie for all devices
     if (req.sessionID) {
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
             httpOnly: false,
             secure: false,
             sameSite: 'Lax',
-            path: '/'
+            path: '/',
+            domain: '.solura.uk'
+        });
+    }
+
+    if (useMobileApp) {
+        console.log('📱 Serving LoginApp.html for mobile device');
+        return res.sendFile(path.join(__dirname, 'LoginApp.html'));
+    }
+
+    console.log('💻 Serving Login.html for desktop');
+    res.sendFile(path.join(__dirname, 'Login.html'));
+});
+
+// Enhanced file serving routes
+app.get('/LoginApp.html', (req, res) => {
+    console.log('📱 Direct access to LoginApp.html');
+    
+    // Set session cookie
+    if (req.sessionID) {
+        res.cookie('solura.session', req.sessionID, {
+            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: false,
+            secure: false,
+            sameSite: 'Lax',
+            path: '/',
+            domain: '.solura.uk'
         });
     }
     
@@ -468,7 +414,7 @@ app.get('/Login.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
-// CRITICAL FIX: iOS session initialization endpoint
+// iOS session initialization endpoint
 app.get('/api/ios-init', (req, res) => {
     console.log('📱 iOS Session Initialization Request');
     
@@ -478,13 +424,14 @@ app.get('/api/ios-init', (req, res) => {
         req.session.iosDevice = true;
     }
     
-    // CRITICAL: Manually set the session cookie
+    // Manually set the session cookie
     res.cookie('solura.session', req.sessionID, {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: false,
         secure: false,
         sameSite: 'Lax',
-        path: '/'
+        path: '/',
+        domain: '.solura.uk'
     });
     
     res.json({
@@ -495,13 +442,13 @@ app.get('/api/ios-init', (req, res) => {
     });
 });
 
-// iOS debug endpoint
-app.get('/api/ios-debug', (req, res) => {
-    console.log('=== IOS DEBUG INFO ===');
+// Device debug endpoint
+app.get('/api/device-debug', (req, res) => {
+    console.log('=== DEVICE DEBUG INFO ===');
     
     res.json({
         success: true,
-        platform: 'ios',
+        platform: req.isIOS ? 'ios' : req.isMobileDevice ? 'mobile' : 'desktop',
         session: {
             id: req.sessionID,
             exists: !!req.session,
@@ -658,7 +605,6 @@ app.post('/api/force-logout-others', async (req, res) => {
                     sessionStore.destroy(sessionId, (err) => {
                         if (!err) {
                             loggedOutCount++;
-                            sessionCreationTime.delete(sessionId);
                             console.log(`✅ Immediately destroyed session: ${sessionId}`);
                         }
                         resolve();
@@ -716,23 +662,7 @@ app.post('/api/verify-biometric', async (req, res) => {
                 error: 'Invalid or expired token' 
             });
         }
-        // Verify the access token
-        try {
-            const decoded = jwt.verify(accessToken, process.env.JWT_SECRET || 'your-secret-key');
-            if (decoded.email !== email) {
-                return res.status(401).json({ 
-                    success: false,
-                    error: 'Invalid token' 
-                });
-            }
-            // Store the decoded token for later use
-            req.decodedToken = decoded;
-        } catch (tokenError) {
-            return res.status(401).json({ 
-                success: false,
-                error: 'Invalid or expired token' 
-            });
-        }
+
         // Get user info from database - include ALL databases for this user
         const sql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
 
@@ -822,29 +752,15 @@ app.post('/api/verify-biometric', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
-                // ALWAYS use desktop versions for browsers
+                // PROPER DEVICE DETECTION FOR REDIRECT
+                const useMobileApp = isMobileDevice(req);
                 let redirectUrl = '';
-                const userAgent = req.headers['user-agent'] || '';
-                const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-                const isAndroid = /Android/i.test(userAgent);
-                const isMobileApp = req.headers['x-capacitor'] === 'true' || 
-                                req.query.capacitor === 'true' ||
-                                req.headers.origin?.startsWith('capacitor://') ||
-                                req.headers.origin?.startsWith('ionic://');
 
-                // Enhanced iPad detection - check for iPad in user agent OR touch capabilities
-                const isIPad = /iPad/.test(userAgent) || 
-                            (/Macintosh/.test(userAgent) && 'ontouchend' in document) ||
-                            (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
-
-                // Use mobile app version for ALL iOS devices (iPhone & iPad) and Android, or when explicitly a Capacitor app
-                const useMobileApp = isIOS || isIPad || isAndroid || isMobileApp;
-
-                if (row.Access === 'admin' || row.Access === 'AM') {
+                if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
                     redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
-                } else if (row.Access === 'user') {
+                } else if (userDetails.Access === 'user') {
                     redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
-                } else if (row.Access === 'supervisor') {
+                } else if (userDetails.Access === 'supervisor') {
                     redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
@@ -1560,7 +1476,7 @@ function isAuthenticated(req, res, next) {
         req.sessionStore.get(externalSessionId, (err, sessionData) => {
             if (err) {
                 console.error('Error loading external session:', err);
-                return sendAuthError(res, true, req);
+                return sendAuthError(res, req);
             }
             
             if (sessionData && sessionData.user) {
@@ -1569,7 +1485,7 @@ function isAuthenticated(req, res, next) {
                 return next();
             } else {
                 console.log('❌ No valid session data found for recovery');
-                sendAuthError(res, true, req);
+                sendAuthError(res, req);
             }
         });
     } else if (req.session?.user && req.session.user.dbName && req.session.user.email) {
@@ -1577,14 +1493,14 @@ function isAuthenticated(req, res, next) {
         return next();
     } else {
         console.log('❌ Authentication FAILED');
-        sendAuthError(res, true, req);
+        sendAuthError(res, req);
     }
 }
 
-function sendAuthError(res, isIOS, req, customMessage = null) {
+function sendAuthError(res, req, customMessage = null) {
     const message = customMessage || 'Please log in again';
     
-    if (isIOS || req.path.startsWith('/api/') || req.xhr) {
+    if (req.path.startsWith('/api/') || req.xhr) {
         return res.status(401).json({ 
             success: false, 
             error: 'Unauthorized',
@@ -1601,21 +1517,21 @@ function isAdmin(req, res, next) {
     if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
         return next();
     }
-    sendAuthError(res, true, req, 'Admin access required');
+    sendAuthError(res, req, 'Admin access required');
 }
 
 function isSupervisor(req, res, next) {
     if (req.session?.user && req.session.user.role === 'supervisor') {
         return next();
     }
-    sendAuthError(res, true, req, 'Supervisor access required');
+    sendAuthError(res, req, 'Supervisor access required');
 }
 
 function isUser(req, res, next) {
     if (req.session?.user && req.session.user.role === 'user') {
         return next();
     }
-    sendAuthError(res, true, req, 'User access required');
+    sendAuthError(res, req, 'User access required');
 }
 
 // Enhanced database selection with force logout support
@@ -1780,17 +1696,19 @@ app.post('/submit-database', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
+                // PROPER DEVICE DETECTION
+                const useMobileApp = isMobileDevice(req);
                 let redirectUrl = '';
-                const userAgent = req.headers['user-agent'] || '';
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (row.Access === 'admin' || row.Access === 'AM') {
-                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
+                    redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
                 } else if (row.Access === 'user') {
-                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
+                    redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
                 } else if (row.Access === 'supervisor') {
-                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
+                    redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
+
+                console.log(`🔄 Redirecting to: ${redirectUrl} (Mobile: ${useMobileApp})`);
 
                 // Save session and then respond
                 req.session.save((err) => {
@@ -1804,6 +1722,16 @@ app.post('/submit-database', async (req, res) => {
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
+                    // Set session cookie
+                    res.cookie('solura.session', req.sessionID, {
+                        maxAge: 24 * 60 * 60 * 1000,
+                        httpOnly: false,
+                        secure: false,
+                        sameSite: 'Lax',
+                        path: '/',
+                        domain: '.solura.uk'
+                    });
+
                     res.json({
                         success: true,
                         message: 'Login successful',
@@ -1811,7 +1739,8 @@ app.post('/submit-database', async (req, res) => {
                         user: userInfo,
                         accessToken: authToken,
                         refreshToken: refreshToken,
-                        sessionId: req.sessionID
+                        sessionId: req.sessionID,
+                        isMobile: useMobileApp
                     });
                 });
             });
@@ -2014,17 +1943,19 @@ app.post('/submit', async (req, res) => {
                     { expiresIn: '30d' }
                 );
 
+                // PROPER DEVICE DETECTION FOR REDIRECT
+                const useMobileApp = isMobileDevice(req);
                 let redirectUrl = '';
-                const userAgent = req.headers['user-agent'] || '';
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
 
                 if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
+                    redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
                 } else if (userDetails.access === 'user') {
-                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
+                    redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
                 } else if (userDetails.access === 'supervisor') {
-                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
+                    redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
+
+                console.log(`🔄 Redirecting to: ${redirectUrl} (Mobile: ${useMobileApp})`);
 
                 // Save session and then respond
                 req.session.save((err) => {
@@ -2038,51 +1969,39 @@ app.post('/submit', async (req, res) => {
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
-                    // CRITICAL: For iOS/Capacitor, return the session ID and let frontend handle redirect
-                    const userAgent = req.headers['user-agent'] || '';
-                    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
-                    const isIPad = /iPad/.test(userAgent) || (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
-                    
-                    if (isIOS || isIPad) {
-                        console.log('📱 iOS/iPad detected - returning session data for frontend redirect');
-                        
-                        res.json({
-                            success: true,
-                            message: 'Login successful',
-                            redirectUrl: redirectUrl,
-                            user: userInfo,
-                            accessToken: authToken,
-                            refreshToken: refreshToken,
-                            sessionId: req.sessionID,
-                            isIOS: true, // Flag for frontend
-                            // Return the actual file path to serve
-                            serveFile: redirectUrl.replace('.html', 'App.html') // Ensure mobile version
-                        });
-                    } else {
-                        // For desktop browsers, set cookie and redirect as before
-                        res.cookie('solura.session', req.sessionID, {
-                            maxAge: 24 * 60 * 60 * 1000,
-                            httpOnly: false,
-                            secure: false,
-                            sameSite: 'Lax',
-                            path: '/',
-                            domain: '.solura.uk'
-                        });
+                    // Set session cookie in response
+                    res.cookie('solura.session', req.sessionID, {
+                        maxAge: 24 * 60 * 60 * 1000,
+                        httpOnly: false,
+                        secure: false,
+                        sameSite: 'Lax',
+                        path: '/',
+                        domain: '.solura.uk'
+                    });
 
-                        res.json({
-                            success: true,
-                            message: 'Login successful',
-                            redirectUrl: redirectUrl,
-                            user: userInfo,
-                            accessToken: authToken,
-                            refreshToken: refreshToken,
-                            sessionId: req.sessionID
-                        });
-                }
+                    res.json({
+                        success: true,
+                        message: 'Login successful',
+                        redirectUrl: redirectUrl,
+                        user: userInfo,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID,
+                        isMobile: useMobileApp
+                    });
+                });
+            });
         });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Internal server error'
+        });
+    }
 });
 
-// Protected routes - ALWAYS desktop versions for browsers
+// Protected routes - PROPER DEVICE DETECTION
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
@@ -2390,7 +2309,8 @@ app.get('/logout', (req, res) => {
                 path: '/',
                 httpOnly: false,
                 secure: false,
-                sameSite: 'Lax'
+                sameSite: 'Lax',
+                domain: '.solura.uk'
             });
             
             console.log('✅ Logout successful for session:', sessionId);
@@ -2406,15 +2326,15 @@ app.get('*', (req, res) => {
     const requestedPath = path.join(__dirname, req.path);
     
     if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) {
-        // Set session cookie for iOS on all static files
-        const userAgent = req.headers['user-agent'] || '';
-        if (/iPhone|iPad|iPod/.test(userAgent) && req.sessionID) {
+        // Set session cookie for all devices on static files
+        if (req.sessionID) {
             res.cookie('solura.session', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
                 httpOnly: false,
                 secure: false,
                 sameSite: 'Lax',
-                path: '/'
+                path: '/',
+                domain: '.solura.uk'
             });
         }
         res.sendFile(requestedPath);
