@@ -792,14 +792,27 @@ app.post('/api/verify-biometric', async (req, res) => {
                 // ALWAYS use desktop versions for browsers
                 let redirectUrl = '';
                 const userAgent = req.headers['user-agent'] || '';
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(userAgent);
+                const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+                const isAndroid = /Android/i.test(userAgent);
+                const isMobileApp = req.headers['x-capacitor'] === 'true' || 
+                                req.query.capacitor === 'true' ||
+                                req.headers.origin?.startsWith('capacitor://') ||
+                                req.headers.origin?.startsWith('ionic://');
 
-                if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                    redirectUrl = isMobile ? '/AdminApp.html' : '/Admin.html';
-                } else if (userDetails.Access === 'user') {
-                    redirectUrl = isMobile ? '/UserApp.html' : '/User.html';
-                } else if (userDetails.Access === 'supervisor') {
-                    redirectUrl = isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
+                // Enhanced iPad detection - check for iPad in user agent OR touch capabilities
+                const isIPad = /iPad/.test(userAgent) || 
+                            (/Macintosh/.test(userAgent) && 'ontouchend' in document) ||
+                            (navigator.maxTouchPoints && navigator.maxTouchPoints > 2);
+
+                // Use mobile app version for ALL iOS devices (iPhone & iPad) and Android, or when explicitly a Capacitor app
+                const useMobileApp = isIOS || isIPad || isAndroid || isMobileApp;
+
+                if (row.Access === 'admin' || row.Access === 'AM') {
+                    redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
+                } else if (row.Access === 'user') {
+                    redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
+                } else if (row.Access === 'supervisor') {
+                    redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
                 }
 
                 req.session.save((err) => {
