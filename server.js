@@ -277,11 +277,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED Session configuration for all devices - MUST COME BEFORE OTHER MIDDLEWARE
+// CRITICAL FIX: Session configuration MUST be before any session-related middleware
 app.use(session({
     secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: true, // CHANGED: Allow uninitialized sessions for iPad
+    resave: true, // CHANGED: Force resave to ensure session persistence
+    saveUninitialized: true, // CHANGED: Allow uninitialized sessions
     store: sessionStore,
     name: 'solura.session',
     cookie: {
@@ -327,7 +327,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// CRITICAL FIX: iPad-specific session handling
+// CRITICAL FIX: iPad-specific session handling - IMPROVED
 app.use((req, res, next) => {
     if (req.isIPad) {
         console.log('🔧 iPad-specific session handling');
@@ -346,7 +346,14 @@ app.use((req, res, next) => {
             }
         }
         
-        // iPad session recovery logic
+        console.log('📱 iPad Session Check:', {
+            hasCookieHeader: !!cookieHeader,
+            sessionCookie: sessionCookie,
+            currentSessionId: req.sessionID,
+            hasUser: !!req.session?.user
+        });
+        
+        // iPad session recovery logic - ONLY if we have a cookie but no user session
         if (!req.session?.user && sessionCookie && sessionCookie !== req.sessionID) {
             console.log('📱 iPad Session Recovery Attempt:', sessionCookie);
             
@@ -371,6 +378,8 @@ app.use((req, res, next) => {
                             console.log('✅ iPad session persisted');
                         }
                     });
+                } else {
+                    console.log('❌ No valid session data found for recovery');
                 }
                 next();
             });
@@ -431,13 +440,8 @@ app.use((req, res, next) => {
 
 // Mobile device session enhancement
 app.use((req, res, next) => {
-    if (req.isMobileDevice && req.sessionID && req.session.user) {
-        console.log('📱 Mobile session enhancement for:', req.session.user.email);
-        
-        // Add session ID to all responses for mobile devices
-        res.setHeader('X-Session-ID', req.sessionID);
-        
-        // Ensure session cookie is always set for mobile
+    if (req.isMobileDevice && req.sessionID) {
+        // Always set session cookie for mobile devices
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
             httpOnly: false,
@@ -446,6 +450,13 @@ app.use((req, res, next) => {
             path: '/',
             domain: isProduction ? '.solura.uk' : undefined
         });
+        
+        // Add session ID to all responses for mobile devices
+        res.setHeader('X-Session-ID', req.sessionID);
+        
+        if (req.session.user) {
+            console.log('📱 Mobile session enhancement for:', req.session.user.email);
+        }
     }
     next();
 });
@@ -506,7 +517,8 @@ app.use((req, res, next) => {
         header: headerSessionId,
         query: querySessionId,
         currentSessionId: req.sessionID,
-        hasSessionObject: !!req.session
+        hasSessionObject: !!req.session,
+        hasUser: !!req.session?.user
     });
     
     // If we have an existing session ID from cookie/header/query, use it

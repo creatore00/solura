@@ -642,6 +642,26 @@
         await tryAutoLogin();
     });
 
+    // Add this to your frontend JavaScript
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ensure cookies are enabled and working
+        if (navigator.cookieEnabled) {
+            console.log('Cookies are enabled');
+        } else {
+            console.log('Cookies are disabled - session may not work properly');
+        }
+        
+        // Force include credentials in all fetch requests
+        if (window.fetch) {
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                const options = args[1] || {};
+                options.credentials = 'include';
+                return originalFetch(args[0], options);
+            };
+        }
+    });
+    
     // Store session ID from login response
     function handleLoginResponse(response) {
         if (response.success && response.sessionId) {
