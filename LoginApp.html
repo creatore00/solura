@@ -642,6 +642,34 @@
         await tryAutoLogin();
     });
 
+    // Store session ID from login response
+    function handleLoginResponse(response) {
+        if (response.success && response.sessionId) {
+            // Store session ID for future requests
+            localStorage.setItem('sessionId', response.sessionId);
+            
+            // Redirect to the appropriate page
+            window.location.href = response.redirectUrl;
+        }
+    }
+
+    // Include session ID in all API requests
+    function makeApiRequest(url, options = {}) {
+        const sessionId = localStorage.getItem('sessionId');
+        
+        if (sessionId) {
+            if (!options.headers) options.headers = {};
+            options.headers['X-Session-ID'] = sessionId;
+            
+            // Also add to URL for GET requests
+            if (options.method === 'GET' || !options.method) {
+                url += (url.includes('?') ? '&' : '?') + 'sessionId=' + encodeURIComponent(sessionId);
+            }
+        }
+        
+        return fetch(url, options);
+    }
+
     function initializeEventListeners() {
         document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
         document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);

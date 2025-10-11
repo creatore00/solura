@@ -57,6 +57,42 @@ app.set('trust proxy', 1);
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
 
+// Session recovery middleware for iOS
+app.use((req, res, next) => {
+    // If no session cookie but we have session ID in URL/headers, try to restore
+    if (!req.headers.cookie && (req.query.sessionId || req.headers['x-session-id'])) {
+        const externalSessionId = req.query.sessionId || req.headers['x-session-id'];
+        console.log('🔄 Attempting session recovery from external ID:', externalSessionId);
+        
+        req.sessionStore.get(externalSessionId, (err, sessionData) => {
+            if (err) {
+                console.error('Error loading external session:', err);
+                return next();
+            }
+            
+            if (sessionData && sessionData.user) {
+                console.log('✅ External session recovery successful');
+                // Manually set the session
+                req.sessionID = externalSessionId;
+                Object.assign(req.session, sessionData);
+                
+                // Set the cookie for future requests
+                res.cookie('solura.session', externalSessionId, {
+                    maxAge: 24 * 60 * 60 * 1000,
+                    httpOnly: false,
+                    secure: false,
+                    sameSite: 'Lax',
+                    path: '/',
+                    domain: '.solura.uk'
+                });
+            }
+            next();
+        });
+    } else {
+        next();
+    }
+});
+
 // Safe session touch utility
 function safeSessionTouch(req) {
     if (req.session && req.session.touch && typeof req.session.touch === 'function') {
@@ -81,10 +117,10 @@ function generateToken(user) {
     );
 }
 
-// CRITICAL FIX: Enhanced CORS for iOS Capacitor
+// ENHANCED CORS for iOS cookie handling
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow all origins for iOS/Capacitor - this is critical
+        // Allow all origins - critical for iOS/Capacitor
         if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
             return callback(null, true);
         }
@@ -100,7 +136,7 @@ const corsOptions = {
             'https://localhost'
         ];
         
-        if (allowedOrigins.indexOf(origin) !== -1) {
+        if (allowedOrigins.indexOf(origin) !== -1 || origin?.includes('solura.uk')) {
             callback(null, true);
         } else {
             console.log('Blocked by CORS:', origin);
@@ -257,7 +293,7 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// CRITICAL FIX: Session configuration for iOS - SIMPLIFIED
+// CRITICAL FIX: Session configuration for iOS - UPDATED
 app.use(session({
     secret: SESSION_SECRET,
     resave: false,
@@ -269,40 +305,33 @@ app.use(session({
         httpOnly: false, // Changed to false for iOS compatibility
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        path: '/'
+        path: '/',
+        domain: '.solura.uk' // ADD THIS for cross-subdomain cookies
     },
     rolling: true,
     proxy: false
 }));
 
-// FIXED: Session tracking ONLY on initial login/session creation
+// CRITICAL: Manual session cookie handler for iOS
 app.use((req, res, next) => {
+    // Store original session save method
     const originalSave = req.session.save;
-    let isNewSessionTracked = false;
     
+    // Override session save to ensure cookie is set
     req.session.save = function(callback) {
         originalSave.call(this, (err) => {
-            if (!err && req.session.user && req.session.user.email) {
-                const email = req.session.user.email;
+            if (!err && req.sessionID && req.session.user) {
+                console.log('🔐 Setting session cookie for:', req.session.user.email);
                 
-                // ONLY track if this is a NEW session (no user data before)
-                const hadUserBefore = req.session.previousUser === email;
-                
-                if (!hadUserBefore && !isNewSessionTracked) {
-                    if (!activeSessions.has(email)) {
-                        activeSessions.set(email, new Set());
-                    }
-                    
-                    // Only track if this session ID isn't already tracked
-                    if (!activeSessions.get(email).has(req.sessionID)) {
-                        activeSessions.get(email).add(req.sessionID);
-                        isNewSessionTracked = true;
-                        console.log(`✅ NEW Session tracked for ${email}: ${req.sessionID}`);
-                    }
-                }
-                
-                // Store current user for next comparison
-                req.session.previousUser = email;
+                // CRITICAL: Manually set the session cookie for iOS
+                res.cookie('solura.session', req.sessionID, {
+                    maxAge: 24 * 60 * 60 * 1000,
+                    httpOnly: false,
+                    secure: false,
+                    sameSite: 'Lax',
+                    path: '/',
+                    domain: '.solura.uk'
+                });
             }
             if (callback) callback(err);
         });
