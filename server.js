@@ -377,9 +377,14 @@ app.get('/', (req, res) => {
     console.log('Origin:', origin);
 
     // Enhanced Capacitor/iOS detection
+    // NEW CODE - ENHANCED iPAD DETECTION:
+    const isIPad = /iPad/.test(userAgent) || 
+                (/Macintosh/.test(userAgent) && navigator.maxTouchPoints > 2);
+
     const isCapacitorApp = 
         /Capacitor/.test(userAgent) ||
         /iPhone|iPad|iPod/.test(userAgent) ||
+        isIPad ||
         referer.startsWith('capacitor://') ||
         referer.startsWith('ionic://') ||
         origin.startsWith('capacitor://') ||
