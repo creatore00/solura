@@ -98,6 +98,27 @@ function generateToken(user) {
     );
 }
 
+// MySQL session store
+const sessionStore = new MySQLStore({
+    host: 'sv41.byethost41.org',
+    port: 3306,
+    user: 'yassir_yassir',
+    password: 'Qazokm123890',
+    database: 'yassir_access',
+    createDatabaseTable: true,
+    schema: {
+        tableName: 'user_sessions',
+        columnNames: {
+            session_id: 'session_id',
+            expires: 'expires',
+            data: 'data'
+        }
+    },
+    checkExpirationInterval: 60000,
+    expiration: 600000,
+    clearExpired: true
+}, mainPool);
+
 // ENHANCED CORS for all devices
 const corsOptions = {
     origin: function (origin, callback) {
@@ -171,7 +192,7 @@ app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With, Cookie, X-Session-ID, X-Capacitor, Origin');
-    res.header('Access-Control-Expose-Headers', 'Set-Cookie, X-Session-ID, Authorization');
+    res.header('Access-Control-Expose-Headers', 'Set-Cookie', 'X-Session-ID', 'Authorization');
     
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
@@ -250,27 +271,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// MySQL session store
-const sessionStore = new MySQLStore({
-    host: 'sv41.byethost41.org',
-    port: 3306,
-    user: 'yassir_yassir',
-    password: 'Qazokm123890',
-    database: 'yassir_access',
-    createDatabaseTable: true,
-    schema: {
-        tableName: 'user_sessions',
-        columnNames: {
-            session_id: 'session_id',
-            expires: 'expires',
-            data: 'data'
-        }
-    },
-    checkExpirationInterval: 60000,
-    expiration: 600000,
-    clearExpired: true
-}, mainPool);
-
 // Session configuration for all devices
 app.use(session({
     secret: SESSION_SECRET,
@@ -317,12 +317,18 @@ app.use((req, res, next) => {
     next();
 });
 
-// Session recovery middleware for all devices
+// FIXED: Session recovery middleware for all devices
 app.use((req, res, next) => {
     // If no session cookie but we have session ID in URL/headers, try to restore
     if (!req.headers.cookie && (req.query.sessionId || req.headers['x-session-id'])) {
         const externalSessionId = req.query.sessionId || req.headers['x-session-id'];
         console.log('🔄 Attempting session recovery from external ID:', externalSessionId);
+        
+        // Check if sessionStore exists before using it
+        if (!req.sessionStore || typeof req.sessionStore.get !== 'function') {
+            console.log('❌ Session store not available');
+            return next();
+        }
         
         req.sessionStore.get(externalSessionId, (err, sessionData) => {
             if (err) {
@@ -1472,6 +1478,12 @@ function isAuthenticated(req, res, next) {
     if ((!req.session?.user) && (sessionIdFromHeader || sessionIdFromQuery)) {
         const externalSessionId = sessionIdFromHeader || sessionIdFromQuery;
         console.log('📱 iOS - Attempting session recovery from external ID:', externalSessionId);
+        
+        // Check if sessionStore exists before using it
+        if (!req.sessionStore || typeof req.sessionStore.get !== 'function') {
+            console.log('❌ Session store not available for recovery');
+            return sendAuthError(res, req);
+        }
         
         req.sessionStore.get(externalSessionId, (err, sessionData) => {
             if (err) {
