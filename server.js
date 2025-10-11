@@ -100,6 +100,13 @@ function isMobileDevice(req) {
     return isIOS || isIPad || isAndroid || isMobileApp;
 }
 
+// Enhanced iPad detection
+function isIPadDevice(req) {
+    const userAgent = req.headers['user-agent'] || '';
+    return /iPad/.test(userAgent) || 
+           (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
+}
+
 // Safe session touch utility
 function safeSessionTouch(req) {
     if (req.session && req.session.touch && typeof req.session.touch === 'function') {
@@ -256,8 +263,11 @@ app.use((req, res, next) => {
     const userAgent = req.headers['user-agent'] || '';
     req.isMobileDevice = isMobileDevice(req);
     req.isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+    req.isIPad = isIPadDevice(req);
     
-    if (req.isIOS) {
+    if (req.isIPad) {
+        console.log('📱 iPad Device Detected');
+    } else if (req.isIOS) {
         console.log('📱 iOS Device Detected');
     } else if (req.isMobileDevice) {
         console.log('📱 Mobile Device Detected');
@@ -265,6 +275,67 @@ app.use((req, res, next) => {
         console.log('💻 Desktop Device Detected');
     }
     next();
+});
+
+// CRITICAL FIX: iPad-specific session handling
+app.use((req, res, next) => {
+    if (req.isIPad) {
+        console.log('🔧 iPad-specific session handling');
+        
+        // Enhanced cookie parsing for iPad
+        const cookieHeader = req.headers.cookie;
+        let sessionCookie = null;
+        
+        if (cookieHeader) {
+            const cookies = cookieHeader.split(';').map(cookie => cookie.trim());
+            for (const cookie of cookies) {
+                if (cookie.startsWith('solura.session=')) {
+                    sessionCookie = cookie.substring('solura.session='.length);
+                    break;
+                }
+            }
+        }
+        
+        // iPad session recovery logic
+        if (!req.session?.user && (sessionCookie || req.headers['x-session-id'] || req.query.sessionId)) {
+            const externalSessionId = sessionCookie || req.headers['x-session-id'] || req.query.sessionId;
+            
+            if (externalSessionId && externalSessionId !== req.sessionID) {
+                console.log('📱 iPad Session Recovery Attempt:', externalSessionId);
+                
+                req.sessionStore.get(externalSessionId, (err, sessionData) => {
+                    if (err) {
+                        console.error('❌ iPad session recovery error:', err);
+                        return next();
+                    }
+                    
+                    if (sessionData && sessionData.user) {
+                        console.log('✅ iPad session recovered:', sessionData.user.email);
+                        
+                        // Transfer session data
+                        req.sessionID = externalSessionId;
+                        Object.assign(req.session, sessionData);
+                        
+                        // Force session persistence for iPad
+                        req.session.save((saveErr) => {
+                            if (saveErr) {
+                                console.error('❌ iPad session save error:', saveErr);
+                            } else {
+                                console.log('✅ iPad session persisted');
+                            }
+                        });
+                    }
+                    next();
+                });
+            } else {
+                next();
+            }
+        } else {
+            next();
+        }
+    } else {
+        next();
+    }
 });
 
 // Session store health check
@@ -613,17 +684,17 @@ app.get('/Login.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'Login.html'));
 });
 
-// iOS session initialization endpoint
-app.get('/api/ios-init', (req, res) => {
-    console.log('📱 iOS Session Initialization Request');
+// iPad session initialization endpoint
+app.get('/api/ipad-init', (req, res) => {
+    console.log('📱 iPad Session Initialization Request');
     
     // Ensure session is created
     if (!req.session.initialized) {
         req.session.initialized = true;
-        req.session.iosDevice = true;
+        req.session.ipadDevice = true;
     }
     
-    // Manually set the session cookie
+    // Manually set the session cookie with iPad-specific settings
     res.cookie('solura.session', req.sessionID, {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: false,
@@ -633,11 +704,21 @@ app.get('/api/ios-init', (req, res) => {
         domain: '.solura.uk'
     });
     
+    // Additional iPad-specific cookie
+    res.cookie('ipad_session', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax',
+        path: '/'
+    });
+    
     res.json({
         success: true,
         sessionId: req.sessionID,
-        message: 'iOS session initialized',
-        cookiesSupported: true
+        message: 'iPad session initialized',
+        cookiesSupported: true,
+        isIPad: true
     });
 });
 
@@ -647,7 +728,7 @@ app.get('/api/device-debug', (req, res) => {
     
     res.json({
         success: true,
-        platform: req.isIOS ? 'ios' : req.isMobileDevice ? 'mobile' : 'desktop',
+        platform: req.isIPad ? 'ipad' : req.isIOS ? 'ios' : req.isMobileDevice ? 'mobile' : 'desktop',
         session: {
             id: req.sessionID,
             exists: !!req.session,
@@ -1680,20 +1761,20 @@ app.get('/api/init-session', (req, res) => {
     });
 });
 
-// CRITICAL FIX: Enhanced authentication middleware for iOS
+// CRITICAL FIX: Enhanced authentication middleware for iOS and iPad
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session exists:', !!req.session);
     console.log('Session User:', req.session?.user);
     
-    // For iOS, also check for session ID in headers or query
+    // For iOS/iPad, also check for session ID in headers or query
     const sessionIdFromHeader = req.headers['x-session-id'];
     const sessionIdFromQuery = req.query.sessionId;
     
     if ((!req.session?.user) && (sessionIdFromHeader || sessionIdFromQuery)) {
         const externalSessionId = sessionIdFromHeader || sessionIdFromQuery;
-        console.log('📱 iOS - Attempting session recovery from external ID:', externalSessionId);
+        console.log('📱 iOS/iPad - Attempting session recovery from external ID:', externalSessionId);
         
         // Check if sessionStore exists before using it
         if (!req.sessionStore || typeof req.sessionStore.get !== 'function') {
