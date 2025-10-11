@@ -365,7 +365,6 @@ app.use((req, res, next) => {
     }
 });
 
-// CRITICAL FIX: Enhanced root route with session cookie header
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const referer = req.headers.referer || '';
@@ -376,10 +375,9 @@ app.get('/', (req, res) => {
     console.log('Referer:', referer);
     console.log('Origin:', origin);
 
-    // Enhanced Capacitor/iOS detection
-    // NEW CODE - ENHANCED iPAD DETECTION:
+    // SERVER-SAFE Capacitor/iOS detection
     const isIPad = /iPad/.test(userAgent) || 
-                (/Macintosh/.test(userAgent) && navigator.maxTouchPoints > 2);
+                   (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
 
     const isCapacitorApp = 
         /Capacitor/.test(userAgent) ||
@@ -394,9 +392,10 @@ app.get('/', (req, res) => {
         (userAgent.includes('Mobile') && !userAgent.includes('Safari'));
 
     console.log('Capacitor app detected:', isCapacitorApp);
+    console.log('iPad detected:', isIPad);
 
     // CRITICAL: Set session cookie header for iOS
-    if (isCapacitorApp || /iPhone|iPad|iPod/.test(userAgent)) {
+    if (isCapacitorApp || /iPhone|iPad|iPod/.test(userAgent) || isIPad) {
         console.log('📱 Serving LoginApp.html for iOS/Capacitor with session cookie');
         
         // Ensure session cookie is set
