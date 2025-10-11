@@ -58,6 +58,28 @@ app.set('trust proxy', 1);
 // Add cookie parser middleware - CRITICAL FIX
 app.use(cookieParser());
 
+// Manual cookie parser function (no dependencies needed)
+function parseCookies(cookieHeader) {
+    const cookies = {};
+    if (cookieHeader && typeof cookieHeader === 'string') {
+        cookieHeader.split(';').forEach(cookie => {
+            const parts = cookie.trim().split('=');
+            if (parts.length >= 2) {
+                const name = parts[0].trim();
+                const value = parts.slice(1).join('=').trim(); // Handle values with '='
+                if (name && value) {
+                    try {
+                        cookies[name] = decodeURIComponent(value);
+                    } catch (e) {
+                        cookies[name] = value; // Use raw value if decode fails
+                    }
+                }
+            }
+        });
+    }
+    return cookies;
+}
+
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
 
@@ -460,19 +482,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// FIXED: Session recovery and consistency middleware
+// FIXED: Session recovery with proper session recreation
 app.use((req, res, next) => {
-    // Safely check for cookies
-    const sessionCookie = req.cookies ? req.cookies['solura.session'] : undefined;
+    // Manual cookie parsing
+    const cookieHeader = req.headers.cookie;
+    const cookies = parseCookies(cookieHeader);
+    const sessionCookie = cookies['solura.session'];
     const headerSessionId = req.headers['x-session-id'];
     const querySessionId = req.query.sessionId;
     
     console.log('🔄 Session Recovery Check:', {
-        hasCookies: !!req.cookies,
+        hasCookies: !!cookieHeader,
         cookie: sessionCookie,
         header: headerSessionId,
         query: querySessionId,
-        currentSessionId: req.sessionID
+        currentSessionId: req.sessionID,
+        hasSessionObject: !!req.session
     });
     
     // If we have an existing session ID from cookie/header/query, use it
@@ -480,16 +505,6 @@ app.use((req, res, next) => {
     
     if (externalSessionId && externalSessionId !== req.sessionID) {
         console.log('🔄 Attempting to restore session:', externalSessionId);
-        
-        // Destroy the auto-generated session first if it has no user data
-        if (req.sessionID && (!req.session.user || Object.keys(req.session).length <= 1)) {
-            req.session.destroy(() => {
-                console.log('🗑️ Destroyed auto-generated session:', req.sessionID);
-            });
-        }
-        
-        // Set the session ID from the external source
-        req.sessionID = externalSessionId;
         
         // Load the session data from store
         req.sessionStore.get(externalSessionId, (err, sessionData) => {
@@ -504,7 +519,15 @@ app.use((req, res, next) => {
                     user: sessionData.user.email
                 });
                 
-                // Manually reconstruct the session
+                // Set the session ID and data
+                req.sessionID = externalSessionId;
+                
+                // CRITICAL: Ensure session object exists
+                if (!req.session) {
+                    console.log('🆕 Creating new session object for restoration');
+                    req.session = {};
+                }
+                
                 Object.assign(req.session, sessionData);
                 
                 // Ensure cookie is set for future requests
@@ -516,8 +539,11 @@ app.use((req, res, next) => {
                     path: '/',
                     domain: '.solura.uk'
                 });
+                
+                console.log('✅ Session restoration complete');
             } else {
                 console.log('❌ No valid session data found for:', externalSessionId);
+                // If no valid session found, continue with current session
             }
             next();
         });
@@ -1956,10 +1982,11 @@ app.post('/submit-database', async (req, res) => {
     }
 });
 
-// FIXED: Login route with proper session persistence and cookie handling
+// FIXED: Login route with proper session validation
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     console.log('Session ID at login start:', req.sessionID);
+    console.log('Session object exists:', !!req.session);
     
     const { email, password, dbName, forceLogout } = req.body;
 
@@ -2089,7 +2116,7 @@ app.post('/submit', async (req, res) => {
             const companyPool = getPool(userDetails.db_name);
             const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
 
-            companyPool.query(companySql, [email], async (err, companyResults) => {
+            companyPool.query(companySql, [email], (err, companyResults) => {
                 if (err) {
                     console.error('Error querying company database:', err);
                     return res.status(500).json({ 
@@ -2127,6 +2154,15 @@ app.post('/submit', async (req, res) => {
                     });
                 }
 
+                // CRITICAL: Ensure session object exists
+                if (!req.session) {
+                    console.error('❌ No session object available');
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Session object not available' 
+                    });
+                }
+
                 const loginSessionId = req.sessionID;
                 console.log('🔐 Using session ID for login:', loginSessionId);
 
@@ -2138,51 +2174,24 @@ app.post('/submit', async (req, res) => {
 
                 console.log('💾 Session data set for session:', loginSessionId);
 
-                // Enhanced session save with verification
-                const saveSessionWithVerification = () => {
-                    return new Promise((resolve, reject) => {
-                        console.log('💾 Saving session to store:', loginSessionId);
-                        
-                        req.session.save((saveErr) => {
-                            if (saveErr) {
-                                console.error('❌ Session save failed:', saveErr);
-                                reject(saveErr);
-                                return;
-                            }
-                            
-                            console.log('✅ Session save completed, verifying...');
-                            
-                            // Verify session was saved to store
-                            setTimeout(() => {
-                                req.sessionStore.get(loginSessionId, (verifyErr, savedSession) => {
-                                    if (verifyErr) {
-                                        console.error('❌ Session verification error:', verifyErr);
-                                        reject(verifyErr);
-                                        return;
-                                    }
-                                    
-                                    if (savedSession && savedSession.user && savedSession.user.email === email) {
-                                        console.log('✅ Session verified in store:', savedSession.user.email);
-                                        resolve(loginSessionId);
-                                    } else {
-                                        console.error('❌ Session verification failed');
-                                        reject(new Error('Session data not persisted'));
-                                    }
-                                });
-                            }, 100); // Small delay to ensure store write
+                // Save session
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            error: 'Failed to create session'
                         });
-                    });
-                };
+                    }
 
-                try {
-                    const verifiedSessionId = await saveSessionWithVerification();
-                    
+                    console.log('✅ Session saved successfully:', loginSessionId);
+
                     // Track this session
                     if (!activeSessions.has(email)) {
                         activeSessions.set(email, new Set());
                     }
-                    activeSessions.get(email).add(verifiedSessionId);
-                    console.log(`✅ Login session tracked: ${email} -> ${verifiedSessionId}`);
+                    activeSessions.get(email).add(loginSessionId);
+                    console.log(`✅ Login session tracked for ${email}: ${loginSessionId}`);
 
                     // Generate tokens
                     const authToken = generateToken(userInfo);
@@ -2198,7 +2207,7 @@ app.post('/submit', async (req, res) => {
                         { expiresIn: '30d' }
                     );
 
-                    // Device detection for redirect
+                    // PROPER DEVICE DETECTION FOR REDIRECT
                     const useMobileApp = isMobileDevice(req);
                     let redirectUrl = '';
 
@@ -2212,8 +2221,8 @@ app.post('/submit', async (req, res) => {
 
                     console.log(`🔄 Redirecting to: ${redirectUrl} (Mobile: ${useMobileApp})`);
 
-                    // Set session cookie
-                    res.cookie('solura.session', verifiedSessionId, {
+                    // Set session cookie in response
+                    res.cookie('solura.session', loginSessionId, {
                         maxAge: 24 * 60 * 60 * 1000,
                         httpOnly: false,
                         secure: false,
@@ -2224,10 +2233,9 @@ app.post('/submit', async (req, res) => {
 
                     // For mobile devices, include session ID in headers
                     if (useMobileApp) {
-                        res.setHeader('X-Session-ID', verifiedSessionId);
+                        res.setHeader('X-Session-ID', loginSessionId);
                     }
 
-                    // Send success response
                     res.json({
                         success: true,
                         message: 'Login successful',
@@ -2235,91 +2243,10 @@ app.post('/submit', async (req, res) => {
                         user: userInfo,
                         accessToken: authToken,
                         refreshToken: refreshToken,
-                        sessionId: verifiedSessionId,
+                        sessionId: loginSessionId,
                         isMobile: useMobileApp
                     });
-
-                } catch (saveError) {
-                    console.error('❌ Session save/verification failed:', saveError);
-                    
-                    // Simple fallback - try direct session creation
-                    const fallbackSession = {
-                        user: userInfo,
-                        initialized: true,
-                        loginTime: new Date(),
-                        cookie: req.session.cookie
-                    };
-                    
-                    req.sessionStore.set(loginSessionId, fallbackSession, (fallbackErr) => {
-                        if (fallbackErr) {
-                            console.error('❌ Fallback session creation failed:', fallbackErr);
-                            res.status(500).json({ 
-                                success: false,
-                                error: 'Failed to create user session'
-                            });
-                        } else {
-                            console.log('✅ Fallback session created');
-                            
-                            // Track session
-                            if (!activeSessions.has(email)) {
-                                activeSessions.set(email, new Set());
-                            }
-                            activeSessions.get(email).add(loginSessionId);
-                            
-                            // Generate tokens
-                            const authToken = generateToken(userInfo);
-                            const refreshToken = jwt.sign(
-                                {
-                                    email: userInfo.email,
-                                    role: userInfo.role,
-                                    name: userInfo.name,
-                                    lastName: userInfo.lastName,
-                                    dbName: userInfo.dbName
-                                },
-                                process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                                { expiresIn: '30d' }
-                            );
-
-                            // Device detection
-                            const useMobileApp = isMobileDevice(req);
-                            let redirectUrl = '';
-
-                            if (userDetails.access === 'admin' || userDetails.access === 'AM') {
-                                redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
-                            } else if (userDetails.access === 'user') {
-                                redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
-                            } else if (userDetails.access === 'supervisor') {
-                                redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
-                            }
-
-                            // Set cookie
-                            res.cookie('solura.session', loginSessionId, {
-                                maxAge: 24 * 60 * 60 * 1000,
-                                httpOnly: false,
-                                secure: false,
-                                sameSite: 'Lax',
-                                path: '/',
-                                domain: '.solura.uk'
-                            });
-
-                            if (useMobileApp) {
-                                res.setHeader('X-Session-ID', loginSessionId);
-                            }
-
-                            res.json({
-                                success: true,
-                                message: 'Login successful (fallback mode)',
-                                redirectUrl: redirectUrl,
-                                user: userInfo,
-                                accessToken: authToken,
-                                refreshToken: refreshToken,
-                                sessionId: loginSessionId,
-                                isMobile: useMobileApp,
-                                fallbackMode: true
-                            });
-                        }
-                    });
-                }
+                });
             });
         });
     } catch (error) {
