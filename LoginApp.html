@@ -609,7 +609,7 @@
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
 <script>
-    // Enhanced biometric authentication system
+    // Enhanced biometric authentication system for ALL devices
     let databases = [];
     let currentUserData = null;
     const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
@@ -617,10 +617,11 @@
     let biometricType = 'unknown';
     let hasStoredCredentials = false;
     let isAutoLoginAttempted = false;
+    let currentSessionId = null;
 
     // Initialize everything when DOM is ready
     document.addEventListener('DOMContentLoaded', async function() {
-        console.log('🚀 Initializing enhanced login system...');
+        console.log('🚀 Initializing UNIVERSAL login system...');
         
         // Emergency CSS fix first
         document.body.style.backgroundColor = '#ffffff';
@@ -632,39 +633,94 @@
             loginContainer.style.opacity = '1';
         }
         
+        // Initialize mobile session first
+        await initializeMobileSession();
+        
         // Initialize event listeners
         initializeEventListeners();
         
-        // Check biometric support and setup FIRST
+        // Check biometric support and setup
         await initializeBiometricSystem();
         
         // Then check for existing session and try auto-login
         await tryAutoLogin();
     });
 
+    // Initialize mobile session - CRITICAL for iPad/Android
+    async function initializeMobileSession() {
+        try {
+            console.log('📱 Initializing mobile session...');
+            
+            const response = await fetch('/api/mobile-init', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache',
+                    'X-Device-Type': getDeviceType()
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.sessionId) {
+                    currentSessionId = data.sessionId;
+                    localStorage.setItem('sessionId', data.sessionId);
+                    console.log('✅ Mobile session initialized:', data.sessionId, 'Device:', data.deviceType);
+                }
+            }
+        } catch (error) {
+            console.log('⚠️ Mobile session init failed, continuing without session:', error.message);
+        }
+    }
+
+    // Enhanced device detection
+    function getDeviceType() {
+        const userAgent = navigator.userAgent.toLowerCase();
+        
+        if (/ipad/.test(userAgent)) {
+            return 'ipad';
+        } else if (/android/.test(userAgent)) {
+            return 'android';
+        } else if (/iphone|ipod/.test(userAgent)) {
+            return 'ios';
+        } else {
+            return 'mobile';
+        }
+    }
+
     // Store session ID from login response
     function handleLoginResponse(response) {
         if (response.success && response.sessionId) {
             // Store session ID for future requests
             localStorage.setItem('sessionId', response.sessionId);
+            currentSessionId = response.sessionId;
             
             // Redirect to the appropriate page
             window.location.href = response.redirectUrl;
         }
     }
 
-    // Include session ID in all API requests
+    // Include session ID in all API requests - FIXED for all devices
     function makeApiRequest(url, options = {}) {
-        const sessionId = localStorage.getItem('sessionId');
+        const sessionId = currentSessionId || localStorage.getItem('sessionId');
         
+        if (!options.headers) options.headers = {};
+        
+        // Always include session ID in headers
         if (sessionId) {
-            if (!options.headers) options.headers = {};
             options.headers['X-Session-ID'] = sessionId;
-            
-            // Also add to URL for GET requests
-            if (options.method === 'GET' || !options.method) {
-                url += (url.includes('?') ? '&' : '?') + 'sessionId=' + encodeURIComponent(sessionId);
-            }
+        }
+        
+        // Include device type
+        options.headers['X-Device-Type'] = getDeviceType();
+        
+        // Ensure credentials are included
+        options.credentials = 'include';
+        
+        // Also add to URL for GET requests as backup
+        if ((options.method === 'GET' || !options.method) && sessionId) {
+            url += (url.includes('?') ? '&' : '?') + 'sessionId=' + encodeURIComponent(sessionId);
         }
         
         return fetch(url, options);
@@ -701,11 +757,15 @@
         if (!isCapacitor) {
             // WebAuthn support check for browsers
             if (window.PublicKeyCredential && window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
-                const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-                if (available) {
-                    biometricSupported = true;
-                    biometricType = 'webauthn';
-                    console.log('✅ WebAuthn biometric authentication supported');
+                try {
+                    const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+                    if (available) {
+                        biometricSupported = true;
+                        biometricType = 'webauthn';
+                        console.log('✅ WebAuthn biometric authentication supported');
+                    }
+                } catch (error) {
+                    console.log('❌ WebAuthn not supported:', error);
                 }
             }
             return;
@@ -839,12 +899,9 @@
     async function checkExistingSession() {
         try {
             console.log('🔍 Checking for existing session...');
-            const response = await fetch('/api/validate-session', {
-                credentials: 'include',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
+            const response = await makeApiRequest('/api/validate-session', {
+                method: 'GET',
+                credentials: 'include'
             });
             
             if (response.ok) {
@@ -958,7 +1015,7 @@
         try {
             console.log('🔄 Restoring session with token for:', email);
             
-            const response = await fetch('/api/verify-biometric', {
+            const response = await makeApiRequest('/api/verify-biometric', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1002,6 +1059,7 @@
     function storeSessionData(data) {
         if (data.sessionId) {
             localStorage.setItem('sessionId', data.sessionId);
+            currentSessionId = data.sessionId;
         }
         if (data.user) {
             localStorage.setItem('userInfo', JSON.stringify(data.user));
@@ -1067,11 +1125,13 @@
 
         // First check if user has active sessions
         try {
-            const checkResponse = await fetch('/api/check-active-session', {
+            const checkResponse = await makeApiRequest('/api/check-active-session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                'X-Device-Type': getDeviceType()
                 },
+                credentials: 'include',
                 body: JSON.stringify({ email: email })
             });
             
@@ -1124,11 +1184,13 @@
         
         try {
             // Force logout from other sessions
-            const logoutResponse = await fetch('/api/force-logout-others', {
+            const logoutResponse = await makeApiRequest('/api/force-logout-others', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Device-Type': getDeviceType()
                 },
+                credentials: 'include',
                 body: JSON.stringify({ 
                     email: currentUserData.email, 
                     keepCurrentSession: false 
@@ -1178,9 +1240,12 @@
         errorDiv.style.display = 'none';
 
         try {
-            const res = await fetch('/submit', {
+            const res = await makeApiRequest('/submit', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Device-Type': getDeviceType()
+                },
                 credentials: 'include',
                 body: JSON.stringify({ 
                     email, 
@@ -1252,7 +1317,7 @@
                 
                 console.log('✅ Login successful, session created:', data.sessionId);
                 
-                // For iOS, wait a bit to ensure cookies are set
+                // For mobile devices, wait a bit to ensure cookies are set
                 setTimeout(() => {
                     window.location.replace(data.redirectUrl);
                 }, 500);
@@ -1335,7 +1400,7 @@
 
         if (redirectUrl) {
             console.log('Redirecting to:', redirectUrl);
-            // For iOS, use replace to avoid history issues
+            // For mobile devices, use replace to avoid history issues
             window.location.replace(redirectUrl);
         }
     }
@@ -1377,9 +1442,12 @@
         popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
         try {
-            const res = await fetch('/submit', {
+            const res = await makeApiRequest('/submit', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-Device-Type': getDeviceType()
+                },
                 credentials: 'include',
                 body: JSON.stringify({
                     email: currentUserData.email,
@@ -1424,7 +1492,7 @@
                 
                 console.log('Database selection successful, redirecting...');
 
-                // For iOS, use replace and add delay for cookie setting
+                // For mobile devices, use replace and add delay for cookie setting
                 setTimeout(() => {
                     window.location.replace(data.redirectUrl);
                 }, 100);
