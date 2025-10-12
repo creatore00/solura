@@ -277,20 +277,20 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: Session configuration MUST be before any session-related middleware
+// FIXED Session configuration for iPad compatibility
 app.use(session({
     secret: SESSION_SECRET,
-    resave: true, // CHANGED: Force resave to ensure session persistence
-    saveUninitialized: true, // CHANGED: Allow uninitialized sessions
+    resave: true,
+    saveUninitialized: true,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // MUST be false for all environments
-        httpOnly: false, // Must be false for iOS/Capacitor
+        secure: false,
+        httpOnly: false,
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: 24 * 60 * 60 * 1000,
         path: '/',
-        domain: isProduction ? 'solura.uk' : undefined // CHANGED: Removed leading dot for iPad compatibility
+        domain: isProduction ? 'solura.uk' : undefined // REMOVED leading dot
     },
     rolling: true,
     proxy: false,
