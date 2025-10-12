@@ -151,7 +151,7 @@ function generateToken(user) {
     );
 }
 
-// MySQL session store
+// MySQL session store with FIXED configuration
 const sessionStore = new MySQLStore({
     host: 'sv41.byethost41.org',
     port: 3306,
@@ -167,9 +167,11 @@ const sessionStore = new MySQLStore({
             data: 'data'
         }
     },
-    checkExpirationInterval: 60000,
-    expiration: 600000,
-    clearExpired: true
+    checkExpirationInterval: 900000, // 15 minutes
+    expiration: 86400000, // 24 hours
+    clearExpired: true,
+    endConnectionOnClose: false,
+    charset: 'utf8mb4_bin'
 }, mainPool);
 
 // UNIVERSAL CORS for all devices - FIXED
@@ -334,11 +336,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED Session configuration for ALL devices including iPad and Android
+// CRITICAL FIX: Enhanced session configuration with proper store handling
 app.use(session({
     secret: SESSION_SECRET,
-    resave: true,
-    saveUninitialized: true,
+    resave: false, // Changed to false to prevent race conditions
+    saveUninitialized: false, // Changed to false - only save when we have data
     store: sessionStore,
     name: 'solura.session',
     cookie: {
@@ -356,32 +358,52 @@ app.use(session({
     }
 }));
 
-// CRITICAL FIX: Enhanced session persistence middleware
+// CRITICAL FIX: Enhanced session persistence middleware with proper error handling
 app.use((req, res, next) => {
-  // Store original session save method
-  const originalSave = req.session.save;
-  
-  // Enhanced session save with proper error handling
-  req.session.save = function(callback) {
-    console.log('💾 Attempting to save session:', req.sessionID);
-    console.log('💾 Session data to save:', {
-      user: req.session.user,
-      initialized: req.session.initialized
-    });
+    // Store original session save method
+    const originalSave = req.session.save;
     
-    return originalSave.call(this, (err) => {
-      if (err) {
-        console.error('❌ Session save error:', err);
-        if (callback) return callback(err);
-        return;
-      }
-      
-      console.log('✅ Session saved successfully:', req.sessionID);
-      if (callback) callback(null);
-    });
-  };
-  
-  next();
+    // Enhanced session save with proper error handling and validation
+    req.session.save = function(callback) {
+        console.log('💾 Attempting to save session:', req.sessionID);
+        console.log('💾 Session data to save:', {
+            user: req.session.user,
+            initialized: req.session.initialized,
+            deviceType: req.session.deviceType
+        });
+        
+        // Validate session data before saving
+        if (!req.sessionID) {
+            console.error('❌ Cannot save session: No session ID');
+            if (callback) return callback(new Error('No session ID'));
+            return;
+        }
+        
+        return originalSave.call(this, (err) => {
+            if (err) {
+                console.error('❌ Session save error:', err);
+                if (callback) return callback(err);
+                return;
+            }
+            
+            console.log('✅ Session saved successfully:', req.sessionID);
+            if (callback) callback(null);
+        });
+    };
+    
+    next();
+});
+
+// CRITICAL FIX: Enhanced session initialization for ALL devices
+app.use((req, res, next) => {
+    // Initialize session with basic data if not already initialized
+    if (req.session && !req.session.initialized) {
+        req.session.initialized = true;
+        req.session.deviceType = req.isIPad ? 'ipad' : req.isAndroid ? 'android' : req.isIOS ? 'ios' : 'desktop';
+        req.session.createdAt = new Date();
+    }
+    
+    next();
 });
 
 // UNIVERSAL session handling for all mobile devices - FIXED
@@ -418,22 +440,36 @@ app.use((req, res, next) => {
             res.setHeader('X-Session-Confirmed', 'true');
         }
         
-        // Session recovery for mobile devices
+        // Session recovery for mobile devices - FIXED with proper async handling
         if (sessionCookie && sessionCookie !== req.sessionID) {
             console.log('🔄 Mobile Session Restoration Needed');
             
             const originalSessionId = req.sessionID;
             
-            // Load the session data from store
-            req.sessionStore.get(sessionCookie, (err, sessionData) => {
-                if (err) {
-                    console.error('❌ Mobile session recovery error:', err);
-                    return next();
-                }
-                
-                if (sessionData && sessionData.user) {
-                    console.log('✅ Mobile session data found, restoring...');
-                    
+            // Load the session data from store with timeout
+            const loadSession = () => {
+                return new Promise((resolve) => {
+                    req.sessionStore.get(sessionCookie, (err, sessionData) => {
+                        if (err) {
+                            console.error('❌ Mobile session recovery error:', err);
+                            resolve(null);
+                            return;
+                        }
+                        
+                        if (sessionData && sessionData.user) {
+                            console.log('✅ Mobile session data found, restoring...');
+                            resolve(sessionData);
+                        } else {
+                            console.log('❌ No valid session data found for cookie:', sessionCookie);
+                            resolve(null);
+                        }
+                    });
+                });
+            };
+            
+            // Execute session recovery
+            loadSession().then((sessionData) => {
+                if (sessionData) {
                     // Destroy the temporary session and use the cookie session
                     req.sessionStore.destroy(originalSessionId, (destroyErr) => {
                         if (destroyErr) {
@@ -461,7 +497,6 @@ app.use((req, res, next) => {
                         });
                     });
                 } else {
-                    console.log('❌ No valid session data found for cookie:', sessionCookie);
                     next();
                 }
             });
@@ -495,50 +530,50 @@ app.use((req, res, next) => {
 
 // Session store health check
 app.get('/api/session-store-health', (req, res) => {
-  if (!sessionStore || typeof sessionStore.get !== 'function') {
-    return res.json({ healthy: false, error: 'Session store not properly initialized' });
-  }
-  
-  // Test the store
-  const testSessionId = 'health-check-' + Date.now();
-  const testData = { test: true, timestamp: Date.now() };
-  
-  sessionStore.set(testSessionId, testData, (setErr) => {
-    if (setErr) {
-      return res.json({ healthy: false, error: 'Store set failed: ' + setErr.message });
+    if (!sessionStore || typeof sessionStore.get !== 'function') {
+        return res.json({ healthy: false, error: 'Session store not properly initialized' });
     }
     
-    sessionStore.get(testSessionId, (getErr, retrievedData) => {
-      if (getErr) {
-        return res.json({ healthy: false, error: 'Store get failed: ' + getErr.message });
-      }
-      
-      sessionStore.destroy(testSessionId, (destroyErr) => {
-        const healthy = retrievedData && retrievedData.test === true;
-        res.json({
-          healthy: healthy,
-          canSet: !setErr,
-          canGet: !getErr && retrievedData,
-          canDestroy: !destroyErr,
-          retrievedData: retrievedData
+    // Test the store
+    const testSessionId = 'health-check-' + Date.now();
+    const testData = { test: true, timestamp: Date.now() };
+    
+    sessionStore.set(testSessionId, testData, (setErr) => {
+        if (setErr) {
+            return res.json({ healthy: false, error: 'Store set failed: ' + setErr.message });
+        }
+        
+        sessionStore.get(testSessionId, (getErr, retrievedData) => {
+            if (getErr) {
+                return res.json({ healthy: false, error: 'Store get failed: ' + getErr.message });
+            }
+            
+            sessionStore.destroy(testSessionId, (destroyErr) => {
+                const healthy = retrievedData && retrievedData.test === true;
+                res.json({
+                    healthy: healthy,
+                    canSet: !setErr,
+                    canGet: !getErr && retrievedData,
+                    canDestroy: !destroyErr,
+                    retrievedData: retrievedData
+                });
+            });
         });
-      });
     });
-  });
 });
 
 // Session debugging middleware
 app.use((req, res, next) => {
-  console.log('=== ENHANCED SESSION DEBUG ===');
-  console.log('URL:', req.url);
-  console.log('Method:', req.method);
-  console.log('Session ID:', req.sessionID);
-  console.log('Session exists:', !!req.session);
-  console.log('Session User:', req.session?.user);
-  console.log('Session Keys:', req.session ? Object.keys(req.session) : 'No session');
-  console.log('Cookies:', parseCookies(req.headers.cookie));
-  console.log('=== END ENHANCED DEBUG ===');
-  next();
+    console.log('=== ENHANCED SESSION DEBUG ===');
+    console.log('URL:', req.url);
+    console.log('Method:', req.method);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User:', req.session?.user);
+    console.log('Session Keys:', req.session ? Object.keys(req.session) : 'No session');
+    console.log('Cookies:', parseCookies(req.headers.cookie));
+    console.log('=== END ENHANCED DEBUG ===');
+    next();
 });
 
 // Mobile device session enhancement
@@ -754,6 +789,7 @@ app.get('/api/mobile-init', (req, res) => {
         req.session.initialized = true;
         req.session.deviceType = deviceType.toLowerCase();
         req.session.userAgent = req.headers['user-agent'];
+        req.session.createdAt = new Date();
     }
     
     // CRITICAL: Manually set the session cookie with mobile-specific settings
@@ -1816,6 +1852,7 @@ app.get('/api/init-session', (req, res) => {
     if (!req.session.initialized) {
         req.session.initialized = true;
         req.session.deviceType = req.isIPad ? 'ipad' : req.isAndroid ? 'android' : req.isIOS ? 'ios' : 'desktop';
+        req.session.createdAt = new Date();
     }
     
     // Touch the session to ensure it's saved
@@ -2800,6 +2837,8 @@ app.listen(port, () => {
     console.log('   - Android device detection and support');
     console.log('   - Universal mobile session handling');
     console.log('   - Improved cookie settings for all devices');
+    console.log('   - Fixed session store configuration');
+    console.log('   - Enhanced session initialization');
     
     const databaseNames = ['bbuonaoxford', '100%pastaoxford'];
     scheduleTestUpdates(databaseNames);

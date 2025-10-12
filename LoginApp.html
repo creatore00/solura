@@ -633,7 +633,7 @@
             loginContainer.style.opacity = '1';
         }
         
-        // Initialize mobile session first
+        // Initialize mobile session first - CRITICAL FIX
         await initializeMobileSession();
         
         // Initialize event listeners
@@ -646,10 +646,13 @@
         await tryAutoLogin();
     });
 
-    // Initialize mobile session - CRITICAL for iPad/Android
+    // Initialize mobile session - CRITICAL FIX for iPad/Android
     async function initializeMobileSession() {
         try {
             console.log('📱 Initializing mobile session...');
+            
+            // Add a small delay to ensure DOM is ready
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             const response = await fetch('/api/mobile-init', {
                 method: 'GET',
@@ -667,11 +670,15 @@
                     currentSessionId = data.sessionId;
                     localStorage.setItem('sessionId', data.sessionId);
                     console.log('✅ Mobile session initialized:', data.sessionId, 'Device:', data.deviceType);
+                    return true;
                 }
+            } else {
+                console.log('⚠️ Mobile session init failed with status:', response.status);
             }
         } catch (error) {
             console.log('⚠️ Mobile session init failed, continuing without session:', error.message);
         }
+        return false;
     }
 
     // Enhanced device detection
@@ -1129,7 +1136,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                'X-Device-Type': getDeviceType()
+                    'X-Device-Type': getDeviceType()
                 },
                 credentials: 'include',
                 body: JSON.stringify({ email: email })
