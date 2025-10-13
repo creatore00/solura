@@ -640,18 +640,17 @@ app.use((req, res, next) => {
     next();
 });
 
-// FIXED: Session recovery with proper session recreation for ALL devices
+// CRITICAL FIX: Enhanced session recovery for iPad
 app.use((req, res, next) => {
     // Manual cookie parsing
-    const cookieHeader = req.headers.cookie;
-    const cookies = parseCookies(cookieHeader);
+    const cookies = parseCookies(req.headers.cookie);
     const sessionCookie = cookies['solura.session'];
     const headerSessionId = req.headers['x-session-id'];
     const querySessionId = req.query.sessionId;
     
-    console.log('🔄 UNIVERSAL Session Recovery Check:', {
+    console.log('🔄 ENHANCED Session Recovery Check:', {
         device: req.isIPad ? 'iPad' : req.isAndroid ? 'Android' : req.isIOS ? 'iOS' : 'Desktop',
-        hasCookies: !!cookieHeader,
+        hasCookies: !!req.headers.cookie,
         cookie: sessionCookie,
         header: headerSessionId,
         query: querySessionId,
@@ -679,33 +678,43 @@ app.use((req, res, next) => {
                     user: sessionData.user.email
                 });
                 
-                // Set the session ID and data
-                req.sessionID = externalSessionId;
-                
-                // CRITICAL: Ensure session object exists
-                if (!req.session) {
-                    console.log('🆕 Creating new session object for restoration');
-                    req.session = {};
-                }
-                
-                Object.assign(req.session, sessionData);
-                
-                // Ensure cookie is set for future requests
-                res.cookie('solura.session', externalSessionId, {
-                    maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'lax',
-                    path: '/',
-                    domain: isProduction ? '.solura.uk' : undefined
+                // CRITICAL FIX: Destroy current session and use the authenticated one
+                req.sessionStore.destroy(req.sessionID, (destroyErr) => {
+                    if (destroyErr) {
+                        console.error('Error destroying temporary session:', destroyErr);
+                    }
+                    
+                    // Set the session ID to match the cookie
+                    req.sessionID = externalSessionId;
+                    Object.assign(req.session, sessionData);
+                    
+                    console.log('✅ Session fully restored for iPad');
+                    
+                    // Force immediate save and set cookie
+                    req.session.save((saveErr) => {
+                        if (saveErr) {
+                            console.error('❌ Session save error after restoration:', saveErr);
+                        } else {
+                            console.log('✅ Session persisted after restoration');
+                        }
+                        
+                        // CRITICAL: Set cookie for iPad
+                        res.cookie('solura.session', externalSessionId, {
+                            maxAge: 24 * 60 * 60 * 1000,
+                            httpOnly: false,
+                            secure: false,
+                            sameSite: 'lax',
+                            path: '/',
+                            domain: isProduction ? '.solura.uk' : undefined
+                        });
+                        
+                        next();
+                    });
                 });
-                
-                console.log('✅ Session restoration complete');
             } else {
                 console.log('❌ No valid session data found for:', externalSessionId);
-                // If no valid session found, continue with current session
+                next();
             }
-            next();
         });
     } else {
         next();
@@ -1719,6 +1728,31 @@ app.post('/api/mobile-restore-session', async (req, res) => {
     }
 });
 
+// NEW: Session health check endpoint for debugging
+app.get('/api/session-health', (req, res) => {
+    const cookies = parseCookies(req.headers.cookie);
+    const sessionCookie = cookies['solura.session'];
+    
+    res.json({
+        healthy: true,
+        session: {
+            id: req.sessionID,
+            exists: !!req.session,
+            user: req.session?.user,
+            cookie: sessionCookie,
+            cookieMatch: sessionCookie === req.sessionID,
+            deviceType: req.session?.deviceType
+        },
+        device: {
+            isMobile: req.isMobileDevice,
+            isIPad: req.isIPad,
+            isAndroid: req.isAndroid,
+            isIOS: req.isIOS
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Enhanced session recovery endpoint
 app.post('/api/recover-session', async (req, res) => {
     safeSessionTouch(req);
@@ -1875,7 +1909,7 @@ app.get('/api/init-session', (req, res) => {
     });
 });
 
-// CRITICAL FIX: Enhanced authentication middleware for ALL devices
+// CRITICAL FIX: Enhanced authentication middleware for iPad
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
     console.log('Session ID:', req.sessionID);
@@ -1890,52 +1924,65 @@ function isAuthenticated(req, res, next) {
     console.log('Auth Check - Cookie vs Session:', {
         cookieSession: sessionCookie,
         currentSession: req.sessionID,
-        match: sessionCookie === req.sessionID
+        match: sessionCookie === req.sessionID,
+        device: req.isIPad ? 'iPad' : 'Other'
     });
     
-    // For mobile devices, check for session ID in headers or query
-    if ((!req.session?.user) && (sessionIdFromHeader || sessionIdFromQuery)) {
-        const externalSessionId = sessionIdFromHeader || sessionIdFromQuery;
-        console.log('📱 Mobile Device - Attempting session recovery from external ID:', externalSessionId);
-        
-        if (!req.sessionStore || typeof req.sessionStore.get !== 'function') {
-            console.log('❌ Session store not available for recovery');
-            return sendAuthError(res, req);
-        }
-        
-        req.sessionStore.get(externalSessionId, (err, sessionData) => {
-            if (err) {
-                console.error('Error loading external session:', err);
-                return sendAuthError(res, req);
-            }
-            
-            if (sessionData && sessionData.user) {
-                console.log('✅ External session recovery successful');
-                Object.assign(req.session, sessionData);
-                return next();
-            } else {
-                console.log('❌ No valid session data found for recovery');
-                sendAuthError(res, req);
-            }
-        });
-    } else if (req.session?.user && req.session.user.dbName && req.session.user.email) {
+    if (req.session?.user && req.session.user.dbName && req.session.user.email) {
         console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
         
         // CRITICAL: Always touch session and set cookie for authenticated requests
         safeSessionTouch(req);
-        res.cookie('solura.session', req.sessionID, {
-            maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
-        });
+        
+        // CRITICAL FIX: For iPad, always set the cookie on authenticated requests
+        if (req.isIPad) {
+            res.cookie('solura.session', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false,
+                sameSite: 'lax',
+                path: '/',
+                domain: isProduction ? '.solura.uk' : undefined
+            });
+        }
         
         return next();
     } else {
         console.log('❌ Authentication FAILED');
-        sendAuthError(res, req);
+        
+        // For iPad, try to recover session from cookie
+        if (req.isIPad && sessionCookie && sessionCookie !== req.sessionID) {
+            console.log('📱 iPad session recovery attempt from cookie');
+            
+            req.sessionStore.get(sessionCookie, (err, sessionData) => {
+                if (err) {
+                    console.error('Error loading iPad session:', err);
+                    return sendAuthError(res, req);
+                }
+                
+                if (sessionData && sessionData.user) {
+                    console.log('✅ iPad session recovery successful');
+                    req.sessionID = sessionCookie;
+                    Object.assign(req.session, sessionData);
+                    
+                    // Set cookie immediately
+                    res.cookie('solura.session', req.sessionID, {
+                        maxAge: 24 * 60 * 60 * 1000,
+                        httpOnly: false,
+                        secure: false,
+                        sameSite: 'lax',
+                        path: '/',
+                        domain: isProduction ? '.solura.uk' : undefined
+                    });
+                    
+                    return next();
+                } else {
+                    sendAuthError(res, req);
+                }
+            });
+        } else {
+            sendAuthError(res, req);
+        }
     }
 }
 
@@ -1976,10 +2023,12 @@ function isUser(req, res, next) {
     sendAuthError(res, req, 'User access required');
 }
 
-// Enhanced database selection with force logout support
+// CRITICAL FIX: Enhanced database selection with iPad session preservation
 app.post('/submit-database', async (req, res) => {
     console.log('=== DATABASE SELECTION ===');
     console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session User before selection:', req.session?.user);
     
     const { email, password, dbName, forceLogout } = req.body;
 
@@ -2029,54 +2078,6 @@ app.post('/submit-database', async (req, res) => {
                 });
             }
 
-            // Check for active sessions
-            const activeSessionIds = activeSessions.get(email);
-            let hasActiveSessions = false;
-            
-            if (activeSessionIds && activeSessionIds.size > 0) {
-                for (const sessionId of activeSessionIds) {
-                    await new Promise((resolve) => {
-                        sessionStore.get(sessionId, (err, sessionData) => {
-                            if (!err && sessionData && sessionData.user) {
-                                hasActiveSessions = true;
-                            }
-                            resolve();
-                        });
-                    });
-                    if (hasActiveSessions) break;
-                }
-            }
-
-            // If user has active sessions and hasn't chosen to force logout, return warning
-            if (hasActiveSessions && forceLogout !== true) {
-                return res.status(409).json({
-                    success: false,
-                    message: 'already_logged_in',
-                    activeSessions: activeSessionIds ? activeSessionIds.size : 0
-                });
-            }
-
-            // If force logout is requested, destroy other sessions
-            if (hasActiveSessions && forceLogout === true) {
-                console.log('🔄 Force logout requested for database selection:', email);
-                for (const sessionId of activeSessionIds) {
-                    if (sessionId !== req.sessionID) {
-                        await new Promise((resolve) => {
-                            sessionStore.destroy(sessionId, (err) => {
-                                if (err) {
-                                    console.error('Error destroying session:', err);
-                                } else {
-                                    console.log(`✅ Destroyed previous session: ${sessionId}`);
-                                }
-                                resolve();
-                            });
-                        });
-                    }
-                }
-                // Clear tracking and only keep current session
-                activeSessions.set(email, new Set([req.sessionID]));
-            }
-
             // Continue with login
             const companyPool = getPool(dbName);
             const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
@@ -2108,11 +2109,14 @@ app.post('/submit-database', async (req, res) => {
                     dbName: dbName,
                 };
 
-                console.log('✅ Database selection successful, creating session for user:', userInfo);
+                console.log('✅ Database selection successful, updating session for user:', userInfo);
 
-                // Set session data
+                // CRITICAL FIX: Update the existing session instead of creating new one
                 req.session.user = userInfo;
                 req.session.initialized = true;
+                req.session.lastAccess = new Date();
+
+                console.log('💾 Session updated with database selection:', req.sessionID);
                 
                 // Track this session
                 if (!activeSessions.has(email)) {
@@ -2158,13 +2162,13 @@ app.post('/submit-database', async (req, res) => {
                         console.error('Error saving session:', err);
                         return res.status(500).json({ 
                             success: false,
-                            error: 'Failed to create session'
+                            error: 'Failed to update session'
                         });
                     }
 
                     console.log('✅ Session saved successfully. Session ID:', req.sessionID);
 
-                    // Set session cookie
+                    // CRITICAL FIX: Enhanced cookie setting for iPad
                     res.cookie('solura.session', req.sessionID, {
                         maxAge: 24 * 60 * 60 * 1000,
                         httpOnly: false,
@@ -2176,7 +2180,7 @@ app.post('/submit-database', async (req, res) => {
 
                     res.json({
                         success: true,
-                        message: 'Login successful',
+                        message: 'Database selection successful',
                         redirectUrl: redirectUrl,
                         user: userInfo,
                         accessToken: authToken,

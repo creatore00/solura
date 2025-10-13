@@ -1130,109 +1130,21 @@
             return;
         }
 
-        // First check if user has active sessions
         try {
-            const checkResponse = await makeApiRequest('/api/check-active-session', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
-                },
-                credentials: 'include',
-                body: JSON.stringify({ email: email })
-            });
-            
-            const checkResult = await checkResponse.json();
-            
-            if (checkResult.success && checkResult.hasActiveSession) {
-                loadingDiv.style.display = 'none';
-                loginButton.disabled = false;
-                loginButton.textContent = 'Sign In';
-                // Show duplicate session modal
-                showDuplicateSessionModal(email, password, checkResult.activeSessions);
-                return;
-            }
-            
-            // No active sessions, proceed with login
             await performLogin(email, password);
-            
         } catch (error) {
-            console.error('Error checking active sessions:', error);
-            loadingDiv.style.display = 'none';
-            loginButton.disabled = false;
-            loginButton.textContent = 'Sign In';
-            // If check fails, still try to login
-            await performLogin(email, password);
-        }
-    }
-
-    function showDuplicateSessionModal(email, password, activeSessions) {
-        const modal = document.getElementById('duplicateSessionModal');
-        const message = document.getElementById('modalMessage');
-        
-        const deviceText = activeSessions === 1 ? 'device' : 'devices';
-        message.textContent = `You are already logged in on ${activeSessions} other ${deviceText} or browser tab(s).`;
-        
-        modal.style.display = 'block';
-        
-        // Store credentials for later use
-        currentUserData = { email, password };
-    }
-
-    async function handleLogoutOthers() {
-        const modal = document.getElementById('duplicateSessionModal');
-        const loadingDiv = document.getElementById('loading');
-        const loginButton = document.getElementById('loginButton');
-        
-        modal.style.display = 'none';
-        loadingDiv.style.display = 'block';
-        loginButton.disabled = true;
-        loginButton.innerHTML = '<span class="spinner"></span> Logging out others...';
-        
-        try {
-            // Force logout from other sessions
-            const logoutResponse = await makeApiRequest('/api/force-logout-others', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
-                },
-                credentials: 'include',
-                body: JSON.stringify({ 
-                    email: currentUserData.email, 
-                    keepCurrentSession: false 
-                })
-            });
-            
-            const logoutResult = await logoutResponse.json();
-            
-            if (logoutResult.success) {
-                console.log(`✅ Logged out from ${logoutResult.loggedOutCount} other sessions`);
-                
-                // Add a small delay to ensure sessions are cleaned up
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Now proceed with login using forceLogout flag
-                await performLogin(currentUserData.email, currentUserData.password, true);
-            } else {
-                throw new Error(logoutResult.error || 'Failed to logout other sessions');
-            }
-            
-        } catch (error) {
-            console.error('Error logging out other sessions:', error);
-            showError(`Failed to logout other sessions: ${error.message}`);
+            console.error('Login error:', error);
+            showError(`Login failed: ${error.message}`);
             loadingDiv.style.display = 'none';
             loginButton.disabled = false;
             loginButton.textContent = 'Sign In';
         }
     }
 
-    function handleCancelLogin() {
-        const modal = document.getElementById('duplicateSessionModal');
-        modal.style.display = 'none';
-        document.getElementById('password').value = '';
-        document.getElementById('loginButton').disabled = false;
-        document.getElementById('loginButton').textContent = 'Sign In';
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
     }
 
     // --- MAIN LOGIN FUNCTION ---
@@ -1272,17 +1184,6 @@
             }
 
             if (!res.ok) {
-                // Handle specific error cases
-                if (data.message === 'already_logged_in') {
-                    // If we still get this error even after force logout, 
-                    // wait and retry once
-                    if (forceLogout) {
-                        console.log('🔄 Still detecting active session, retrying...');
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        return await performLogin(email, password, true);
-                    }
-                    throw new Error('already_logged_in');
-                }
                 throw new Error(data.message || `Server error: ${res.status}`);
             }
 
@@ -1324,8 +1225,15 @@
                 
                 console.log('✅ Login successful, session created:', data.sessionId);
                 
+                // CRITICAL FIX: For iPad, ensure we have the session ID before redirect
+                if (data.sessionId) {
+                    currentSessionId = data.sessionId;
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+                
                 // For mobile devices, wait a bit to ensure cookies are set
                 setTimeout(() => {
+                    console.log('🔄 Redirecting to:', data.redirectUrl);
                     window.location.replace(data.redirectUrl);
                 }, 500);
                 
@@ -1334,23 +1242,12 @@
             }
         } catch (error) {
             console.error('Login error:', error);
-            if (error.message === 'already_logged_in') {
-                // This should be handled by the pre-check, but handle it anyway
-                showDuplicateSessionModal(email, password, 1);
-            } else {
-                showError(`Login failed: ${error.message}`);
-            }
+            showError(`Login failed: ${error.message}`);
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Sign In';
             loadingDiv.style.display = 'none';
         }
-    }
-
-    function showError(message) {
-        const errorDiv = document.getElementById('errorMessage');
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
     }
 
     // Store credentials using Capacitor Biometric Auth
@@ -1449,7 +1346,7 @@
         popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
         try {
-            const res = await makeApiRequest('/submit', {
+            const res = await makeApiRequest('/submit-database', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -1499,8 +1396,15 @@
                 
                 console.log('Database selection successful, redirecting...');
 
+                // CRITICAL FIX: For iPad, ensure we have the session ID before redirect
+                if (data.sessionId) {
+                    currentSessionId = data.sessionId;
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+
                 // For mobile devices, use replace and add delay for cookie setting
                 setTimeout(() => {
+                    console.log('🔄 Redirecting to:', data.redirectUrl);
                     window.location.replace(data.redirectUrl);
                 }, 100);
                 
@@ -1561,5 +1465,4 @@
 </script>
 
 </body>
-
 </html>
