@@ -1412,7 +1412,7 @@
         }
     }
 
-    // --- DATABASE POPUP - FIXED FOR IPAD ---
+    // --- DATABASE POPUP ---
     function showDatabasePopup(databases) {
         const popup = document.getElementById('databasePopup');
         const list = document.getElementById('databaseList');
@@ -1436,7 +1436,7 @@
         popup.style.display = 'block';
     }
 
-    // Database selection - FIXED FOR IPAD SESSION ISSUE
+    // Database selection
     async function submitDatabase() {
         const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
         if (!selectedDatabase) {
@@ -1449,24 +1449,17 @@
         popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
         try {
-            // Use the same session ID that was established during initial login
-            const sessionId = currentUserData?.sessionId || currentSessionId || localStorage.getItem('sessionId');
-            
-            console.log('🔐 iPad Database Selection - Using session:', sessionId);
-            
-            const res = await fetch('/submit-database', {
+            const res = await makeApiRequest('/submit', {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType(),
-                    'X-Session-ID': sessionId || ''
+                    'X-Device-Type': getDeviceType()
                 },
                 credentials: 'include',
                 body: JSON.stringify({
                     email: currentUserData.email,
                     password: currentUserData.password,
-                    dbName: selectedDatabase,
-                    sessionId: sessionId // Include session ID in body as well
+                    dbName: selectedDatabase
                 })
             });
 
@@ -1506,19 +1499,10 @@
                 
                 console.log('Database selection successful, redirecting...');
 
-                // CRITICAL FIX FOR IPAD: Use location.replace and ensure session is preserved
-                // Also add session ID to URL as backup for iPad
-                const redirectUrl = data.redirectUrl + (data.redirectUrl.includes('?') ? '&' : '?') + 
-                    `sessionId=${encodeURIComponent(data.sessionId)}&timestamp=${Date.now()}`;
-                
-                console.log('🔄 iPad redirect URL:', redirectUrl);
-                
-                // For iPad, we need to be more aggressive with session preservation
-                localStorage.setItem('lastSessionId', data.sessionId);
-                localStorage.setItem('lastUserData', JSON.stringify(data.user));
-                
-                // Redirect immediately
-                window.location.replace(redirectUrl);
+                // For mobile devices, use replace and add delay for cookie setting
+                setTimeout(() => {
+                    window.location.replace(data.redirectUrl);
+                }, 100);
                 
             } else {
                 throw new Error('Invalid response from server: missing redirect URL');
@@ -1526,8 +1510,7 @@
         } catch (error) {
             console.error('Database selection error:', error);
             alert(`Database selection failed: ${error.message}`);
-            
-            // Reset button state
+        } finally {
             popupBtn.disabled = false;
             popupBtn.textContent = 'Continue';
         }
