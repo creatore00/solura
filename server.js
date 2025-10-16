@@ -285,12 +285,12 @@ app.use(session({
     store: sessionStore,
     name: 'solura.session',
     cookie: {
-        secure: false, // MUST be false for all environments
+        secure: true, // CHANGED: Must be true for HTTPS in production
         httpOnly: false, // Must be false for iOS/Capacitor
-        sameSite: 'lax',
+        sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none' for cross-site cookies
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
-        domain: isProduction ? '.solura.uk' : undefined // Only set domain in production
+        domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot for iPad compatibility
     },
     rolling: true,
     proxy: false,
@@ -441,14 +441,14 @@ app.use((req, res, next) => {
 // Mobile device session enhancement
 app.use((req, res, next) => {
     if (req.isMobileDevice && req.sessionID) {
-        // Always set session cookie for mobile devices
+        // Always set session cookie for mobile devices with iPad-compatible settings
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
             httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
+            secure: true, // CHANGED: Must be true for HTTPS
+            sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
             path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
+            domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
         });
         
         // Add session ID to all responses for mobile devices
@@ -469,14 +469,14 @@ app.use((req, res, next) => {
     // Enhanced cookie method that ensures session cookie is properly set
     res.cookie = function(name, value, options = {}) {
         if (name === 'solura.session') {
-            // Ensure consistent cookie settings
+            // Ensure consistent cookie settings - CRITICAL FIX FOR IPAD
             options = {
                 maxAge: 24 * 60 * 60 * 1000,
                 httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
+                secure: true, // CHANGED: Must be true for HTTPS
+                sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
                 path: '/',
-                domain: isProduction ? '.solura.uk' : undefined,
+                domain: isProduction ? 'solura.uk' : undefined, // CRITICAL FIX: Removed leading dot
                 ...options
             };
             console.log('🍪 Setting session cookie:', { name, value, options });
@@ -492,10 +492,10 @@ app.use((req, res, next) => {
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
             httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
+            secure: true, // CHANGED: Must be true for HTTPS
+            sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
             path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
+            domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
         });
     }
     
@@ -555,10 +555,10 @@ app.use((req, res, next) => {
                 res.cookie('solura.session', externalSessionId, {
                     maxAge: 24 * 60 * 60 * 1000,
                     httpOnly: false,
-                    secure: false,
-                    sameSite: 'Lax',
+                    secure: true, // CHANGED: Must be true for HTTPS
+                    sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
                     path: '/',
-                    domain: isProduction ? '.solura.uk' : undefined
+                    domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
                 });
                 
                 console.log('✅ Session restoration complete');
@@ -594,10 +594,10 @@ app.get('/', (req, res) => {
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
             httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
+            secure: true, // CHANGED: Must be true for HTTPS
+            sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
             path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
+            domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
         });
     }
 
@@ -619,10 +619,10 @@ app.get('/LoginApp.html', (req, res) => {
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
             httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
+            secure: true, // CHANGED: Must be true for HTTPS
+            sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
             path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
+            domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
         });
     }
     
@@ -648,10 +648,10 @@ app.get('/api/ipad-init', (req, res) => {
     res.cookie('solura.session', req.sessionID, {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: false,
-        secure: false,
-        sameSite: 'Lax',
+        secure: true, // CHANGED: Must be true for HTTPS
+        sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
         path: '/',
-        domain: isProduction ? '.solura.uk' : undefined
+        domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
     });
     
     res.json({
@@ -678,10 +678,10 @@ app.get('/api/mobile-init', (req, res) => {
     res.cookie('solura.session', req.sessionID, {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: false,
-        secure: false,
-        sameSite: 'Lax',
+        secure: true, // CHANGED: Must be true for HTTPS
+        sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
         path: '/',
-        domain: isProduction ? '.solura.uk' : undefined
+        domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
     });
     
     res.json({
@@ -1945,10 +1945,10 @@ app.post('/submit-database', async (req, res) => {
                         res.cookie('solura.session', req.sessionID, {
                             maxAge: 24 * 60 * 60 * 1000,
                             httpOnly: false,
-                            secure: false,
-                            sameSite: 'Lax',
+                            secure: true, // CHANGED: Must be true for HTTPS
+                            sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
                             path: '/',
-                            domain: isProduction ? '.solura.uk' : undefined
+                            domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
                         });
 
                         // For mobile devices, include session ID in headers
@@ -2171,10 +2171,10 @@ app.post('/submit-database', async (req, res) => {
                     res.cookie('solura.session', req.sessionID, {
                         maxAge: 24 * 60 * 60 * 1000,
                         httpOnly: false,
-                        secure: false,
-                        sameSite: 'Lax',
+                        secure: true, // CHANGED: Must be true for HTTPS
+                        sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
                         path: '/',
-                        domain: isProduction ? '.solura.uk' : undefined
+                        domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
                     });
 
                     res.json({
@@ -2442,10 +2442,10 @@ app.post('/submit', async (req, res) => {
                     res.cookie('solura.session', loginSessionId, {
                         maxAge: 24 * 60 * 60 * 1000,
                         httpOnly: false,
-                        secure: false,
-                        sameSite: 'Lax',
+                        secure: true, // CHANGED: Must be true for HTTPS
+                        sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
                         path: '/',
-                        domain: isProduction ? '.solura.uk' : undefined
+                        domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
                     });
 
                     // For mobile devices, include session ID in headers
@@ -2782,9 +2782,9 @@ app.get('/logout', (req, res) => {
             res.clearCookie('solura.session', {
                 path: '/',
                 httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
-                domain: isProduction ? '.solura.uk' : undefined
+                secure: true, // CHANGED: Must be true for HTTPS
+                sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
+                domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
             });
             
             console.log('✅ Logout successful for session:', sessionId);
@@ -2805,10 +2805,10 @@ app.get('*', (req, res) => {
             res.cookie('solura.session', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
                 httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
+                secure: true, // CHANGED: Must be true for HTTPS
+                sameSite: 'none', // CRITICAL FIX: Changed from 'lax' to 'none'
                 path: '/',
-                domain: isProduction ? '.solura.uk' : undefined
+                domain: isProduction ? 'solura.uk' : undefined // CRITICAL FIX: Removed leading dot
             });
         }
         res.sendFile(requestedPath);
