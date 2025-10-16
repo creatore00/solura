@@ -663,6 +663,36 @@ app.get('/api/ipad-init', (req, res) => {
     });
 });
 
+// NEW: Mobile session initialization endpoint
+app.get('/api/mobile-init', (req, res) => {
+    console.log('📱 Mobile Session Initialization Request');
+    
+    // Ensure session is created
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+        req.session.mobileDevice = true;
+        req.session.deviceType = req.headers['x-device-type'] || 'mobile';
+    }
+    
+    // Manually set the session cookie with mobile-specific settings
+    res.cookie('solura.session', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax',
+        path: '/',
+        domain: isProduction ? '.solura.uk' : undefined
+    });
+    
+    res.json({
+        success: true,
+        sessionId: req.sessionID,
+        message: 'Mobile session initialized',
+        deviceType: req.session.deviceType,
+        cookiesSupported: true
+    });
+});
+
 // Device debug endpoint
 app.get('/api/device-debug', (req, res) => {
     console.log('=== DEVICE DEBUG INFO ===');
@@ -1749,6 +1779,205 @@ function isUser(req, res, next) {
     }
     sendAuthError(res, req, 'User access required');
 }
+
+// FIXED: Database selection endpoint - CRITICAL FIX FOR IPAD
+app.post('/submit-database', async (req, res) => {
+    console.log('=== DATABASE SELECTION ===');
+    console.log('Session ID:', req.sessionID);
+    console.log('Request body sessionId:', req.body.sessionId);
+    console.log('Headers sessionId:', req.headers['x-session-id']);
+    
+    const { email, password, dbName, sessionId } = req.body;
+
+    if (!email || !password || !dbName) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'Email, password, and database name are required' 
+        });
+    }
+
+    // CRITICAL FIX: Use the provided session ID for iPad consistency
+    if (sessionId && sessionId !== req.sessionID) {
+        console.log('🔄 iPad Session ID override:', sessionId);
+        req.sessionID = sessionId;
+        
+        // Load the existing session data
+        req.sessionStore.get(sessionId, (err, sessionData) => {
+            if (err) {
+                console.error('Error loading session data:', err);
+            } else if (sessionData) {
+                console.log('✅ Loaded existing session data');
+                Object.assign(req.session, sessionData);
+            }
+            continueDatabaseSelection();
+        });
+    } else {
+        continueDatabaseSelection();
+    }
+
+    function continueDatabaseSelection() {
+        try {
+            // First verify the user credentials
+            const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
+            
+            mainPool.query(sql, [email, dbName], async (err, results) => {
+                if (err) {
+                    console.error('Error querying database:', err);
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Internal Server Error'
+                    });
+                }
+
+                if (results.length === 0) {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'Invalid database selection' 
+                    });
+                }
+
+                // Verify password
+                const row = results[0];
+                const storedPassword = row.Password;
+                try {
+                    const isMatch = await bcrypt.compare(password, storedPassword);
+                    if (!isMatch) {
+                        return res.status(401).json({ 
+                            success: false,
+                            message: 'Invalid credentials' 
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error comparing passwords:', err);
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Internal Server Error'
+                    });
+                }
+
+                // Continue with login
+                const companyPool = getPool(dbName);
+                const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+
+                companyPool.query(companySql, [email], (err, companyResults) => {
+                    if (err) {
+                        console.error('Error querying company database:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            error: 'Internal Server Error'
+                        });
+                    }
+
+                    if (companyResults.length === 0) {
+                        return res.status(404).json({ 
+                            success: false,
+                            message: 'User not found in company database' 
+                        });
+                    }
+
+                    const name = companyResults[0].name;
+                    const lastName = companyResults[0].lastName;
+
+                    const userInfo = {
+                        email: email,
+                        role: row.Access,
+                        name: name,
+                        lastName: lastName,
+                        dbName: dbName,
+                    };
+
+                    console.log('✅ Database selection successful, updating session for user:', userInfo);
+
+                    // Set session data - CRITICAL FOR IPAD
+                    req.session.user = userInfo;
+                    req.session.initialized = true;
+                    req.session.loginTime = new Date();
+                    req.session.lastAccess = new Date();
+
+                    // Track this session
+                    if (!activeSessions.has(email)) {
+                        activeSessions.set(email, new Set());
+                    }
+                    activeSessions.get(email).add(req.sessionID);
+                    console.log(`✅ Database selection session tracked for ${email}: ${req.sessionID}`);
+
+                    // Generate tokens
+                    const authToken = generateToken(userInfo);
+                    const refreshToken = jwt.sign(
+                        {
+                            email: userInfo.email,
+                            role: userInfo.role,
+                            name: userInfo.name,
+                            lastName: userInfo.lastName,
+                            dbName: userInfo.dbName
+                        },
+                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                        { expiresIn: '30d' }
+                    );
+
+                    // PROPER DEVICE DETECTION
+                    const useMobileApp = isMobileDevice(req);
+                    let redirectUrl = '';
+
+                    if (row.Access === 'admin' || row.Access === 'AM') {
+                        redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
+                    } else if (row.Access === 'user') {
+                        redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
+                    } else if (row.Access === 'supervisor') {
+                        redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
+                    }
+
+                    console.log(`🔄 Redirecting to: ${redirectUrl} (Mobile: ${useMobileApp})`);
+
+                    // Save session and then respond
+                    req.session.save((err) => {
+                        if (err) {
+                            console.error('Error saving session:', err);
+                            return res.status(500).json({ 
+                                success: false,
+                                error: 'Failed to update session'
+                            });
+                        }
+
+                        console.log('✅ Session saved successfully. Session ID:', req.sessionID);
+
+                        // Set session cookie in response - CRITICAL FOR IPAD
+                        res.cookie('solura.session', req.sessionID, {
+                            maxAge: 24 * 60 * 60 * 1000,
+                            httpOnly: false,
+                            secure: false,
+                            sameSite: 'Lax',
+                            path: '/',
+                            domain: isProduction ? '.solura.uk' : undefined
+                        });
+
+                        // For mobile devices, include session ID in headers
+                        if (useMobileApp) {
+                            res.setHeader('X-Session-ID', req.sessionID);
+                        }
+
+                        res.json({
+                            success: true,
+                            message: 'Database selection successful',
+                            redirectUrl: redirectUrl,
+                            user: userInfo,
+                            accessToken: authToken,
+                            refreshToken: refreshToken,
+                            sessionId: req.sessionID,
+                            isMobile: useMobileApp
+                        });
+                    });
+                });
+            });
+        } catch (error) {
+            console.error('Database selection error:', error);
+            res.status(500).json({ 
+                success: false,
+                error: 'Internal server error'
+            });
+        }
+    }
+});
 
 // Enhanced database selection with force logout support
 app.post('/submit-database', async (req, res) => {
