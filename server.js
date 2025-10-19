@@ -151,7 +151,37 @@ const sessionStore = new MySQLStore({
     expiration: 600000,
     clearExpired: true
 }, mainPool);
-
+// ENHANCED CORS for all devices
+const corsOptions = {
+    origin: function (origin, callback) {
+        // Allow all origins for iOS/Capacitor and mobile devices
+        if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
+            return callback(null, true);
+        }
+        
+        const allowedOrigins = [
+            'https://www.solura.uk', 
+            'https://solura.uk', 
+            'http://localhost:8080',
+            'http://localhost:3000',
+            'capacitor://localhost',
+            'ionic://localhost',
+            'http://localhost',
+            'https://localhost'
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || origin?.includes('solura.uk')) {
+            callback(null, true);
+        } else {
+            console.log('Blocked by CORS:', origin);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID', 'X-Capacitor', 'Origin', 'X-Requested-With'],
+    exposedHeaders: ['Set-Cookie', 'X-Session-ID', 'Authorization']
+};
 app.use(cors({
   origin: [
     'capacitor://localhost',
