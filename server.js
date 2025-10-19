@@ -789,55 +789,72 @@ app.get('/api/ipad-debug', (req, res) => {
 
 function isAuthenticated(req, res, next) {
     console.log('🔐 AUTH CHECK - iPad:', req.isIPad, 'Session:', req.sessionID);
-    
-    // Enhanced iPad session recovery
-    if (req.isIPad && !req.session?.user) {
-        console.log('📱 iPad session recovery initiated');
-        
-        const cookies = parseCookies(req.headers.cookie);
-        const sessionCookie = cookies['solura.session'] || 
-                             cookies['solura_session_ipad'] || 
-                             cookies['solura_session_backup'] ||
-                             req.headers['x-session-id'] ||
-                             req.headers['x-session-backup'];
-        
-        if (sessionCookie && sessionCookie !== req.sessionID) {
-            console.log('🔄 iPad attempting session recovery from:', sessionCookie);
-            
-            return req.sessionStore.get(sessionCookie, (err, sessionData) => {
-                if (err || !sessionData?.user) {
-                    console.log('❌ iPad session recovery failed');
-                    return sendAuthError(res, req);
-                }
-                
-                console.log('✅ iPad session recovered successfully');
-                req.sessionID = sessionCookie;
-                Object.assign(req.session, sessionData);
-                safeSessionTouch(req);
-                
-                // Ensure cookie is set for subsequent requests
-                res.cookie('solura.session', sessionCookie, {
-                    maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'Lax',
-                    path: '/'
-                });
-                
-                next();
-            });
-        }
-    }
-    
-    // Standard authentication check
+
+    // Helper to send auth error safely
+    const sendAuthError = () => {
+        res.status(401).json({
+            success: false,
+            error: 'Authentication required',
+            ipad: !!req.isIPad,
+            requiresReauth: true
+        });
+    };
+
+    // ✅ If user already authenticated, refresh session and proceed
     if (req.session?.user) {
         safeSessionTouch(req);
         return next();
     }
-    
-    console.log('❌ Authentication failed');
-    sendAuthError(res, req);
+
+    // ✅ Attempt iPad-specific session recovery
+    if (req.isIPad) {
+        console.log('📱 Attempting iPad session recovery...');
+        const cookies = parseCookies(req.headers.cookie);
+        const sessionCookie =
+            cookies['solura.session'] ||
+            cookies['solura_session_ipad'] ||
+            cookies['solura_session_backup'] ||
+            req.headers['x-session-id'] ||
+            req.headers['x-session-backup'];
+
+        if (sessionCookie && sessionCookie !== req.sessionID) {
+            console.log('🔄 iPad session recovery attempt:', sessionCookie);
+
+            return req.sessionStore.get(sessionCookie, (err, sessionData) => {
+                if (err) {
+                    console.error('❌ Error retrieving iPad session:', err);
+                    return sendAuthError();
+                }
+
+                if (sessionData?.user) {
+                    console.log('✅ iPad session successfully recovered');
+                    req.sessionID = sessionCookie;
+                    Object.assign(req.session, sessionData);
+                    safeSessionTouch(req);
+
+                    // Re-set session cookie to ensure continuity
+                    res.cookie('solura.session', sessionCookie, {
+                        maxAge: 24 * 60 * 60 * 1000,
+                        httpOnly: false,
+                        secure: false,
+                        sameSite: 'Lax',
+                        path: '/'
+                    });
+
+                    return next();
+                }
+
+                console.log('❌ iPad session data invalid or missing user');
+                return sendAuthError();
+            });
+        }
+    }
+
+    // ❌ If not authenticated and not recovered, deny access
+    console.log('❌ Authentication failed for request:', req.originalUrl);
+    return sendAuthError();
 }
+
 
 function sendAuthError(res, req, customMessage = null) {
     const message = customMessage || 'Please log in again';
