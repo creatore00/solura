@@ -156,10 +156,11 @@ app.get('/api/ipad-validate-session', (req, res) => {
         // Always reset cookies for iPad to ensure persistence
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
-            path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
         });
         
         res.json({
@@ -380,10 +381,11 @@ app.use((req, res, next) => {
                     // Update the cookie to ensure consistency
                     res.cookie('solura.session', sessionCookie, {
                         maxAge: 24 * 60 * 60 * 1000,
-                        httpOnly: false,
-                        secure: false,
-                        sameSite: 'Lax',
-                        path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                     });
                     
                     console.log('✅ iPad session fully restored');
@@ -420,18 +422,20 @@ app.use((req, res, next) => {
                 // Set multiple cookie variations for iPad
                 res.cookie('solura_session_ipad', data.sessionId, {
                     maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'Lax',
-                    path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                 });
                 
                 res.cookie('solura_session_backup', data.sessionId, {
                     maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'Lax',
-                    path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                 });
                 
                 // Also set in headers
@@ -455,20 +459,21 @@ app.use((req, res, next) => {
                 // iPad-specific: NO DOMAIN setting
                 options = {
                     maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'lax',
-                    path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                 };
                 console.log('🍪 iPad Cookie Set (No Domain):', { name, value });
             } else {
                 options = {
                     maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'lax',
-                    path: '/',
-                    domain: isProduction ? '.solura.uk' : undefined
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                 };
             }
         }
@@ -607,11 +612,11 @@ app.use((req, res, next) => {
                 
                 res.cookie('solura.session', externalSessionId, {
                     maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'lax',
-                    path: '/',
-                    domain: isProduction ? '.solura.uk' : undefined
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                 });
                 
                 console.log('✅ Session restoration complete');
@@ -632,27 +637,29 @@ app.use((req, res, next) => {
             // iPad gets multiple session persistence methods
             res.cookie('solura.session', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false,
-                secure: false,
-                sameSite: 'lax',
-                path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
             });
             
             res.cookie('solura_session_ipad', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false,
-                secure: false,
-                sameSite: 'lax',
-                path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
             });
         } else {
             res.cookie('solura.session', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false,
-                secure: false,
-                sameSite: 'lax',
-                path: '/',
-                domain: isProduction ? '.solura.uk' : undefined
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
             });
         }
         
@@ -684,11 +691,11 @@ app.get('/', (req, res) => {
     if (req.sessionID) {
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
         });
     }
 
@@ -835,10 +842,11 @@ function isAuthenticated(req, res, next) {
                     // Re-set session cookie to ensure continuity
                     res.cookie('solura.session', sessionCookie, {
                         maxAge: 24 * 60 * 60 * 1000,
-                        httpOnly: false,
-                        secure: false,
-                        sameSite: 'Lax',
-                        path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                     });
 
                     return next();
@@ -854,7 +862,6 @@ function isAuthenticated(req, res, next) {
     console.log('❌ Authentication failed for request:', req.originalUrl);
     return sendAuthError();
 }
-
 
 function sendAuthError(res, req, customMessage = null) {
     const message = customMessage || 'Please log in again';
@@ -1137,21 +1144,22 @@ app.post('/submit', async (req, res) => {
                         // Set multiple cookies without domain for iPad
                         res.cookie('solura_session_ipad', loginSessionId, {
                             maxAge: 24 * 60 * 60 * 1000,
-                            httpOnly: false,
-                            secure: false,
-                            sameSite: 'lax',
-                            path: '/'
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
+                        path: '/',
+                        domain: '.solura.uk'
                         });
                     }
 
                     // Set session cookie
                     res.cookie('solura.session', loginSessionId, {
                         maxAge: 24 * 60 * 60 * 1000,
-                        httpOnly: false,
-                        secure: false,
-                        sameSite: 'lax',
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
                         path: '/',
-                        domain: isProduction ? '.solura.uk' : undefined
+                        domain: '.solura.uk'
                     });
 
                     // For mobile devices, include session ID in headers
@@ -1183,9 +1191,10 @@ app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
         // Set multiple persistence methods
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'lax',
+            domain: ".solura.uk",  
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
             path: '/'
         });
         
@@ -1262,11 +1271,11 @@ app.get('/LoginApp.html', (req, res) => {
     if (req.sessionID) {
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'lax',
+            httpOnly: true,
+            secure: true,
+            sameSite: 'None',
             path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
+            domain: '.solura.uk'
         });
     }
     
@@ -2350,9 +2359,10 @@ if (req.isIPad) {
     // Set multiple cookies without domain
     res.cookie('solura_session_ipad', req.sessionID, {
         maxAge: 24 * 60 * 60 * 1000,
-        httpOnly: false,
-        secure: false,
-        sameSite: 'Lax',
+        domain: ".solura.uk",  
+        httpOnly: true,
+        secure: true,
+        sameSite: 'None',
         path: '/'
     });
 }
@@ -2476,11 +2486,11 @@ if (req.isIPad) {
                     // Set session cookie
                     res.cookie('solura.session', req.sessionID, {
                         maxAge: 24 * 60 * 60 * 1000,
-                        httpOnly: false,
-                        secure: false,
-                        sameSite: 'Lax',
+                        httpOnly: true,
+                        secure: true,
+                        sameSite: 'None',
                         path: '/',
-                        domain: isProduction ? '.solura.uk' : undefined
+                        domain: '.solura.uk'
                     });
 
                     res.json({
@@ -2846,11 +2856,11 @@ app.get('*', (req, res) => {
         if (req.sessionID) {
             res.cookie('solura.session', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
+                httpOnly: true,
+                secure: true,
+                sameSite: 'None',
                 path: '/',
-                domain: isProduction ? '.solura.uk' : undefined
+                domain: '.solura.uk'
             });
         }
         res.sendFile(requestedPath);
