@@ -701,7 +701,86 @@
         const parts = value.split(`; ${name}=`);
         if (parts.length === 2) return parts.pop().split(';').shift();
     }
+// iPad session recovery utility
+class IPadSessionManager {
+    constructor() {
+        this.isIPad = /iPad|Macintosh/.test(navigator.userAgent);
+        this.sessionKey = 'solura_ipad_session';
+    }
+    
+    // Store session ID in multiple locations
+    storeSession(sessionId) {
+        if (!this.isIPad) return;
+        
+        console.log('💾 Storing iPad session:', sessionId);
+        
+        // localStorage
+        localStorage.setItem(this.sessionKey, sessionId);
+        localStorage.setItem('solura_session_backup', sessionId);
+        
+        // sessionStorage
+        sessionStorage.setItem(this.sessionKey, sessionId);
+        
+        // Cookies (as backup)
+        document.cookie = `solura_session_ipad=${sessionId}; path=/; max-age=${24*60*60}`;
+        document.cookie = `solura_session_client=${sessionId}; path=/; max-age=${24*60*60}`;
+    }
+    
+    // Recover session ID
+    recoverSession() {
+        if (!this.isIPad) return null;
+        
+        const sources = [
+            localStorage.getItem(this.sessionKey),
+            localStorage.getItem('solura_session_backup'),
+            sessionStorage.getItem(this.sessionKey),
+            getCookie('solura_session_ipad'),
+            getCookie('solura_session_client')
+        ];
+        
+        for (let sessionId of sources) {
+            if (sessionId && sessionId.length > 10) {
+                console.log('📱 Recovered iPad session from storage:', sessionId);
+                return sessionId;
+            }
+        }
+        
+        return null;
+    }
+    
+    // Add session ID to all requests
+    enhanceRequests() {
+        if (!this.isIPad) return;
+        
+        const sessionId = this.recoverSession();
+        if (sessionId) {
+            // Add to all fetch requests
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                const [url, options = {}] = args;
+                options.headers = {
+                    ...options.headers,
+                    'X-Session-ID': sessionId,
+                    'X-Session-Backup': sessionId,
+                    'X-IPad-Device': 'true'
+                };
+                return originalFetch(url, options);
+            };
+        }
+    }
+}
 
+// Cookie helper
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+// Initialize on page load
+const iPadManager = new IPadSessionManager();
+iPadManager.enhanceRequests();
     // Monitor for session loss and auto-recover
     function startSessionMonitoring() {
         setInterval(() => {
