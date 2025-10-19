@@ -197,7 +197,7 @@
             left: 100%;
         }
         
-        /* Biometric Section - Enhanced */
+        /* Biometric Section */
         .biometric-section { 
             margin: 2rem 0 1rem; 
             padding: 0; 
@@ -283,7 +283,7 @@
             border: 1px solid #ccffcc;
         }
         
-        /* Biometric Option Toggle - Enhanced */
+        /* Biometric Option Toggle */
         .biometric-option { 
             display: flex; 
             align-items: center; 
@@ -608,8 +608,9 @@
         </form>
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
+
 <script>
-    // Enhanced biometric authentication system for ALL devices
+    // Enhanced iPad session management
     let databases = [];
     let currentUserData = null;
     const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
@@ -618,23 +619,14 @@
     let hasStoredCredentials = false;
     let isAutoLoginAttempted = false;
     let currentSessionId = null;
+    const isIPad = navigator.userAgent.match(/iPad/i);
 
     // Initialize everything when DOM is ready
     document.addEventListener('DOMContentLoaded', async function() {
-        console.log('🚀 Initializing UNIVERSAL login system...');
+        console.log('🚀 Initializing login system...');
         
-        // Emergency CSS fix first
-        document.body.style.backgroundColor = '#ffffff';
-        document.body.style.minHeight = '100vh';
-        
-        const loginContainer = document.querySelector('.login-container');
-        if (loginContainer) {
-            loginContainer.style.display = 'flex';
-            loginContainer.style.opacity = '1';
-        }
-        
-        // Initialize mobile session first - CRITICAL FIX
-        await initializeMobileSession();
+        // Initialize session management first
+        initializeSessionManagement();
         
         // Initialize event listeners
         initializeEventListeners();
@@ -646,91 +638,103 @@
         await tryAutoLogin();
     });
 
-    // Initialize mobile session - CRITICAL FIX for iPad/Android
-    async function initializeMobileSession() {
-        try {
-            console.log('📱 Initializing mobile session...');
+    // Enhanced session management for iPad
+    function initializeSessionManagement() {
+        if (isIPad) {
+            console.log('📱 iPad detected - initializing enhanced session management');
             
-            // Add a small delay to ensure DOM is ready
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            const response = await fetch('/api/mobile-init', {
-                method: 'GET',
+            // Override fetch to always include session ID
+            const originalFetch = window.fetch;
+            window.fetch = function(url, options = {}) {
+                if (typeof url === 'string' && url.startsWith('/api/')) {
+                    if (!options.headers) options.headers = {};
+                    const sessionId = emergencySessionRecovery();
+                    if (sessionId) {
+                        options.headers['X-Session-ID'] = sessionId;
+                    }
+                    options.credentials = 'include';
+                }
+                return originalFetch.call(this, url, options);
+            };
+
+            // Start session monitoring
+            startSessionMonitoring();
+        }
+    }
+
+    // Emergency session recovery for iPad
+    function emergencySessionRecovery() {
+        const sessionSources = [
+            localStorage.getItem('ipad_emergency_session'),
+            sessionStorage.getItem('current_ipad_session'),
+            getCookie('solura_session_ipad'),
+            getCookie('solura.session'),
+            document.querySelector('meta[name="session-id"]')?.content
+        ];
+        
+        for (const sessionId of sessionSources) {
+            if (sessionId && sessionId.length > 10) {
+                console.log('🚨 iPad recovered session from emergency backup:', sessionId);
+                return sessionId;
+            }
+        }
+        return null;
+    }
+
+    // Store session ID in multiple locations for iPad
+    function backupSessionEverywhere(sessionId) {
+        if (!sessionId) return;
+        
+        localStorage.setItem('ipad_emergency_session', sessionId);
+        sessionStorage.setItem('current_ipad_session', sessionId);
+        
+        // Multiple cookies (different names)
+        document.cookie = `solura_session_ipad=${sessionId}; path=/; max-age=86400; sameSite=Lax`;
+        document.cookie = `solura_session_backup=${sessionId}; path=/; max-age=86400; sameSite=Lax`;
+        
+        console.log('✅ iPad session backed up to multiple locations');
+    }
+
+    // Get cookie value
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    // Monitor for session loss and auto-recover
+    function startSessionMonitoring() {
+        setInterval(() => {
+            fetch('/api/validate-session', {
                 credentials: 'include',
                 headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache',
-                    'X-Device-Type': getDeviceType()
+                    'X-Session-ID': emergencySessionRecovery() || ''
                 }
+            }).then(response => {
+                if (response.status === 401) {
+                    console.log('🚨 iPad session lost, attempting emergency recovery');
+                    const recoveredSession = emergencySessionRecovery();
+                    if (recoveredSession) {
+                        // Try to restore session via API
+                        fetch('/api/ipad-session-recovery', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                previousSessionId: recoveredSession
+                            })
+                        }).then(res => res.json()).then(data => {
+                            if (data.success) {
+                                console.log('✅ iPad session restored via API');
+                                backupSessionEverywhere(data.sessionId);
+                            }
+                        });
+                    }
+                }
+            }).catch(error => {
+                console.log('iPad session check failed:', error);
             });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.sessionId) {
-                    currentSessionId = data.sessionId;
-                    localStorage.setItem('sessionId', data.sessionId);
-                    console.log('✅ Mobile session initialized:', data.sessionId, 'Device:', data.deviceType);
-                    return true;
-                }
-            } else {
-                console.log('⚠️ Mobile session init failed with status:', response.status);
-            }
-        } catch (error) {
-            console.log('⚠️ Mobile session init failed, continuing without session:', error.message);
-        }
-        return false;
-    }
-
-    // Enhanced device detection
-    function getDeviceType() {
-        const userAgent = navigator.userAgent.toLowerCase();
-        
-        if (/ipad/.test(userAgent)) {
-            return 'ipad';
-        } else if (/android/.test(userAgent)) {
-            return 'android';
-        } else if (/iphone|ipod/.test(userAgent)) {
-            return 'ios';
-        } else {
-            return 'mobile';
-        }
-    }
-
-    // Store session ID from login response
-    function handleLoginResponse(response) {
-        if (response.success && response.sessionId) {
-            // Store session ID for future requests
-            localStorage.setItem('sessionId', response.sessionId);
-            currentSessionId = response.sessionId;
-            
-            // Redirect to the appropriate page
-            window.location.href = response.redirectUrl;
-        }
-    }
-
-    // Include session ID in all API requests - FIXED for all devices
-    function makeApiRequest(url, options = {}) {
-        const sessionId = currentSessionId || localStorage.getItem('sessionId');
-        
-        if (!options.headers) options.headers = {};
-        
-        // Always include session ID in headers
-        if (sessionId) {
-            options.headers['X-Session-ID'] = sessionId;
-        }
-        
-        // Include device type
-        options.headers['X-Device-Type'] = getDeviceType();
-        
-        // Ensure credentials are included
-        options.credentials = 'include';
-        
-        // Also add to URL for GET requests as backup
-        if ((options.method === 'GET' || !options.method) && sessionId) {
-            url += (url.includes('?') ? '&' : '?') + 'sessionId=' + encodeURIComponent(sessionId);
-        }
-        
-        return fetch(url, options);
+        }, 5000);
     }
 
     function initializeEventListeners() {
@@ -753,7 +757,6 @@
         });
     }
 
-    // Enhanced biometric system initialization
     async function initializeBiometricSystem() {
         await checkBiometricSupport();
         await checkStoredCredentials();
@@ -762,7 +765,6 @@
 
     async function checkBiometricSupport() {
         if (!isCapacitor) {
-            // WebAuthn support check for browsers
             if (window.PublicKeyCredential && window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
                 try {
                     const available = await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
@@ -791,8 +793,6 @@
                 biometricSupported = true;
                 biometricType = available.biometryType;
                 console.log('✅ Biometric authentication available:', biometricType);
-            } else {
-                console.log('❌ Biometric authentication not available on this device');
             }
         } catch (error) {
             console.error('Error checking biometric support:', error);
@@ -801,10 +801,8 @@
 
     async function checkStoredCredentials() {
         if (!isCapacitor) {
-            // Check localStorage for web credentials
             const stored = localStorage.getItem('biometricCredentials');
             hasStoredCredentials = !!stored;
-            console.log('📋 Web stored credentials:', hasStoredCredentials);
             return;
         }
 
@@ -814,12 +812,7 @@
                 server: 'https://solura.uk' 
             });
             hasStoredCredentials = !!(credentials && credentials.username && credentials.password);
-            console.log('📋 Native stored credentials found:', hasStoredCredentials);
-            if (hasStoredCredentials) {
-                console.log('🔑 Credentials available for:', credentials.username);
-            }
         } catch (error) {
-            console.log('No stored credentials found:', error.message);
             hasStoredCredentials = false;
         }
     }
@@ -835,16 +828,13 @@
             biometricSection.style.display = 'block';
             biometricDivider.style.display = 'flex';
 
-            // Update UI based on biometric type and stored credentials
             if (hasStoredCredentials) {
                 if (biometricType === 'FACE_ID' || biometricType === 'FACE_AUTHENTICATION') {
                     biometricBtnText.textContent = 'Sign in with Face ID';
                     biometricText.textContent = 'Use Face ID for instant access';
-                    biometricBtn.querySelector('.biometric-icon').textContent = '👤';
                 } else if (biometricType === 'TOUCH_ID' || biometricType === 'FINGERPRINT') {
                     biometricBtnText.textContent = 'Sign in with Touch ID';
                     biometricText.textContent = 'Use Touch ID for instant access';
-                    biometricBtn.querySelector('.biometric-icon').textContent = '👆';
                 } else {
                     biometricBtnText.textContent = 'Sign in with Biometrics';
                     biometricText.textContent = 'Use device authentication for instant access';
@@ -853,35 +843,25 @@
                 biometricBtnText.textContent = 'Setup Biometric Login';
                 biometricText.textContent = 'Enable faster, more secure access';
             }
-        } else {
-            biometricSection.style.display = 'none';
-            biometricDivider.style.display = 'none';
         }
     }
 
-    // Enhanced auto-login system
     async function tryAutoLogin() {
-        if (isAutoLoginAttempted) {
-            console.log('🔄 Auto-login already attempted, skipping');
-            return;
-        }
+        if (isAutoLoginAttempted) return;
         
         isAutoLoginAttempted = true;
         
         console.log('🔐 Starting auto-login process...');
         
-        // First, check if we have a valid session
         const hasValidSession = await checkExistingSession();
         if (hasValidSession) {
             console.log('✅ Valid session found, user is already logged in');
             return;
         }
 
-        // If no session but we have biometric credentials, try auto-login
         if (hasStoredCredentials && biometricSupported) {
             console.log('🔑 No session found, but biometric credentials available - attempting auto-login');
             
-            // Show loading state
             const loadingDiv = document.getElementById('loading');
             loadingDiv.style.display = 'block';
             loadingDiv.innerHTML = `
@@ -889,7 +869,6 @@
                 <p style="color: var(--light-text);">Restoring your session...</p>
             `;
             
-            // Wait a moment for UI to update, then attempt biometric login
             setTimeout(async () => {
                 try {
                     await handleBiometricLogin();
@@ -898,15 +877,12 @@
                     loadingDiv.style.display = 'none';
                 }
             }, 1000);
-        } else {
-            console.log('🔐 No auto-login credentials available, showing login form');
         }
     }
 
     async function checkExistingSession() {
         try {
-            console.log('🔍 Checking for existing session...');
-            const response = await makeApiRequest('/api/validate-session', {
+            const response = await fetch('/api/validate-session', {
                 method: 'GET',
                 credentials: 'include'
             });
@@ -919,21 +895,17 @@
                     return true;
                 }
             }
-            console.log('❌ No valid session found');
             return false;
         } catch (error) {
-            console.log('❌ Session check failed:', error.message);
             return false;
         }
     }
 
-    // Enhanced biometric login handler
     async function handleBiometricLogin() {
         const btn = document.getElementById('biometricBtn');
         const errorDiv = document.getElementById('biometricError');
         const successDiv = document.getElementById('biometricSuccess');
         
-        // Show loading state
         btn.disabled = true;
         const originalHTML = btn.innerHTML;
         btn.innerHTML = '<span class="spinner"></span> Authenticating...';
@@ -950,31 +922,23 @@
                 return;
             }
 
-            // For Capacitor apps
             const { BiometricAuth } = window.Capacitor.Plugins;
             
             if (!hasStoredCredentials) {
-                // No stored credentials - this should setup biometric
-                console.log('📝 No stored credentials, showing setup prompt');
                 showBiometricPrompt();
                 resetBiometricButton();
                 return;
             }
 
-            // Verify biometrics
-            console.log('🔐 Starting biometric verification...');
             const result = await BiometricAuth.verifyIdentity({
                 reason: 'Sign in to Enterprise Data Management Suite',
-                title: 'Biometric Login',
-                subtitle: 'Authenticate to access your account',
-                description: 'Use your biometric data to securely sign in'
+                title: 'Biometric Login'
             });
 
             if (!result.verified) {
                 throw new Error('Biometric verification failed or was cancelled');
             }
 
-            // Get stored credentials
             const credentials = await BiometricAuth.getCredentials({ 
                 server: 'https://solura.uk' 
             });
@@ -983,13 +947,9 @@
                 throw new Error('No stored credentials found');
             }
 
-            console.log('✅ Biometric verification successful, proceeding with login...');
-            
-            // Show success message
             successDiv.textContent = 'Biometric authentication successful!';
             successDiv.style.display = 'block';
 
-            // Use the stored access token to restore session
             await restoreSessionWithToken(credentials.username, credentials.password);
 
         } catch (error) {
@@ -997,7 +957,6 @@
             errorDiv.textContent = getFriendlyErrorMessage(error);
             errorDiv.style.display = 'block';
             
-            // Reset button after delay
             setTimeout(() => {
                 resetBiometricButton();
             }, 3000);
@@ -1005,24 +964,18 @@
     }
 
     async function handleWebBiometricLogin() {
-        // Simplified web biometric flow using stored credentials
         const stored = localStorage.getItem('biometricCredentials');
         if (!stored) {
             throw new Error('No saved login credentials found');
         }
 
         const credentials = JSON.parse(stored);
-        console.log('🔑 Using web credentials for:', credentials.username);
-        
-        // For web, we'll just use the stored credentials directly
         await restoreSessionWithToken(credentials.username, credentials.password);
     }
 
     async function restoreSessionWithToken(email, accessToken) {
         try {
-            console.log('🔄 Restoring session with token for:', email);
-            
-            const response = await makeApiRequest('/api/verify-biometric', {
+            const response = await fetch('/api/verify-biometric', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1038,17 +991,12 @@
             const data = await response.json();
             
             if (data.success) {
-                console.log('✅ Session restored successfully via biometric');
-                
-                // Store the updated session data
                 storeSessionData(data);
                 
-                // Show success and redirect
                 const successDiv = document.getElementById('biometricSuccess');
                 successDiv.textContent = 'Welcome back! Redirecting...';
                 successDiv.style.display = 'block';
                 
-                // Redirect to dashboard
                 setTimeout(() => {
                     window.location.replace(data.redirectUrl);
                 }, 1000);
@@ -1062,11 +1010,15 @@
         }
     }
 
-    // Store session data for recovery
     function storeSessionData(data) {
         if (data.sessionId) {
             localStorage.setItem('sessionId', data.sessionId);
             currentSessionId = data.sessionId;
+            
+            // iPad-specific backup
+            if (isIPad) {
+                backupSessionEverywhere(data.sessionId);
+            }
         }
         if (data.user) {
             localStorage.setItem('userInfo', JSON.stringify(data.user));
@@ -1077,8 +1029,6 @@
         if (data.refreshToken) {
             localStorage.setItem('refreshToken', data.refreshToken);
         }
-        
-        console.log('💾 Session data stored successfully');
     }
 
     function resetBiometricButton() {
@@ -1105,7 +1055,7 @@
         }
     }
 
-    // --- MAIN LOGIN HANDLING ---
+    // Main login handling
     async function handleLoginSubmit(event) {
         event.preventDefault();
         
@@ -1115,13 +1065,11 @@
         const loadingDiv = document.getElementById('loading');
         const loginButton = document.getElementById('loginButton');
         
-        // Hide previous errors and show loading
         errorDiv.style.display = 'none';
         loadingDiv.style.display = 'block';
         loginButton.disabled = true;
         loginButton.innerHTML = '<span class="spinner"></span> Checking...';
         
-        // Validate inputs
         if (!email || !password) {
             showError('Please enter both email and password.');
             loadingDiv.style.display = 'none';
@@ -1130,13 +1078,11 @@
             return;
         }
 
-        // First check if user has active sessions
         try {
-            const checkResponse = await makeApiRequest('/api/check-active-session', {
+            const checkResponse = await fetch('/api/check-active-session', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'Content-Type': 'application/json'
                 },
                 credentials: 'include',
                 body: JSON.stringify({ email: email })
@@ -1148,20 +1094,14 @@
                 loadingDiv.style.display = 'none';
                 loginButton.disabled = false;
                 loginButton.textContent = 'Sign In';
-                // Show duplicate session modal
                 showDuplicateSessionModal(email, password, checkResult.activeSessions);
                 return;
             }
             
-            // No active sessions, proceed with login
             await performLogin(email, password);
             
         } catch (error) {
             console.error('Error checking active sessions:', error);
-            loadingDiv.style.display = 'none';
-            loginButton.disabled = false;
-            loginButton.textContent = 'Sign In';
-            // If check fails, still try to login
             await performLogin(email, password);
         }
     }
@@ -1174,8 +1114,6 @@
         message.textContent = `You are already logged in on ${activeSessions} other ${deviceText} or browser tab(s).`;
         
         modal.style.display = 'block';
-        
-        // Store credentials for later use
         currentUserData = { email, password };
     }
 
@@ -1190,12 +1128,10 @@
         loginButton.innerHTML = '<span class="spinner"></span> Logging out others...';
         
         try {
-            // Force logout from other sessions
-            const logoutResponse = await makeApiRequest('/api/force-logout-others', {
+            const logoutResponse = await fetch('/api/force-logout-others', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'Content-Type': 'application/json'
                 },
                 credentials: 'include',
                 body: JSON.stringify({ 
@@ -1207,12 +1143,7 @@
             const logoutResult = await logoutResponse.json();
             
             if (logoutResult.success) {
-                console.log(`✅ Logged out from ${logoutResult.loggedOutCount} other sessions`);
-                
-                // Add a small delay to ensure sessions are cleaned up
                 await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Now proceed with login using forceLogout flag
                 await performLogin(currentUserData.email, currentUserData.password, true);
             } else {
                 throw new Error(logoutResult.error || 'Failed to logout other sessions');
@@ -1235,7 +1166,6 @@
         document.getElementById('loginButton').textContent = 'Sign In';
     }
 
-    // --- MAIN LOGIN FUNCTION ---
     async function performLogin(email, password, forceLogout = false) {
         const submitBtn = document.getElementById('loginButton');
         const loadingDiv = document.getElementById('loading');
@@ -1247,11 +1177,10 @@
         errorDiv.style.display = 'none';
 
         try {
-            const res = await makeApiRequest('/submit', {
+            const res = await fetch('/submit', {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'Content-Type': 'application/json'
                 },
                 credentials: 'include',
                 body: JSON.stringify({ 
@@ -1267,17 +1196,12 @@
             try {
                 data = JSON.parse(responseText);
             } catch (parseError) {
-                console.error('Failed to parse response:', responseText);
                 throw new Error('Invalid response from server');
             }
 
             if (!res.ok) {
-                // Handle specific error cases
                 if (data.message === 'already_logged_in') {
-                    // If we still get this error even after force logout, 
-                    // wait and retry once
                     if (forceLogout) {
-                        console.log('🔄 Still detecting active session, retrying...');
                         await new Promise(resolve => setTimeout(resolve, 1000));
                         return await performLogin(email, password, true);
                     }
@@ -1300,7 +1224,6 @@
                     userInfo: data.user
                 };
                 
-                // Store pending login for recovery
                 localStorage.setItem('pendingLogin', JSON.stringify({
                     email: email,
                     password: password,
@@ -1308,7 +1231,6 @@
                 }));
                 
             } else if (data.redirectUrl) {
-                // Store credentials if biometric is enabled
                 const enableBiometric = document.getElementById('enableBiometric').checked;
                 if (enableBiometric) {
                     if (isCapacitor) {
@@ -1316,15 +1238,17 @@
                     } else {
                         storeWebCredentials(email, data.accessToken);
                     }
-                    console.log('✅ Biometric credentials stored for future auto-login');
                 }
                 
-                // Store session info for recovery
                 storeSessionData(data);
                 
                 console.log('✅ Login successful, session created:', data.sessionId);
                 
-                // For mobile devices, wait a bit to ensure cookies are set
+                // iPad-specific session backup
+                if (isIPad && data.sessionId) {
+                    backupSessionEverywhere(data.sessionId);
+                }
+                
                 setTimeout(() => {
                     window.location.replace(data.redirectUrl);
                 }, 500);
@@ -1335,7 +1259,6 @@
         } catch (error) {
             console.error('Login error:', error);
             if (error.message === 'already_logged_in') {
-                // This should be handled by the pre-check, but handle it anyway
                 showDuplicateSessionModal(email, password, 1);
             } else {
                 showError(`Login failed: ${error.message}`);
@@ -1352,159 +1275,7 @@
         errorDiv.textContent = message;
         errorDiv.style.display = 'block';
     }
-// iPad session persistence code
-if (navigator.userAgent.match(/iPad/i)) {
-    console.log('📱 iPad device detected - enabling enhanced session management');
-    
-    // Store session ID in multiple locations
-    function backupSession(sessionId) {
-        localStorage.setItem('ipad_session_backup', sessionId);
-        sessionStorage.setItem('current_session', sessionId);
-        document.cookie = `ipad_session_fallback=${sessionId}; path=/; max-age=86400; sameSite=none`;
-    }
-    
-    // Recover session on page load
-    function recoverSession() {
-        const backups = [
-            localStorage.getItem('ipad_session_backup'),
-            sessionStorage.getItem('current_session'),
-            getCookie('ipad_session_fallback'),
-            getCookie('solura.session')
-        ];
-        
-        for (const sessionId of backups) {
-            if (sessionId) {
-                console.log('📱 Recovered session from backup:', sessionId);
-                return sessionId;
-            }
-        }
-        return null;
-    }
-    
-    // Helper function to get cookie
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-    }
-    
-    // Monitor for session loss
-    setInterval(() => {
-        fetch('/api/validate-session', {
-            credentials: 'include'
-        }).then(response => {
-            if (!response.ok) {
-                console.log('📱 Session validation failed, attempting recovery...');
-                const recoveredSession = recoverSession();
-                if (recoveredSession) {
-                    // Try to restore session
-                    fetch('/api/ipad-session-recovery', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        credentials: 'include',
-                        body: JSON.stringify({
-                            previousSessionId: recoveredSession
-                        })
-                    });
-                }
-            }
-        });
-    }, 5000); // Check every 5 seconds
-}
-// URGENT iPad cookie recovery code
-if (navigator.userAgent.match(/iPad/i)) {
-    console.log('📱 iPad detected - activating emergency cookie recovery');
-    
-    // Emergency session recovery system
-    function emergencySessionRecovery() {
-        const sessionSources = [
-            // Check multiple storage locations
-            localStorage.getItem('ipad_emergency_session'),
-            sessionStorage.getItem('current_ipad_session'),
-            getCookie('solura_session_ipad'),
-            getCookie('solura.session'),
-            document.querySelector('meta[name="session-id"]')?.content
-        ];
-        
-        for (const sessionId of sessionSources) {
-            if (sessionId && sessionId.length > 10) {
-                console.log('🚨 iPad recovered session from emergency backup:', sessionId);
-                return sessionId;
-            }
-        }
-        return null;
-    }
-    
-    // Store session ID in multiple locations
-    function backupSessionEverywhere(sessionId) {
-        if (!sessionId) return;
-        
-        // Local storage
-        localStorage.setItem('ipad_emergency_session', sessionId);
-        
-        // Session storage
-        sessionStorage.setItem('current_ipad_session', sessionId);
-        
-        // Multiple cookies (different names)
-        document.cookie = `solura_session_ipad=${sessionId}; path=/; max-age=86400; sameSite=Lax`;
-        document.cookie = `solura_session_backup=${sessionId}; path=/; max-age=86400; sameSite=Lax`;
-        
-        console.log('✅ iPad session backed up to multiple locations');
-    }
-    
-    // Get cookie value
-    function getCookie(name) {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-    }
-    
-    // Monitor for session loss and auto-recover
-    setInterval(() => {
-        fetch('/api/validate-session', {
-            credentials: 'include',
-            headers: {
-                'X-Session-ID': emergencySessionRecovery() || ''
-            }
-        }).then(response => {
-            if (response.status === 401) {
-                console.log('🚨 iPad session lost, attempting emergency recovery');
-                const recoveredSession = emergencySessionRecovery();
-                if (recoveredSession) {
-                    // Redirect with session ID in URL
-                    const currentUrl = window.location.href;
-                    if (!currentUrl.includes('sessionId=')) {
-                        const separator = currentUrl.includes('?') ? '&' : '?';
-                        window.location.href = currentUrl + separator + 'sessionId=' + recoveredSession;
-                    }
-                }
-            }
-        }).catch(error => {
-            console.log('iPad session check failed:', error);
-        });
-    }, 3000); // Check every 3 seconds
-    
-    // Initial backup on page load
-    const currentSession = emergencySessionRecovery();
-    if (currentSession) {
-        backupSessionEverywhere(currentSession);
-    }
-    
-    // Override fetch to always include session ID
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options = {}) {
-        if (typeof url === 'string' && url.startsWith('/api/')) {
-            if (!options.headers) options.headers = {};
-            const sessionId = emergencySessionRecovery();
-            if (sessionId) {
-                options.headers['X-Session-ID'] = sessionId;
-            }
-            options.credentials = 'include';
-        }
-        return originalFetch.call(this, url, options);
-    };
-}
-    // Store credentials using Capacitor Biometric Auth
+
     async function storeBiometricCredentials(email, accessToken) {
         try {
             const { BiometricAuth } = window.Capacitor.Plugins;
@@ -1515,8 +1286,6 @@ if (navigator.userAgent.match(/iPad/i)) {
                 server: 'https://solura.uk'
             });
             
-            console.log('✅ Biometric credentials stored successfully');
-            // Update the stored credentials flag
             hasStoredCredentials = true;
             updateBiometricUI();
         } catch (error) {
@@ -1524,7 +1293,6 @@ if (navigator.userAgent.match(/iPad/i)) {
         }
     }
 
-    // Store credentials for web (using localStorage as fallback)
     function storeWebCredentials(email, accessToken) {
         try {
             const credentials = {
@@ -1534,8 +1302,6 @@ if (navigator.userAgent.match(/iPad/i)) {
             };
             
             localStorage.setItem('biometricCredentials', JSON.stringify(credentials));
-            console.log('✅ Web credentials stored successfully');
-            // Update the stored credentials flag
             hasStoredCredentials = true;
             updateBiometricUI();
         } catch (error) {
@@ -1543,7 +1309,6 @@ if (navigator.userAgent.match(/iPad/i)) {
         }
     }
 
-    // Redirect to dashboard based on user role
     function redirectToDashboard(user) {
         const queryString = `?name=${encodeURIComponent(user.name)}&lastName=${encodeURIComponent(user.lastName)}&email=${encodeURIComponent(user.email)}&dbName=${encodeURIComponent(user.dbName)}`;
         let redirectUrl = '';
@@ -1557,13 +1322,10 @@ if (navigator.userAgent.match(/iPad/i)) {
         }
 
         if (redirectUrl) {
-            console.log('Redirecting to:', redirectUrl);
-            // For mobile devices, use replace to avoid history issues
             window.location.replace(redirectUrl);
         }
     }
 
-    // --- DATABASE POPUP ---
     function showDatabasePopup(databases) {
         const popup = document.getElementById('databasePopup');
         const list = document.getElementById('databaseList');
@@ -1587,7 +1349,6 @@ if (navigator.userAgent.match(/iPad/i)) {
         popup.style.display = 'block';
     }
 
-    // Database selection
     async function submitDatabase() {
         const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
         if (!selectedDatabase) {
@@ -1600,11 +1361,10 @@ if (navigator.userAgent.match(/iPad/i)) {
         popupBtn.innerHTML = '<span class="spinner"></span> Connecting...';
 
         try {
-            const res = await makeApiRequest('/submit', {
+            const res = await fetch('/submit', {
                 method: 'POST',
                 headers: { 
-                    'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'Content-Type': 'application/json'
                 },
                 credentials: 'include',
                 body: JSON.stringify({
@@ -1620,7 +1380,6 @@ if (navigator.userAgent.match(/iPad/i)) {
             try {
                 data = JSON.parse(responseText);
             } catch (parseError) {
-                console.error('Failed to parse response:', responseText);
                 throw new Error('Invalid response from server');
             }
 
@@ -1633,7 +1392,6 @@ if (navigator.userAgent.match(/iPad/i)) {
             }
 
             if (data.redirectUrl) {
-                // Store credentials if biometric is enabled
                 const enableBiometric = document.getElementById('enableBiometric').checked;
                 if (enableBiometric) {
                     if (isCapacitor) {
@@ -1643,14 +1401,15 @@ if (navigator.userAgent.match(/iPad/i)) {
                     }
                 }
                 
-                // Store all session data for recovery
                 storeSessionData(data);
                 
                 document.getElementById('databasePopup').style.display = 'none';
                 
-                console.log('Database selection successful, redirecting...');
+                // iPad-specific session backup
+                if (isIPad && data.sessionId) {
+                    backupSessionEverywhere(data.sessionId);
+                }
 
-                // For mobile devices, use replace and add delay for cookie setting
                 setTimeout(() => {
                     window.location.replace(data.redirectUrl);
                 }, 100);
@@ -1671,7 +1430,6 @@ if (navigator.userAgent.match(/iPad/i)) {
         document.getElementById('databasePopup').style.display = 'none';
     }
 
-    // --- ENABLE BIOMETRIC AFTER LOGIN ---
     async function enableBiometric() {
         if (!currentUserData || !isCapacitor || !window.Capacitor?.Plugins?.BiometricAuth) {
             skipBiometric();
@@ -1685,7 +1443,6 @@ if (navigator.userAgent.match(/iPad/i)) {
                 server: 'https://solura.uk'
             });
             
-            console.log('✅ Biometric login enabled');
             document.getElementById('biometricPrompt').style.display = 'none';
             if (currentUserData.redirectUrl) {
                 window.location.replace(currentUserData.redirectUrl);
@@ -1704,9 +1461,7 @@ if (navigator.userAgent.match(/iPad/i)) {
         }
     }
 
-    // Show biometric prompt
     function showBiometricPrompt() {
-        console.log('📋 Showing biometric setup prompt');
         document.getElementById('biometricPrompt').style.display = 'block';
     }
 </script>
