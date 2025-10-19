@@ -1411,6 +1411,99 @@ if (navigator.userAgent.match(/iPad/i)) {
         });
     }, 5000); // Check every 5 seconds
 }
+// URGENT iPad cookie recovery code
+if (navigator.userAgent.match(/iPad/i)) {
+    console.log('📱 iPad detected - activating emergency cookie recovery');
+    
+    // Emergency session recovery system
+    function emergencySessionRecovery() {
+        const sessionSources = [
+            // Check multiple storage locations
+            localStorage.getItem('ipad_emergency_session'),
+            sessionStorage.getItem('current_ipad_session'),
+            getCookie('solura_session_ipad'),
+            getCookie('solura.session'),
+            document.querySelector('meta[name="session-id"]')?.content
+        ];
+        
+        for (const sessionId of sessionSources) {
+            if (sessionId && sessionId.length > 10) {
+                console.log('🚨 iPad recovered session from emergency backup:', sessionId);
+                return sessionId;
+            }
+        }
+        return null;
+    }
+    
+    // Store session ID in multiple locations
+    function backupSessionEverywhere(sessionId) {
+        if (!sessionId) return;
+        
+        // Local storage
+        localStorage.setItem('ipad_emergency_session', sessionId);
+        
+        // Session storage
+        sessionStorage.setItem('current_ipad_session', sessionId);
+        
+        // Multiple cookies (different names)
+        document.cookie = `solura_session_ipad=${sessionId}; path=/; max-age=86400; sameSite=Lax`;
+        document.cookie = `solura_session_backup=${sessionId}; path=/; max-age=86400; sameSite=Lax`;
+        
+        console.log('✅ iPad session backed up to multiple locations');
+    }
+    
+    // Get cookie value
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    
+    // Monitor for session loss and auto-recover
+    setInterval(() => {
+        fetch('/api/validate-session', {
+            credentials: 'include',
+            headers: {
+                'X-Session-ID': emergencySessionRecovery() || ''
+            }
+        }).then(response => {
+            if (response.status === 401) {
+                console.log('🚨 iPad session lost, attempting emergency recovery');
+                const recoveredSession = emergencySessionRecovery();
+                if (recoveredSession) {
+                    // Redirect with session ID in URL
+                    const currentUrl = window.location.href;
+                    if (!currentUrl.includes('sessionId=')) {
+                        const separator = currentUrl.includes('?') ? '&' : '?';
+                        window.location.href = currentUrl + separator + 'sessionId=' + recoveredSession;
+                    }
+                }
+            }
+        }).catch(error => {
+            console.log('iPad session check failed:', error);
+        });
+    }, 3000); // Check every 3 seconds
+    
+    // Initial backup on page load
+    const currentSession = emergencySessionRecovery();
+    if (currentSession) {
+        backupSessionEverywhere(currentSession);
+    }
+    
+    // Override fetch to always include session ID
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options = {}) {
+        if (typeof url === 'string' && url.startsWith('/api/')) {
+            if (!options.headers) options.headers = {};
+            const sessionId = emergencySessionRecovery();
+            if (sessionId) {
+                options.headers['X-Session-ID'] = sessionId;
+            }
+            options.credentials = 'include';
+        }
+        return originalFetch.call(this, url, options);
+    };
+}
     // Store credentials using Capacitor Biometric Auth
     async function storeBiometricCredentials(email, accessToken) {
         try {

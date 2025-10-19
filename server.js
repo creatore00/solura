@@ -301,6 +301,41 @@ app.use(session({
     }
 }));
 
+// ADD this middleware right after session config
+app.use((req, res, next) => {
+    if (req.isIPad) {
+        console.log('🔧 URGENT iPad Cookie Fix Activated');
+        
+        // Method 1: Query parameter fallback
+        if (req.query.sessionId && !req.session?.user) {
+            console.log('🔄 iPad recovering session from query param');
+            req.sessionStore.get(req.query.sessionId, (err, sessionData) => {
+                if (!err && sessionData?.user) {
+                    Object.assign(req.session, sessionData);
+                    req.sessionID = req.query.sessionId;
+                }
+                next();
+            });
+            return;
+        }
+        
+        // Method 2: Header-based session ID
+        const headerSessionId = req.headers['x-session-id'];
+        if (headerSessionId && headerSessionId !== req.sessionID && !req.session?.user) {
+            console.log('🔄 iPad recovering session from header');
+            req.sessionStore.get(headerSessionId, (err, sessionData) => {
+                if (!err && sessionData?.user) {
+                    Object.assign(req.session, sessionData);
+                    req.sessionID = headerSessionId;
+                }
+                next();
+            });
+            return;
+        }
+    }
+    next();
+});
+
 // ADD this right after your session configuration
 app.use((req, res, next) => {
     if (req.isIPad) {
@@ -541,67 +576,82 @@ app.use((req, res, next) => {
   next();
 });
 
-// Mobile device session enhancement
+// MODIFY your mobile device middleware
 app.use((req, res, next) => {
     if (req.isMobileDevice && req.sessionID) {
-        // Always set session cookie for mobile devices
-        res.cookie('solura.session', req.sessionID, {
-            maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
-            path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
-        });
-        
-        // Add session ID to all responses for mobile devices
-        res.setHeader('X-Session-ID', req.sessionID);
-        
-        if (req.session.user) {
-            console.log('📱 Mobile session enhancement for:', req.session.user.email);
-        }
-    }
-    next();
-});
-
-// CRITICAL FIX: Cookie and session persistence middleware
-app.use((req, res, next) => {
-    // Store original cookie method
-    const originalCookie = res.cookie;
-    
-    // Enhanced cookie method that ensures session cookie is properly set
-    res.cookie = function(name, value, options = {}) {
-        if (name === 'solura.session') {
-            // Ensure consistent cookie settings
-            options = {
+        // CRITICAL: Different approach for iPad
+        if (req.isIPad) {
+            // iPad gets multiple session persistence methods
+            res.cookie('solura.session', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false, // MUST be false for iPad
+                sameSite: 'Lax',
+                path: '/'
+                // NO domain for iPad
+            });
+            
+            // Additional backup cookie without domain
+            res.cookie('solura_session_ipad', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false,
+                sameSite: 'Lax',
+                path: '/'
+            });
+        } else {
+            // Normal mobile devices
+            res.cookie('solura.session', req.sessionID, {
                 maxAge: 24 * 60 * 60 * 1000,
                 httpOnly: false,
                 secure: false,
                 sameSite: 'Lax',
                 path: '/',
-                domain: isProduction ? '.solura.uk' : undefined,
-                ...options
-            };
-            console.log('🍪 Setting session cookie:', { name, value, options });
+                domain: isProduction ? '.solura.uk' : undefined
+            });
+        }
+        
+        // Always include session ID in headers for recovery
+        res.setHeader('X-Session-ID', req.sessionID);
+        
+        if (req.session.user) {
+            console.log('📱 Session enhancement for:', req.session.user.email);
+        }
+    }
+    next();
+});
+
+// ENHANCE your cookie setting logic
+app.use((req, res, next) => {
+    // Store original cookie method
+    const originalCookie = res.cookie;
+    
+    res.cookie = function(name, value, options = {}) {
+        if (name === 'solura.session') {
+            // iPad-specific: NO DOMAIN setting
+            if (req.isIPad) {
+                options = {
+                    maxAge: 24 * 60 * 60 * 1000,
+                    httpOnly: false,
+                    secure: false, // Force false for iPad
+                    sameSite: 'Lax',
+                    path: '/'
+                    // NO domain property for iPad
+                };
+                console.log('🍪 iPad Cookie Set (No Domain):', { name, value });
+            } else {
+                options = {
+                    maxAge: 24 * 60 * 60 * 1000,
+                    httpOnly: false,
+                    secure: false,
+                    sameSite: 'Lax',
+                    path: '/',
+                    domain: isProduction ? '.solura.uk' : undefined
+                };
+            }
         }
         return originalCookie.call(this, name, value, options);
     };
-    
-    // Ensure session ID consistency across requests
-    if (req.sessionID && req.session && req.session.user) {
-        console.log('🔗 Maintaining session consistency:', req.sessionID);
-        
-        // Always set the session cookie for authenticated users
-        res.cookie('solura.session', req.sessionID, {
-            maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
-            path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
-        });
-    }
-    
     next();
 });
 
@@ -1917,7 +1967,23 @@ app.post('/submit-database', async (req, res) => {
                     if (hasActiveSessions) break;
                 }
             }
-
+if (req.isIPad) {
+    console.log('📱 iPad login successful - enhancing response');
+    
+    // Include session ID in response body for client-side storage
+    responseData.sessionId = req.sessionID;
+    responseData.ipadEnhanced = true;
+    responseData.backupInstructions = 'Store this sessionId in localStorage';
+    
+    // Set multiple cookies without domain
+    res.cookie('solura_session_ipad', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax',
+        path: '/'
+    });
+}
             // If user has active sessions and hasn't chosen to force logout, return warning
             if (hasActiveSessions && forceLogout !== true) {
                 return res.status(409).json({
@@ -2258,7 +2324,23 @@ app.post('/submit', async (req, res) => {
                 req.session.lastAccess = new Date();
 
                 console.log('💾 Session data set for session:', loginSessionId);
-
+if (req.isIPad) {
+    console.log('📱 iPad login successful - enhancing response');
+    
+    // Include session ID in response body for client-side storage
+    responseData.sessionId = req.sessionID;
+    responseData.ipadEnhanced = true;
+    responseData.backupInstructions = 'Store this sessionId in localStorage';
+    
+    // Set multiple cookies without domain
+    res.cookie('solura_session_ipad', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax',
+        path: '/'
+    });
+}
                 // Save session
                 req.session.save((err) => {
                     if (err) {
@@ -2342,32 +2424,70 @@ app.post('/submit', async (req, res) => {
         });
     }
 });
-
+// ADD this endpoint for debugging iPad sessions
+app.get('/api/ipad-debug', (req, res) => {
+    console.log('=== IPAD DEBUG ===');
+    console.log('Headers:', req.headers);
+    console.log('Cookies:', req.cookies);
+    console.log('Session ID:', req.sessionID);
+    console.log('Session:', req.session);
+    
+    res.json({
+        ipad: true,
+        session: {
+            id: req.sessionID,
+            user: req.session?.user,
+            exists: !!req.session
+        },
+        cookies: req.cookies,
+        headers: {
+            cookie: req.headers.cookie,
+            'user-agent': req.headers['user-agent'],
+            'x-session-id': req.headers['x-session-id']
+        },
+        timestamp: new Date().toISOString()
+    });
+});
 // Protected routes - PROPER DEVICE DETECTION
 app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
 
-// ADD this to your dashboard routes
 app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
     console.log('📱 iPad loading AdminApp - Session:', req.sessionID);
     
-    // iPad-specific session reinforcement
+    // CRITICAL: iPad session reinforcement
     if (req.isIPad) {
-        // Set multiple cookies for iPad
-        res.cookie('solura.session.backup', req.sessionID, {
+        console.log('🔧 iPad-specific dashboard protection');
+        
+        // Set multiple persistence methods
+        res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
             httpOnly: false,
             secure: false,
-            sameSite: 'none',
+            sameSite: 'Lax',
             path: '/'
         });
         
-        // Add session ID to response headers
-        res.setHeader('X-Ipad-Session-ID', req.sessionID);
+        // Add session ID to HTML as meta tag
+        const filePath = path.join(__dirname, 'AdminApp.html');
+        fs.readFile(filePath, 'utf8', (err, data) => {
+            if (err) {
+                console.error('Error reading file:', err);
+                return res.sendFile(filePath);
+            }
+            
+            // Inject session ID into HTML for client-side recovery
+            const enhancedHtml = data.replace(
+                '</head>',
+                `<meta name="session-id" content="${req.sessionID}">\n</head>`
+            );
+            
+            res.send(enhancedHtml);
+        });
+    } else {
+        res.sendFile(path.join(__dirname, 'AdminApp.html'));
     }
-    
-    res.sendFile(path.join(__dirname, 'AdminApp.html'));
 });
 
 app.get('/User.html', isAuthenticated, isUser, (req, res) => {
