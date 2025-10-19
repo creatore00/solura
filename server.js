@@ -152,39 +152,15 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// ENHANCED CORS for all devices
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow all origins for iOS/Capacitor and mobile devices
-        if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
-            return callback(null, true);
-        }
-        
-        const allowedOrigins = [
-            'https://www.solura.uk', 
-            'https://solura.uk', 
-            'http://localhost:8080',
-            'http://localhost:3000',
-            'capacitor://localhost',
-            'ionic://localhost',
-            'http://localhost',
-            'https://localhost'
-        ];
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || origin?.includes('solura.uk')) {
-            callback(null, true);
-        } else {
-            console.log('Blocked by CORS:', origin);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID', 'X-Capacitor', 'Origin', 'X-Requested-With'],
-    exposedHeaders: ['Set-Cookie', 'X-Session-ID', 'Authorization']
-};
-
-app.use(cors(corsOptions));
+app.use(cors({
+  origin: [
+    'capacitor://localhost',
+    'http://localhost',
+    'https://solura.uk',
+    /\.solura\.uk$/,
+  ],
+  credentials: true,
+}));
 
 // Handle preflight requests
 app.options('*', cors(corsOptions));
@@ -279,24 +255,18 @@ app.use((req, res, next) => {
 
 // CRITICAL FIX: Session configuration MUST be before any session-related middleware
 app.use(session({
-    secret: SESSION_SECRET,
-    resave: true, // CHANGED: Force resave to ensure session persistence
-    saveUninitialized: true, // CHANGED: Allow uninitialized sessions
-    store: sessionStore,
-    name: 'solura.session',
-    cookie: {
-        secure: false, // MUST be false for all environments
-        httpOnly: false, // Must be false for iOS/Capacitor
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        path: '/',
-        domain: isProduction ? '.solura.uk' : undefined // Only set domain in production
-    },
-    rolling: true,
-    proxy: false,
-    genid: function(req) {
-        return require('crypto').randomBytes(16).toString('hex');
-    }
+  key: 'solura.session',
+  secret: process.env.SESSION_SECRET || 'supersecret',
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,              // prevent JS access
+    secure: isProduction,        // must be true for HTTPS
+    sameSite: 'none',            // ✅ required for iOS WebView
+    maxAge: 24 * 60 * 60 * 1000, // 24h
+    domain: isProduction ? '.solura.uk' : undefined,
+  }
 }));
 
 // CRITICAL FIX: Enhanced session persistence middleware
@@ -2212,9 +2182,9 @@ app.post('/submit', async (req, res) => {
                     // Set session cookie in response
                     res.cookie('solura.session', loginSessionId, {
                         maxAge: 24 * 60 * 60 * 1000,
-                        httpOnly: false,
-                        secure: false,
-                        sameSite: 'Lax',
+                        httpOnly: true,
+                        secure: isProduction,
+                        sameSite: 'none',
                         path: '/',
                         domain: isProduction ? '.solura.uk' : undefined
                     });
@@ -2552,11 +2522,12 @@ app.get('/logout', (req, res) => {
             // Clear the cookie
             res.clearCookie('solura.session', {
                 path: '/',
-                httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
+                httpOnly: true,
+                secure: isProduction,
+                sameSite: 'none',
                 domain: isProduction ? '.solura.uk' : undefined
             });
+
             
             console.log('✅ Logout successful for session:', sessionId);
             res.redirect('/');
