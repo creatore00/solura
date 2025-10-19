@@ -277,27 +277,130 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: Session configuration MUST be before any session-related middleware
+// REPLACE your current session config with this:
 app.use(session({
     secret: SESSION_SECRET,
-    resave: true, // CHANGED: Force resave to ensure session persistence
-    saveUninitialized: true, // CHANGED: Allow uninitialized sessions
+    resave: true,
+    saveUninitialized: true,
     store: sessionStore,
     name: 'solura.session',
     cookie: {
         secure: false, // MUST be false for all environments
-        httpOnly: false, // Must be false for iOS/Capacitor
-        sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        httpOnly: false, 
+        sameSite: 'none', // CHANGED from 'lax' to 'none' for iPad
+        maxAge: 24 * 60 * 60 * 1000,
         path: '/',
-        domain: isProduction ? '.solura.uk' : undefined // Only set domain in production
+        domain: isProduction ? '.solura.uk' : undefined
     },
     rolling: true,
     proxy: false,
+    // ADD iPad-specific settings:
+    unset: 'keep', // Prevents session destruction on iPad
     genid: function(req) {
-        return require('crypto').randomBytes(16).toString('hex');
+        return require('crypto').randomBytes(32).toString('hex'); // Longer IDs for iPad
     }
 }));
+
+// ADD this right after your session configuration
+app.use((req, res, next) => {
+    if (req.isIPad) {
+        console.log('🔧 ENHANCED iPad Session Handling');
+        
+        // Force session persistence for iPad
+        if (req.session) {
+            req.session.ipadDevice = true;
+            req.session.userAgent = req.headers['user-agent'];
+            
+            // iPad session recovery with backup storage
+            const sessionBackupKey = `ipad_session_${req.ip.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            
+            // Backup session to multiple storage methods
+            if (req.session.user) {
+                // Store in memory backup
+                ipadSessionBackup.set(sessionBackupKey, {
+                    sessionId: req.sessionID,
+                    user: req.session.user,
+                    timestamp: Date.now()
+                });
+            }
+        }
+        
+        // iPad-specific cookie headers
+        res.setHeader('X-Session-Persistence', 'ipad-enhanced');
+    }
+    next();
+});
+
+// ADD this endpoint specifically for iPad
+app.post('/api/ipad-session-recovery', async (req, res) => {
+    const { email, dbName, previousSessionId } = req.body;
+    
+    console.log('📱 iPad Session Recovery Request:', { email, previousSessionId });
+    
+    try {
+        // Try to recover from multiple sources
+        let recoveredSession = null;
+        
+        // 1. Try previous session ID
+        if (previousSessionId) {
+            await new Promise((resolve) => {
+                sessionStore.get(previousSessionId, (err, sessionData) => {
+                    if (!err && sessionData && sessionData.user) {
+                        recoveredSession = sessionData;
+                    }
+                    resolve();
+                });
+            });
+        }
+        
+        // 2. Try active sessions tracking
+        if (!recoveredSession && activeSessions.has(email)) {
+            for (const sessionId of activeSessions.get(email)) {
+                await new Promise((resolve) => {
+                    sessionStore.get(sessionId, (err, sessionData) => {
+                        if (!err && sessionData && sessionData.user) {
+                            recoveredSession = sessionData;
+                        }
+                        resolve();
+                    });
+                });
+                if (recoveredSession) break;
+            }
+        }
+        
+        if (recoveredSession) {
+            console.log('✅ iPad session recovered successfully');
+            
+            // Transfer to current session
+            Object.assign(req.session, recoveredSession);
+            
+            // Force immediate save
+            await new Promise((resolve, reject) => {
+                req.session.save((err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            });
+            
+            return res.json({
+                success: true,
+                sessionId: req.sessionID,
+                user: req.session.user,
+                recovered: true
+            });
+        }
+        
+        // No session found
+        res.json({
+            success: false,
+            error: 'No valid session found'
+        });
+        
+    } catch (error) {
+        console.error('❌ iPad session recovery error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
 
 // CRITICAL FIX: Enhanced session persistence middleware
 app.use((req, res, next) => {
@@ -1668,49 +1771,43 @@ app.get('/api/init-session', (req, res) => {
     });
 });
 
-// CRITICAL FIX: Enhanced authentication middleware for iOS and iPad
+// ENHANCE your isAuthenticated middleware for iPad
 function isAuthenticated(req, res, next) {
-    console.log('=== AUTH CHECK ===');
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
+    console.log('🔐 AUTH CHECK - iPad:', req.isIPad, 'Session:', req.sessionID);
     
-    // For iOS/iPad, also check for session ID in headers or query
-    const sessionIdFromHeader = req.headers['x-session-id'];
-    const sessionIdFromQuery = req.query.sessionId;
-    
-    if ((!req.session?.user) && (sessionIdFromHeader || sessionIdFromQuery)) {
-        const externalSessionId = sessionIdFromHeader || sessionIdFromQuery;
-        console.log('📱 iOS/iPad - Attempting session recovery from external ID:', externalSessionId);
+    // iPad-specific session recovery
+    if (req.isIPad && !req.session?.user) {
+        console.log('📱 iPad session missing, attempting recovery...');
         
-        // Check if sessionStore exists before using it
-        if (!req.sessionStore || typeof req.sessionStore.get !== 'function') {
-            console.log('❌ Session store not available for recovery');
-            return sendAuthError(res, req);
-        }
+        const sessionCookie = req.cookies['solura.session'];
+        const headerSessionId = req.headers['x-session-id'];
         
-        req.sessionStore.get(externalSessionId, (err, sessionData) => {
-            if (err) {
-                console.error('Error loading external session:', err);
-                return sendAuthError(res, req);
-            }
-            
-            if (sessionData && sessionData.user) {
-                console.log('✅ External session recovery successful');
+        // Try to recover session
+        const externalSessionId = sessionCookie || headerSessionId;
+        
+        if (externalSessionId && externalSessionId !== req.sessionID) {
+            return req.sessionStore.get(externalSessionId, (err, sessionData) => {
+                if (err || !sessionData?.user) {
+                    console.log('❌ iPad session recovery failed');
+                    return sendAuthError(res, req);
+                }
+                
+                console.log('✅ iPad session recovered from external ID');
                 Object.assign(req.session, sessionData);
-                return next();
-            } else {
-                console.log('❌ No valid session data found for recovery');
-                sendAuthError(res, req);
-            }
-        });
-    } else if (req.session?.user && req.session.user.dbName && req.session.user.email) {
-        console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
-        return next();
-    } else {
-        console.log('❌ Authentication FAILED');
-        sendAuthError(res, req);
+                safeSessionTouch(req);
+                next();
+            });
+        }
     }
+    
+    // Standard authentication check
+    if (req.session?.user) {
+        safeSessionTouch(req);
+        return next();
+    }
+    
+    console.log('❌ Authentication failed');
+    sendAuthError(res, req);
 }
 
 function sendAuthError(res, req, customMessage = null) {
@@ -2251,7 +2348,25 @@ app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
     res.sendFile(path.join(__dirname, 'Admin.html'));
 });
 
+// ADD this to your dashboard routes
 app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
+    console.log('📱 iPad loading AdminApp - Session:', req.sessionID);
+    
+    // iPad-specific session reinforcement
+    if (req.isIPad) {
+        // Set multiple cookies for iPad
+        res.cookie('solura.session.backup', req.sessionID, {
+            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: false,
+            secure: false,
+            sameSite: 'none',
+            path: '/'
+        });
+        
+        // Add session ID to response headers
+        res.setHeader('X-Ipad-Session-ID', req.sessionID);
+    }
+    
     res.sendFile(path.join(__dirname, 'AdminApp.html'));
 });
 

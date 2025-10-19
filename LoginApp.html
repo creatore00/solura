@@ -1352,7 +1352,65 @@
         errorDiv.textContent = message;
         errorDiv.style.display = 'block';
     }
-
+// iPad session persistence code
+if (navigator.userAgent.match(/iPad/i)) {
+    console.log('📱 iPad device detected - enabling enhanced session management');
+    
+    // Store session ID in multiple locations
+    function backupSession(sessionId) {
+        localStorage.setItem('ipad_session_backup', sessionId);
+        sessionStorage.setItem('current_session', sessionId);
+        document.cookie = `ipad_session_fallback=${sessionId}; path=/; max-age=86400; sameSite=none`;
+    }
+    
+    // Recover session on page load
+    function recoverSession() {
+        const backups = [
+            localStorage.getItem('ipad_session_backup'),
+            sessionStorage.getItem('current_session'),
+            getCookie('ipad_session_fallback'),
+            getCookie('solura.session')
+        ];
+        
+        for (const sessionId of backups) {
+            if (sessionId) {
+                console.log('📱 Recovered session from backup:', sessionId);
+                return sessionId;
+            }
+        }
+        return null;
+    }
+    
+    // Helper function to get cookie
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+    
+    // Monitor for session loss
+    setInterval(() => {
+        fetch('/api/validate-session', {
+            credentials: 'include'
+        }).then(response => {
+            if (!response.ok) {
+                console.log('📱 Session validation failed, attempting recovery...');
+                const recoveredSession = recoverSession();
+                if (recoveredSession) {
+                    // Try to restore session
+                    fetch('/api/ipad-session-recovery', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            previousSessionId: recoveredSession
+                        })
+                    });
+                }
+            }
+        });
+    }, 5000); // Check every 5 seconds
+}
     // Store credentials using Capacitor Biometric Auth
     async function storeBiometricCredentials(email, accessToken) {
         try {
