@@ -83,7 +83,7 @@ function parseCookies(cookieHeader) {
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
 
-// Enhanced device detection helper
+// Enhanced device detection helper - SERVER-SIDE ONLY
 function isMobileDevice(req) {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPod/i.test(userAgent);
@@ -96,7 +96,7 @@ function isMobileDevice(req) {
     return isIOS || isAndroid || isMobileApp;
 }
 
-// Enhanced iPad detection - FIXED for iPad
+// Enhanced iPad detection - FIXED: Server-side only, no browser objects
 function isIPadDevice(req) {
     const userAgent = req.headers['user-agent'] || '';
     
@@ -105,16 +105,18 @@ function isIPadDevice(req) {
         return true;
     }
     
-    // iOS 13+ iPad detection
-    if (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent)) {
-        const isTouchCapable = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (isTouchCapable) {
-            return true;
-        }
+    // iOS 13+ iPad detection - SERVER SIDE ONLY
+    if (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent)) {
+        return true;
     }
     
     // Check for iPad in user agent (some iPads use Macintosh but are actually iPads)
-    if (/iPad|Macintosh/.test(userAgent) && /Mobile/.test(userAgent)) {
+    if (/Macintosh/.test(userAgent) && /Mobile/.test(userAgent)) {
+        return true;
+    }
+    
+    // Additional iPad patterns
+    if (/iPad/.test(userAgent) || (/\biPad.*AppleWebKit/i.test(userAgent))) {
         return true;
     }
     
