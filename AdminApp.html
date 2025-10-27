@@ -761,6 +761,7 @@
     let sessionId = null;
     let accessToken = null;
     let isIOSApp = false;
+    let isIPadDevice = false;
     let availableDatabases = [];
     let sessionInitialized = false;
 
@@ -768,22 +769,31 @@
     document.addEventListener('DOMContentLoaded', async function() {
         console.log('Mobile App: Initializing...');
         
-        // Enhanced iOS detection
+        // Enhanced iOS and iPad detection
         isIOSApp = window.navigator.standalone || 
                 (window.matchMedia('(display-mode: standalone)').matches) ||
                 (navigator.userAgent.includes('iPhone') && !navigator.userAgent.includes('Safari')) ||
                 (navigator.userAgent.includes('iPad') && !navigator.userAgent.includes('Safari'));
+        
+        isIPadDevice = /iPad/.test(navigator.userAgent) || 
+                      (/Macintosh/.test(navigator.userAgent) && /AppleWebKit/.test(navigator.userAgent) && !/Safari/.test(navigator.userAgent));
 
-        console.log('📱 iOS App detected:', isIOSApp);
-        console.log('User Agent:', navigator.userAgent);
+        console.log('📱 Device Detection:', {
+            isIOSApp: isIOSApp,
+            isIPadDevice: isIPadDevice,
+            userAgent: navigator.userAgent
+        });
         
         // Get session data from multiple sources
         const urlParams = new URLSearchParams(window.location.search);
         sessionId = urlParams.get('sessionId') || localStorage.getItem('sessionId');
         accessToken = localStorage.getItem('accessToken');
         
-        // CRITICAL: Initialize session first for iOS
-        if (isIOSApp) {
+        // CRITICAL: Initialize iPad session first
+        if (isIPadDevice) {
+            console.log('📱 iPad Device - Initializing iPad-specific session');
+            await initializeIPadSession();
+        } else if (isIOSApp) {
             console.log('📱 iOS App - Initializing session first');
             await initializeIOSSession();
         } else {
@@ -803,6 +813,113 @@
         await initializeSession();
     });
 
+    // Enhanced iPad session initialization
+    async function initializeIPadSession() {
+        console.log('📱 iPad-specific session initialization...');
+        
+        // Check URL parameters first (this is CRITICAL for database switch)
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionIdFromUrl = urlParams.get('sessionId');
+        const name = urlParams.get('name');
+        const lastName = urlParams.get('lastName');
+        const email = urlParams.get('email');
+        const dbName = urlParams.get('dbName');
+        
+        // If we have a session ID from URL (from database switch), use it
+        if (sessionIdFromUrl) {
+            console.log('📱 iPad: Found session ID in URL parameters:', sessionIdFromUrl);
+            sessionId = sessionIdFromUrl;
+            localStorage.setItem('sessionId', sessionIdFromUrl);
+        }
+        
+        if (name && lastName && email && dbName) {
+            console.log('📱 iPad: Found user data in URL parameters');
+            currentUser = {
+                email: email,
+                name: name,
+                lastName: lastName,
+                dbName: dbName
+            };
+            localStorage.setItem('userInfo', JSON.stringify(currentUser));
+            localStorage.setItem('lastDb', dbName);
+            sessionInitialized = true;
+            return;
+        }
+        
+        // Method 2: Check localStorage
+        const storedUser = localStorage.getItem('userInfo');
+        if (storedUser) {
+            console.log('📱 iPad: Found stored user data');
+            currentUser = JSON.parse(storedUser);
+            sessionInitialized = true;
+            return;
+        }
+        
+        // Method 3: Try to initialize session with server using iPad-specific endpoint
+        console.log('📱 iPad: No immediate user data, initializing session with server...');
+        await initializeIPadSessionWithServer();
+    }
+    
+    // Initialize iPad session with server
+    async function initializeIPadSessionWithServer() {
+        try {
+            console.log('📱 iPad: Initializing session with server...');
+            
+            // First, try iPad-specific initialization
+            const initResponse = await fetch('/api/ipad-init', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Device-Type': 'ipad'
+                }
+            });
+            
+            if (initResponse.ok) {
+                const initData = await initResponse.json();
+                console.log('✅ iPad session initialized:', initData);
+                
+                // Update session ID if provided
+                if (initData.sessionId) {
+                    sessionId = initData.sessionId;
+                    localStorage.setItem('sessionId', initData.sessionId);
+                }
+                
+                sessionInitialized = true;
+                
+                // Now try to get current user
+                const userResponse = await fetch('/api/current-user', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Cache-Control': 'no-cache',
+                        'X-Session-ID': sessionId || '',
+                        'X-Device-Type': 'ipad'
+                    }
+                });
+                
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    if (userData.success && userData.user) {
+                        console.log('✅ iPad user session found');
+                        currentUser = userData.user;
+                        localStorage.setItem('userInfo', JSON.stringify(userData.user));
+                        return;
+                    }
+                }
+            } else {
+                console.log('❌ Failed to initialize iPad session, trying regular method');
+                await initializeSessionWithServer();
+            }
+            
+        } catch (error) {
+            console.error('🚨 Error initializing iPad session with server:', error);
+            // Fallback to regular session initialization
+            await initializeSessionWithServer();
+        }
+    }
+    
     // Enhanced iOS session initialization
     async function initializeIOSSession() {
         console.log('📱 iOS App session initialization...');
@@ -1014,9 +1131,9 @@
                     availableDatabases = data.databases;
                     populateDatabaseSwitcher(data.databases, data.currentDb);
                     
-                    // For iOS: Add change event listener
+                    // For iOS/iPad: Add change event listener
                     const dbSelect = document.getElementById('databaseSelect');
-                    if (dbSelect && isIOSApp) {
+                    if (dbSelect && (isIOSApp || isIPadDevice)) {
                         dbSelect.addEventListener('change', function(e) {
                             if (e.target.value && e.target.value !== currentUser?.dbName) {
                                 switchDatabase(e.target.value);
@@ -1048,7 +1165,7 @@
         console.log('✅ Database switcher populated with', databases.length, 'databases');
     }
 
-    // FIXED: Database switch function for iOS
+    // FIXED: Database switch function for iPad and iOS
     async function switchDatabase(newDbName) {
         if (!newDbName || !currentUser) return;
         
@@ -1059,7 +1176,8 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Device-Type': isIPadDevice ? 'ipad' : (isIOSApp ? 'ios' : 'web')
                 },
                 credentials: 'include',
                 body: JSON.stringify({ 
@@ -1081,9 +1199,9 @@
                 
                 console.log('🆕 New session ID:', data.sessionId);
                 
-                // For iOS: Use the NEW session ID in the reload
-                if (isIOSApp) {
-                    console.log('📱 iOS App - Reloading with new session ID');
+                // For iPad/iOS: Use the NEW session ID in the reload
+                if (isIPadDevice || isIOSApp) {
+                    console.log('📱 iPad/iOS App - Reloading with new session ID');
                     // Use the NEW session ID in the URL
                     const newUrl = `${window.location.pathname}?sessionId=${encodeURIComponent(data.sessionId)}&t=${Date.now()}`;
                     setTimeout(() => {
@@ -1152,8 +1270,16 @@
     async function initializeSession() {
         console.log('Mobile App: Checking session...');
         
-        // For iOS Apps, use enhanced session validation
-        if (isIOSApp) {
+        // For iPad Devices, use enhanced session validation
+        if (isIPadDevice) {
+            console.log('📱 Using iPad-specific session validation');
+            const isValid = await validateIPadSession();
+            if (!isValid) {
+                showSessionError();
+                return;
+            }
+        } else if (isIOSApp) {
+            // For iOS Apps, use iOS-specific validation
             console.log('📱 Using iOS App session validation');
             const isValid = await validateIOSSession();
             if (!isValid) {
@@ -1171,6 +1297,112 @@
         
         console.log('Session valid, loading dashboard data...');
         loadDashboardData();
+    }
+
+    // iPad-specific session validation
+    async function validateIPadSession() {
+        try {
+            console.log('📱 Validating iPad session...');
+            
+            // Method 1: Try with current user data
+            if (currentUser && sessionInitialized) {
+                console.log('✅ iPad: Using existing session data');
+                return true;
+            }
+            
+            // Method 2: Try iPad-specific session validation
+            const validationResponse = await fetch('/api/ipad-validate', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Device-Type': 'ipad',
+                    'X-Session-ID': sessionId || ''
+                }
+            });
+            
+            if (validationResponse.ok) {
+                const validationData = await validationResponse.json();
+                if (validationData.valid && validationData.user) {
+                    console.log('✅ iPad session validation successful');
+                    currentUser = validationData.user;
+                    sessionId = validationData.sessionId;
+                    localStorage.setItem('userInfo', JSON.stringify(validationData.user));
+                    localStorage.setItem('sessionId', validationData.sessionId);
+                    return true;
+                }
+            }
+            
+            // Method 3: Try session restoration
+            const restored = await restoreIPadSession();
+            if (restored) {
+                return true;
+            }
+            
+            // Method 4: Try session recovery
+            return await attemptSessionRecovery();
+            
+        } catch (error) {
+            console.error('🚨 iPad session validation error:', error);
+            return await attemptSessionRecovery();
+        }
+    }
+
+    // iPad-specific session restoration
+    async function restoreIPadSession() {
+        try {
+            const storedUser = localStorage.getItem('userInfo');
+            const lastDb = localStorage.getItem('lastDb');
+            
+            if (!storedUser) return false;
+            
+            const userInfo = JSON.parse(storedUser);
+            const restorationData = {
+                email: userInfo.email,
+                dbName: userInfo.dbName || lastDb,
+                accessToken: accessToken
+            };
+            
+            console.log('📱 iPad restoration data:', restorationData);
+            
+            const response = await fetch('/api/ios-restore-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Session-ID': sessionId || '',
+                    'X-Device-Type': 'ipad',
+                    'Authorization': accessToken ? `Bearer ${accessToken}` : ''
+                },
+                credentials: 'include',
+                body: JSON.stringify(restorationData)
+            });
+            
+            console.log('📱 iPad restoration response status:', response.status);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('✅ iPad session restored successfully');
+                
+                currentUser = data.user;
+                if (data.sessionId) {
+                    sessionId = data.sessionId;
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+                if (data.accessToken) {
+                    accessToken = data.accessToken;
+                    localStorage.setItem('accessToken', data.accessToken);
+                }
+                localStorage.setItem('userInfo', JSON.stringify(data.user));
+                sessionInitialized = true;
+                
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('🚨 iPad session restoration error:', error);
+            return false;
+        }
     }
 
     // iOS App specific session validation
@@ -1315,6 +1547,11 @@
             console.log('Found stored user info, attempting recovery...');
             const userInfo = JSON.parse(storedUser);
             
+            // Use iPad-specific recovery for iPad
+            if (isIPadDevice) {
+                return await restoreIPadSession();
+            }
+            
             // Use iOS-specific recovery for iOS apps
             if (isIOSApp) {
                 return await restoreIOSSession();
@@ -1364,17 +1601,19 @@
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache',
                     'X-Session-ID': sessionId || '',
+                    ...(isIPadDevice && { 'X-Device-Type': 'ipad' }),
+                    ...(isIOSApp && !isIPadDevice && { 'X-Device-Type': 'ios' }),
                     ...(accessToken && { 'Authorization': `Bearer ${accessToken}` }),
                     ...options.headers
                 }
             };
             
-            // iOS App specific handling with session ID sync
+            // iPad/iOS App specific handling with session ID sync
             let targetUrl = url;
-            if (isIOSApp && sessionId) {
+            if ((isIPadDevice || isIOSApp) && sessionId) {
                 const separator = url.includes('?') ? '&' : '?';
                 targetUrl = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
-                console.log('📱 iOS App fetch URL with session ID:', targetUrl);
+                console.log('📱 iPad/iOS App fetch URL with session ID:', targetUrl);
             }
             
             console.log(`🔍 Fetching: ${targetUrl}`);
@@ -1393,19 +1632,28 @@
             if (response.status === 401) {
                 console.log('🔄 Request unauthorized, attempting recovery...');
                 
-                const recovered = isIOSApp ? await restoreIOSSession() : await attemptSessionRecovery();
+                let recovered = false;
+                if (isIPadDevice) {
+                    recovered = await restoreIPadSession();
+                } else if (isIOSApp) {
+                    recovered = await restoreIOSSession();
+                } else {
+                    recovered = await attemptSessionRecovery();
+                }
                 
                 if (recovered) {
                     console.log('🔄 Session recovered, retrying request...');
                     
                     // Update URL with new session ID
                     let retryUrl = url;
-                    if (isIOSApp && sessionId) {
+                    if ((isIPadDevice || isIOSApp) && sessionId) {
                         const separator = url.includes('?') ? '&' : '?';
                         retryUrl = `${url}${separator}sessionId=${encodeURIComponent(sessionId)}`;
                     }
                     
                     config.headers['X-Session-ID'] = sessionId || '';
+                    if (isIPadDevice) config.headers['X-Device-Type'] = 'ipad';
+                    if (isIOSApp && !isIPadDevice) config.headers['X-Device-Type'] = 'ios';
                     if (accessToken) {
                         config.headers['Authorization'] = `Bearer ${accessToken}`;
                     }
@@ -1446,8 +1694,8 @@
             t: Date.now() // Cache buster only
         });
 
-        // Add session ID for iOS Apps only if needed
-        if (isIOSApp && sessionId) {
+        // Add session ID for iPad/iOS Apps only if needed
+        if ((isIPadDevice || isIOSApp) && sessionId) {
             params.append('sessionId', sessionId);
         }
 
@@ -1505,7 +1753,13 @@
         setInterval(fetchTipApprovals, 60000);
         setInterval(checkPendingRequests, 300000);
         setInterval(() => {
-            isIOSApp ? validateIOSSession() : validateSessionWithRecovery();
+            if (isIPadDevice) {
+                validateIPadSession();
+            } else if (isIOSApp) {
+                validateIOSSession();
+            } else {
+                validateSessionWithRecovery();
+            }
         }, 120000);
         
         setupInactivityTimer();
