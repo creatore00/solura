@@ -22,7 +22,14 @@
             --shadow: 0 8px 32px rgba(0, 31, 63, 0.1);
             --gradient: linear-gradient(135deg, #001f3f 0%, #0074D9 100%);
         }
-        
+        /* TEMPORARY FIX - Force biometric section to show */
+#biometricSection {
+    display: block !important;
+}
+
+#biometricDivider {
+    display: flex !important;
+}
         * { 
             box-sizing: border-box; 
             -webkit-tap-highlight-color: transparent; 
@@ -608,6 +615,12 @@
         </form>
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
+    <!-- Add this temporary debug button to your login form -->
+<div style="text-align: center; margin: 10px 0;">
+    <button type="button" onclick="manualBiometricTest()" style="background: #ff6b6b; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px;">
+        🔧 Test Biometric
+    </button>
+</div>
 <script>
     // Enhanced biometric authentication system with device fingerprinting
     let databases = [];
@@ -714,12 +727,67 @@
         // Then check for existing session and try auto-login
         await tryAutoLogin();
 
-            // Add debug info
+    // Debug after initialization
     setTimeout(() => {
         debugBiometricStatus();
+        
+        // Final check - if biometric should be shown but isn't, force it
+        const biometricSection = document.getElementById('biometricSection');
+        if (biometricSupported && biometricSection.style.display === 'none') {
+            console.log('🚨 CRITICAL: Biometric supported but hidden - EMERGENCY FIX');
+            forceShowBiometricSection();
+        }
     }, 1000);
     });
-
+    // Manual biometric test function
+async function manualBiometricTest() {
+    console.log('🧪 MANUAL BIOMETRIC TEST STARTED');
+    
+    await debugBiometricStatus();
+    
+    // Force show biometric section
+    forceShowBiometricSection();
+    
+    // Test biometric login
+    try {
+        await handleBiometricLogin();
+    } catch (error) {
+        console.error('Manual test failed:', error);
+    }
+}
+// Enhanced debug function to check biometric status
+async function debugBiometricStatus() {
+    console.log('=== BIOMETRIC DEBUG INFO ===');
+    console.log('Biometric Supported:', biometricSupported);
+    console.log('Biometric Type:', biometricType);
+    console.log('Has Stored Credentials:', hasStoredCredentials);
+    console.log('Device Fingerprint:', currentDeviceFingerprint);
+    console.log('Is Capacitor:', isCapacitor);
+    
+    // Check UI elements
+    const biometricSection = document.getElementById('biometricSection');
+    const biometricDivider = document.getElementById('biometricDivider');
+    console.log('Biometric Section Display:', biometricSection.style.display);
+    console.log('Biometric Divider Display:', biometricDivider.style.display);
+    
+    // Check device registration status
+    if (currentDeviceFingerprint) {
+        try {
+            const response = await makeApiRequest('/api/check-device-registration', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-Fingerprint': currentDeviceFingerprint
+                }
+            });
+            const data = await response.json();
+            console.log('Device Registration Check:', data);
+        } catch (error) {
+            console.log('Device Registration Check Failed:', error.message);
+        }
+    }
+    console.log('=== END DEBUG ===');
+}
     // Initialize mobile session - CRITICAL FIX for iPad/Android
     async function initializeMobileSession() {
         try {
@@ -833,10 +901,30 @@
 
 // Enhanced biometric system initialization
 async function initializeBiometricSystem() {
+    console.log('🔄 Starting biometric system initialization...');
+    
     await checkBiometricSupport();
-    await checkDeviceRegistration(); // Check device registration FIRST
-    await checkStoredCredentials();  // Then check legacy credentials
+    console.log('Biometric support check complete:', biometricSupported);
+    
+    await checkDeviceRegistration();
+    console.log('Device registration check complete:', hasStoredCredentials);
+    
+    await checkStoredCredentials();
+    console.log('Stored credentials check complete:', hasStoredCredentials);
+    
+    // FORCE update the UI
     updateBiometricUI();
+    
+    // If biometric is supported but UI is still hidden, force it to show
+    setTimeout(() => {
+        const biometricSection = document.getElementById('biometricSection');
+        if (biometricSupported && biometricSection.style.display === 'none') {
+            console.log('⚠️ Biometric supported but section hidden - forcing display');
+            forceShowBiometricSection();
+        }
+    }, 500);
+    
+    console.log('✅ Biometric system initialization complete');
 }
 
 // Enhanced device registration check
@@ -949,7 +1037,7 @@ async function checkDeviceRegistration() {
         }
     }
 
-// Update biometric UI based on device registration
+// Enhanced biometric UI update with better visibility
 function updateBiometricUI() {
     const biometricSection = document.getElementById('biometricSection');
     const biometricDivider = document.getElementById('biometricDivider');
@@ -957,9 +1045,18 @@ function updateBiometricUI() {
     const biometricText = document.getElementById('biometricText');
     const biometricBtnText = document.getElementById('biometricBtnText');
 
+    console.log('🔄 Updating Biometric UI:', {
+        biometricSupported,
+        hasStoredCredentials,
+        currentDeviceFingerprint
+    });
+
     if (biometricSupported) {
+        // ALWAYS show the biometric section if supported
         biometricSection.style.display = 'block';
         biometricDivider.style.display = 'flex';
+        
+        console.log('✅ Biometric section made visible');
 
         // Update UI based on device registration
         if (hasStoredCredentials) {
@@ -967,21 +1064,38 @@ function updateBiometricUI() {
             biometricText.textContent = 'Use registered device for instant access';
             biometricBtn.querySelector('.biometric-icon').textContent = '🔒';
             
-            console.log('📱 Biometric UI: Registered device mode');
+            console.log('📱 Biometric UI: Registered device mode - READY FOR BIOMETRIC LOGIN');
         } else {
             biometricBtnText.textContent = 'Setup Biometric Login';
             biometricText.textContent = 'Enable faster, more secure access on this device';
             biometricBtn.querySelector('.biometric-icon').textContent = '👤';
             
-            console.log('📱 Biometric UI: Setup mode');
+            console.log('📱 Biometric UI: Setup mode - needs registration');
         }
+        
+        // Force a reflow to ensure CSS changes take effect
+        biometricSection.offsetHeight;
+        
     } else {
         biometricSection.style.display = 'none';
         biometricDivider.style.display = 'none';
-        console.log('📱 Biometric UI: Not supported');
+        console.log('📱 Biometric UI: Not supported on this device');
     }
 }
+
+// Force show biometric section for testing
+function forceShowBiometricSection() {
+    const biometricSection = document.getElementById('biometricSection');
+    const biometricDivider = document.getElementById('biometricDivider');
     
+    biometricSection.style.display = 'block';
+    biometricDivider.style.display = 'flex';
+    
+    console.log('🔧 FORCE SHOWING BIOMETRIC SECTION');
+    console.log('Biometric Section:', biometricSection);
+    console.log('Biometric Divider:', biometricDivider);
+}
+
 // Debug function to check biometric status
 async function debugBiometricStatus() {
     console.log('=== BIOMETRIC DEBUG INFO ===');
