@@ -609,7 +609,7 @@
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
 <script>
-    // Enhanced biometric authentication system for ALL devices
+    // Enhanced biometric authentication system with device fingerprinting
     let databases = [];
     let currentUserData = null;
     const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;
@@ -618,10 +618,79 @@
     let hasStoredCredentials = false;
     let isAutoLoginAttempted = false;
     let currentSessionId = null;
+    let currentDeviceFingerprint = null;
+
+    // Device fingerprinting function
+    async function generateDeviceFingerprint() {
+        try {
+            const fingerprintData = {
+                userAgent: navigator.userAgent,
+                screenResolution: `${screen.width}x${screen.height}`,
+                colorDepth: screen.colorDepth,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                language: navigator.language,
+                languages: navigator.languages ? navigator.languages.join(',') : navigator.language,
+                hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
+                platform: navigator.platform,
+                deviceMemory: navigator.deviceMemory || 'unknown',
+                maxTouchPoints: navigator.maxTouchPoints || 0,
+                cookieEnabled: navigator.cookieEnabled,
+                doNotTrack: navigator.doNotTrack || 'unknown'
+            };
+
+            // Create a stable hash of the fingerprint data
+            const fingerprintString = JSON.stringify(fingerprintData);
+            const hash = await sha256(fingerprintString);
+            
+            console.log('📱 Device Fingerprint Generated:', {
+                hash: hash,
+                data: fingerprintData
+            });
+            
+            return {
+                hash: hash,
+                data: fingerprintData
+            };
+        } catch (error) {
+            console.error('Error generating device fingerprint:', error);
+            // Fallback to simpler fingerprint
+            const fallbackFingerprint = `ua-${navigator.userAgent.substring(0, 50)}-res-${screen.width}x${screen.height}-tz-${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
+            const fallbackHash = await sha256(fallbackFingerprint);
+            return {
+                hash: fallbackHash,
+                data: { fallback: true, userAgent: navigator.userAgent }
+            };
+        }
+    }
+
+    // SHA-256 hashing function
+    async function sha256(message) {
+        // Convert message to buffer
+        const msgBuffer = new TextEncoder().encode(message);
+        
+        // Hash the message
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        
+        // Convert ArrayBuffer to Array
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        
+        // Convert bytes to hex string
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
+    }
 
     // Initialize everything when DOM is ready
     document.addEventListener('DOMContentLoaded', async function() {
-        console.log('🚀 Initializing UNIVERSAL login system...');
+        console.log('🚀 Initializing ENHANCED biometric login system...');
+        
+        // Generate device fingerprint first
+        const fingerprint = await generateDeviceFingerprint();
+        currentDeviceFingerprint = fingerprint.hash;
+        
+        console.log('📱 Device Fingerprint:', {
+            hash: currentDeviceFingerprint,
+            data: fingerprint.data
+        });
         
         // Emergency CSS fix first
         document.body.style.backgroundColor = '#ffffff';
@@ -660,7 +729,8 @@
                 headers: {
                     'Cache-Control': 'no-cache',
                     'Pragma': 'no-cache',
-                    'X-Device-Type': getDeviceType()
+                    'X-Device-Type': getDeviceType(),
+                    'X-Device-Fingerprint': currentDeviceFingerprint
                 }
             });
             
@@ -719,8 +789,11 @@
             options.headers['X-Session-ID'] = sessionId;
         }
         
-        // Include device type
+        // Include device type and fingerprint
         options.headers['X-Device-Type'] = getDeviceType();
+        if (currentDeviceFingerprint) {
+            options.headers['X-Device-Fingerprint'] = currentDeviceFingerprint;
+        }
         
         // Ensure credentials are included
         options.credentials = 'include';
@@ -757,7 +830,43 @@
     async function initializeBiometricSystem() {
         await checkBiometricSupport();
         await checkStoredCredentials();
+        await checkDeviceRegistration(); // NEW: Check if device is registered
         updateBiometricUI();
+    }
+
+    // NEW: Check if current device is registered for biometric access
+    async function checkDeviceRegistration() {
+        if (!currentDeviceFingerprint) return;
+        
+        try {
+            const response = await makeApiRequest('/api/check-device-registration', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-Fingerprint': currentDeviceFingerprint
+                },
+                credentials: 'include'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.registered) {
+                    console.log('✅ Device is registered for biometric access');
+                    hasStoredCredentials = true;
+                    
+                    // Store device info for later use
+                    if (data.deviceInfo) {
+                        localStorage.setItem('registeredDevice', JSON.stringify(data.deviceInfo));
+                    }
+                } else {
+                    console.log('📱 Device not registered for biometric access');
+                    hasStoredCredentials = false;
+                }
+            }
+        } catch (error) {
+            console.log('❌ Device registration check failed:', error.message);
+            hasStoredCredentials = false;
+        }
     }
 
     async function checkBiometricSupport() {
@@ -824,6 +933,7 @@
         }
     }
 
+    // Update biometric UI based on device registration
     function updateBiometricUI() {
         const biometricSection = document.getElementById('biometricSection');
         const biometricDivider = document.getElementById('biometricDivider');
@@ -835,23 +945,15 @@
             biometricSection.style.display = 'block';
             biometricDivider.style.display = 'flex';
 
-            // Update UI based on biometric type and stored credentials
+            // Update UI based on device registration
             if (hasStoredCredentials) {
-                if (biometricType === 'FACE_ID' || biometricType === 'FACE_AUTHENTICATION') {
-                    biometricBtnText.textContent = 'Sign in with Face ID';
-                    biometricText.textContent = 'Use Face ID for instant access';
-                    biometricBtn.querySelector('.biometric-icon').textContent = '👤';
-                } else if (biometricType === 'TOUCH_ID' || biometricType === 'FINGERPRINT') {
-                    biometricBtnText.textContent = 'Sign in with Touch ID';
-                    biometricText.textContent = 'Use Touch ID for instant access';
-                    biometricBtn.querySelector('.biometric-icon').textContent = '👆';
-                } else {
-                    biometricBtnText.textContent = 'Sign in with Biometrics';
-                    biometricText.textContent = 'Use device authentication for instant access';
-                }
+                biometricBtnText.textContent = 'Sign in with Biometrics';
+                biometricText.textContent = 'Use registered device for instant access';
+                biometricBtn.querySelector('.biometric-icon').textContent = '🔒';
             } else {
                 biometricBtnText.textContent = 'Setup Biometric Login';
-                biometricText.textContent = 'Enable faster, more secure access';
+                biometricText.textContent = 'Enable faster, more secure access on this device';
+                biometricBtn.querySelector('.biometric-icon').textContent = '👤';
             }
         } else {
             biometricSection.style.display = 'none';
@@ -945,52 +1047,56 @@
                 throw new Error('Biometric authentication not supported on this device');
             }
 
-            if (!isCapacitor) {
-                await handleWebBiometricLogin();
-                return;
+            if (!currentDeviceFingerprint) {
+                throw new Error('Device identification failed');
             }
 
-            // For Capacitor apps
-            const { BiometricAuth } = window.Capacitor.Plugins;
-            
-            if (!hasStoredCredentials) {
-                // No stored credentials - this should setup biometric
-                console.log('📝 No stored credentials, showing setup prompt');
-                showBiometricPrompt();
-                resetBiometricButton();
-                return;
-            }
-
-            // Verify biometrics
-            console.log('🔐 Starting biometric verification...');
-            const result = await BiometricAuth.verifyIdentity({
-                reason: 'Sign in to Enterprise Data Management Suite',
-                title: 'Biometric Login',
-                subtitle: 'Authenticate to access your account',
-                description: 'Use your biometric data to securely sign in'
+            // For registered devices, use device fingerprint for authentication
+            const response = await makeApiRequest('/api/biometric-login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-Fingerprint': currentDeviceFingerprint
+                },
+                credentials: 'include'
             });
 
-            if (!result.verified) {
-                throw new Error('Biometric verification failed or was cancelled');
-            }
-
-            // Get stored credentials
-            const credentials = await BiometricAuth.getCredentials({ 
-                server: 'https://solura.uk' 
-            });
-
-            if (!credentials || !credentials.username || !credentials.password) {
-                throw new Error('No stored credentials found');
-            }
-
-            console.log('✅ Biometric verification successful, proceeding with login...');
+            const data = await response.json();
             
-            // Show success message
-            successDiv.textContent = 'Biometric authentication successful!';
-            successDiv.style.display = 'block';
+            if (!response.ok) {
+                throw new Error(data.error || 'Biometric authentication failed');
+            }
 
-            // Use the stored access token to restore session
-            await restoreSessionWithToken(credentials.username, credentials.password);
+            if (data.success) {
+                console.log('✅ Biometric authentication successful via device fingerprint');
+                
+                // Show success message
+                successDiv.textContent = 'Biometric authentication successful!';
+                successDiv.style.display = 'block';
+
+                // Handle the login response
+                if (data.requiresDatabaseSelection && data.databases) {
+                    // Show database selection
+                    databases = data.databases;
+                    showDatabasePopup(databases);
+                    currentUserData = {
+                        sessionId: data.sessionId,
+                        userInfo: data.user
+                    };
+                } else if (data.redirectUrl) {
+                    // Direct login successful
+                    storeSessionData(data);
+                    
+                    successDiv.textContent = 'Welcome back! Redirecting...';
+                    successDiv.style.display = 'block';
+                    
+                    setTimeout(() => {
+                        window.location.replace(data.redirectUrl);
+                    }, 1000);
+                }
+            } else {
+                throw new Error(data.error || 'Authentication failed');
+            }
 
         } catch (error) {
             console.error('❌ Biometric authentication error:', error);
@@ -1136,7 +1242,8 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'X-Device-Type': getDeviceType(),
+                    'X-Device-Fingerprint': currentDeviceFingerprint
                 },
                 credentials: 'include',
                 body: JSON.stringify({ email: email })
@@ -1195,7 +1302,8 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'X-Device-Type': getDeviceType(),
+                    'X-Device-Fingerprint': currentDeviceFingerprint
                 },
                 credentials: 'include',
                 body: JSON.stringify({ 
@@ -1251,13 +1359,16 @@
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'X-Device-Type': getDeviceType(),
+                    'X-Device-Fingerprint': currentDeviceFingerprint // Include device fingerprint
                 },
                 credentials: 'include',
                 body: JSON.stringify({ 
                     email, 
                     password,
-                    forceLogout: forceLogout 
+                    forceLogout,
+                    enableBiometric: document.getElementById('enableBiometric').checked,
+                    deviceFingerprint: currentDeviceFingerprint
                 })
             });
 
@@ -1297,7 +1408,9 @@
                     email, 
                     password,
                     sessionId: data.sessionId,
-                    userInfo: data.user
+                    userInfo: data.user,
+                    enableBiometric: document.getElementById('enableBiometric').checked,
+                    deviceFingerprint: currentDeviceFingerprint
                 };
                 
                 // Store pending login for recovery
@@ -1308,8 +1421,13 @@
                 }));
                 
             } else if (data.redirectUrl) {
-                // Store credentials if biometric is enabled
+                // NEW: Register device for biometric if enabled
                 const enableBiometric = document.getElementById('enableBiometric').checked;
+                if (enableBiometric && currentDeviceFingerprint) {
+                    await registerDeviceForBiometric(email, currentDeviceFingerprint);
+                }
+                
+                // Store credentials if biometric is enabled (legacy support)
                 if (enableBiometric) {
                     if (isCapacitor) {
                         await storeBiometricCredentials(email, data.accessToken);
@@ -1345,6 +1463,93 @@
             submitBtn.textContent = 'Sign In';
             loadingDiv.style.display = 'none';
         }
+    }
+
+    // NEW: Register device for biometric authentication
+    async function registerDeviceForBiometric(email, deviceFingerprint) {
+        try {
+            const deviceInfo = await getDeviceInfo();
+            console.log('📱 Registering device with info:', deviceInfo);
+            
+            const response = await makeApiRequest('/api/register-device', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    email: email,
+                    deviceFingerprint: deviceFingerprint,
+                    deviceInfo: deviceInfo
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log('✅ Device registered for biometric authentication');
+                hasStoredCredentials = true;
+                updateBiometricUI();
+                
+                // Log device registration details
+                logDeviceDetails(deviceFingerprint, deviceInfo, 'device_registered');
+            } else {
+                console.log('❌ Device registration failed:', data.error);
+            }
+        } catch (error) {
+            console.error('Error registering device:', error);
+        }
+    }
+
+    // NEW: Get comprehensive device information
+    async function getDeviceInfo() {
+        const fingerprint = await generateDeviceFingerprint();
+        
+        return {
+            fingerprint: fingerprint.hash,
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            screenResolution: `${screen.width}x${screen.height}`,
+            colorDepth: screen.colorDepth,
+            hardwareConcurrency: navigator.hardwareConcurrency,
+            deviceMemory: navigator.deviceMemory,
+            maxTouchPoints: navigator.maxTouchPoints,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            language: navigator.language,
+            languages: navigator.languages,
+            cookieEnabled: navigator.cookieEnabled,
+            doNotTrack: navigator.doNotTrack,
+            vendor: navigator.vendor,
+            product: navigator.product,
+            productSub: navigator.productSub,
+            vendorSub: navigator.vendorSub,
+            touchSupport: 'ontouchstart' in window,
+            deviceType: getDeviceType(),
+            timestamp: new Date().toISOString()
+        };
+    }
+
+    // NEW: Comprehensive device logging function
+    function logDeviceDetails(deviceFingerprint, deviceInfo, action) {
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            action: action,
+            deviceFingerprint: deviceFingerprint,
+            deviceInfo: deviceInfo,
+            url: window.location.href,
+            userAgent: navigator.userAgent
+        };
+        
+        console.log('📱 DEVICE LOG:', logEntry);
+        
+        // Send to server for storage (optional)
+        fetch('/api/log-device-activity', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(logEntry)
+        }).catch(err => console.log('Failed to send device log:', err));
     }
 
     function showError(message) {
@@ -1436,7 +1641,7 @@
         popup.style.display = 'block';
     }
 
-    // Database selection
+    // Enhanced database selection to also register device
     async function submitDatabase() {
         const selectedDatabase = document.querySelector('input[name="database"]:checked')?.value;
         if (!selectedDatabase) {
@@ -1453,13 +1658,16 @@
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json',
-                    'X-Device-Type': getDeviceType()
+                    'X-Device-Type': getDeviceType(),
+                    'X-Device-Fingerprint': currentDeviceFingerprint
                 },
                 credentials: 'include',
                 body: JSON.stringify({
                     email: currentUserData.email,
                     password: currentUserData.password,
-                    dbName: selectedDatabase
+                    dbName: selectedDatabase,
+                    enableBiometric: currentUserData.enableBiometric,
+                    deviceFingerprint: currentDeviceFingerprint
                 })
             });
 
@@ -1482,14 +1690,9 @@
             }
 
             if (data.redirectUrl) {
-                // Store credentials if biometric is enabled
-                const enableBiometric = document.getElementById('enableBiometric').checked;
-                if (enableBiometric) {
-                    if (isCapacitor) {
-                        await storeBiometricCredentials(currentUserData.email, data.accessToken);
-                    } else {
-                        storeWebCredentials(currentUserData.email, data.accessToken);
-                    }
+                // NEW: Register device for biometric if enabled
+                if (currentUserData.enableBiometric && currentDeviceFingerprint) {
+                    await registerDeviceForBiometric(currentUserData.email, currentDeviceFingerprint);
                 }
                 
                 // Store all session data for recovery
@@ -1499,7 +1702,6 @@
                 
                 console.log('Database selection successful, redirecting...');
 
-                // For mobile devices, use replace and add delay for cookie setting
                 setTimeout(() => {
                     window.location.replace(data.redirectUrl);
                 }, 100);
