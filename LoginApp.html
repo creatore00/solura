@@ -947,8 +947,12 @@ async function checkDeviceRegistration() {
             credentials: 'include'
         });
         
+        console.log('📋 Registration check response status:', response.status);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('📋 Registration check response data:', data);
+            
             if (data.registered) {
                 console.log('✅ Device is registered for biometric access for user:', data.deviceInfo?.userEmail);
                 hasStoredCredentials = true;
@@ -958,8 +962,11 @@ async function checkDeviceRegistration() {
                     localStorage.setItem('registeredDevice', JSON.stringify(data.deviceInfo));
                 }
                 
-                // Update UI to show registered device
+                // IMMEDIATELY update UI
                 updateBiometricUI();
+                
+                // Force a second update after a short delay to ensure it sticks
+                setTimeout(updateBiometricUI, 100);
             } else {
                 console.log('📱 Device not registered for biometric access');
                 hasStoredCredentials = false;
@@ -973,7 +980,7 @@ async function checkDeviceRegistration() {
         hasStoredCredentials = false;
     }
 }
-    async function checkBiometricSupport() {
+async function checkBiometricSupport() {
         if (!isCapacitor) {
             // WebAuthn support check for browsers
             if (window.PublicKeyCredential && window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
@@ -1037,7 +1044,7 @@ async function checkDeviceRegistration() {
         }
     }
 
-// Enhanced biometric UI update with better visibility
+// AGGRESSIVE biometric UI update - force show if device is registered
 function updateBiometricUI() {
     const biometricSection = document.getElementById('biometricSection');
     const biometricDivider = document.getElementById('biometricDivider');
@@ -1045,42 +1052,54 @@ function updateBiometricUI() {
     const biometricText = document.getElementById('biometricText');
     const biometricBtnText = document.getElementById('biometricBtnText');
 
-    console.log('🔄 Updating Biometric UI:', {
-        biometricSupported,
-        hasStoredCredentials,
-        currentDeviceFingerprint
-    });
+    console.log('🔄 UPDATING BIOMETRIC UI - FORCE MODE');
+    console.log('Biometric Supported:', biometricSupported);
+    console.log('Has Stored Credentials:', hasStoredCredentials);
+    console.log('Device Fingerprint:', currentDeviceFingerprint);
 
-    if (biometricSupported) {
-        // ALWAYS show the biometric section if supported
-        biometricSection.style.display = 'block';
-        biometricDivider.style.display = 'flex';
+    // CRITICAL: Always show if device is registered, regardless of biometric support
+    if (hasStoredCredentials || biometricSupported) {
+        console.log('🚨 FORCING BIOMETRIC SECTION TO SHOW - Device is registered');
         
-        console.log('✅ Biometric section made visible');
-
+        // Remove any inline styles that might be hiding it
+        biometricSection.style.display = 'block';
+        biometricSection.style.visibility = 'visible';
+        biometricSection.style.opacity = '1';
+        
+        biometricDivider.style.display = 'flex';
+        biometricDivider.style.visibility = 'visible';
+        biometricDivider.style.opacity = '1';
+        
         // Update UI based on device registration
         if (hasStoredCredentials) {
             biometricBtnText.textContent = 'Sign in with Biometrics';
             biometricText.textContent = 'Use registered device for instant access';
             biometricBtn.querySelector('.biometric-icon').textContent = '🔒';
             
-            console.log('📱 Biometric UI: Registered device mode - READY FOR BIOMETRIC LOGIN');
+            console.log('📱 Biometric UI: Registered device mode - READY FOR USE');
         } else {
             biometricBtnText.textContent = 'Setup Biometric Login';
             biometricText.textContent = 'Enable faster, more secure access on this device';
             biometricBtn.querySelector('.biometric-icon').textContent = '👤';
             
-            console.log('📱 Biometric UI: Setup mode - needs registration');
+            console.log('📱 Biometric UI: Setup mode');
         }
         
-        // Force a reflow to ensure CSS changes take effect
-        biometricSection.offsetHeight;
+        // Add a visual indicator that it's working
+        biometricSection.style.border = '2px solid #28a745';
+        biometricSection.style.borderRadius = '12px';
+        biometricSection.style.padding = '10px';
+        biometricSection.style.margin = '10px 0';
+        biometricSection.style.background = 'rgba(40, 167, 69, 0.1)';
         
     } else {
+        console.log('❌ Hiding biometric section - no registered device or support');
         biometricSection.style.display = 'none';
         biometricDivider.style.display = 'none';
-        console.log('📱 Biometric UI: Not supported on this device');
     }
+    
+    // Force browser to repaint
+    biometricSection.offsetHeight;
 }
 
 // Force show biometric section for testing
@@ -1192,11 +1211,13 @@ async function debugBiometricStatus() {
         }
     }
 
-// Enhanced biometric login handler with device fingerprint support
+// Enhanced biometric login handler with detailed debugging
 async function handleBiometricLogin() {
     const btn = document.getElementById('biometricBtn');
     const errorDiv = document.getElementById('biometricError');
     const successDiv = document.getElementById('biometricSuccess');
+    
+    console.log('🔐 STARTING BIOMETRIC LOGIN PROCESS');
     
     // Show loading state
     btn.disabled = true;
@@ -1214,9 +1235,10 @@ async function handleBiometricLogin() {
             throw new Error('Device identification failed');
         }
 
-        console.log('🔐 Starting biometric authentication for registered device:', currentDeviceFingerprint);
+        console.log('📱 Device fingerprint:', currentDeviceFingerprint);
 
-        // FIRST: Check if device is registered and get user info
+        // STEP 1: Check device registration
+        console.log('🔍 Step 1: Checking device registration...');
         const registrationCheck = await makeApiRequest('/api/check-device-registration', {
             method: 'POST',
             headers: {
@@ -1226,19 +1248,21 @@ async function handleBiometricLogin() {
             credentials: 'include'
         });
 
+        console.log('📋 Registration response status:', registrationCheck.status);
         const registrationData = await registrationCheck.json();
+        console.log('📋 Registration response data:', registrationData);
         
         if (!registrationData.registered) {
             throw new Error('Device not registered for biometric access. Please login with email and password first.');
         }
 
-        console.log('✅ Device verified, proceeding with biometric authentication...');
+        console.log('✅ Step 1: Device verified');
 
-        // For Capacitor apps, verify biometrics first
+        // STEP 2: For Capacitor apps, verify biometrics
         if (isCapacitor) {
+            console.log('🔐 Step 2: Starting biometric verification...');
             const { BiometricAuth } = window.Capacitor.Plugins;
             
-            console.log('🔐 Starting biometric verification...');
             const result = await BiometricAuth.verifyIdentity({
                 reason: 'Sign in to Enterprise Data Management Suite',
                 title: 'Biometric Login',
@@ -1249,11 +1273,13 @@ async function handleBiometricLogin() {
             if (!result.verified) {
                 throw new Error('Biometric verification failed or was cancelled');
             }
-            console.log('✅ Biometric verification successful');
+            console.log('✅ Step 2: Biometric verification successful');
+        } else {
+            console.log('ℹ️ Step 2: Web biometric - skipping native verification');
         }
 
-        // NOW: Use device fingerprint for authentication
-        console.log('🔄 Authenticating with device fingerprint...');
+        // STEP 3: Use device fingerprint for authentication
+        console.log('🔄 Step 3: Authenticating with device fingerprint...');
         const response = await makeApiRequest('/api/biometric-login', {
             method: 'POST',
             headers: {
@@ -1263,14 +1289,16 @@ async function handleBiometricLogin() {
             credentials: 'include'
         });
 
+        console.log('📋 Biometric login response status:', response.status);
         const data = await response.json();
+        console.log('📋 Biometric login response data:', data);
         
         if (!response.ok) {
-            throw new Error(data.error || 'Biometric authentication failed');
+            throw new Error(data.error || `Server returned ${response.status}`);
         }
 
         if (data.success) {
-            console.log('✅ Biometric authentication successful via device fingerprint');
+            console.log('✅ Step 3: Biometric authentication successful');
             
             // Show success message
             successDiv.textContent = 'Biometric authentication successful!';
@@ -1297,14 +1325,19 @@ async function handleBiometricLogin() {
                     window.location.replace(data.redirectUrl);
                 }, 1000);
             } else {
-                throw new Error('Invalid response from server');
+                throw new Error('Invalid response from server - no redirect URL or database selection');
             }
         } else {
             throw new Error(data.error || 'Authentication failed');
         }
 
     } catch (error) {
-        console.error('❌ Biometric authentication error:', error);
+        console.error('❌ BIOMETRIC AUTHENTICATION ERROR:', error);
+        console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+        });
+        
         errorDiv.textContent = getFriendlyErrorMessage(error);
         errorDiv.style.display = 'block';
         
@@ -1314,8 +1347,8 @@ async function handleBiometricLogin() {
         }, 3000);
     }
 }
-
-    async function handleWebBiometricLogin() {
+    
+async function handleWebBiometricLogin() {
         // Simplified web biometric flow using stored credentials
         const stored = localStorage.getItem('biometricCredentials');
         if (!stored) {
