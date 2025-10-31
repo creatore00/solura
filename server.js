@@ -1631,9 +1631,8 @@ app.post('/api/register-device', async (req, res) => {
     }
 });
 
-// NEW: Check device registration endpoint
+// SIMPLIFIED: Check device registration - no session needed
 app.post('/api/check-device-registration', async (req, res) => {
-    safeSessionTouch(req);
     try {
         const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
 
@@ -1696,28 +1695,19 @@ app.post('/api/check-device-registration', async (req, res) => {
     }
 });
 
-// FIXED: Biometric login endpoint with proper session handling
+// CORRECTED: Biometric login endpoint that CREATES session
 app.post('/api/biometric-login', async (req, res) => {
-    safeSessionTouch(req);
     try {
         const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
 
-        console.log('🔐 BIOMETRIC LOGIN ATTEMPT:', {
-            deviceFingerprint: deviceFingerprint,
-            sessionId: req.sessionID,
-            hasSession: !!req.session,
-            sessionUser: req.session?.user
-        });
+        console.log('🔐 BIOMETRIC LOGIN - Creating new session for device:', deviceFingerprint);
 
         if (!deviceFingerprint) {
-            console.log('❌ Missing device fingerprint');
             return res.status(400).json({ 
                 success: false, 
                 error: 'Device fingerprint is required' 
             });
         }
-
-        console.log('🔍 Checking device registration:', deviceFingerprint);
 
         // Verify device registration and get user info
         const sql = `
@@ -1747,40 +1737,9 @@ app.post('/api/biometric-login', async (req, res) => {
             const deviceRecord = results[0];
             const userEmail = deviceRecord.user_email;
 
-            console.log('✅ Device verified, proceeding with login for:', userEmail);
+            console.log('✅ Device verified, creating session for:', userEmail);
 
-            // Check for active sessions (duplicate login prevention)
-            const activeSessionIds = activeSessions.get(userEmail);
-            let hasActiveSessions = false;
-            
-            if (activeSessionIds && activeSessionIds.size > 0) {
-                // Check if sessions are still valid
-                const checkSession = (sessionId) => {
-                    return new Promise((resolve) => {
-                        sessionStore.get(sessionId, (err, sessionData) => {
-                            if (!err && sessionData && sessionData.user) {
-                                hasActiveSessions = true;
-                            }
-                            resolve();
-                        });
-                    });
-                };
-
-                // Check all sessions (simplified for example)
-                if (activeSessionIds.size > 0) {
-                    hasActiveSessions = true;
-                }
-            }
-
-            if (hasActiveSessions) {
-                return res.status(409).json({
-                    success: false,
-                    error: 'already_logged_in',
-                    message: 'User already has active sessions'
-                });
-            }
-
-            // Get all databases for this user
+            // Get user databases
             const userSql = `SELECT Access, db_name FROM users WHERE Email = ?`;
             
             mainPool.query(userSql, [userEmail], (err, userResults) => {
@@ -1812,8 +1771,7 @@ app.post('/api/biometric-login', async (req, res) => {
                         success: true,
                         requiresDatabaseSelection: true,
                         databases: databases,
-                        user: { email: userEmail },
-                        sessionId: req.sessionID
+                        user: { email: userEmail }
                     });
                 }
 
@@ -1821,8 +1779,6 @@ app.post('/api/biometric-login', async (req, res) => {
                 const userDetails = userResults[0];
                 const companyPool = getPool(userDetails.db_name);
                 const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-                
-                console.log('🔍 Getting user details from company database:', userDetails.db_name);
 
                 companyPool.query(companySql, [userEmail], (err, companyResults) => {
                     if (err) {
@@ -1850,32 +1806,26 @@ app.post('/api/biometric-login', async (req, res) => {
 
                     console.log('✅ Biometric login successful for user:', userInfo);
 
-                    // CRITICAL FIX: Properly set session data
-                    console.log('💾 Setting session data for session:', req.sessionID);
+                    // CRITICAL: CREATE NEW SESSION with user data
+                    console.log('💾 Creating new session with ID:', req.sessionID);
                     
-                    // Clear any existing session data first
+                    // Clear any existing session and create fresh one
                     req.session.regenerate((err) => {
                         if (err) {
-                            console.error('Error regenerating session:', err);
+                            console.error('Error creating session:', err);
                             return res.status(500).json({ 
                                 success: false, 
                                 error: 'Failed to create session' 
                             });
                         }
 
-                        // Now set the user data
+                        // Set the user data in the NEW session
                         req.session.user = userInfo;
                         req.session.initialized = true;
                         req.session.loginTime = new Date();
                         req.session.lastAccess = new Date();
                         
-                        // iPad-specific session handling
-                        if (req.isIPad) {
-                            req.session.ipadDevice = true;
-                            console.log('📱 iPad biometric login - marking device');
-                        }
-
-                        console.log('✅ Session data set:', {
+                        console.log('✅ New session created with user data:', {
                             sessionId: req.sessionID,
                             user: req.session.user
                         });
@@ -1904,7 +1854,7 @@ app.post('/api/biometric-login', async (req, res) => {
                             { expiresIn: '30d' }
                         );
 
-                        // Determine redirect URL based on device type
+                        // Determine redirect URL
                         const useMobileApp = isMobileDevice(req);
                         let redirectUrl = '';
 
@@ -1916,19 +1866,19 @@ app.post('/api/biometric-login', async (req, res) => {
                             redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
                         }
 
-                        console.log(`🔄 Redirecting to: ${redirectUrl} (Mobile: ${useMobileApp})`);
+                        console.log(`🔄 Redirecting to: ${redirectUrl}`);
 
-                        // Save session and then respond
+                        // Save the new session
                         req.session.save((err) => {
                             if (err) {
-                                console.error('❌ Error saving session:', err);
+                                console.error('Error saving new session:', err);
                                 return res.status(500).json({ 
                                     success: false, 
-                                    error: 'Failed to create session' 
+                                    error: 'Failed to save session' 
                                 });
                             }
 
-                            console.log('✅ Session saved successfully:', req.sessionID);
+                            console.log('✅ New session saved successfully');
 
                             res.json({
                                 success: true,
