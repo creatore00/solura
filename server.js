@@ -1696,20 +1696,28 @@ app.post('/api/check-device-registration', async (req, res) => {
     }
 });
 
-// NEW: Biometric login endpoint using device fingerprint
+// FIXED: Biometric login endpoint with proper session handling
 app.post('/api/biometric-login', async (req, res) => {
     safeSessionTouch(req);
     try {
         const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
 
+        console.log('🔐 BIOMETRIC LOGIN ATTEMPT:', {
+            deviceFingerprint: deviceFingerprint,
+            sessionId: req.sessionID,
+            hasSession: !!req.session,
+            sessionUser: req.session?.user
+        });
+
         if (!deviceFingerprint) {
+            console.log('❌ Missing device fingerprint');
             return res.status(400).json({ 
                 success: false, 
                 error: 'Device fingerprint is required' 
             });
         }
 
-        console.log('🔐 Biometric login attempt with device:', deviceFingerprint);
+        console.log('🔍 Checking device registration:', deviceFingerprint);
 
         // Verify device registration and get user info
         const sql = `
@@ -1798,6 +1806,8 @@ app.post('/api/biometric-login', async (req, res) => {
                         access: row.Access
                     }));
 
+                    console.log('📊 Multiple databases found for user:', userEmail);
+                    
                     return res.json({
                         success: true,
                         requiresDatabaseSelection: true,
@@ -1811,6 +1821,8 @@ app.post('/api/biometric-login', async (req, res) => {
                 const userDetails = userResults[0];
                 const companyPool = getPool(userDetails.db_name);
                 const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+                
+                console.log('🔍 Getting user details from company database:', userDetails.db_name);
 
                 companyPool.query(companySql, [userEmail], (err, companyResults) => {
                     if (err) {
@@ -1838,63 +1850,95 @@ app.post('/api/biometric-login', async (req, res) => {
 
                     console.log('✅ Biometric login successful for user:', userInfo);
 
-                    // Create session
-                    req.session.user = userInfo;
-                    req.session.initialized = true;
+                    // CRITICAL FIX: Properly set session data
+                    console.log('💾 Setting session data for session:', req.sessionID);
                     
-                    // Track this session
-                    if (!activeSessions.has(userEmail)) {
-                        activeSessions.set(userEmail, new Set());
-                    }
-                    activeSessions.get(userEmail).add(req.sessionID);
-                    
-                    // Update device last used timestamp
-                    const updateSql = `UPDATE biometric_devices SET last_used = NOW() WHERE device_fingerprint = ?`;
-                    mainPool.query(updateSql, [deviceFingerprint]);
-
-                    // Generate tokens
-                    const authToken = generateToken(userInfo);
-                    const refreshToken = jwt.sign(
-                        {
-                            email: userInfo.email,
-                            role: userInfo.role,
-                            name: userInfo.name,
-                            lastName: userInfo.lastName,
-                            dbName: userInfo.dbName
-                        },
-                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                        { expiresIn: '30d' }
-                    );
-
-                    // Determine redirect URL based on device type
-                    const useMobileApp = isMobileDevice(req);
-                    let redirectUrl = '';
-
-                    if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                        redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
-                    } else if (userDetails.Access === 'user') {
-                        redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
-                    } else if (userDetails.Access === 'supervisor') {
-                        redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
-                    }
-
-                    req.session.save((err) => {
+                    // Clear any existing session data first
+                    req.session.regenerate((err) => {
                         if (err) {
-                            console.error('Error saving session:', err);
+                            console.error('Error regenerating session:', err);
                             return res.status(500).json({ 
                                 success: false, 
                                 error: 'Failed to create session' 
                             });
                         }
 
-                        res.json({
-                            success: true,
-                            message: 'Biometric login successful',
-                            redirectUrl: redirectUrl,
-                            user: userInfo,
-                            accessToken: authToken,
-                            refreshToken: refreshToken,
-                            sessionId: req.sessionID
+                        // Now set the user data
+                        req.session.user = userInfo;
+                        req.session.initialized = true;
+                        req.session.loginTime = new Date();
+                        req.session.lastAccess = new Date();
+                        
+                        // iPad-specific session handling
+                        if (req.isIPad) {
+                            req.session.ipadDevice = true;
+                            console.log('📱 iPad biometric login - marking device');
+                        }
+
+                        console.log('✅ Session data set:', {
+                            sessionId: req.sessionID,
+                            user: req.session.user
+                        });
+
+                        // Track this session
+                        if (!activeSessions.has(userEmail)) {
+                            activeSessions.set(userEmail, new Set());
+                        }
+                        activeSessions.get(userEmail).add(req.sessionID);
+                        
+                        // Update device last used timestamp
+                        const updateSql = `UPDATE biometric_devices SET last_used = NOW() WHERE device_fingerprint = ?`;
+                        mainPool.query(updateSql, [deviceFingerprint]);
+
+                        // Generate tokens
+                        const authToken = generateToken(userInfo);
+                        const refreshToken = jwt.sign(
+                            {
+                                email: userInfo.email,
+                                role: userInfo.role,
+                                name: userInfo.name,
+                                lastName: userInfo.lastName,
+                                dbName: userInfo.dbName
+                            },
+                            process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                            { expiresIn: '30d' }
+                        );
+
+                        // Determine redirect URL based on device type
+                        const useMobileApp = isMobileDevice(req);
+                        let redirectUrl = '';
+
+                        if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
+                            redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
+                        } else if (userDetails.Access === 'user') {
+                            redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
+                        } else if (userDetails.Access === 'supervisor') {
+                            redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
+                        }
+
+                        console.log(`🔄 Redirecting to: ${redirectUrl} (Mobile: ${useMobileApp})`);
+
+                        // Save session and then respond
+                        req.session.save((err) => {
+                            if (err) {
+                                console.error('❌ Error saving session:', err);
+                                return res.status(500).json({ 
+                                    success: false, 
+                                    error: 'Failed to create session' 
+                                });
+                            }
+
+                            console.log('✅ Session saved successfully:', req.sessionID);
+
+                            res.json({
+                                success: true,
+                                message: 'Biometric login successful',
+                                redirectUrl: redirectUrl,
+                                user: userInfo,
+                                accessToken: authToken,
+                                refreshToken: refreshToken,
+                                sessionId: req.sessionID
+                            });
                         });
                     });
                 });
@@ -1908,6 +1952,17 @@ app.post('/api/biometric-login', async (req, res) => {
             error: 'Internal server error' 
         });
     }
+});
+
+// Enhanced session debugging middleware
+app.use('/api/biometric-login', (req, res, next) => {
+    console.log('🔍 BIOMETRIC LOGIN SESSION DEBUG:');
+    console.log('Session ID:', req.sessionID);
+    console.log('Session exists:', !!req.session);
+    console.log('Session user:', req.session?.user);
+    console.log('Session keys:', req.session ? Object.keys(req.session) : 'no session');
+    console.log('---');
+    next();
 });
 
 // NEW: Get registered devices for a user (admin function)

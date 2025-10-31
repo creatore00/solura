@@ -754,6 +754,75 @@ async function manualBiometricTest() {
         console.error('Manual test failed:', error);
     }
 }
+
+// This will absolutely force the biometric section to show if device is registered
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        // Check if we have a device fingerprint in localStorage
+        const registeredDevice = localStorage.getItem('registeredDevice');
+        const deviceFingerprint = localStorage.getItem('deviceFingerprint');
+        
+        if (registeredDevice || deviceFingerprint) {
+            console.log('🚨 EMERGENCY: Device registration detected - forcing biometric section');
+            
+            const biometricSection = document.getElementById('biometricSection');
+            const biometricDivider = document.getElementById('biometricDivider');
+            
+            if (biometricSection) {
+                // Nuclear option - replace the entire section
+                biometricSection.outerHTML = `
+                    <div class="biometric-section" id="biometricSection" style="
+                        display: block !important;
+                        background: linear-gradient(135deg, #28a745, #20c997);
+                        color: white;
+                        border-radius: 16px;
+                        padding: 25px;
+                        margin: 20px 0;
+                        border: 3px solid #28a745;
+                        text-align: center;
+                    ">
+                        <h3 style="margin: 0 0 15px 0; color: white;">✅ Biometric Login Available</h3>
+                        <p style="margin: 0 0 20px 0; opacity: 0.9;">Your device is registered for secure access</p>
+                        <button class="biometric-btn" id="biometricBtn" style="
+                            background: white;
+                            color: #28a745;
+                            border: 2px solid white;
+                            padding: 16px 24px;
+                            border-radius: 12px;
+                            font-weight: bold;
+                            font-size: 16px;
+                            display: inline-flex;
+                            align-items: center;
+                            gap: 12px;
+                            cursor: pointer;
+                        ">
+                            <span style="font-size: 20px;">🔒</span>
+                            <span>Sign in with Biometrics</span>
+                        </button>
+                        <div class="biometric-text" style="color: white; margin-top: 12px; font-weight: bold;">
+                            Use Face ID/Touch ID for instant access
+                        </div>
+                        <div class="biometric-error" id="biometricError" style="display: none;"></div>
+                        <div class="biometric-success" id="biometricSuccess" style="display: none;"></div>
+                    </div>
+                `;
+                
+                // Re-attach event listener
+                setTimeout(() => {
+                    const newBtn = document.getElementById('biometricBtn');
+                    if (newBtn) {
+                        newBtn.addEventListener('click', handleBiometricLogin);
+                    }
+                }, 100);
+            }
+            
+            if (biometricDivider) {
+                biometricDivider.style.display = 'flex';
+            }
+        }
+    }, 1500);
+});
+
 // Enhanced debug function to check biometric status
 async function debugBiometricStatus() {
     console.log('=== BIOMETRIC DEBUG INFO ===');
@@ -926,13 +995,65 @@ async function initializeBiometricSystem() {
     console.log('✅ Biometric system initialization complete');
 }
 
-// Enhanced device registration check
-async function checkDeviceRegistration() {
-    if (!currentDeviceFingerprint) {
-        console.log('❌ No device fingerprint available');
-        hasStoredCredentials = false;
+// NUCLEAR OPTION - Force biometric section to show when device is registered
+function forceBiometricSection() {
+    const biometricSection = document.getElementById('biometricSection');
+    const biometricDivider = document.getElementById('biometricDivider');
+    
+    if (!biometricSection) {
+        console.log('❌ Biometric section element not found');
         return;
     }
+    
+    console.log('🚨 FORCING BIOMETRIC SECTION TO SHOW - Device is registered');
+    
+    // Remove all styles and force display
+    biometricSection.removeAttribute('style');
+    biometricSection.style.cssText = `
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        background: linear-gradient(135deg, #28a745, #20c997) !important;
+        color: white !important;
+        border-radius: 16px !important;
+        padding: 20px !important;
+        margin: 20px 0 !important;
+        border: 3px solid #28a745 !important;
+    `;
+    
+    if (biometricDivider) {
+        biometricDivider.removeAttribute('style');
+        biometricDivider.style.cssText = `
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        `;
+    }
+    
+    // Update the button text to be very clear
+    const biometricBtn = document.getElementById('biometricBtn');
+    const biometricText = document.getElementById('biometricText');
+    
+    if (biometricBtn) {
+        biometricBtn.innerHTML = '<span class="biometric-icon">🔒</span><span>Sign in with Biometrics (Device Registered)</span>';
+        biometricBtn.style.background = 'white !important';
+        biometricBtn.style.color = '#28a745 !important';
+        biometricBtn.style.fontWeight = 'bold !important';
+        biometricBtn.style.border = '2px solid white !important';
+    }
+    
+    if (biometricText) {
+        biometricText.textContent = 'Your device is registered for secure biometric access';
+        biometricText.style.color = 'white !important';
+        biometricText.style.fontWeight = 'bold !important';
+    }
+    
+    console.log('✅ Biometric section forced to show');
+}
+
+// Call this when device is registered
+async function checkDeviceRegistration() {
+    if (!currentDeviceFingerprint) return;
     
     try {
         console.log('🔍 Checking device registration:', currentDeviceFingerprint);
@@ -946,39 +1067,28 @@ async function checkDeviceRegistration() {
             credentials: 'include'
         });
         
-        console.log('📋 Registration check response status:', response.status);
-        
         if (response.ok) {
             const data = await response.json();
-            console.log('📋 Registration check response data:', data);
-            
             if (data.registered) {
-                console.log('✅ Device is registered for biometric access for user:', data.deviceInfo?.userEmail);
+                console.log('✅ Device is registered for biometric access');
                 hasStoredCredentials = true;
                 
-                // Store device info for later use
-                if (data.deviceInfo) {
-                    localStorage.setItem('registeredDevice', JSON.stringify(data.deviceInfo));
-                }
+                // FORCE the biometric section to show
+                setTimeout(forceBiometricSection, 100);
+                setTimeout(forceBiometricSection, 500); // Double tap to be sure
+                setTimeout(forceBiometricSection, 1000); // Triple tap!
                 
-                // IMMEDIATELY update UI
-                updateBiometricUI();
-                
-                // Force a second update after a short delay to ensure it sticks
-                setTimeout(updateBiometricUI, 100);
             } else {
                 console.log('📱 Device not registered for biometric access');
                 hasStoredCredentials = false;
             }
-        } else {
-            console.log('❌ Device registration check failed with status:', response.status);
-            hasStoredCredentials = false;
         }
     } catch (error) {
         console.log('❌ Device registration check failed:', error.message);
         hasStoredCredentials = false;
     }
 }
+
 // iOS-specific biometric handler
 async function handleIOSBiometric() {
     try {
@@ -1320,13 +1430,13 @@ function initializeIOSBiometricUI() {
         biometricSection.style.border = '3px solid #007AFF';
     }
 }
-// Enhanced biometric login with iOS-specific handling
+// Enhanced biometric login with session recovery
 async function handleBiometricLogin() {
     const btn = document.getElementById('biometricBtn');
     const errorDiv = document.getElementById('biometricError');
     const successDiv = document.getElementById('biometricSuccess');
     
-    console.log('🔐 STARTING BIOMETRIC LOGIN - iOS MODE');
+    console.log('🔐 STARTING BIOMETRIC LOGIN');
     
     // Show loading state
     btn.disabled = true;
@@ -1369,9 +1479,20 @@ async function handleBiometricLogin() {
         // STEP 2: iOS-specific biometric verification
         if (isCapacitor) {
             console.log('📱 Step 2: Starting iOS biometric verification...');
-            const verified = await handleIOSBiometric();
+            const { BiometricAuth } = window.Capacitor.Plugins;
             
-            if (!verified) {
+            if (!BiometricAuth) {
+                throw new Error('Biometric authentication not available on this device');
+            }
+
+            const result = await BiometricAuth.verifyIdentity({
+                reason: 'Sign in to Enterprise Data Management Suite',
+                title: 'Biometric Login',
+                subtitle: 'Authenticate to access your account',
+                description: 'Use your biometric data to securely sign in'
+            });
+
+            if (!result.verified) {
                 throw new Error('Biometric verification failed or was cancelled');
             }
             console.log('✅ Step 2: iOS biometric verification successful');
@@ -1395,20 +1516,51 @@ async function handleBiometricLogin() {
         console.log('📋 Biometric login response data:', data);
         
         if (!response.ok) {
+            // Check if it's a session issue
+            if (response.status === 500 && data.error?.includes('session')) {
+                throw new Error('Session error. Please try again.');
+            }
             throw new Error(data.error || `Server returned ${response.status}`);
         }
 
         if (data.success) {
             console.log('✅ Step 3: Biometric authentication successful');
             
-            // Handle successful login
-            handleSuccessfulBiometricLogin(data);
+            // Show success message
+            successDiv.textContent = 'Biometric authentication successful!';
+            successDiv.style.display = 'block';
+
+            // Handle the login response
+            if (data.requiresDatabaseSelection && data.databases) {
+                console.log('📊 Multiple databases found, showing selection');
+                databases = data.databases;
+                showDatabasePopup(databases);
+                currentUserData = {
+                    sessionId: data.sessionId,
+                    userInfo: data.user
+                };
+            } else if (data.redirectUrl) {
+                // Direct login successful
+                console.log('🔄 Single database, redirecting directly');
+                storeSessionData(data);
+                
+                successDiv.textContent = 'Welcome back! Redirecting...';
+                successDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    window.location.replace(data.redirectUrl);
+                }, 1000);
+            } else {
+                throw new Error('Invalid response from server - no redirect URL or database selection');
+            }
         } else {
             throw new Error(data.error || 'Authentication failed');
         }
 
     } catch (error) {
         console.error('❌ BIOMETRIC AUTHENTICATION ERROR:', error);
+        console.error('Error details:', error.message);
+        
         errorDiv.textContent = getFriendlyErrorMessage(error);
         errorDiv.style.display = 'block';
         
@@ -1417,7 +1569,10 @@ async function handleBiometricLogin() {
             resetBiometricButton();
         }, 3000);
     }
-} 
+}
+
+
+
 async function handleWebBiometricLogin() {
         // Simplified web biometric flow using stored credentials
         const stored = localStorage.getItem('biometricCredentials');
