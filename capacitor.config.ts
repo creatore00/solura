@@ -7,6 +7,14 @@ const config: CapacitorConfig = {
   server: {
     url: "https://solura.uk", // point to your server
     cleartext: false,         // since you’re using HTTPS
+  },
+  plugins: {
+    BiometricAuth: {
+      // iOS specific configuration
+      ios: {
+        usageDescription: 'Use Face ID/Touch ID to securely access your account'
+      }
+    }
   }
 };
 
