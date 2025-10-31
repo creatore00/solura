@@ -713,6 +713,11 @@
         
         // Then check for existing session and try auto-login
         await tryAutoLogin();
+
+            // Add debug info
+    setTimeout(() => {
+        debugBiometricStatus();
+    }, 1000);
     });
 
     // Initialize mobile session - CRITICAL FIX for iPad/Android
@@ -826,49 +831,60 @@
         });
     }
 
-    // Enhanced biometric system initialization
-    async function initializeBiometricSystem() {
-        await checkBiometricSupport();
-        await checkStoredCredentials();
-        await checkDeviceRegistration(); // NEW: Check if device is registered
-        updateBiometricUI();
-    }
+// Enhanced biometric system initialization
+async function initializeBiometricSystem() {
+    await checkBiometricSupport();
+    await checkDeviceRegistration(); // Check device registration FIRST
+    await checkStoredCredentials();  // Then check legacy credentials
+    updateBiometricUI();
+}
 
-    // NEW: Check if current device is registered for biometric access
-    async function checkDeviceRegistration() {
-        if (!currentDeviceFingerprint) return;
+// Enhanced device registration check
+async function checkDeviceRegistration() {
+    if (!currentDeviceFingerprint) {
+        console.log('❌ No device fingerprint available');
+        hasStoredCredentials = false;
+        return;
+    }
+    
+    try {
+        console.log('🔍 Checking device registration:', currentDeviceFingerprint);
         
-        try {
-            const response = await makeApiRequest('/api/check-device-registration', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-Fingerprint': currentDeviceFingerprint
-                },
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.registered) {
-                    console.log('✅ Device is registered for biometric access');
-                    hasStoredCredentials = true;
-                    
-                    // Store device info for later use
-                    if (data.deviceInfo) {
-                        localStorage.setItem('registeredDevice', JSON.stringify(data.deviceInfo));
-                    }
-                } else {
-                    console.log('📱 Device not registered for biometric access');
-                    hasStoredCredentials = false;
+        const response = await makeApiRequest('/api/check-device-registration', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-Fingerprint': currentDeviceFingerprint
+            },
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.registered) {
+                console.log('✅ Device is registered for biometric access for user:', data.deviceInfo?.userEmail);
+                hasStoredCredentials = true;
+                
+                // Store device info for later use
+                if (data.deviceInfo) {
+                    localStorage.setItem('registeredDevice', JSON.stringify(data.deviceInfo));
                 }
+                
+                // Update UI to show registered device
+                updateBiometricUI();
+            } else {
+                console.log('📱 Device not registered for biometric access');
+                hasStoredCredentials = false;
             }
-        } catch (error) {
-            console.log('❌ Device registration check failed:', error.message);
+        } else {
+            console.log('❌ Device registration check failed with status:', response.status);
             hasStoredCredentials = false;
         }
+    } catch (error) {
+        console.log('❌ Device registration check failed:', error.message);
+        hasStoredCredentials = false;
     }
-
+}
     async function checkBiometricSupport() {
         if (!isCapacitor) {
             // WebAuthn support check for browsers
@@ -933,35 +949,68 @@
         }
     }
 
-    // Update biometric UI based on device registration
-    function updateBiometricUI() {
-        const biometricSection = document.getElementById('biometricSection');
-        const biometricDivider = document.getElementById('biometricDivider');
-        const biometricBtn = document.getElementById('biometricBtn');
-        const biometricText = document.getElementById('biometricText');
-        const biometricBtnText = document.getElementById('biometricBtnText');
+// Update biometric UI based on device registration
+function updateBiometricUI() {
+    const biometricSection = document.getElementById('biometricSection');
+    const biometricDivider = document.getElementById('biometricDivider');
+    const biometricBtn = document.getElementById('biometricBtn');
+    const biometricText = document.getElementById('biometricText');
+    const biometricBtnText = document.getElementById('biometricBtnText');
 
-        if (biometricSupported) {
-            biometricSection.style.display = 'block';
-            biometricDivider.style.display = 'flex';
+    if (biometricSupported) {
+        biometricSection.style.display = 'block';
+        biometricDivider.style.display = 'flex';
 
-            // Update UI based on device registration
-            if (hasStoredCredentials) {
-                biometricBtnText.textContent = 'Sign in with Biometrics';
-                biometricText.textContent = 'Use registered device for instant access';
-                biometricBtn.querySelector('.biometric-icon').textContent = '🔒';
-            } else {
-                biometricBtnText.textContent = 'Setup Biometric Login';
-                biometricText.textContent = 'Enable faster, more secure access on this device';
-                biometricBtn.querySelector('.biometric-icon').textContent = '👤';
-            }
+        // Update UI based on device registration
+        if (hasStoredCredentials) {
+            biometricBtnText.textContent = 'Sign in with Biometrics';
+            biometricText.textContent = 'Use registered device for instant access';
+            biometricBtn.querySelector('.biometric-icon').textContent = '🔒';
+            
+            console.log('📱 Biometric UI: Registered device mode');
         } else {
-            biometricSection.style.display = 'none';
-            biometricDivider.style.display = 'none';
+            biometricBtnText.textContent = 'Setup Biometric Login';
+            biometricText.textContent = 'Enable faster, more secure access on this device';
+            biometricBtn.querySelector('.biometric-icon').textContent = '👤';
+            
+            console.log('📱 Biometric UI: Setup mode');
+        }
+    } else {
+        biometricSection.style.display = 'none';
+        biometricDivider.style.display = 'none';
+        console.log('📱 Biometric UI: Not supported');
+    }
+}
+    
+// Debug function to check biometric status
+async function debugBiometricStatus() {
+    console.log('=== BIOMETRIC DEBUG INFO ===');
+    console.log('Biometric Supported:', biometricSupported);
+    console.log('Biometric Type:', biometricType);
+    console.log('Has Stored Credentials:', hasStoredCredentials);
+    console.log('Device Fingerprint:', currentDeviceFingerprint);
+    console.log('Is Capacitor:', isCapacitor);
+    
+    // Check device registration status
+    if (currentDeviceFingerprint) {
+        try {
+            const response = await makeApiRequest('/api/check-device-registration', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Device-Fingerprint': currentDeviceFingerprint
+                }
+            });
+            const data = await response.json();
+            console.log('Device Registration Check:', data);
+        } catch (error) {
+            console.log('Device Registration Check Failed:', error.message);
         }
     }
+    console.log('=== END DEBUG ===');
+}
 
-    // Enhanced auto-login system
+// Enhanced auto-login system
     async function tryAutoLogin() {
         if (isAutoLoginAttempted) {
             console.log('🔄 Auto-login already attempted, skipping');
@@ -1029,86 +1078,128 @@
         }
     }
 
-    // Enhanced biometric login handler
-    async function handleBiometricLogin() {
-        const btn = document.getElementById('biometricBtn');
-        const errorDiv = document.getElementById('biometricError');
-        const successDiv = document.getElementById('biometricSuccess');
+// Enhanced biometric login handler with device fingerprint support
+async function handleBiometricLogin() {
+    const btn = document.getElementById('biometricBtn');
+    const errorDiv = document.getElementById('biometricError');
+    const successDiv = document.getElementById('biometricSuccess');
+    
+    // Show loading state
+    btn.disabled = true;
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span> Authenticating...';
+    errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
+
+    try {
+        if (!biometricSupported) {
+            throw new Error('Biometric authentication not supported on this device');
+        }
+
+        if (!currentDeviceFingerprint) {
+            throw new Error('Device identification failed');
+        }
+
+        console.log('🔐 Starting biometric authentication for registered device:', currentDeviceFingerprint);
+
+        // FIRST: Check if device is registered and get user info
+        const registrationCheck = await makeApiRequest('/api/check-device-registration', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-Fingerprint': currentDeviceFingerprint
+            },
+            credentials: 'include'
+        });
+
+        const registrationData = await registrationCheck.json();
         
-        // Show loading state
-        btn.disabled = true;
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<span class="spinner"></span> Authenticating...';
-        errorDiv.style.display = 'none';
-        successDiv.style.display = 'none';
+        if (!registrationData.registered) {
+            throw new Error('Device not registered for biometric access. Please login with email and password first.');
+        }
 
-        try {
-            if (!biometricSupported) {
-                throw new Error('Biometric authentication not supported on this device');
-            }
+        console.log('✅ Device verified, proceeding with biometric authentication...');
 
-            if (!currentDeviceFingerprint) {
-                throw new Error('Device identification failed');
-            }
-
-            // For registered devices, use device fingerprint for authentication
-            const response = await makeApiRequest('/api/biometric-login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-Fingerprint': currentDeviceFingerprint
-                },
-                credentials: 'include'
+        // For Capacitor apps, verify biometrics first
+        if (isCapacitor) {
+            const { BiometricAuth } = window.Capacitor.Plugins;
+            
+            console.log('🔐 Starting biometric verification...');
+            const result = await BiometricAuth.verifyIdentity({
+                reason: 'Sign in to Enterprise Data Management Suite',
+                title: 'Biometric Login',
+                subtitle: 'Authenticate to access your account',
+                description: 'Use your biometric data to securely sign in'
             });
 
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || 'Biometric authentication failed');
+            if (!result.verified) {
+                throw new Error('Biometric verification failed or was cancelled');
             }
-
-            if (data.success) {
-                console.log('✅ Biometric authentication successful via device fingerprint');
-                
-                // Show success message
-                successDiv.textContent = 'Biometric authentication successful!';
-                successDiv.style.display = 'block';
-
-                // Handle the login response
-                if (data.requiresDatabaseSelection && data.databases) {
-                    // Show database selection
-                    databases = data.databases;
-                    showDatabasePopup(databases);
-                    currentUserData = {
-                        sessionId: data.sessionId,
-                        userInfo: data.user
-                    };
-                } else if (data.redirectUrl) {
-                    // Direct login successful
-                    storeSessionData(data);
-                    
-                    successDiv.textContent = 'Welcome back! Redirecting...';
-                    successDiv.style.display = 'block';
-                    
-                    setTimeout(() => {
-                        window.location.replace(data.redirectUrl);
-                    }, 1000);
-                }
-            } else {
-                throw new Error(data.error || 'Authentication failed');
-            }
-
-        } catch (error) {
-            console.error('❌ Biometric authentication error:', error);
-            errorDiv.textContent = getFriendlyErrorMessage(error);
-            errorDiv.style.display = 'block';
-            
-            // Reset button after delay
-            setTimeout(() => {
-                resetBiometricButton();
-            }, 3000);
+            console.log('✅ Biometric verification successful');
         }
+
+        // NOW: Use device fingerprint for authentication
+        console.log('🔄 Authenticating with device fingerprint...');
+        const response = await makeApiRequest('/api/biometric-login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-Fingerprint': currentDeviceFingerprint
+            },
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Biometric authentication failed');
+        }
+
+        if (data.success) {
+            console.log('✅ Biometric authentication successful via device fingerprint');
+            
+            // Show success message
+            successDiv.textContent = 'Biometric authentication successful!';
+            successDiv.style.display = 'block';
+
+            // Handle the login response
+            if (data.requiresDatabaseSelection && data.databases) {
+                console.log('📊 Multiple databases found, showing selection');
+                databases = data.databases;
+                showDatabasePopup(databases);
+                currentUserData = {
+                    sessionId: data.sessionId,
+                    userInfo: data.user
+                };
+            } else if (data.redirectUrl) {
+                // Direct login successful
+                console.log('🔄 Single database, redirecting directly');
+                storeSessionData(data);
+                
+                successDiv.textContent = 'Welcome back! Redirecting...';
+                successDiv.style.display = 'block';
+                
+                setTimeout(() => {
+                    window.location.replace(data.redirectUrl);
+                }, 1000);
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        } else {
+            throw new Error(data.error || 'Authentication failed');
+        }
+
+    } catch (error) {
+        console.error('❌ Biometric authentication error:', error);
+        errorDiv.textContent = getFriendlyErrorMessage(error);
+        errorDiv.style.display = 'block';
+        
+        // Reset button after delay
+        setTimeout(() => {
+            resetBiometricButton();
+        }, 3000);
     }
+}
 
     async function handleWebBiometricLogin() {
         // Simplified web biometric flow using stored credentials
