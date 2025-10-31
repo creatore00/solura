@@ -1601,7 +1601,7 @@ app.post('/api/register-device', async (req, res) => {
             deviceInfo.platform,
             deviceInfo.userAgent,
             deviceInfo.screenResolution,
-            deviceInfo.hardwareConcurrency,
+            deviceInfo.hardwareConcurrency || 0,
             deviceInfo.timezone,
             deviceInfo.language
         ], (err, results) => {
@@ -2464,13 +2464,22 @@ app.post('/submit-database', async (req, res) => {
     }
 });
 
-// FIXED: Login route with proper session validation
+// Enhanced login endpoint with device fingerprint support
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     console.log('Session ID at login start:', req.sessionID);
     console.log('Session object exists:', !!req.session);
+    console.log('Device Fingerprint:', req.headers['x-device-fingerprint']);
+    console.log('Request Body:', {
+        email: req.body.email,
+        hasPassword: !!req.body.password,
+        dbName: req.body.dbName,
+        forceLogout: req.body.forceLogout,
+        enableBiometric: req.body.enableBiometric,
+        deviceFingerprint: req.body.deviceFingerprint
+    });
     
-    const { email, password, dbName, forceLogout } = req.body;
+    const { email, password, dbName, forceLogout, enableBiometric, deviceFingerprint } = req.body;
 
     if (!email || !password) {
         return res.status(400).json({ 
@@ -2525,48 +2534,8 @@ app.post('/submit', async (req, res) => {
                     message: 'Incorrect email or password' 
                 });
             }
-                    // AFTER SUCCESSFUL LOGIN - Register device if biometric is enabled
-        if (enableBiometric && deviceFingerprint) {
-            console.log('📱 Registering device for biometric access:', deviceFingerprint);
-            
-            // Get comprehensive device info
-            const deviceInfo = {
-                userAgent: req.headers['user-agent'],
-                platform: req.headers['sec-ch-ua-platform'] || 'unknown',
-                screenResolution: 'unknown', // Would need client to send this
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                language: req.headers['accept-language'] || 'unknown'
-            };
 
-            // Register device
-            const registerSql = `
-                INSERT INTO biometric_devices 
-                (user_email, device_fingerprint, device_name, platform, user_agent, screen_resolution, 
-                 hardware_concurrency, timezone, language, registration_date, last_used, is_active) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), TRUE)
-                ON DUPLICATE KEY UPDATE 
-                last_used = NOW(), is_active = TRUE
-            `;
-
-            mainPool.query(registerSql, [
-                email,
-                deviceFingerprint,
-                `Device-${deviceFingerprint.substring(0, 8)}`,
-                deviceInfo.platform,
-                deviceInfo.userAgent,
-                deviceInfo.screenResolution,
-                0, // hardware concurrency not available server-side
-                deviceInfo.timezone,
-                deviceInfo.language
-            ], (err) => {
-                if (err) {
-                    console.error('Error registering device:', err);
-                } else {
-                    console.log('✅ Device registered successfully for biometric access');
-                }
-            });
-        }
-            // NOW check for active sessions (after we know credentials are valid)
+            // Check for active sessions
             const activeSessionIds = activeSessions.get(email);
             let hasActiveSessions = false;
             
@@ -2702,7 +2671,50 @@ app.post('/submit', async (req, res) => {
 
                 console.log('💾 Session data set for session:', loginSessionId);
 
-                // Save session
+                // AFTER SUCCESSFUL LOGIN - Register device if biometric is enabled
+                if (enableBiometric && deviceFingerprint) {
+                    console.log('📱 Registering device for biometric access:', deviceFingerprint);
+                    
+                    // Get comprehensive device info from headers
+                    const deviceInfo = {
+                        userAgent: req.headers['user-agent'],
+                        platform: req.headers['sec-ch-ua-platform'] || 'unknown',
+                        screenResolution: 'unknown', // Would need client to send this
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        language: req.headers['accept-language'] || 'unknown',
+                        deviceType: req.headers['x-device-type'] || 'unknown'
+                    };
+
+                    // Register device
+                    const registerSql = `
+                        INSERT INTO biometric_devices 
+                        (user_email, device_fingerprint, device_name, platform, user_agent, screen_resolution, 
+                         hardware_concurrency, timezone, language, registration_date, last_used, is_active) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), TRUE)
+                        ON DUPLICATE KEY UPDATE 
+                        last_used = NOW(), is_active = TRUE
+                    `;
+
+                    mainPool.query(registerSql, [
+                        email,
+                        deviceFingerprint,
+                        `Device-${deviceFingerprint.substring(0, 8)}`,
+                        deviceInfo.platform,
+                        deviceInfo.userAgent,
+                        deviceInfo.screenResolution,
+                        0, // hardware concurrency not available server-side
+                        deviceInfo.timezone,
+                        deviceInfo.language
+                    ], (err) => {
+                        if (err) {
+                            console.error('Error registering device:', err);
+                        } else {
+                            console.log('✅ Device registered successfully for biometric access');
+                        }
+                    });
+                }
+
+                // Save session and then respond
                 req.session.save((err) => {
                     if (err) {
                         console.error('Error saving session:', err);
@@ -2712,7 +2724,7 @@ app.post('/submit', async (req, res) => {
                         });
                     }
 
-                    console.log('✅ Session saved successfully:', loginSessionId);
+                    console.log('✅ Session saved successfully. Session ID:', loginSessionId);
 
                     // Track this session
                     if (!activeSessions.has(email)) {
