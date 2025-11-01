@@ -82,6 +82,57 @@ function parseCookies(cookieHeader) {
 
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
+// iOS-specific session handling
+app.use((req, res, next) => {
+    if (req.isIOS) {
+        console.log('📱 iOS Device Session Handling');
+        
+        // Enhanced iOS session recovery
+        const cookieHeader = req.headers.cookie;
+        const cookies = parseCookies(cookieHeader);
+        const sessionCookie = cookies['solura.session'];
+        
+        console.log('📱 iOS Session Analysis:', {
+            hasCookieHeader: !!cookieHeader,
+            sessionCookie: sessionCookie,
+            currentSessionId: req.sessionID,
+            hasUser: !!req.session?.user,
+            sessionInitialized: req.session?.initialized
+        });
+        
+        // iOS-specific session initialization
+        if (!req.session.initialized) {
+            req.session.initialized = true;
+            req.session.iosDevice = true;
+            console.log('📱 iOS session marked as initialized');
+        }
+        
+        // iOS session persistence enhancement
+        if (req.sessionID) {
+            // Force session cookie for iOS with specific settings
+            res.cookie('solura.session', req.sessionID, {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false, // iOS needs JS access
+                secure: false,   // iOS Safari has issues with secure cookies
+                sameSite: 'Lax', // Lax works better for iOS
+                path: '/',
+                domain: isProduction ? '.solura.uk' : undefined
+            });
+            
+            console.log('📱 iOS session cookie set:', req.sessionID);
+        }
+        
+        // iOS session validation
+        if (req.session.user && !activeSessions.has(req.session.user.email)) {
+            console.log('📱 iOS session not in active sessions, adding it');
+            if (!activeSessions.has(req.session.user.email)) {
+                activeSessions.set(req.session.user.email, new Set());
+            }
+            activeSessions.get(req.session.user.email).add(req.sessionID);
+        }
+    }
+    next();
+});
 
 // Enhanced device detection helper - SERVER SAFE
 function isMobileDevice(req) {
@@ -91,13 +142,54 @@ function isMobileDevice(req) {
     const isMobileApp = req.headers['x-capacitor'] === 'true' || 
                        req.query.capacitor === 'true' ||
                        req.headers.origin?.startsWith('capacitor://') ||
-                       req.headers.origin?.startsWith('ionic://');
+                       req.headers.origin?.startsWith('ionic://') ||
+                       // Detect iOS app by User-Agent pattern
+                       /SoluraApp|CFNetwork|iOSApp/i.test(userAgent);
 
     // Server-safe iPad detection
     const isIPad = /iPad/.test(userAgent) || 
                   (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
 
     return isIOS || isIPad || isAndroid || isMobileApp;
+}
+// iOS-specific session initialization endpoint
+app.get('/api/ios-init', (req, res) => {
+    console.log('📱 iOS Session Initialization Request');
+    
+    // Ensure session is created and properly initialized for iOS
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+        req.session.iosDevice = true;
+        req.session.userAgent = req.headers['user-agent'];
+    }
+    
+    // iOS-specific cookie settings
+    res.cookie('solura.session', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false, // iOS needs JS access to cookies
+        secure: false,   // iOS Safari has issues with secure cookies
+        sameSite: 'Lax', // Lax works better for iOS
+        path: '/',
+        domain: isProduction ? '.solura.uk' : undefined
+    });
+    
+    // Additional iOS session headers
+    res.setHeader('X-Session-ID', req.sessionID);
+    res.setHeader('X-Device-Type', 'ios');
+    
+    res.json({
+        success: true,
+        sessionId: req.sessionID,
+        message: 'iOS session initialized',
+        cookiesSupported: true,
+        isIOS: true,
+        sessionInitialized: req.session.initialized
+    });
+});
+// Enhanced iOS detection
+function isIOSDevice(req) {
+    const userAgent = req.headers['user-agent'] || '';
+    return /iPhone|iPod/.test(userAgent) && !/iPad/.test(userAgent);
 }
 
 // Enhanced iPad detection
@@ -692,7 +784,7 @@ app.get('/api/session-health', (req, res) => {
     res.json(healthReport);
 });
 
-// Enhanced root route with proper device detection
+// Enhanced root route with GET parameter login support
 app.get('/', (req, res) => {
     const userAgent = req.headers['user-agent'] || '';
     const referer = req.headers.referer || '';
@@ -702,6 +794,7 @@ app.get('/', (req, res) => {
     console.log('User-Agent:', userAgent);
     console.log('Referer:', referer);
     console.log('Origin:', origin);
+    console.log('Query Parameters:', req.query);
 
     // Use the enhanced device detection
     const useMobileApp = isMobileDevice(req);
@@ -720,6 +813,15 @@ app.get('/', (req, res) => {
         });
     }
 
+    // CHECK FOR GET PARAMETER LOGIN (iOS APP)
+    if (req.query.email && req.query.password) {
+        console.log('📱 iOS App Login via GET parameters detected');
+        console.log('🔐 Processing login for:', req.query.email);
+        
+        // Process the login via GET parameters
+        return processGetParameterLogin(req, res);
+    }
+
     if (useMobileApp) {
         console.log('📱 Serving LoginApp.html for mobile device');
         return res.sendFile(path.join(__dirname, 'LoginApp.html'));
@@ -728,6 +830,166 @@ app.get('/', (req, res) => {
     console.log('💻 Serving Login.html for desktop');
     res.sendFile(path.join(__dirname, 'Login.html'));
 });
+
+// Process login from GET parameters (for iOS app)
+async function processGetParameterLogin(req, res) {
+    const { email, password, dbName, forceLogout } = req.query;
+    
+    console.log('🔐 PROCESSING GET PARAMETER LOGIN:', { email, hasPassword: !!password, dbName, forceLogout });
+
+    if (!email || !password) {
+        console.log('❌ Missing email or password in GET parameters');
+        return res.redirect('/LoginApp.html?error=missing_credentials');
+    }
+
+    try {
+        // First verify the user credentials
+        const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
+        
+        mainPool.query(sql, [email], async (err, results) => {
+            if (err) {
+                console.error('Error querying database:', err);
+                return res.redirect('/LoginApp.html?error=server_error');
+            }
+
+            if (results.length === 0) {
+                console.log('❌ User not found:', email);
+                return res.redirect('/LoginApp.html?error=invalid_credentials');
+            }
+
+            let matchingDatabases = [];
+            for (const row of results) {
+                const storedPassword = row.Password;
+                try {
+                    const isMatch = await bcrypt.compare(password, storedPassword);
+                    if (isMatch) {
+                        matchingDatabases.push({
+                            db_name: row.db_name,
+                            access: row.Access,
+                        });
+                    }
+                } catch (err) {
+                    console.error('Error comparing passwords:', err);
+                    return res.redirect('/LoginApp.html?error=server_error');
+                }
+            }
+
+            if (matchingDatabases.length === 0) {
+                console.log('❌ No matching passwords for:', email);
+                return res.redirect('/LoginApp.html?error=invalid_credentials');
+            }
+
+            // Handle multiple databases
+            if (matchingDatabases.length > 1 && !dbName) {
+                console.log('📊 Multiple databases found, redirecting to selection');
+                // Store the matching databases in session for selection
+                req.session.pendingLogin = {
+                    email: email,
+                    databases: matchingDatabases
+                };
+                req.session.save(() => {
+                    res.redirect('/LoginApp.html?multiple_databases=true');
+                });
+                return;
+            }
+
+            const userDetails = dbName
+                ? matchingDatabases.find((db) => db.db_name === dbName)
+                : matchingDatabases[0];
+
+            if (!userDetails) {
+                console.log('❌ Invalid database selection');
+                return res.redirect('/LoginApp.html?error=invalid_database');
+            }
+
+            // Continue with login process
+            const companyPool = getPool(userDetails.db_name);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.redirect('/LoginApp.html?error=server_error');
+                }
+
+                if (companyResults.length === 0) {
+                    console.log('❌ User not found in company database');
+                    return res.redirect('/LoginApp.html?error=user_not_found');
+                }
+
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                const userInfo = {
+                    email: email,
+                    role: userDetails.access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: userDetails.db_name,
+                };
+
+                console.log('✅ GET Login successful for user:', userInfo);
+
+                // Set session data
+                req.session.user = userInfo;
+                req.session.initialized = true;
+                req.session.loginTime = new Date();
+                req.session.lastAccess = new Date();
+                
+                // iOS-specific session handling
+                if (req.isIOS) {
+                    req.session.iosDevice = true;
+                    console.log('📱 iOS device marked in session');
+                }
+
+                // Track this session
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                activeSessions.get(email).add(req.sessionID);
+                
+                console.log(`✅ Login session tracked for ${email}: ${req.sessionID}`);
+
+                // Determine redirect URL based on role
+                let redirectUrl = '';
+                if (userDetails.access === 'admin' || userDetails.access === 'AM') {
+                    redirectUrl = '/AdminApp.html';
+                } else if (userDetails.access === 'user') {
+                    redirectUrl = '/UserApp.html';
+                } else if (userDetails.access === 'supervisor') {
+                    redirectUrl = '/SupervisorApp.html';
+                }
+
+                console.log(`🔄 Redirecting to: ${redirectUrl}`);
+
+                // Save session and redirect
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.redirect('/LoginApp.html?error=session_error');
+                    }
+
+                    console.log('✅ Session saved successfully for GET login');
+
+                    // Set session cookie with iOS-specific settings
+                    res.cookie('solura.session', req.sessionID, {
+                        maxAge: 24 * 60 * 60 * 1000,
+                        httpOnly: false, // iOS needs JS access
+                        secure: false,   // iOS Safari issues with secure
+                        sameSite: 'Lax', // Lax works better for iOS
+                        path: '/',
+                        domain: isProduction ? '.solura.uk' : undefined
+                    });
+
+                    res.redirect(redirectUrl);
+                });
+            });
+        });
+    } catch (error) {
+        console.error('GET parameter login error:', error);
+        res.redirect('/LoginApp.html?error=server_error');
+    }
+}
 
 // Enhanced file serving routes
 app.get('/LoginApp.html', (req, res) => {
