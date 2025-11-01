@@ -10,10 +10,7 @@ const config: CapacitorConfig = {
   },
   plugins: {
     BiometricAuth: {
-      // iOS specific configuration
-      ios: {
-        usageDescription: 'Use Face ID/Touch ID to securely access your account'
-      }
+      "enabled": true
     }
   }
 };
