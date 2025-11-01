@@ -298,101 +298,111 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: Session configuration
+// CRITICAL FIX: Session configuration - REPLACE YOUR CURRENT SESSION CONFIG
 app.use(session({
   key: 'solura.session',
   secret: process.env.SESSION_SECRET || 'supersecret',
   store: sessionStore,
-  resave: true, // CHANGED to true to ensure session is saved
+  resave: true, // MUST BE TRUE for session stores
   saveUninitialized: false,
-  rolling: true, // ADDED to refresh session on activity
+  rolling: true, // Refresh session on activity
   cookie: {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: 'none',
+    httpOnly: false, // CHANGED: iOS needs JS access to cookies
+    secure: false,   // CHANGED: iOS has issues with secure cookies
+    sameSite: 'Lax', // CHANGED: Lax works better for iOS
     maxAge: 24 * 60 * 60 * 1000,
     domain: isProduction ? '.solura.uk' : undefined,
   }
 }));
-
-// COMPREHENSIVE SESSION RECOVERY MIDDLEWARE
-app.use(async (req, res, next) => {
-    console.log('🔄 COMPREHENSIVE SESSION RECOVERY INITIATED');
-    
-    // Parse cookies manually for reliable access
-    const cookies = parseCookies(req.headers.cookie);
-    const sessionCookie = cookies['solura.session'];
-    const headerSessionId = req.headers['x-session-id'];
-    const querySessionId = req.query.sessionId;
-    
-    console.log('🔍 Session Recovery Analysis:', {
-        sessionCookie: sessionCookie,
-        headerSessionId: headerSessionId,
-        querySessionId: querySessionId,
-        currentSessionId: req.sessionID,
-        hasSessionObject: !!req.session,
-        hasUser: !!req.session?.user
-    });
-
-    // If we have external session identifiers, try to restore the session
-    const externalSessionId = sessionCookie || headerSessionId || querySessionId;
-    
-    if (externalSessionId && externalSessionId !== req.sessionID) {
-        console.log('🔄 Attempting to restore session from external ID:', externalSessionId);
-        
-        try {
-            await new Promise((resolve, reject) => {
-                req.sessionStore.get(externalSessionId, (err, sessionData) => {
-                    if (err) {
-                        console.error('❌ Error loading external session:', err);
-                        return resolve(); // Continue with current session
-                    }
-                    
-                    if (sessionData && sessionData.user) {
-                        console.log('✅ External session data found:', {
-                            user: sessionData.user.email,
-                            dbName: sessionData.user.dbName
-                        });
-                        
-                        // CRITICAL: Replace the current session with the restored one
-                        req.sessionID = externalSessionId;
-                        Object.assign(req.session, sessionData);
-                        
-                        console.log('✅ Session restored successfully');
-                        
-                        // Ensure cookie is set for future requests
-                        res.cookie('solura.session', externalSessionId, {
-                            maxAge: 24 * 60 * 60 * 1000,
-                            httpOnly: false,
-                            secure: false,
-                            sameSite: 'Lax',
-                            path: '/',
-                            domain: isProduction ? '.solura.uk' : undefined
-                        });
-                    } else {
-                        console.log('❌ No valid user data in external session');
-                    }
-                    resolve();
-                });
-            });
-        } catch (error) {
-            console.error('❌ Session restoration error:', error);
+// CRITICAL: Session persistence middleware for iOS
+app.use((req, res, next) => {
+  // Store original end method
+  const originalEnd = res.end;
+  
+  // Override end method to ensure session is saved
+  res.end = function(chunk, encoding) {
+    // If session has user data, ensure it's saved
+    if (req.session && req.session.user) {
+      console.log('💾 Ensuring session persistence for user:', req.session.user.email);
+      req.session.save((err) => {
+        if (err) {
+          console.error('❌ Error in final session save:', err);
         }
+        originalEnd.call(this, chunk, encoding);
+      });
+    } else {
+      originalEnd.call(this, chunk, encoding);
     }
+  };
+  
+  next();
+});
+// FIXED: Session recovery with proper cookie handling
+app.use(async (req, res, next) => {
+  console.log('🔄 ENHANCED SESSION RECOVERY');
+  
+  // Parse cookies manually
+  const cookies = parseCookies(req.headers.cookie);
+  const sessionCookie = cookies['solura.session'];
+  const headerSessionId = req.headers['x-session-id'];
+  const querySessionId = req.query.sessionId;
+  
+  console.log('🔍 Session Recovery Analysis:', {
+    sessionCookie: sessionCookie,
+    headerSessionId: headerSessionId,
+    querySessionId: querySessionId,
+    currentSessionId: req.sessionID,
+    hasSessionObject: !!req.session,
+    hasUser: !!req.session?.user
+  });
+
+  // Try to recover session from various sources
+  const recoverySessionId = sessionCookie || headerSessionId || querySessionId;
+  
+  if (recoverySessionId && recoverySessionId !== req.sessionID) {
+    console.log('🔄 Attempting session recovery from:', recoverySessionId);
     
-    // CRITICAL: Ensure session has basic structure
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-        console.log('📝 Session marked as initialized');
+    try {
+      await new Promise((resolve) => {
+        req.sessionStore.get(recoverySessionId, (err, sessionData) => {
+          if (err) {
+            console.error('❌ Error loading recovery session:', err);
+            return resolve();
+          }
+          
+          if (sessionData && sessionData.user) {
+            console.log('✅ Session recovery successful for user:', sessionData.user.email);
+            
+            // Replace current session with recovered session
+            req.sessionID = recoverySessionId;
+            Object.assign(req.session, sessionData);
+            
+            // Ensure cookie is set for future requests
+            res.cookie('solura.session', recoverySessionId, {
+              maxAge: 24 * 60 * 60 * 1000,
+              httpOnly: false,
+              secure: false,
+              sameSite: 'Lax',
+              path: '/',
+              domain: isProduction ? '.solura.uk' : undefined
+            });
+          } else {
+            console.log('❌ No valid session data found for recovery');
+          }
+          resolve();
+        });
+      });
+    } catch (error) {
+      console.error('❌ Session recovery error:', error);
     }
-    
-    // iPad-specific session initialization
-    if (req.isIPad && !req.session.ipadDevice) {
-        req.session.ipadDevice = true;
-        console.log('📱 iPad device marked in session');
-    }
-    
-    next();
+  }
+  
+  // Always ensure session is initialized
+  if (!req.session.initialized) {
+    req.session.initialized = true;
+  }
+  
+  next();
 });
 
 // CRITICAL FIX: Enhanced session persistence middleware
@@ -1835,9 +1845,9 @@ app.post('/api/check-device-registration', async (req, res) => {
     }
 });
 
-// FIXED: Biometric login endpoint
+// FIXED: Biometric login with guaranteed session creation
 app.post('/api/biometric-login', async (req, res) => {
-    console.log('🔐 BIOMETRIC LOGIN - Creating session with user data');
+    console.log('🔐 BIOMETRIC LOGIN - Creating guaranteed session');
     
     try {
         const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
@@ -1900,23 +1910,6 @@ app.post('/api/biometric-login', async (req, res) => {
                     });
                 }
 
-                // If user has multiple databases, return them for selection
-                if (userResults.length > 1) {
-                    const databases = userResults.map(row => ({
-                        db_name: row.db_name,
-                        access: row.Access
-                    }));
-
-                    console.log('📊 Multiple databases found for user:', userEmail);
-                    
-                    return res.json({
-                        success: true,
-                        requiresDatabaseSelection: true,
-                        databases: databases,
-                        user: { email: userEmail }
-                    });
-                }
-
                 // Single database - proceed with login
                 const userDetails = userResults[0];
                 const companyPool = getPool(userDetails.db_name);
@@ -1948,90 +1941,106 @@ app.post('/api/biometric-login', async (req, res) => {
 
                     console.log('✅ Biometric login successful for user:', userInfo);
 
-                    // CRITICAL FIX: PROPERLY SET SESSION DATA
-                    console.log('💾 Setting session user data for session:', req.sessionID);
+                    // CRITICAL: Create new session with user data
+                    console.log('💾 Creating new session with ID:', req.sessionID);
                     
-                    // Set the user data in session
-                    req.session.user = userInfo;
-                    req.session.initialized = true;
-                    req.session.loginTime = new Date();
-                    req.session.lastAccess = new Date();
-                    
-                    console.log('✅ Session user data set:', {
-                        sessionId: req.sessionID,
-                        user: req.session.user
-                    });
-
-                    // Track this session
-                    if (!activeSessions.has(userEmail)) {
-                        activeSessions.set(userEmail, new Set());
-                    }
-                    activeSessions.get(userEmail).add(req.sessionID);
-                    
-                    console.log(`✅ Session tracked for ${userEmail}: ${req.sessionID}`);
-
-                    // Update device last used timestamp
-                    const updateSql = `UPDATE biometric_devices SET last_used = NOW() WHERE device_fingerprint = ?`;
-                    mainPool.query(updateSql, [deviceFingerprint]);
-
-                    // Generate tokens
-                    const authToken = generateToken(userInfo);
-                    const refreshToken = jwt.sign(
-                        {
-                            email: userInfo.email,
-                            role: userInfo.role,
-                            name: userInfo.name,
-                            lastName: userInfo.lastName,
-                            dbName: userInfo.dbName
-                        },
-                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                        { expiresIn: '30d' }
-                    );
-
-                    // Determine redirect URL
-                    const useMobileApp = isMobileDevice(req);
-                    let redirectUrl = '';
-
-                    if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                        redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
-                    } else if (userDetails.Access === 'user') {
-                        redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
-                    } else if (userDetails.Access === 'supervisor') {
-                        redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
-                    }
-
-                    console.log(`🔄 Redirecting to: ${redirectUrl}`);
-
-                    // Save the session with user data
-                    req.session.save((saveErr) => {
-                        if (saveErr) {
-                            console.error('❌ Error saving session with user data:', saveErr);
+                    // Clear any existing session data
+                    req.session.regenerate((err) => {
+                        if (err) {
+                            console.error('❌ Error regenerating session:', err);
                             return res.status(500).json({ 
                                 success: false, 
-                                error: 'Failed to save session' 
+                                error: 'Failed to create session' 
                             });
                         }
 
-                        console.log('✅ Session with user data saved successfully');
+                        console.log('🆕 New session created with ID:', req.sessionID);
 
-                        // Set session cookie
-                        res.cookie('solura.session', req.sessionID, {
-                            maxAge: 24 * 60 * 60 * 1000,
-                            httpOnly: false,
-                            secure: false,
-                            sameSite: 'Lax',
-                            path: '/',
-                            domain: isProduction ? '.solura.uk' : undefined
+                        // Set the user data in the NEW session
+                        req.session.user = userInfo;
+                        req.session.initialized = true;
+                        req.session.loginTime = new Date();
+                        req.session.lastAccess = new Date();
+                        
+                        console.log('✅ Session data set:', {
+                            sessionId: req.sessionID,
+                            user: req.session.user
                         });
 
-                        res.json({
-                            success: true,
-                            message: 'Biometric login successful',
-                            redirectUrl: redirectUrl,
-                            user: userInfo,
-                            accessToken: authToken,
-                            refreshToken: refreshToken,
-                            sessionId: req.sessionID
+                        // Track this session
+                        if (!activeSessions.has(userEmail)) {
+                            activeSessions.set(userEmail, new Set());
+                        }
+                        activeSessions.get(userEmail).add(req.sessionID);
+                        
+                        console.log(`✅ Session tracked for ${userEmail}: ${req.sessionID}`);
+
+                        // Update device last used timestamp
+                        const updateSql = `UPDATE biometric_devices SET last_used = NOW() WHERE device_fingerprint = ?`;
+                        mainPool.query(updateSql, [deviceFingerprint]);
+
+                        // Generate tokens
+                        const authToken = generateToken(userInfo);
+                        const refreshToken = jwt.sign(
+                            {
+                                email: userInfo.email,
+                                role: userInfo.role,
+                                name: userInfo.name,
+                                lastName: userInfo.lastName,
+                                dbName: userInfo.dbName
+                            },
+                            process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                            { expiresIn: '30d' }
+                        );
+
+                        // Determine redirect URL
+                        const useMobileApp = isMobileDevice(req);
+                        let redirectUrl = '';
+
+                        if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
+                            redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
+                        } else if (userDetails.Access === 'user') {
+                            redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
+                        } else if (userDetails.Access === 'supervisor') {
+                            redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
+                        }
+
+                        console.log(`🔄 Redirecting to: ${redirectUrl}`);
+
+                        // Save the new session
+                        req.session.save((saveErr) => {
+                            if (saveErr) {
+                                console.error('❌ Error saving new session:', saveErr);
+                                return res.status(500).json({ 
+                                    success: false, 
+                                    error: 'Failed to save session' 
+                                });
+                            }
+
+                            console.log('✅ New session saved successfully');
+
+                            // Set session cookie with iOS-specific settings
+                            res.cookie('solura.session', req.sessionID, {
+                                maxAge: 24 * 60 * 60 * 1000,
+                                httpOnly: false,
+                                secure: false,
+                                sameSite: 'Lax',
+                                path: '/',
+                                domain: isProduction ? '.solura.uk' : undefined
+                            });
+
+                            // Also send session ID in header for mobile apps
+                            res.setHeader('X-Session-ID', req.sessionID);
+
+                            res.json({
+                                success: true,
+                                message: 'Biometric login successful',
+                                redirectUrl: redirectUrl,
+                                user: userInfo,
+                                accessToken: authToken,
+                                refreshToken: refreshToken,
+                                sessionId: req.sessionID
+                            });
                         });
                     });
                 });
@@ -2046,7 +2055,39 @@ app.post('/api/biometric-login', async (req, res) => {
         });
     }
 });
-
+// Session debug endpoint
+app.get('/api/session-debug-full', (req, res) => {
+  const cookies = parseCookies(req.headers.cookie);
+  
+  const debugInfo = {
+    session: {
+      id: req.sessionID,
+      exists: !!req.session,
+      user: req.session?.user,
+      initialized: req.session?.initialized,
+      keys: req.session ? Object.keys(req.session) : []
+    },
+    cookies: {
+      sessionCookie: cookies['solura.session'],
+      allCookies: Object.keys(cookies)
+    },
+    headers: {
+      cookie: req.headers.cookie,
+      'x-session-id': req.headers['x-session-id'],
+      origin: req.headers.origin,
+      'user-agent': req.headers['user-agent']
+    },
+    device: {
+      isMobile: req.isMobileDevice,
+      isIOS: req.isIOS,
+      isIPad: req.isIPad
+    }
+  };
+  
+  console.log('🔍 FULL SESSION DEBUG:', debugInfo);
+  
+  res.json(debugInfo);
+});
 // NEW: Get registered devices for a user (admin function)
 app.get('/api/registered-devices', isAuthenticated, (req, res) => {
     safeSessionTouch(req);
