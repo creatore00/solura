@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="biometric-service.js"></script>
     <link rel="icon" href="/Front.ico" type="image/png">
     <title>Enterprise Login | Data Management Suite</title>
     <style>
@@ -622,6 +623,101 @@
     </button>
 </div>
 <script>
+    document.addEventListener('DOMContentLoaded', async function() {
+    // Check for biometric authentication on app start
+    await checkBiometricOnStart();
+});
+
+async function checkBiometricOnStart() {
+    const biometricEnabled = localStorage.getItem('biometricEnabled') === 'true';
+    const deviceFingerprint = localStorage.getItem('deviceFingerprint');
+    
+    if (biometricEnabled && deviceFingerprint) {
+        console.log('🔐 Biometric enabled, checking availability...');
+        
+        try {
+            // Wait for biometric service to initialize
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (window.biometricService && window.biometricService.isAvailable) {
+                console.log('📱 Showing biometric prompt...');
+                showBiometricPrompt();
+            } else {
+                console.log('❌ Biometric not available on this device');
+            }
+        } catch (error) {
+            console.error('Biometric check error:', error);
+        }
+    }
+}
+
+async function showBiometricPrompt() {
+    const promptDiv = document.createElement('div');
+    promptDiv.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+    `;
+    
+    promptDiv.innerHTML = `
+        <div style="background: white; padding: 30px; border-radius: 15px; text-align: center; max-width: 300px;">
+            <h3 style="color: #004f9e; margin-bottom: 15px;">Biometric Login</h3>
+            <p style="margin-bottom: 20px;">Use Face ID/Touch ID for quick access?</p>
+            <button onclick="attemptBiometricLogin()" style="background: #007acc; color: white; border: none; padding: 12px 24px; border-radius: 6px; margin: 5px; font-size: 16px;">Yes, Use Biometric</button>
+            <button onclick="closeBiometricPrompt()" style="background: #666; color: white; border: none; padding: 12px 24px; border-radius: 6px; margin: 5px; font-size: 16px;">Use Password</button>
+        </div>
+    `;
+    
+    document.body.appendChild(promptDiv);
+    
+    window.closeBiometricPrompt = function() {
+        if (document.body.contains(promptDiv)) {
+            document.body.removeChild(promptDiv);
+        }
+    };
+}
+
+async function attemptBiometricLogin() {
+    const deviceFingerprint = localStorage.getItem('deviceFingerprint');
+    
+    try {
+        // First verify biometric authentication
+        await window.biometricService.authenticate();
+        
+        // Then call your biometric login endpoint
+        const response = await fetch('/api/biometric-login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-Fingerprint': deviceFingerprint
+            },
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ Biometric login successful');
+                window.location.href = data.redirectUrl;
+            } else {
+                throw new Error(data.error || 'Login failed');
+            }
+        } else {
+            throw new Error('Network response not ok');
+        }
+    } catch (error) {
+        console.error('❌ Biometric login failed:', error);
+        alert('Biometric login failed. Please use your password.');
+        closeBiometricPrompt();
+    }
+}
     // Enhanced biometric authentication system with device fingerprinting
     let databases = [];
     let currentUserData = null;
@@ -1591,185 +1687,8 @@ async function handleBiometricLogin() {
         }, 3000);
     }
 }
-// Add this function to generate device fingerprint
-function generateDeviceFingerprint() {
-    const components = [
-        navigator.userAgent,
-        navigator.platform,
-        navigator.language,
-        screen.width + 'x' + screen.height,
-        new Date().getTimezoneOffset(),
-        navigator.hardwareConcurrency || 'unknown'
-    ];
-    
-    let fingerprint = components.join('|');
-    // Simple hash function
-    let hash = 0;
-    for (let i = 0; i < fingerprint.length; i++) {
-        const char = fingerprint.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
-    }
-    return 'device_' + Math.abs(hash).toString(16);
-}
-// Add biometric option to login
-function setupBiometricOption() {
-    const biometricToggle = document.createElement('div');
-    biometricToggle.innerHTML = `
-        <label style="display: flex; align-items: center; margin: 10px 0;">
-            <input type="checkbox" id="enableBiometric" style="margin-right: 8px;">
-            Enable biometric login for this device
-        </label>
-    `;
-    // Insert this near your login button
-    document.querySelector('.login-form').appendChild(biometricToggle);
-}
-// Add this function to check and trigger biometric auth on page load
-async function checkAndTriggerBiometricAuth() {
-    const deviceFingerprint = localStorage.getItem('deviceFingerprint');
-    const hasBiometricEnabled = localStorage.getItem('biometricEnabled') === 'true';
-    
-    if (hasBiometricEnabled && deviceFingerprint) {
-        console.log('🔐 Attempting biometric authentication...');
-        
-        try {
-            const response = await fetch('/api/biometric-login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Device-Fingerprint': deviceFingerprint
-                },
-                credentials: 'include'
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    console.log('✅ Biometric login successful');
-                    // Handle successful login
-                    currentUser = data.user;
-                    window.location.href = data.redirectUrl;
-                    return;
-                }
-            }
-        } catch (error) {
-            console.log('Biometric auth failed, falling back to normal login');
-        }
-    }
-}
 
-// Call this on page load for login page
-if (window.location.pathname === '/' || window.location.pathname.includes('Login')) {
-    checkAndTriggerBiometricAuth();
-}
-// In your login submission, add biometric registration
-async function handleLoginSubmission(email, password, enableBiometric = false) {
-    const deviceFingerprint = generateDeviceFingerprint();
-    
-    const loginData = {
-        email: email,
-        password: password,
-        enableBiometric: enableBiometric,
-        deviceFingerprint: deviceFingerprint
-    };
-    
-    try {
-        const response = await fetch('/submit', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-Fingerprint': deviceFingerprint
-            },
-            credentials: 'include',
-            body: JSON.stringify(loginData)
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            
-            if (data.success && enableBiometric) {
-                // Store biometric preferences
-                localStorage.setItem('deviceFingerprint', deviceFingerprint);
-                localStorage.setItem('biometricEnabled', 'true');
-                localStorage.setItem('userEmail', email);
-            }
-            
-            return data;
-        }
-    } catch (error) {
-        console.error('Login error:', error);
-        throw error;
-    }
-}
-// Biometric authentication trigger
-document.addEventListener('DOMContentLoaded', function() {
-    // Check if biometric is available and enabled
-    const isBiometricEnabled = localStorage.getItem('biometricEnabled') === 'true';
-    const deviceFingerprint = localStorage.getItem('deviceFingerprint');
-    
-    if (isBiometricEnabled && deviceFingerprint) {
-        // Show biometric prompt
-        showBiometricPrompt();
-    }
-});
 
-function showBiometricPrompt() {
-    const promptDiv = document.createElement('div');
-    promptDiv.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        z-index: 10000;
-        text-align: center;
-    `;
-    
-    promptDiv.innerHTML = `
-        <h3>Biometric Login</h3>
-        <p>Use biometrics to quickly login?</p>
-        <button onclick="attemptBiometricLogin()" style="background: #007acc; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin: 5px;">Yes</button>
-        <button onclick="closeBiometricPrompt()" style="background: #666; color: white; border: none; padding: 10px 20px; border-radius: 5px; margin: 5px;">No</button>
-    `;
-    
-    document.body.appendChild(promptDiv);
-    
-    window.closeBiometricPrompt = function() {
-        document.body.removeChild(promptDiv);
-    };
-}
-
-async function attemptBiometricLogin() {
-    const deviceFingerprint = localStorage.getItem('deviceFingerprint');
-    
-    try {
-        const response = await fetch('/api/biometric-login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-Fingerprint': deviceFingerprint
-            },
-            credentials: 'include'
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                window.location.href = data.redirectUrl;
-            } else {
-                alert('Biometric login failed: ' + (data.error || 'Unknown error'));
-                closeBiometricPrompt();
-            }
-        }
-    } catch (error) {
-        console.error('Biometric login error:', error);
-        alert('Biometric login failed');
-        closeBiometricPrompt();
-    }
-}
 async function handleWebBiometricLogin() {
         // Simplified web biometric flow using stored credentials
         const stored = localStorage.getItem('biometricCredentials');

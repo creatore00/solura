@@ -5,12 +5,11 @@ const config: CapacitorConfig = {
   appName: 'Solura',
   webDir: 'www',
   server: {
-    url: "https://solura.uk", // point to your server
-    cleartext: false,         // since you’re using HTTPS
+    androidScheme: 'https'
   },
   plugins: {
     BiometricAuth: {
-      "enabled": true
+      enabled: true
     }
   }
 };
