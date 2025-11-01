@@ -688,10 +688,18 @@ async function attemptBiometricLogin() {
     const deviceFingerprint = localStorage.getItem('deviceFingerprint');
     
     try {
+        console.log('🔐 Starting biometric authentication...');
+        
         // First verify biometric authentication
-        await window.biometricService.authenticate();
+        if (window.biometricService && window.biometricService.isAvailable) {
+            await window.biometricService.authenticate();
+            console.log('✅ Biometric verification passed');
+        } else {
+            console.log('⚠️ Biometric service not available, proceeding with device verification only');
+        }
         
         // Then call your biometric login endpoint
+        console.log('📡 Calling biometric login endpoint...');
         const response = await fetch('/api/biometric-login', {
             method: 'POST',
             headers: {
@@ -701,24 +709,38 @@ async function attemptBiometricLogin() {
             credentials: 'include'
         });
         
+        console.log('📨 Biometric login response status:', response.status);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('✅ Biometric login response:', data);
+            
             if (data.success) {
-                console.log('✅ Biometric login successful');
+                console.log('✅ Biometric login successful, redirecting...');
+                
+                // Store the new session ID
+                if (data.sessionId) {
+                    localStorage.setItem('sessionId', data.sessionId);
+                }
+                
+                // Redirect to the dashboard
                 window.location.href = data.redirectUrl;
             } else {
                 throw new Error(data.error || 'Login failed');
             }
         } else {
-            throw new Error('Network response not ok');
+            const errorText = await response.text();
+            console.error('❌ Biometric login failed with status:', response.status, errorText);
+            throw new Error(`Server returned ${response.status}`);
         }
     } catch (error) {
         console.error('❌ Biometric login failed:', error);
-        alert('Biometric login failed. Please use your password.');
+        alert('Biometric login failed: ' + error.message + '\n\nPlease use your password.');
         closeBiometricPrompt();
     }
 }
-    // Enhanced biometric authentication system with device fingerprinting
+   
+// Enhanced biometric authentication system with device fingerprinting
     let databases = [];
     let currentUserData = null;
     const isCapacitor = window.Capacitor?.isNativePlatform?.() || false;

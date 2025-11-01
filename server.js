@@ -1896,218 +1896,9 @@ app.post('/api/check-device-registration', async (req, res) => {
     }
 });
 
-// CORRECTED: Biometric login endpoint that CREATES session
+// CORRECTED: Biometric login endpoint that PROPERLY creates session
 app.post('/api/biometric-login', async (req, res) => {
-    try {
-        const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
-
-        console.log('🔐 BIOMETRIC LOGIN - Creating new session for device:', deviceFingerprint);
-
-        if (!deviceFingerprint) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Device fingerprint is required' 
-            });
-        }
-
-        // Verify device registration and get user info
-        const sql = `
-            SELECT bd.user_email, u.Access, u.db_name 
-            FROM biometric_devices bd
-            JOIN users u ON bd.user_email = u.Email
-            WHERE bd.device_fingerprint = ? AND bd.is_active = TRUE
-        `;
-
-        mainPool.query(sql, [deviceFingerprint], (err, results) => {
-            if (err) {
-                console.error('Error during biometric login:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Authentication failed' 
-                });
-            }
-
-            if (results.length === 0) {
-                console.log('❌ Biometric login failed: Device not registered');
-                return res.status(401).json({ 
-                    success: false, 
-                    error: 'Device not registered for biometric access' 
-                });
-            }
-
-            const deviceRecord = results[0];
-            const userEmail = deviceRecord.user_email;
-
-            console.log('✅ Device verified, creating session for:', userEmail);
-
-            // Get user databases
-            const userSql = `SELECT Access, db_name FROM users WHERE Email = ?`;
-            
-            mainPool.query(userSql, [userEmail], (err, userResults) => {
-                if (err) {
-                    console.error('Error getting user databases:', err);
-                    return res.status(500).json({ 
-                        success: false, 
-                        error: 'Authentication failed' 
-                    });
-                }
-
-                if (userResults.length === 0) {
-                    return res.status(401).json({ 
-                        success: false, 
-                        error: 'User not found' 
-                    });
-                }
-
-                // If user has multiple databases, return them for selection
-                if (userResults.length > 1) {
-                    const databases = userResults.map(row => ({
-                        db_name: row.db_name,
-                        access: row.Access
-                    }));
-
-                    console.log('📊 Multiple databases found for user:', userEmail);
-                    
-                    return res.json({
-                        success: true,
-                        requiresDatabaseSelection: true,
-                        databases: databases,
-                        user: { email: userEmail }
-                    });
-                }
-
-                // Single database - proceed with login
-                const userDetails = userResults[0];
-                const companyPool = getPool(userDetails.db_name);
-                const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-
-                companyPool.query(companySql, [userEmail], (err, companyResults) => {
-                    if (err) {
-                        console.error('Error querying company database:', err);
-                        return res.status(500).json({ 
-                            success: false, 
-                            error: 'Authentication failed' 
-                        });
-                    }
-
-                    if (companyResults.length === 0) {
-                        return res.status(401).json({ 
-                            success: false, 
-                            error: 'User not found in company database' 
-                        });
-                    }
-
-                    const userInfo = {
-                        email: userEmail,
-                        role: userDetails.Access,
-                        name: companyResults[0].name,
-                        lastName: companyResults[0].lastName,
-                        dbName: userDetails.db_name,
-                    };
-
-                    console.log('✅ Biometric login successful for user:', userInfo);
-
-                    // CRITICAL: CREATE NEW SESSION with user data
-                    console.log('💾 Creating new session with ID:', req.sessionID);
-                    
-                    // Clear any existing session and create fresh one
-                    req.session.regenerate((err) => {
-                        if (err) {
-                            console.error('Error creating session:', err);
-                            return res.status(500).json({ 
-                                success: false, 
-                                error: 'Failed to create session' 
-                            });
-                        }
-
-                        // Set the user data in the NEW session
-                        req.session.user = userInfo;
-                        req.session.initialized = true;
-                        req.session.loginTime = new Date();
-                        req.session.lastAccess = new Date();
-                        
-                        console.log('✅ New session created with user data:', {
-                            sessionId: req.sessionID,
-                            user: req.session.user
-                        });
-
-                        // Track this session
-                        if (!activeSessions.has(userEmail)) {
-                            activeSessions.set(userEmail, new Set());
-                        }
-                        activeSessions.get(userEmail).add(req.sessionID);
-                        
-                        // Update device last used timestamp
-                        const updateSql = `UPDATE biometric_devices SET last_used = NOW() WHERE device_fingerprint = ?`;
-                        mainPool.query(updateSql, [deviceFingerprint]);
-
-                        // Generate tokens
-                        const authToken = generateToken(userInfo);
-                        const refreshToken = jwt.sign(
-                            {
-                                email: userInfo.email,
-                                role: userInfo.role,
-                                name: userInfo.name,
-                                lastName: userInfo.lastName,
-                                dbName: userInfo.dbName
-                            },
-                            process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                            { expiresIn: '30d' }
-                        );
-
-                        // Determine redirect URL
-                        const useMobileApp = isMobileDevice(req);
-                        let redirectUrl = '';
-
-                        if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                            redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
-                        } else if (userDetails.Access === 'user') {
-                            redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
-                        } else if (userDetails.Access === 'supervisor') {
-                            redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
-                        }
-
-                        console.log(`🔄 Redirecting to: ${redirectUrl}`);
-
-                        // Save the new session
-                        req.session.save((err) => {
-                            if (err) {
-                                console.error('Error saving new session:', err);
-                                return res.status(500).json({ 
-                                    success: false, 
-                                    error: 'Failed to save session' 
-                                });
-                            }
-
-                            console.log('✅ New session saved successfully');
-
-                            res.json({
-                                success: true,
-                                message: 'Biometric login successful',
-                                redirectUrl: redirectUrl,
-                                user: userInfo,
-                                accessToken: authToken,
-                                refreshToken: refreshToken,
-                                sessionId: req.sessionID
-                            });
-                        });
-                    });
-                });
-            });
-        });
-
-    } catch (error) {
-        console.error('Biometric login error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Internal server error' 
-        });
-    }
-});
-
-// ENHANCED: Biometric login with guaranteed session creation
-app.post('/api/biometric-login', async (req, res) => {
-    console.log('🔐 ENHANCED BIOMETRIC LOGIN - Creating guaranteed session');
+    console.log('🔐 BIOMETRIC LOGIN - Creating session with user data');
     
     try {
         const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
@@ -2218,34 +2009,26 @@ app.post('/api/biometric-login', async (req, res) => {
 
                     console.log('✅ Biometric login successful for user:', userInfo);
 
-                    // CRITICAL: CREATE GUARANTEED SESSION
-                    console.log('💾 Creating guaranteed session with ID:', req.sessionID);
+                    // CRITICAL FIX: PROPERLY SET SESSION DATA
+                    console.log('💾 Setting session user data for session:', req.sessionID);
                     
-                    // Clear any existing session data and create fresh session
+                    // Clear any existing session data
                     req.session.regenerate((err) => {
                         if (err) {
-                            console.error('❌ Error regenerating session:', err);
+                            console.error('Error regenerating session:', err);
                             return res.status(500).json({ 
                                 success: false, 
                                 error: 'Failed to create session' 
                             });
                         }
 
-                        console.log('🆕 New session created with ID:', req.sessionID);
-
-                        // Set the user data in the NEW session
+                        // SET THE USER DATA - THIS WAS MISSING!
                         req.session.user = userInfo;
                         req.session.initialized = true;
                         req.session.loginTime = new Date();
                         req.session.lastAccess = new Date();
                         
-                        // iPad-specific session handling
-                        if (req.isIPad) {
-                            req.session.ipadDevice = true;
-                            console.log('📱 iPad session marked');
-                        }
-                        
-                        console.log('✅ Session data set:', {
+                        console.log('✅ Session user data set:', {
                             sessionId: req.sessionID,
                             user: req.session.user
                         });
@@ -2290,17 +2073,17 @@ app.post('/api/biometric-login', async (req, res) => {
 
                         console.log(`🔄 Redirecting to: ${redirectUrl}`);
 
-                        // Save the new session with callback
+                        // Save the session with user data
                         req.session.save((saveErr) => {
                             if (saveErr) {
-                                console.error('❌ Error saving new session:', saveErr);
+                                console.error('❌ Error saving session with user data:', saveErr);
                                 return res.status(500).json({ 
                                     success: false, 
                                     error: 'Failed to save session' 
                                 });
                             }
 
-                            console.log('✅ New session saved successfully');
+                            console.log('✅ Session with user data saved successfully');
 
                             // Set session cookie
                             res.cookie('solura.session', req.sessionID, {
