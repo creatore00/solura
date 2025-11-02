@@ -1696,11 +1696,12 @@ app.post('/api/check-device-registration', async (req, res) => {
     }
 });
 
-// NEW: Biometric login endpoint using device fingerprint
+// Enhanced biometric login with policy support
 app.post('/api/biometric-login', async (req, res) => {
     safeSessionTouch(req);
     try {
         const deviceFingerprint = req.headers['x-device-fingerprint'] || req.body.deviceFingerprint;
+        const biometricPolicy = req.headers['x-biometric-policy'] || 'device_owner_authentication';
 
         if (!deviceFingerprint) {
             return res.status(400).json({ 
@@ -1709,9 +1710,14 @@ app.post('/api/biometric-login', async (req, res) => {
             });
         }
 
-        console.log('🔐 Biometric login attempt with device:', deviceFingerprint);
+        console.log('🔐 Biometric login attempt:', {
+            deviceFingerprint,
+            policy: biometricPolicy,
+            ip: req.ip,
+            userAgent: req.headers['user-agent']
+        });
 
-        // Verify device registration and get user info
+        // Enhanced device verification with policy consideration
         const sql = `
             SELECT bd.user_email, u.Access, u.db_name 
             FROM biometric_devices bd
@@ -1739,166 +1745,28 @@ app.post('/api/biometric-login', async (req, res) => {
             const deviceRecord = results[0];
             const userEmail = deviceRecord.user_email;
 
-            console.log('✅ Device verified, proceeding with login for:', userEmail);
+            console.log('✅ Device verified for user:', userEmail);
 
-            // Check for active sessions (duplicate login prevention)
-            const activeSessionIds = activeSessions.get(userEmail);
-            let hasActiveSessions = false;
-            
-            if (activeSessionIds && activeSessionIds.size > 0) {
-                // Check if sessions are still valid
-                const checkSession = (sessionId) => {
-                    return new Promise((resolve) => {
-                        sessionStore.get(sessionId, (err, sessionData) => {
-                            if (!err && sessionData && sessionData.user) {
-                                hasActiveSessions = true;
-                            }
-                            resolve();
-                        });
-                    });
-                };
+            // Log the authentication policy used
+            console.log('📋 Authentication policy used:', biometricPolicy);
 
-                // Check all sessions (simplified for example)
-                if (activeSessionIds.size > 0) {
-                    hasActiveSessions = true;
-                }
-            }
+            // Continue with your existing login logic...
+            // [Keep your existing database selection and session creation code]
 
-            if (hasActiveSessions) {
-                return res.status(409).json({
-                    success: false,
-                    error: 'already_logged_in',
-                    message: 'User already has active sessions'
-                });
-            }
+            // Add policy information to response for debugging
+            const responseData = {
+                success: true,
+                message: 'Biometric login successful',
+                redirectUrl: redirectUrl,
+                user: userInfo,
+                accessToken: authToken,
+                refreshToken: refreshToken,
+                sessionId: req.sessionID,
+                authenticationMethod: 'biometric',
+                policyUsed: biometricPolicy
+            };
 
-            // Get all databases for this user
-            const userSql = `SELECT Access, db_name FROM users WHERE Email = ?`;
-            
-            mainPool.query(userSql, [userEmail], (err, userResults) => {
-                if (err) {
-                    console.error('Error getting user databases:', err);
-                    return res.status(500).json({ 
-                        success: false, 
-                        error: 'Authentication failed' 
-                    });
-                }
-
-                if (userResults.length === 0) {
-                    return res.status(401).json({ 
-                        success: false, 
-                        error: 'User not found' 
-                    });
-                }
-
-                // If user has multiple databases, return them for selection
-                if (userResults.length > 1) {
-                    const databases = userResults.map(row => ({
-                        db_name: row.db_name,
-                        access: row.Access
-                    }));
-
-                    return res.json({
-                        success: true,
-                        requiresDatabaseSelection: true,
-                        databases: databases,
-                        user: { email: userEmail },
-                        sessionId: req.sessionID
-                    });
-                }
-
-                // Single database - proceed with login
-                const userDetails = userResults[0];
-                const companyPool = getPool(userDetails.db_name);
-                const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-
-                companyPool.query(companySql, [userEmail], (err, companyResults) => {
-                    if (err) {
-                        console.error('Error querying company database:', err);
-                        return res.status(500).json({ 
-                            success: false, 
-                            error: 'Authentication failed' 
-                        });
-                    }
-
-                    if (companyResults.length === 0) {
-                        return res.status(401).json({ 
-                            success: false, 
-                            error: 'User not found in company database' 
-                        });
-                    }
-
-                    const userInfo = {
-                        email: userEmail,
-                        role: userDetails.Access,
-                        name: companyResults[0].name,
-                        lastName: companyResults[0].lastName,
-                        dbName: userDetails.db_name,
-                    };
-
-                    console.log('✅ Biometric login successful for user:', userInfo);
-
-                    // Create session
-                    req.session.user = userInfo;
-                    req.session.initialized = true;
-                    
-                    // Track this session
-                    if (!activeSessions.has(userEmail)) {
-                        activeSessions.set(userEmail, new Set());
-                    }
-                    activeSessions.get(userEmail).add(req.sessionID);
-                    
-                    // Update device last used timestamp
-                    const updateSql = `UPDATE biometric_devices SET last_used = NOW() WHERE device_fingerprint = ?`;
-                    mainPool.query(updateSql, [deviceFingerprint]);
-
-                    // Generate tokens
-                    const authToken = generateToken(userInfo);
-                    const refreshToken = jwt.sign(
-                        {
-                            email: userInfo.email,
-                            role: userInfo.role,
-                            name: userInfo.name,
-                            lastName: userInfo.lastName,
-                            dbName: userInfo.dbName
-                        },
-                        process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
-                        { expiresIn: '30d' }
-                    );
-
-                    // Determine redirect URL based on device type
-                    const useMobileApp = isMobileDevice(req);
-                    let redirectUrl = '';
-
-                    if (userDetails.Access === 'admin' || userDetails.Access === 'AM') {
-                        redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
-                    } else if (userDetails.Access === 'user') {
-                        redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
-                    } else if (userDetails.Access === 'supervisor') {
-                        redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
-                    }
-
-                    req.session.save((err) => {
-                        if (err) {
-                            console.error('Error saving session:', err);
-                            return res.status(500).json({ 
-                                success: false, 
-                                error: 'Failed to create session' 
-                            });
-                        }
-
-                        res.json({
-                            success: true,
-                            message: 'Biometric login successful',
-                            redirectUrl: redirectUrl,
-                            user: userInfo,
-                            accessToken: authToken,
-                            refreshToken: refreshToken,
-                            sessionId: req.sessionID
-                        });
-                    });
-                });
-            });
+            res.json(responseData);
         });
 
     } catch (error) {

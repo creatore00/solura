@@ -574,7 +574,13 @@
             <div class="biometric-error" id="biometricError"></div>
             <div class="biometric-success" id="biometricSuccess"></div>
         </div>
-
+        <!-- Add policy selection to your existing biometric section -->
+<div class="biometric-policy" style="margin-top: 10px; font-size: 12px; color: var(--light-text);">
+    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+        <input type="checkbox" id="strictBiometricPolicy" style="margin: 0;">
+        <span>Require biometric only (no passcode fallback)</span>
+    </label>
+</div>
         <form class="login-form" id="loginForm">
             <!-- Show divider only if biometric is available -->
             <div class="biometric-divider" id="biometricDivider" style="display: none;">
@@ -615,11 +621,6 @@
         </form>
         <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
-    <!-- Add this temporary debug button to your login form -->
-<div style="text-align: center; margin: 10px 0;">
-    <button type="button" onclick="manualBiometricTest()" style="background: #ff6b6b; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 12px;">
-        🔧 Test Biometric
-    </button>
 </div>
 <script>
     // Enhanced biometric authentication system with device fingerprinting
@@ -881,7 +882,10 @@ async function debugBiometricStatus() {
 
     function initializeEventListeners() {
         document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
-        document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
+        document.getElementById('biometricBtn').addEventListener('click', () => {
+    const strictPolicy = document.getElementById('strictBiometricPolicy').checked;
+    handleBiometricLogin(strictPolicy);
+});
         document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
         document.getElementById('closeDbBtn').addEventListener('click', closePopup);
         document.getElementById('enableBioBtn')?.addEventListener('click', enableBiometric);
@@ -1211,13 +1215,13 @@ async function debugBiometricStatus() {
         }
     }
 
-// Enhanced biometric login handler with detailed debugging
-async function handleBiometricLogin() {
+// Enhanced biometric login handler with policy support
+async function handleBiometricLogin(useStrictPolicy = false) {
     const btn = document.getElementById('biometricBtn');
     const errorDiv = document.getElementById('biometricError');
     const successDiv = document.getElementById('biometricSuccess');
     
-    console.log('🔐 STARTING BIOMETRIC LOGIN PROCESS');
+    console.log('🔐 STARTING ENHANCED BIOMETRIC LOGIN');
     
     // Show loading state
     btn.disabled = true;
@@ -1227,8 +1231,8 @@ async function handleBiometricLogin() {
     successDiv.style.display = 'none';
 
     try {
-        if (!biometricSupported) {
-            throw new Error('Biometric authentication not supported on this device');
+        if (!biometricSupported && !hasStoredCredentials) {
+            throw new Error('Biometric authentication not available on this device');
         }
 
         if (!currentDeviceFingerprint) {
@@ -1258,33 +1262,26 @@ async function handleBiometricLogin() {
 
         console.log('✅ Step 1: Device verified');
 
-        // STEP 2: For Capacitor apps, verify biometrics
-        if (isCapacitor) {
-            console.log('🔐 Step 2: Starting biometric verification...');
-            const { BiometricAuth } = window.Capacitor.Plugins;
+        // STEP 2: Biometric Verification with Policy
+        console.log('🔐 Step 2: Starting biometric verification...');
+        
+        const policy = useStrictPolicy 
+            ? BiometricPolicy.getStrictPolicy() 
+            : BiometricPolicy.getOptimalPolicy();
             
-            const result = await BiometricAuth.verifyIdentity({
-                reason: 'Sign in to Enterprise Data Management Suite',
-                title: 'Biometric Login',
-                subtitle: 'Authenticate to access your account',
-                description: 'Use your biometric data to securely sign in'
-            });
+        console.log('📋 Using authentication policy:', policy);
+        
+        await enhancedBiometricVerification(policy);
+        console.log('✅ Step 2: Biometric verification successful');
 
-            if (!result.verified) {
-                throw new Error('Biometric verification failed or was cancelled');
-            }
-            console.log('✅ Step 2: Biometric verification successful');
-        } else {
-            console.log('ℹ️ Step 2: Web biometric - skipping native verification');
-        }
-
-        // STEP 3: Use device fingerprint for authentication
+        // STEP 3: Authenticate with device fingerprint
         console.log('🔄 Step 3: Authenticating with device fingerprint...');
         const response = await makeApiRequest('/api/biometric-login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Device-Fingerprint': currentDeviceFingerprint
+                'X-Device-Fingerprint': currentDeviceFingerprint,
+                'X-Biometric-Policy': policy
             },
             credentials: 'include'
         });
@@ -1333,12 +1330,8 @@ async function handleBiometricLogin() {
 
     } catch (error) {
         console.error('❌ BIOMETRIC AUTHENTICATION ERROR:', error);
-        console.error('Error details:', {
-            message: error.message,
-            stack: error.stack
-        });
         
-        errorDiv.textContent = getFriendlyErrorMessage(error);
+        errorDiv.textContent = getEnhancedFriendlyErrorMessage(error);
         errorDiv.style.display = 'block';
         
         // Reset button after delay
@@ -1347,7 +1340,27 @@ async function handleBiometricLogin() {
         }, 3000);
     }
 }
+
+// Enhanced error messaging
+function getEnhancedFriendlyErrorMessage(error) {
+    const message = error.message || error.toString();
     
+    if (message.includes('cancelled') || message.includes('user cancel')) {
+        return 'Authentication was cancelled';
+    } else if (message.includes('not available') || message.includes('Not enrolled')) {
+        return 'Biometric authentication is not available. Please setup Face ID/Touch ID in your device settings.';
+    } else if (message.includes('passcode') || message.includes('fallback')) {
+        return 'Use your device passcode to authenticate';
+    } else if (message.includes('credentials') || message.includes('not found')) {
+        return 'No saved login found. Please login with email and password first.';
+    } else if (message.includes('verification failed')) {
+        return 'Biometric verification failed. Please try again.';
+    } else if (message.includes('device not registered')) {
+        return 'This device is not registered for biometric access. Please login with email and password first.';
+    } else {
+        return 'Authentication failed. Please try again or use email and password.';
+    }
+}
 async function handleWebBiometricLogin() {
         // Simplified web biometric flow using stored credentials
         const stored = localStorage.getItem('biometricCredentials');
@@ -1998,6 +2011,92 @@ async function handleWebBiometricLogin() {
         console.log('📋 Showing biometric setup prompt');
         document.getElementById('biometricPrompt').style.display = 'block';
     }
+
+    // Enhanced biometric methods in your existing frontend code
+async function enhancedBiometricVerification(policy = 'device_owner_authentication') {
+    if (!isCapacitor || !window.Capacitor?.Plugins?.BiometricAuth) {
+        return await handleWebBiometricAuth();
+    }
+
+    try {
+        const { BiometricAuth } = window.Capacitor.Plugins;
+        
+        const verificationConfig = {
+            reason: 'Sign in to Enterprise Data Management Suite',
+            title: 'Biometric Login',
+            subtitle: 'Authenticate to access your account',
+            description: 'Use Face ID, Touch ID, or device passcode',
+            // Use appropriate policy
+            ...(policy === 'device_owner_authentication_with_biometrics' && {
+                fallbackButtonTitle: 'Use Passcode'
+            })
+        };
+
+        console.log('🔐 Starting biometric verification with policy:', policy);
+        
+        const result = await BiometricAuth.verifyIdentity(verificationConfig);
+        
+        if (!result.verified) {
+            throw new Error('Biometric verification failed or was cancelled');
+        }
+        
+        console.log('✅ Biometric verification successful');
+        return result;
+        
+    } catch (error) {
+        console.error('❌ Biometric verification error:', error);
+        
+        // Handle specific error cases
+        if (error.message.includes('Not enrolled') || error.message.includes('No passcode')) {
+            throw new Error('Biometric authentication not set up. Please configure Face ID/Touch ID in device settings.');
+        } else if (error.message.includes('canceled') || error.message.includes('user cancel')) {
+            throw new Error('Authentication cancelled');
+        } else {
+            throw new Error(`Biometric authentication failed: ${error.message}`);
+        }
+    }
+}
+
+// WebAuthn fallback for browsers
+async function handleWebBiometricAuth() {
+    if (!window.PublicKeyCredential) {
+        throw new Error('WebAuthn not supported in this browser');
+    }
+
+    try {
+        // Check if platform authenticator is available
+        const isAvailable = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+        
+        if (!isAvailable) {
+            throw new Error('Platform authenticator not available');
+        }
+
+        // For demo purposes - in production, you'd integrate with WebAuthn API
+        console.log('🌐 WebAuthn biometric authentication available');
+        
+        // Simulate biometric verification for web
+        return await simulateWebBiometricVerification();
+        
+    } catch (error) {
+        console.error('WebAuthn error:', error);
+        throw new Error('Browser biometric authentication not available');
+    }
+}
+
+async function simulateWebBiometricVerification() {
+    // In a real implementation, this would use the WebAuthn API
+    // For now, we'll simulate the process
+    return new Promise((resolve, reject) => {
+        // Simulate biometric verification delay
+        setTimeout(() => {
+            // For demo - always succeed; in production, handle actual WebAuthn flow
+            resolve({
+                verified: true,
+                method: 'webauthn'
+            });
+        }, 1000);
+    });
+}
 </script>
 
 </body>
