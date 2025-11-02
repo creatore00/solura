@@ -882,10 +882,99 @@ async function debugBiometricStatus() {
 
     function initializeEventListeners() {
         document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
-        document.getElementById('biometricBtn').addEventListener('click', () => {
-    const strictPolicy = document.getElementById('strictBiometricPolicy').checked;
-    handleBiometricLogin(strictPolicy);
+// CORRECTED Biometric button event listener
+document.getElementById('biometricBtn').addEventListener('click', async function() {
+    console.log('🔘 Biometric button clicked - starting Face ID/Touch ID flow...');
+    
+    // First check if we have permissions
+    const hasPermission = await checkIOSBiometricPermissions();
+    
+    if (!hasPermission) {
+        showBiometricError('Face ID/Touch ID permission required. Please enable in Settings.');
+        return;
+    }
+    
+    const strictPolicy = document.getElementById('strictBiometricPolicy')?.checked || false;
+    await handleBiometricLogin(strictPolicy);
 });
+// Helper function to show biometric errors
+function showBiometricError(message) {
+    const errorDiv = document.getElementById('biometricError');
+    const successDiv = document.getElementById('biometricSuccess');
+    
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+    successDiv.style.display = 'none';
+    
+    console.error('❌ Biometric Error:', message);
+}
+// Add this temporary debug function
+async function testFaceIDDirectly() {
+    console.log('🧪 TESTING FACE ID DIRECTLY...');
+    
+    if (!isCapacitor) {
+        console.log('❌ Not running in Capacitor app');
+        return;
+    }
+
+    try {
+        const { BiometricAuth } = window.Capacitor.Plugins;
+        if (!BiometricAuth) {
+            console.log('❌ BiometricAuth plugin not found');
+            return;
+        }
+
+        // Test availability
+        const available = await BiometricAuth.isAvailable();
+        console.log('📱 Biometric Available:', available);
+
+        if (!available.isAvailable) {
+            console.log('❌ Biometric not available:', available);
+            return;
+        }
+
+        // Direct Face ID test
+        console.log('🔐 DIRECTLY CALLING FACE ID...');
+        const result = await BiometricAuth.verifyIdentity({
+            reason: 'Test Face ID Access',
+            title: 'Face ID Test',
+            subtitle: 'Testing Face ID integration',
+            description: 'Please authenticate to test Face ID functionality',
+            fallbackButtonTitle: 'Use Passcode',
+            useFallback: true
+        });
+
+        console.log('✅ FACE ID TEST RESULT:', result);
+        alert(`Face ID Test: ${result.verified ? 'SUCCESS' : 'FAILED'}`);
+
+    } catch (error) {
+        console.error('❌ FACE ID TEST ERROR:', error);
+        alert(`Face ID Test Failed: ${error.message}`);
+    }
+}
+
+// Add this test button to your HTML temporarily
+function addTestButton() {
+    const testBtn = document.createElement('button');
+    testBtn.innerHTML = '🧪 Test Face ID Directly';
+    testBtn.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #ff6b6b;
+        color: white;
+        border: none;
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 10000;
+        cursor: pointer;
+    `;
+    testBtn.onclick = testFaceIDDirectly;
+    document.body.appendChild(testBtn);
+}
+
+// Call this in your DOMContentLoaded
+addTestButton();
         document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
         document.getElementById('closeDbBtn').addEventListener('click', closePopup);
         document.getElementById('enableBioBtn')?.addEventListener('click', enableBiometric);
@@ -903,9 +992,12 @@ async function debugBiometricStatus() {
         });
     }
 
-// Enhanced biometric system initialization
+// CORRECTED Biometric system initialization
 async function initializeBiometricSystem() {
-    console.log('🔄 Starting biometric system initialization...');
+    console.log('🔄 Starting ENHANCED biometric system initialization...');
+    
+    // First, detect iOS capabilities
+    const capabilities = await detectIOSCapabilities();
     
     await checkBiometricSupport();
     console.log('Biometric support check complete:', biometricSupported);
@@ -916,7 +1008,7 @@ async function initializeBiometricSystem() {
     await checkStoredCredentials();
     console.log('Stored credentials check complete:', hasStoredCredentials);
     
-    // FORCE update the UI
+    // FORCE update the UI with proper iOS detection
     updateBiometricUI();
     
     // If biometric is supported but UI is still hidden, force it to show
@@ -928,9 +1020,34 @@ async function initializeBiometricSystem() {
         }
     }, 500);
     
-    console.log('✅ Biometric system initialization complete');
+    console.log('✅ ENHANCED biometric system initialization complete');
 }
+// Check iOS Face ID permissions
+async function checkIOSBiometricPermissions() {
+    if (!isCapacitor) return true;
 
+    try {
+        const { BiometricAuth } = window.Capacitor.Plugins;
+        if (!BiometricAuth) return false;
+
+        // This will trigger the iOS permission dialog if not already granted
+        const available = await BiometricAuth.isAvailable();
+        
+        if (!available.isAvailable) {
+            console.log('❌ Biometric not available:', available);
+            return false;
+        }
+
+        // Check if we have permission
+        const canRequest = await BiometricAuth.checkBiometry();
+        console.log('🔐 Can request biometrics:', canRequest);
+
+        return canRequest;
+    } catch (error) {
+        console.error('Error checking biometric permissions:', error);
+        return false;
+    }
+}
 // Enhanced device registration check
 async function checkDeviceRegistration() {
     if (!currentDeviceFingerprint) {
@@ -2012,29 +2129,45 @@ async function handleWebBiometricLogin() {
         document.getElementById('biometricPrompt').style.display = 'block';
     }
 
-    // Enhanced biometric methods in your existing frontend code
+// CORRECTED Biometric verification for iOS
 async function enhancedBiometricVerification(policy = 'device_owner_authentication') {
-    if (!isCapacitor || !window.Capacitor?.Plugins?.BiometricAuth) {
+    if (!isCapacitor) {
         return await handleWebBiometricAuth();
     }
 
     try {
         const { BiometricAuth } = window.Capacitor.Plugins;
         
+        if (!BiometricAuth) {
+            throw new Error('BiometricAuth plugin not available');
+        }
+
+        // First, check what biometric methods are available
+        const available = await BiometricAuth.isAvailable();
+        console.log('📱 Biometric availability:', available);
+
+        if (!available.isAvailable) {
+            throw new Error('Biometric authentication not available on this device');
+        }
+
+        // PROPER iOS Face ID/Touch ID configuration
         const verificationConfig = {
             reason: 'Sign in to Enterprise Data Management Suite',
-            title: 'Biometric Login',
-            subtitle: 'Authenticate to access your account',
-            description: 'Use Face ID, Touch ID, or device passcode',
-            // Use appropriate policy
-            ...(policy === 'device_owner_authentication_with_biometrics' && {
-                fallbackButtonTitle: 'Use Passcode'
-            })
+            title: 'Biometric Login Required',
+            subtitle: 'Use Face ID to access your account',
+            description: 'Authentication is required to access your secure data',
+            // iOS-specific settings
+            fallbackButtonTitle: 'Use Passcode', // This enables passcode fallback
+            useFallback: policy === 'device_owner_authentication', // Allow passcode fallback based on policy
+            maxAttempts: 3 // iOS allows limited attempts
         };
 
-        console.log('🔐 Starting biometric verification with policy:', policy);
+        console.log('🔐 Starting iOS biometric verification with config:', verificationConfig);
         
+        // THIS IS THE CRITICAL CALL THAT TRIGGERS FACE ID PROMPT
         const result = await BiometricAuth.verifyIdentity(verificationConfig);
+        
+        console.log('📋 Biometric verification result:', result);
         
         if (!result.verified) {
             throw new Error('Biometric verification failed or was cancelled');
@@ -2046,14 +2179,53 @@ async function enhancedBiometricVerification(policy = 'device_owner_authenticati
     } catch (error) {
         console.error('❌ Biometric verification error:', error);
         
-        // Handle specific error cases
+        // Handle specific iOS error cases
         if (error.message.includes('Not enrolled') || error.message.includes('No passcode')) {
             throw new Error('Biometric authentication not set up. Please configure Face ID/Touch ID in device settings.');
         } else if (error.message.includes('canceled') || error.message.includes('user cancel')) {
-            throw new Error('Authentication cancelled');
+            throw new Error('Authentication cancelled by user');
+        } else if (error.message.includes('locked') || error.message.includes('max attempts')) {
+            throw new Error('Biometric authentication locked. Use passcode or try again later.');
         } else {
-            throw new Error(`Biometric authentication failed: ${error.message}`);
+            throw new Error(`Authentication failed: ${error.message}`);
         }
+    }
+}
+
+// Enhanced iOS capability detection
+async function detectIOSCapabilities() {
+    if (!isCapacitor) return null;
+
+    try {
+        const { BiometricAuth } = window.Capacitor.Plugins;
+        if (!BiometricAuth) return null;
+
+        const available = await BiometricAuth.isAvailable();
+        console.log('🔍 iOS Biometric Capabilities:', available);
+
+        // Update UI based on available biometrics
+        if (available.isAvailable) {
+            const biometricBtnText = document.getElementById('biometricBtnText');
+            const biometricText = document.getElementById('biometricText');
+            
+            if (available.biometryType === 'faceId') {
+                biometricBtnText.textContent = 'Sign in with Face ID';
+                biometricText.textContent = 'Use Face ID for instant, secure access';
+            } else if (available.biometryType === 'touchId') {
+                biometricBtnText.textContent = 'Sign in with Touch ID';
+                biometricText.textContent = 'Use Touch ID for instant, secure access';
+            } else if (available.biometryType === 'fingerprint') {
+                biometricBtnText.textContent = 'Sign in with Fingerprint';
+                biometricText.textContent = 'Use fingerprint for instant, secure access';
+            }
+            
+            console.log(`✅ ${available.biometryType} is available`);
+        }
+
+        return available;
+    } catch (error) {
+        console.error('Error detecting iOS capabilities:', error);
+        return null;
     }
 }
 
