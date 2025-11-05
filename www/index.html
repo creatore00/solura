@@ -1368,8 +1368,7 @@ async function handleBiometricLogin() {
 
         // Call the plugin to show the native prompt. This is the most important step.
         console.log("Requesting user verification from device (Face ID / Touch ID)...");
-        const result = await NativeBiometric.verify(verificationConfig);
-
+       const result = await NativeBiometric.authenticate(verificationConfig);
         // Check the result from the prompt.
         if (!result.verified) {
             throw new Error("Verification was cancelled or failed on the device.");
@@ -2144,7 +2143,7 @@ async function enhancedBiometricVerification(policy = 'device_owner_authenticati
         console.log('🔐 Starting iOS biometric verification with config:', verificationConfig);
 
         // Call the 'verify' method (previously 'verifyIdentity')
-        const result = await NativeBiometric.verify(verificationConfig);
+        const result = await NativeBiometric.authenticate(verificationConfig);
 
         console.log('📋 Biometric verification result:', result);
 
