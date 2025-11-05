@@ -895,18 +895,10 @@ function makeApiRequest(url, options = {}) {
         document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
 // CORRECTED Biometric button event listener
 document.getElementById('biometricBtn').addEventListener('click', async function() {
-    console.log('🔘 Biometric button clicked - starting Face ID/Touch ID flow...');
-    
-    // First check if we have permissions
-    const hasPermission = await checkIOSBiometricPermissions();
-    
-    if (!hasPermission) {
-        showBiometricError('Face ID/Touch ID permission required. Please enable in Settings.');
-        return;
-    }
-    
-    const strictPolicy = document.getElementById('strictBiometricPolicy')?.checked || false;
-    await handleBiometricLogin(strictPolicy);
+    console.log('🔘 Biometric button clicked. Calling handleBiometricLogin directly...');
+    // We don't need a separate permission check here.
+    // The handleBiometricLogin function already does it correctly as its first step.
+    await handleBiometricLogin(); 
 });
 // Helper function to show biometric errors
 function showBiometricError(message) {
@@ -1033,29 +1025,25 @@ async function initializeBiometricSystem() {
     
     console.log('✅ ENHANCED biometric system initialization complete');
 }
-// Check iOS Face ID permissions
+// CORRECTED VERSION
 async function checkIOSBiometricPermissions() {
-    if (!isCapacitor) return true;
-
+    // isCapacitor check is good, but let's rely on the plugin check itself.
     try {
-        const { BiometricAuth } = window.Capacitor.Plugins;
-        if (!BiometricAuth) return false;
+        const { NativeBiometric } = window.Capacitor.Plugins;
 
-        // This will trigger the iOS permission dialog if not already granted
-        const available = await BiometricAuth.isAvailable();
-        
-        if (!available.isAvailable) {
-            console.log('❌ Biometric not available:', available);
+        if (!NativeBiometric) {
+            console.log("NativeBiometric plugin not found.");
             return false;
         }
 
-        // Check if we have permission
-        const canRequest = await BiometricAuth.checkBiometry();
-        console.log('🔐 Can request biometrics:', canRequest);
+        // isAvailable() is the ONLY check you need. It checks for hardware, enrollment, AND permissions.
+        const result = await NativeBiometric.isAvailable();
 
-        return canRequest;
+        // The property from the plugin is `isAvailable` (with a lowercase 'a')
+        return result.isAvailable;
+
     } catch (error) {
-        console.error('Error checking biometric permissions:', error);
+        console.error('Error during biometric availability check:', error);
         return false;
     }
 }
