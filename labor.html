@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-768D41J8NJ');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Weekly Labor Cost</title>
+<style>
+:root {
+    --primary-color: #2c3e50;
+    --primary-light: #3d566e;
+    --secondary-color: #3498db;
+    --accent-color: #e74c3c;
+    --success-color: #27ae60;
+    --warning-color: #f39c12;
+    --text-color: #333;
+    --text-light: #7f8c8d;
+    --border-color: #dfe6e9;
+    --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --transition: all 0.3s ease;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+body {
+    background-color: #f5f7fa;
+    color: var(--text-color);
+    line-height: 1.6;
+    padding: 0;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+h1, h2, h3 {
+    color: var(--primary-color);
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+h1 {
+    font-size: 2.2rem;
+    border-bottom: 2px solid var(--secondary-color);
+    padding-bottom: 0.5rem;
+    display: inline-block;
+}
+
+h2 {
+    font-size: 1.8rem;
+    color: var(--primary-light);
+}
+
+h3 {
+    font-size: 1.4rem;
+    color: var(--primary-color);
+}
+
+.controls {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin-bottom: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--primary-light);
+}
+
+input, select {
+    padding: 0.8rem 1rem;
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+}
+
+button {
+    padding: 0.8rem 1.5rem;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button:hover {
+    background-color: var(--primary-light);
+    transform: translateY(-2px);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+#chartContainer {
+    max-width: 100%;
+    margin: 2rem 0;
+    padding: 2rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+}
+
+/* Budget Summary Styles */
+.budget-summary {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin: 2rem 0;
+    border: 1px solid var(--border-color);
+}
+
+.budget-summary h3 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+}
+
+.summary-item {
+    padding: 1.5rem;
+    border-radius: 8px;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.summary-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+}
+
+.summary-label {
+    font-size: 0.9rem;
+    color: var(--text-light);
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-value {
+    font-size: 1.4rem;
+    font-weight: 600;
+}
+
+.forecast {
+    background-color: rgba(52, 152, 219, 0.08);
+    border: 1px solid rgba(52, 152, 219, 0.15);
+}
+
+.forecast .summary-value {
+    color: var(--secondary-color);
+}
+
+.under-budget {
+    background-color: rgba(46, 204, 113, 0.08);
+    border: 1px solid rgba(46, 204, 113, 0.15);
+}
+
+.under-budget .summary-value {
+    color: var(--success-color);
+}
+
+.over-budget {
+    background-color: rgba(231, 76, 60, 0.08);
+    border: 1px solid rgba(231, 76, 60, 0.15);
+}
+
+.over-budget .summary-value {
+    color: var(--accent-color);
+}
+
+.percentage {
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0.8;
+    margin-left: 0.25rem;
+}
+
+.variance-indicator {
+    margin-right: 0.3rem;
+}
+
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 2rem 0;
+    background: white;
+    box-shadow: var(--shadow);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 500;
+    position: sticky;
+    top: 0;
+}
+
+td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover {
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+.summary-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    margin-top: 2rem;
+}
+
+.summary-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;        /* Vertically center the items */
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    gap: 0rem;                  /* Optional spacing between the two divs */
+}
+
+.summary-item-row.total {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--secondary-color);
+}
+
+/* Make sure the two divs inside summary-item-row don't expand full width */
+.summary-item-row > div {
+    flex: 1;                   /* Each takes equal space */
+    /* or you can set max-width or width if needed */
+}
+
+/* Optionally, make the second div right-aligned */
+.summary-item-row > div:last-child {
+    text-align: right;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+    color: var(--text-light);
+}
+
+.error {
+    color: var(--accent-color);
+    padding: 1rem;
+    background-color: rgba(231, 76, 60, 0.1);
+    border-radius: 6px;
+    margin-bottom: 2rem;
+    border-left: 4px solid var(--accent-color);
+}
+
+.no-data {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-light);
+    font-style: italic;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+    
+    table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .summary-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .budget-summary {
+        margin: 1rem 0;
+        padding: 1.5rem;
+    }
+    
+    .summary-item {
+        padding: 1.25rem;
+    }
+}
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.8rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    h3 {
+        font-size: 1.2rem;
+    }
+    
+    .summary-value {
+        font-size: 1.2rem;
+    }
+}
+</style>
+</head>
+<body>
+    <div class="container">
+        <h1>Weekly Labor Cost</h1>
+        <div class="controls">
+            <div class="form-group">
+                <label for="date-selector">Select a day in the week:</label>
+                <input type="date" id="date-selector">
+            </div>
+        </div>
+        <div id="salesComparisonContainer" class="summary"></div>
+        
+        <div id="loading" class="loading" style="display: none;">Loading data...</div>
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="rota-table-container">
+            <!-- Table will be inserted here by JavaScript -->
+        </div>
+        
+        <div class="summary" id="summary-container">
+            <!-- Summary will be inserted here by JavaScript -->
+        </div><br>
+        <div class="form-group">
+            <button id="download-pdf-btn" onclick="downloadRotaPDF()">Download as PDF</button>
+        </div>
+    </div>
+
+<script>
+// Global variables
+let currentWeekData = null;
+let currentStartDate = null;
+let currentEndDate = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+    const dateSelector = document.getElementById('date-selector');
+    dateSelector.addEventListener('change', handleDateChange); // Changed back to 'change' event
+    document.getElementById('download-pdf-btn').addEventListener('click', downloadRotaPDF);
+
+    initializeDateSelector();
+});
+
+    function handleDateChange(event) {
+    const dateString = event.target.value;
+    if (!dateString) return;
+
+    const selectedDate = new Date(dateString + 'T00:00:00');
+    if (isNaN(selectedDate.getTime())) {
+        console.error('Invalid date selected');
+        return;
+    }
+
+    const mondayDate = getMondayOfWeek(selectedDate);
+    loadRotaData(mondayDate);
+}
+    
+    function initializeDateSelector() {
+    const today = new Date();
+    const dateInput = document.getElementById('date-selector');
+    
+    // Format as YYYY-MM-DD for the date input
+    const formattedDate = today.toISOString().split('T')[0];
+    dateInput.value = formattedDate;
+    
+    // Load data for the current week (pass Monday)
+    const mondayDate = getMondayOfWeek(today);
+    loadRotaData(mondayDate);
+}
+    
+    async function loadRotaData(mondayDate) {
+    try {
+        showLoading();
+        clearError();
+
+        if (!(mondayDate instanceof Date) || isNaN(mondayDate)) {
+            throw new Error("Invalid date selected");
+        }
+
+        // Normalize dates
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const selectedMonday = new Date(mondayDate);
+        selectedMonday.setHours(0, 0, 0, 0);
+
+        const currentWeekMonday = getMondayOfWeek(today);
+        const isCurrentWeek = selectedMonday.getTime() === currentWeekMonday.getTime();
+
+        // Check if selected date is in the future
+        if (selectedMonday > today) {
+            clearRotaDisplay();
+            
+            // Calculate Sunday of the selected week
+            const sundayDate = new Date(selectedMonday);
+            sundayDate.setDate(selectedMonday.getDate() + 6);
+            
+            // Show appropriate message
+            if (isCurrentWeek) {
+                // If it's current week but Monday hasn't arrived yet
+                const now = new Date();
+                const mondayMidnightUK = new Date(Date.UTC(
+                    selectedMonday.getFullYear(),
+                    selectedMonday.getMonth(),
+                    selectedMonday.getDate(),
+                    0, 0, 0, 0
+                ));
+                
+                const timeRemainingMs = mondayMidnightUK.getTime() - now.getTime();
+                
+                if (timeRemainingMs > 0) {
+                    showError("No data available yet. The schedule will be available on Monday at midnight (UK time).");
+                } else {
+                    showError("No data available at the moment. Please try again later.");
+                }
+            } else {
+                // Future week
+                showError("This is a future week. Data will be available when the schedule is published.");
+            }
+            
+            displayEmptyState(selectedMonday, sundayDate, false);
+            return;
+        }
+
+        // For past/current dates that have arrived
+        const sundayDate = new Date(selectedMonday);
+        sundayDate.setDate(selectedMonday.getDate() + 6);
+
+        currentStartDate = new Date(selectedMonday);
+        currentEndDate = new Date(sundayDate);
+
+        // Format YYYY-MM-DD (local)
+        const formatDate = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        // Fetch data
+        const response = await fetch('/labor/api/rota-data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                startDate: formatDate(selectedMonday),
+                endDate: formatDate(sundayDate)
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        if (data.isEmpty || !data.rota || data.rota.length === 0) {
+            clearRotaDisplay();
+            displayEmptyState(selectedMonday, sundayDate, true);
+            return;
+        }
+
+        // Render data
+        currentWeekData = data;
+        displayRotaData(data, selectedMonday, sundayDate);
+
+    } catch (error) {
+        showError('Error loading data: ' + error.message);
+        console.error('Error:', error);
+    } finally {
+        hideLoading();
+    }
+}
+
+    function clearRotaDisplay() {
+    const containers = [
+        'rota-table-container',
+        'summary-container',
+        'salesComparisonContainer',
+        'chartContainer'
+    ];
+    
+    containers.forEach(id => {
+        const container = document.getElementById(id);
+        if (container) container.innerHTML = '';
+    });
+
+    // Clear any existing chart
+    if (window.costChart) {
+        window.costChart.destroy();
+        window.costChart = null;
+    }
+}
+
+    function displayEmptyState(startDate, endDate, isPastDate = false) {
+    const rotaContainer = document.getElementById('rota-table-container');
+    const summaryContainer = document.getElementById('summary-container');
+    const sales = document.getElementById('salesComparisonContainer');
+    const chart = document.getElementById('chartContainer');
+    
+    if (!rotaContainer || !summaryContainer || !sales || !chart) return;
+    summaryContainer.innerHTML = `
+        <h2>Weekly Summary</h2>
+        <div class="summary-item">
+            <span>Week:</span>
+            <span>${formatDayWithName(startDate)} to ${formatDayWithName(endDate)}</span>
+        </div>
+        <div class="no-data">
+            ${isPastDate 
+                ? 'No data available for this period' 
+                : 'Data will be available when the schedule is published'}
+        </div>
+    `;
+}
+
+    function formatDate(date) {
+            if (!(date instanceof Date)) return '';
+            const day = date.getDate().toString().padStart(2, '0');
+            const month = (date.getMonth() + 1).toString().padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+    function formatDayWithName(date) {
+    if (!(date instanceof Date)) return '';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    return `${day}/${month}/${year} (${dayName})`;
+}
+
+    function displayRotaData(data, mondayDate, sundayDate) {
+    document.getElementById('rota-table-container').innerHTML = '';
+    document.getElementById('summary-container').innerHTML = '';
+
+    const holidayPercentage = data.taxInfo?.holiday || 0;
+    const taxPercentage = data.taxInfo?.tax || 0;
+    const pensionPercentage = data.taxInfo?.pension || 0;
+
+    const validShifts = data.rota.filter(shift =>
+        shift.name && shift.lastName && !isNaN(shift.wage)
+    );
+
+    if (validShifts.length === 0) {
+        document.getElementById('rota-table-container').innerHTML = `
+            <div class="no-data">No rota data available for the selected period</div>
+        `;
+        return;
+    }
+
+    const shiftsByDayAndEmployee = {};
+    validShifts.forEach(shift => {
+        const formattedDay = shift.day.includes('(') ? shift.day : formatDayWithName(new Date(shift.day));
+        const employeeKey = `${shift.name} ${shift.lastName}`;
+
+        if (!shiftsByDayAndEmployee[formattedDay]) {
+            shiftsByDayAndEmployee[formattedDay] = {};
+        }
+        if (!shiftsByDayAndEmployee[formattedDay][employeeKey]) {
+            shiftsByDayAndEmployee[formattedDay][employeeKey] = [];
+        }
+
+        shiftsByDayAndEmployee[formattedDay][employeeKey].push(shift);
+    });
+
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    const emptyHeader = document.createElement('th');
+    headerRow.appendChild(emptyHeader);
+
+    const days = [];
+    const currentDate = new Date(mondayDate);
+    while (currentDate <= sundayDate) {
+        const dayString = formatDayWithName(currentDate);
+        days.push(dayString);
+
+        const dayHeader = document.createElement('th');
+        dayHeader.textContent = dayString;
+        headerRow.appendChild(dayHeader);
+
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    table.appendChild(headerRow);
+
+    const employees = {};
+    validShifts.forEach(shift => {
+        const employeeKey = `${shift.name} ${shift.lastName}`;
+        if (!employees[employeeKey]) {
+            employees[employeeKey] = {
+                name: employeeKey,
+                wage: shift.wage,
+                shifts: {}
+            };
+        }
+    });
+
+    Object.keys(employees).forEach(employeeKey => {
+        const employee = employees[employeeKey];
+        days.forEach(day => {
+            if (shiftsByDayAndEmployee[day]?.[employeeKey]) {
+                const shifts = shiftsByDayAndEmployee[day][employeeKey];
+                let totalHours = 0;
+                let totalCost = 0;
+
+                shifts.forEach(shift => {
+                    const hours = calculateHours(shift.startTime, shift.endTime);
+                    const baseCost = hours * employee.wage;
+
+                    totalHours += hours;
+                    totalCost += baseCost;
+                });
+
+                employee.shifts[day] = {
+                    totalHours: totalHours,
+                    totalCost: totalCost
+                };
+            }
+        });
+    });
+
+    Object.values(employees).forEach(employee => {
+        const row = document.createElement('tr');
+        const nameCell = document.createElement('td');
+        nameCell.textContent = employee.name;
+        row.appendChild(nameCell);
+
+        days.forEach(day => {
+            const shiftCell = document.createElement('td');
+            if (employee.shifts[day]) {
+                const shiftInfo = employee.shifts[day];
+                shiftCell.innerHTML = `
+                    <div>${shiftInfo.totalHours.toFixed(2)} hours</div>
+                    <div style="font-weight: bold;">£${shiftInfo.totalCost.toFixed(2)}</div>
+                `;
+            } else {
+                shiftCell.textContent = '-';
+            }
+            row.appendChild(shiftCell);
+        });
+
+        table.appendChild(row);
+    });
+
+    const totalsRow = document.createElement('tr');
+    const totalsLabelCell = document.createElement('td');
+    totalsLabelCell.textContent = 'Daily Totals';
+    totalsLabelCell.style.fontWeight = 'bold';
+    totalsRow.appendChild(totalsLabelCell);
+
+    days.forEach(day => {
+        let dayTotalHours = 0;
+        let dayTotalCost = 0;
+
+        Object.values(employees).forEach(employee => {
+            if (employee.shifts[day]) {
+                dayTotalHours += employee.shifts[day].totalHours;
+                dayTotalCost += employee.shifts[day].totalCost;
+            }
+        });
+
+        const dayTotalCell = document.createElement('td');
+        dayTotalCell.innerHTML = `
+            <div>${dayTotalHours.toFixed(2)} hours</div>
+            <div style="font-weight: bold;">£${dayTotalCost.toFixed(2)}</div>
+        `;
+        totalsRow.appendChild(dayTotalCell);
+    });
+
+    table.appendChild(totalsRow);
+    document.getElementById('rota-table-container').appendChild(table);
+
+    let weeklyBaseCost = 0;
+    let weeklyHoliday = 0;
+    let weeklyTax = 0;
+    let weeklyPension = 0;
+    let weeklyTotal = 0;
+    let weeklyTotalHours = 0;
+    let fohTotal = 0;
+    let bohTotal = 0;
+
+    const dailyCosts = {};
+
+    days.forEach(day => {
+        let dayTotalCost = 0;
+        let dayTotalHours = 0;
+
+        Object.values(employees).forEach(employee => {
+            if (shiftsByDayAndEmployee[day]?.[employee.name]) {
+                const shifts = shiftsByDayAndEmployee[day][employee.name];
+
+                shifts.forEach(shift => {
+                    const hours = calculateHours(shift.startTime, shift.endTime);
+                    const baseCost = hours * employee.wage;
+                    const holiday = baseCost * (holidayPercentage / 100);
+                    const tax = baseCost * (taxPercentage / 100);
+                    const pension = baseCost * (pensionPercentage / 100);
+                    const totalShiftCost = baseCost + holiday + tax + pension;
+
+                    dayTotalCost += totalShiftCost;
+                    weeklyBaseCost += baseCost;
+                    weeklyHoliday += holiday;
+                    weeklyTax += tax;
+                    weeklyPension += pension;
+                    weeklyTotal += totalShiftCost;
+                    weeklyTotalHours += hours;
+
+                    if (shift.designation === 'FOH') {
+                        fohTotal += totalShiftCost;
+                    } else if (shift.designation === 'BOH') {
+                        bohTotal += totalShiftCost;
+                    }
+                });
+            }
+        });
+
+        const datePart = day.split(' (')[0];
+        const [dd, mm, yyyy] = datePart.split('/');
+        dailyCosts[`${yyyy}-${mm}-${dd}`] = dayTotalCost;
+    });
+
+    fetch(`/labor/api/getWeeklySalesComparison?startDate=${mondayDate}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Failed to fetch sales data');
+            return response.json();
+        })
+        .then(salesData => {
+            const totalActualSales = (parseFloat(salesData.actual.zreport) || 0) + (parseFloat(salesData.actual.onaccount) || 0);
+            const laborPercentage = totalActualSales > 0 ? ((weeklyTotal / totalActualSales) * 100).toFixed(1) : '0.0';
+            const fohPercentage = totalActualSales > 0 ? ((fohTotal / totalActualSales) * 100).toFixed(1) : '0.0';
+            const bohPercentage = totalActualSales > 0 ? ((bohTotal / totalActualSales) * 100).toFixed(1) : '0.0';
+
+            return fetch(`/labor/api/getWeeklyForecast?startDate=${mondayDate}`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to fetch forecast data');
+                    return response.json();
+                })
+                .then(forecastData => {
+                    const forecastCost = parseFloat(forecastData.Weekly_Cost_Before || 0);
+                    const forecastHours = parseFloat(forecastData.Hours || 0);
+                    const costVariance = (weeklyTotal - forecastCost).toFixed(2);
+                    const hoursVariance = (weeklyTotalHours - forecastHours).toFixed(2);
+
+                    const formatMoney = (value) => new Intl.NumberFormat('en-GB', {
+                        style: 'currency',
+                        currency: 'GBP',
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }).format(value);
+
+                    const summaryContainer = document.getElementById('summary-container');
+                    summaryContainer.innerHTML = `
+                        <h2>Weekly Summary</h2>
+                        <div class="summary-item"><span>Week:</span> ${formatDayWithName(mondayDate)} to ${formatDayWithName(sundayDate)}</div>
+                        <div class="summary-item">
+                            <span>Cost at Creation: ${formatMoney(forecastCost)}</span><br>
+                            <span>Actual: ${formatMoney(weeklyTotal)}</span><br>
+                            <span>Cost Variance: <span style="color: ${costVariance >= 0 ? 'red' : 'green'};">${costVariance >= 0 ? '+' : ''}${formatMoney(costVariance)}</span></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Hours at Creation: ${forecastHours.toFixed(2)} hrs</span><br>
+                            <span>Actual: ${weeklyTotalHours.toFixed(2)} hrs</span><br>
+                            <span>Hours Variance: <span style="color: ${hoursVariance >= 0 ? 'red' : 'green'};">${hoursVariance >= 0 ? '+' : ''}${hoursVariance} hrs</span></span>
+                        </div>
+                        <div class="summary-item">
+                            <span>Labor % of Sales: ${laborPercentage}%</span><br>
+                            <span>FOH % of Sales: ${fohPercentage}%</span><br>
+                            <span>BOH % of Sales: ${bohPercentage}%</span>
+                        </div>
+                    `;
+                });
+        })
+        .catch(error => {
+            console.error('Error fetching summary data:', error);
+        });
+
+    displaySalesComparison(mondayDate);
+}
+
+    function calculateHours(startTime, endTime) {
+            const start = parseTime(startTime);
+            const end = parseTime(endTime);
+            
+            // Handle overnight shifts (end time is next day)
+            if (end < start) {
+                end.setDate(end.getDate() + 1);
+            }
+            
+            const diffMs = end - start;
+            return diffMs / (1000 * 60 * 60); // Convert to hours
+        }
+        
+    function parseTime(timeString) {
+            const [hours, minutes] = timeString.split(':').map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            return date;
+        }
+        
+    function calculateShiftCost(startTime, endTime, hourlyWage) {
+            const hours = calculateHours(startTime, endTime);
+            return hours * hourlyWage;
+        }
+    
+    async function downloadRotaPDF(data, forecastSales) {
+    const loadingIndicator = document.getElementById('loading');
+    const errorElement = document.getElementById('error');
+    const dateSelector = document.getElementById('date-selector');
+    const selectedDate = new Date(dateSelector.value);
+
+    // Calculate Monday and Sunday of the selected week
+    const mondayDate = getMondayOfWeek(selectedDate);
+    const sundayDate = new Date(mondayDate);
+    sundayDate.setDate(mondayDate.getDate() + 6);
+
+    // Format date range for filename and display
+    const dateRange = `${formatDayWithName(mondayDate)} - ${formatDayWithName(sundayDate)}`;
+    const filenameDateRange = `${formatDateForFilename(mondayDate)}_to_${formatDateForFilename(sundayDate)}`;
+
+    try {
+        // Show loading state
+        loadingIndicator.style.display = 'block';
+        errorElement.style.display = 'none';
+
+        // Now gather HTML after content has been generated
+        const tableHTML = document.getElementById('rota-table-container').innerHTML;
+        const summaryHTML = document.getElementById('summary-container').innerHTML;
+        const salesComparisonHTML = document.getElementById('salesComparisonContainer').innerHTML;
+
+        // Create a clean version of the HTML for PDF generation
+        const cleanHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Rota Report - ${dateRange}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; color: #333; }
+        h1, h2, h3 { color: #2c3e50; }
+        h1 { text-align: center; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+        th { background-color: #2c3e50; color: white; font-weight: bold; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .summary-section { margin-top: 30px; padding: 20px; background-color: #f5f5f5; border-radius: 5px; }
+        .summary-item { display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #ddd; }
+        .summary-item:last-child { border-bottom: none; font-weight: bold; }
+        .budget-summary { margin: 30px 0; padding: 20px; background-color: white; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
+        .summary-card { padding: 15px; border-radius: 5px; text-align: center; border: 1px solid #eee; }
+        .summary-label { font-size: 14px; color: #7f8c8d; margin-bottom: 5px; font-weight: 500; }
+        .summary-value { font-size: 18px; font-weight: 600; }
+        .forecast { background-color: rgba(52, 152, 219, 0.1); border-color: rgba(52, 152, 219, 0.3); }
+        .forecast .summary-value { color: #3498db; }
+        .under-budget { background-color: rgba(46, 204, 113, 0.1); border-color: rgba(46, 204, 113, 0.3); }
+        .under-budget .summary-value { color: #2ecc71; }
+        .over-budget { background-color: rgba(231, 76, 60, 0.1); border-color: rgba(231, 76, 60, 0.3); }
+        .over-budget .summary-value { color: #e74c3c; }
+        .percentage { font-size: 12px; opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <h1>Rota Report - ${dateRange}</h1>
+
+    <div class="summary-section">
+        <h2>Rota Details</h2>
+        ${tableHTML}
+    </div>
+
+    <div class="summary-section">
+        ${summaryHTML}
+    </div>
+
+    <div class="summary-section">
+        <h2>Sales Comparison</h2>
+        ${salesComparisonHTML}
+    </div>
+</body>
+</html>`;
+
+        // Send the HTML to the server to generate the PDF
+        const response = await fetch('/labor/api/generate-rota-pdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                htmlContent: cleanHTML,
+                dateRange: dateRange
+            })
+        });
+
+        if (!response.ok) throw new Error('Failed to generate PDF');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Rota_Report_${filenameDateRange}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        errorElement.textContent = 'Error generating PDF: ' + error.message;
+        errorElement.style.display = 'block';
+    } finally {
+        loadingIndicator.style.display = 'none';
+    }
+}
+
+    // Helper function to get Monday of the week for a given date
+    function getMondayOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
+    return new Date(d.setDate(diff));
+}
+
+    // Helper function to format date for filename (YYYY-MM-DD)
+    function formatDateForFilename(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+    
+    function getCurrentMonday(date = new Date()) {
+    const d = new Date(date);
+    const day = d.getDay(); // 0=Sunday, 1=Monday, etc.
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when Sunday
+    return new Date(d.setDate(diff));
+}
+
+    async function displaySalesComparison(mondayDate) {
+    try {
+        // Fetch data using the corrected Monday date
+        const response = await fetch(`/labor/api/getWeeklySalesComparison?startDate=${mondayDate}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch sales data');
+        }
+
+        const data = await response.json();
+        createSalesComparisonChart(mondayDate, data.forecast, data.actual);
+    } catch (error) {
+        console.error('Error displaying sales comparison:', error);
+        showError(`Error displaying sales comparison: ${error.message}`);
+    }
+}
+
+    function createSalesComparisonChart(mondayDate, forecast, actual) {
+    const formatMoney = (value) => new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(value);
+
+    // Create week range string: Monday to Sunday
+    const weekStart = new Date(mondayDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    const formatDate = (d) => d.toLocaleDateString('en-GB');
+    const weekRangeLabel = `${formatDate(weekStart)} – ${formatDate(weekEnd)}`;
+
+    // Calculate totals and variance
+    const totalForecasted = parseFloat(forecast) || 0;
+    const totalActual = (parseFloat(actual.zreport) || 0) + (parseFloat(actual.onaccount) || 0);
+    const variance = totalForecasted - totalActual;
+    const isUnderForecast = variance >= 0;
+    const variancePercentage = totalForecasted > 0
+        ? (Math.abs(variance) / totalForecasted * 100).toFixed(1)
+        : '0.0';
+
+    // Output HTML
+    const container = document.getElementById('salesComparisonContainer');
+    container.innerHTML = `
+        <div class="sales-comparison">
+            <h3>Weekly Sales Comparison (${weekRangeLabel})</h3>
+
+            <div class="summary-grid">
+                <div class="summary-item forecast">
+                    <div class="summary-label">Total Forecasted Sales</div>
+                    <div class="summary-value">${formatMoney(totalForecasted)}</div>
+                </div>
+                <div class="summary-item actual ${isUnderForecast ? 'under-forecast' : 'over-forecast'}">
+                    <div class="summary-label">Total Actual Sales</div>
+                    <div class="summary-value">${formatMoney(totalActual)}</div>
+                </div>
+                <div class="summary-item variance ${isUnderForecast ? 'under-forecast' : 'over-forecast'}">
+                    <div class="summary-label">Total Variance</div>
+                    <div class="summary-value">
+                        ${isUnderForecast ? '▼' : '▲'} ${formatMoney(Math.abs(variance))}
+                        <span class="percentage">(${variancePercentage}%)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+    // Helper functions
+    function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+    function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+    function showError(message) {
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+    function clearError() {
+            document.getElementById('error').style.display = 'none';
+        }
+</script>
+</body>
+</html>

@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-768D41J8NJ');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Confirm Rota | Solura</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #004f9e;
+            --secondary-color: #007acc;
+            --accent-color: #00a8ff;
+            --light-gray: #f4f6f9;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--light-gray);
+            color: var(--dark-gray);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding-top: 40px;
+        }
+        
+        /* Mobile Header */
+        .mobile-header {
+            background-color: var(--white);
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            position: fixed;
+            top: 40px;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .mobile-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mobile-menu-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 0.25rem;
+        }
+
+        /* Main Content Area */
+        .mobile-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            margin-top: calc(4rem + constant(safe-area-inset-top));
+            margin-top: calc(4rem + env(safe-area-inset-top));
+            margin-bottom: constant(safe-area-inset-bottom);
+            margin-bottom: env(safe-area-inset-bottom);
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .content-title {
+            font-size: 1.25rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .date-display {
+            font-size: 0.9rem;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        /* Controls */
+        .controls-container {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        label {
+            font-weight: 500;
+            color: var(--primary-color);
+            font-size: 0.9rem;
+        }
+        
+        select, input[type="date"], input[type="time"] {
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: var(--white);
+        }
+        
+        /* Buttons */
+        .btn {
+            background-color: var(--secondary-color);
+            color: var(--white);
+            border: none;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn i {
+            font-size: 1rem;
+        }
+        
+        .btn-remove {
+            background-color: #dc3545;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+            width: auto;
+        }
+        
+        /* Table */
+        .mobile-table-container {
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        .mobile-table {
+            width: 100%;
+            min-width: 600px;
+            border-collapse: collapse;
+        }
+        
+        .mobile-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.8rem;
+            position: sticky;
+            left: 0;
+        }
+        
+        .mobile-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+            font-size: 0.8rem;
+        }
+        
+        .mobile-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .status-confirmed {
+            color: #28a745;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        
+        .status-pending {
+            color: #dc3545;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        
+        /* Time Inputs */
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .time-separator {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        
+        .time-input {
+            padding: 0.25rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            width: 70px;
+        }
+        
+        /* Message styles */
+        .message {
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .message-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .message-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--white);
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .action-buttons .btn {
+            flex: 1;
+        }
+        
+        /* Calendar Styles */
+        .calendar-container {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+        
+        .calendar-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        
+        .calendar-day-header {
+            font-weight: bold;
+            text-align: center;
+            padding: 0.5rem 0;
+            font-size: 0.8rem;
+            color: var(--primary-color);
+        }
+        
+        .calendar-day {
+            padding: 0.5rem 0.25rem;
+            text-align: center;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-height: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .calendar-day:active {
+            transform: scale(0.95);
+        }
+        
+        .day-number {
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+        
+        .day-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-top: 2px;
+        }
+        
+        .status-confirmed-cal {
+            background-color: #28a745;
+        }
+        
+        .status-pending-cal {
+            background-color: #dc3545;
+        }
+        
+        .status-no-data {
+            background-color: #6c757d;
+        }
+        
+        .calendar-legend {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+        }
+        
+        .calendar-legend span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+        }
+        
+        /* Footer */
+        .mobile-footer {
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.8rem;
+            padding-bottom: calc(1rem + constant(safe-area-inset-bottom));
+            padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .mobile-table {
+                min-width: 800px;
+            }
+            
+            .calendar-day {
+                min-height: 35px;
+                padding: 0.25rem 0.1rem;
+            }
+            
+            .day-number {
+                font-size: 0.7rem;
+            }
+        }
+
+        /* Session Error */
+        .session-error {
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            margin: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Header -->
+    <header class="mobile-header">
+        <div class="mobile-title">
+            <i class="fas fa-calendar-check"></i>
+            <span>Confirm Rota</span>
+        </div>
+        <button class="mobile-menu-btn" onclick="navigateTo('/AdminApp.html')">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="mobile-content" id="mainContent">
+        <div class="content-header">
+            <h1 class="content-title">Rota Confirmation</h1>
+            <div class="date-display">
+                <i class="fas fa-calendar-day"></i>
+                <span id="currentDate"></span>
+            </div>
+        </div>
+        
+        <!-- Calendar Section -->
+        <div class="calendar-container">
+            <div class="calendar-controls">
+                <button id="prevMonth" class="btn" style="padding: 0.5rem; width: auto;">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <h3 id="currentMonthYear" style="margin: 0; font-size: 1rem;"></h3>
+                <button id="nextMonth" class="btn" style="padding: 0.5rem; width: auto;">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+            <div class="calendar-legend">
+                <div><span class="status-confirmed-cal"></span> Confirmed</div>
+                <div><span class="status-pending-cal"></span> Pending</div>
+                <div><span class="status-no-data"></span> No Data</div>
+            </div>
+        </div>
+        
+        <!-- Controls Section -->
+        <div class="controls-container">
+            <div class="control-group">
+                <label for="rotaDate"><i class="fas fa-calendar-day"></i> Select Date</label>
+                <input type="date" id="rotaDate" class="date-input">
+            </div>
+            
+            <div class="control-group">
+                <label for="employeeDropdown"><i class="fas fa-user-plus"></i> Add Employee</label>
+                <select id="employeeDropdown" class="employee-select">
+                    <option value="">Select Employee</option>
+                </select>
+                <button id="addEmployeeButton" class="btn">
+                    <i class="fas fa-plus"></i> Add Employee
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Message -->
+        <div id="statusMessage" class="message" style="display: none;"></div>
+
+        <!-- Table Container -->
+        <div class="mobile-table-container">
+            <table class="mobile-table" id="rotaTable">
+                <thead>
+                    <tr>
+                        <th>Employee</th>
+                        <th>Role</th>
+                        <th>Hours</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Data will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button id="confirmButton" class="btn" style="display: none;">
+                <i class="fas fa-check-circle"></i> Confirm
+            </button>
+            <button id="updateButton" class="btn" style="display: none;">
+                <i class="fas fa-sync-alt"></i> Update
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mobile-footer">
+        <p>Solura Workforce &copy; 2024</p>
+    </footer>
+
+<script>
+    // SIMPLIFIED Session management for Mobile App
+    let currentUser = null;
+
+    // Simple session check for mobile app
+    async function checkMobileSession() {
+        try {
+            // First check URL parameters (from redirect)
+            const urlParams = new URLSearchParams(window.location.search);
+            const email = urlParams.get('email');
+            const dbName = urlParams.get('dbName');
+            const name = urlParams.get('name');
+            const lastName = urlParams.get('lastName');
+            const sessionId = urlParams.get('sessionId');
+            
+            if (email && dbName) {
+                console.log('📱 Mobile app - Found session in URL parameters');
+                currentUser = {
+                    email: email,
+                    dbName: dbName,
+                    name: name || '',
+                    lastName: lastName || ''
+                };
+                localStorage.setItem('userInfo', JSON.stringify(currentUser));
+                localStorage.setItem('lastDb', dbName);
+                if (sessionId) {
+                    localStorage.setItem('sessionId', sessionId);
+                }
+                return true;
+            }
+            
+            // Check localStorage for existing session
+            const storedUser = localStorage.getItem('userInfo');
+            if (storedUser) {
+                console.log('📱 Mobile app - Found stored user info');
+                currentUser = JSON.parse(storedUser);
+                return true;
+            }
+            
+            console.log('❌ Mobile app - No session found');
+            return false;
+            
+        } catch (error) {
+            console.error('Mobile session check error:', error);
+            return false;
+        }
+    }
+
+    // Enhanced fetch for mobile app
+    async function fetchWithMobileAuth(url, options = {}) {
+        try {
+            const config = {
+                ...options,
+                credentials: 'include',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    ...options.headers
+                }
+            };
+            
+            // Add session ID if available
+            const sessionId = localStorage.getItem('sessionId');
+            if (sessionId) {
+                config.headers['X-Session-ID'] = sessionId;
+            }
+            
+            // Add user info for recovery
+            if (currentUser) {
+                config.headers['X-User-Email'] = currentUser.email;
+                config.headers['X-DB-Name'] = currentUser.dbName;
+            }
+            
+            console.log(`📱 Mobile fetch: ${url}`);
+            const response = await fetch(url, config);
+            
+            if (response.status === 401) {
+                console.log('📱 Mobile app - Session expired');
+                redirectToMobileLogin();
+                throw new Error('Session expired');
+            }
+            
+            return response;
+            
+        } catch (error) {
+            console.error(`📱 Mobile fetch error: ${error.message}`);
+            if (error.message === 'Session expired') {
+                redirectToMobileLogin();
+            }
+            throw error;
+        }
+    }
+
+    function redirectToMobileLogin() {
+        // Clear mobile app storage
+        localStorage.removeItem('userInfo');
+        localStorage.removeItem('lastDb');
+        localStorage.removeItem('sessionId');
+        
+        // Redirect to main login
+        window.location.href = '/';
+    }
+
+    function showSessionError() {
+        const mainContent = document.getElementById('mainContent');
+        if (mainContent) {
+            mainContent.innerHTML = `
+                <div class="session-error">
+                    <h2>Session Expired</h2>
+                    <p>Your session has expired. Please log in again.</p>
+                    <button onclick="redirectToMobileLogin()" class="btn" style="margin-top: 1rem;">
+                        <i class="fas fa-sign-in-alt"></i> Return to Login
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+    // Navigation function
+    function navigateTo(url) {
+        window.location.href = url;
+    }
+
+    // Initialize mobile app
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('📱 ConfirmRota Mobile App loading...');
+        
+        // Update current date display
+        updateLiveDateTime();
+        
+        const hasSession = await checkMobileSession();
+        if (!hasSession) {
+            console.log('❌ No valid session, redirecting to login');
+            showSessionError();
+            return;
+        }
+        
+        console.log('✅ Mobile session valid, initializing app...');
+        initializePage();
+    });
+
+    // Update live date time
+    function updateLiveDateTime() {
+        const now = new Date();
+        const dateElement = document.getElementById('currentDate');
+        if (dateElement) {
+            dateElement.textContent = now.toLocaleDateString('en-GB', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+    }
+
+    // Function to get Rota Data by Date
+    async function getRotaByDate(date) {
+        showLoading(true);
+        try {
+            const response = await fetchWithMobileAuth(`/confirmrota/api/rota?day=${encodeURIComponent(date)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            showMessage(`Error fetching rota data: ${error.message}`, 'error');
+            return [];
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Function to Format the Date to Display
+    function formatDateForDisplay(date) {
+        if (!(date instanceof Date)) {
+            date = new Date(date);
+        }
+
+        if (isNaN(date.getTime())) {
+            console.error('Invalid date:', date);
+            return '';
+        }
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+
+        const daysOfWeek = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const dayOfWeek = daysOfWeek[date.getDay()];
+
+        return `${day}/${month}/${year} (${dayOfWeek})`;
+    }
+
+    // Check if rota is confirmed
+    async function checkConfirmedRota2(date) {
+        console.log(`[checkConfirmedRota2] Checking confirmation for date: ${date}`);
+        showLoading(true);
+        try {
+            const url = `/confirmrota/api/check-confirmed-rota2?day=${encodeURIComponent(date)}`;
+            console.log(`[checkConfirmedRota2] Fetching from: ${url}`);
+            
+            const response = await fetchWithMobileAuth(url);
+            if (!response.ok) {
+                console.error(`[checkConfirmedRota2] HTTP error! Status: ${response.status}`);
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log(`[checkConfirmedRota2] Response data:`, data);
+            
+            return data;
+        } catch (error) {
+            console.error(`[checkConfirmedRota2] Error:`, error);
+            showMessage(`Error checking confirmed rota: ${error.message}`, 'error');
+            return { exists: false, confirmers: [] };
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Populate table with rota data
+    async function populateTable(date) {
+        console.log(`[populateTable] Starting for date: ${date}`);
+        showLoading(true);
+        try {
+            const formattedDate = formatDateForDisplay(date);
+            console.log(`[populateTable] Formatted date: ${formattedDate}`);
+            
+            // Get confirmation data
+            const confirmationData = await checkConfirmedRota2(formattedDate);
+            console.log(`[populateTable] Confirmation data:`, confirmationData);
+            
+            // Display status message
+            const statusMessage = document.getElementById('statusMessage');
+            if (confirmationData.exists) {
+                if (confirmationData.confirmers && confirmationData.confirmers.length > 0) {
+                    let namesText;
+                    if (confirmationData.confirmers.length === 1) {
+                        namesText = confirmationData.confirmers[0];
+                    } else if (confirmationData.confirmers.length === 2) {
+                        namesText = confirmationData.confirmers.join(' and ');
+                    } else {
+                        namesText = confirmationData.confirmers.slice(0, -1).join(', ') + 
+                                   ' and ' + confirmationData.confirmers[confirmationData.confirmers.length - 1];
+                    }
+                    statusMessage.textContent = `This rota has already been confirmed by ${namesText}.`;
+                } else {
+                    statusMessage.textContent = 'This rota has already been confirmed.';
+                }
+                statusMessage.className = 'message message-success';
+            } else {
+                statusMessage.textContent = 'This rota is pending confirmation.';
+                statusMessage.className = 'message message-error';
+            }
+            statusMessage.style.display = 'block';
+
+            // Get rota data
+            const [rotaData, confirmedRotaData] = await Promise.all([
+                getRotaByDate(formattedDate), 
+                getConfirmedRota(formattedDate)
+            ]);
+            
+            console.log(`[populateTable] Rota data:`, rotaData);
+            console.log(`[populateTable] Confirmed rota data:`, confirmedRotaData);
+            
+            const tableBody = document.querySelector('#rotaTable tbody');
+            tableBody.innerHTML = '';
+
+            if (rotaData.length === 0 && confirmedRotaData.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 5;
+                cell.textContent = "No rota data found for the selected date.";
+                cell.style.textAlign = 'center';
+                cell.style.padding = '2rem';
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+            } else {
+                const allRotaData = [...rotaData, ...confirmedRotaData];
+                
+                // Sort by designation (FOH first, then BOH)
+                allRotaData.sort((a, b) => {
+                    if (a.designation === 'FOH' && b.designation === 'BOH') return -1;
+                    if (a.designation === 'BOH' && b.designation === 'FOH') return 1;
+                    return 0;
+                });
+
+                // Group data by employee
+                const groupedData = allRotaData.reduce((acc, entry) => {
+                    const key = `${entry.name} ${entry.lastName} ${entry.designation}`;
+                    if (!acc[key]) {
+                        acc[key] = {
+                            name: entry.name,
+                            lastName: entry.lastName,
+                            designation: entry.designation,
+                            times: []
+                        };
+                    }
+                    acc[key].times.push({ startTime: entry.startTime, endTime: entry.endTime });
+                    return acc;
+                }, {});
+
+                // Create table rows
+                Object.values(groupedData).forEach(entry => {
+                    const row = document.createElement('tr');
+
+                    // Employee name cell
+                    const nameCell = document.createElement('td');
+                    nameCell.textContent = `${entry.name} ${entry.lastName}`;
+                    row.appendChild(nameCell);
+
+                    // Designation cell
+                    const designationCell = document.createElement('td');
+                    designationCell.textContent = entry.designation;
+                    row.appendChild(designationCell);
+
+                    // Times cell
+                    const timesCell = document.createElement('td');
+                    timesCell.style.fontSize = '0.75rem';
+                    
+                    entry.times.forEach((time, index) => {
+                        if (time.startTime && time.endTime) {
+                            const timeGroup = document.createElement('div');
+                            timeGroup.className = 'time-input-group';
+                            
+                            const startTimeInput = document.createElement('input');
+                            startTimeInput.type = 'time';
+                            startTimeInput.value = time.startTime;
+                            startTimeInput.className = 'time-input';
+                            startTimeInput.dataset.employee = `${entry.name} ${entry.lastName}`;
+                            startTimeInput.dataset.designation = entry.designation;
+                            startTimeInput.dataset.timeType = 'start';
+                            startTimeInput.dataset.index = index;
+                            
+                            const separator = document.createElement('span');
+                            separator.className = 'time-separator';
+                            separator.textContent = '-';
+                            
+                            const endTimeInput = document.createElement('input');
+                            endTimeInput.type = 'time';
+                            endTimeInput.value = time.endTime;
+                            endTimeInput.className = 'time-input';
+                            endTimeInput.dataset.employee = `${entry.name} ${entry.lastName}`;
+                            endTimeInput.dataset.designation = entry.designation;
+                            endTimeInput.dataset.timeType = 'end';
+                            endTimeInput.dataset.index = index;
+                            
+                            timeGroup.appendChild(startTimeInput);
+                            timeGroup.appendChild(separator);
+                            timeGroup.appendChild(endTimeInput);
+                            timesCell.appendChild(timeGroup);
+                        }
+                    });
+                    row.appendChild(timesCell);
+
+                    // Status cell
+                    const statusCell = document.createElement('td');
+                    const isConfirmed = confirmedRotaData.some(confirmedEntry =>
+                        `${confirmedEntry.name} ${confirmedEntry.lastName} ${confirmedEntry.designation}` === 
+                        `${entry.name} ${entry.lastName} ${entry.designation}`
+                    );
+                    
+                    statusCell.innerHTML = isConfirmed 
+                        ? '<span class="status-confirmed"><i class="fas fa-check-circle"></i> Confirmed</span>' 
+                        : '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
+                    row.appendChild(statusCell);
+
+                    // Remove button cell
+                    const removeCell = document.createElement('td');
+                    const removeButton = document.createElement('button');
+                    removeButton.className = 'btn btn-remove';
+                    removeButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                    removeButton.addEventListener('click', () => removeEmployee(entry, row));
+                    removeCell.appendChild(removeButton);
+                    row.appendChild(removeCell);
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+        } catch (error) {
+            showMessage(`Error populating table: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
+            checkAndUpdateRotaButton();
+        }
+    }
+
+    // Check and update rota buttons
+    async function checkAndUpdateRotaButton() {
+        try {
+            const statusCells = document.querySelectorAll('#rotaTable tbody tr td:nth-child(4)');
+            let allConfirmed = true;
+            let allPending = true;
+
+            statusCells.forEach(cell => {
+                const statusText = cell.textContent.trim().toLowerCase();
+                if (statusText !== 'confirmed') allConfirmed = false;
+                if (statusText !== 'pending') allPending = false;
+            });
+
+            const confirmButton = document.getElementById('confirmButton');
+            const updateButton = document.getElementById('updateButton');
+
+            if (statusCells.length === 0) {
+                confirmButton.style.display = 'none';
+                updateButton.style.display = 'none';
+                return;
+            }
+
+            if (allConfirmed) {
+                confirmButton.style.display = 'none';
+                updateButton.style.display = 'block';
+            } else if (allPending) {
+                confirmButton.style.display = 'block';
+                updateButton.style.display = 'none';
+            } else {
+                confirmButton.style.display = 'none';
+                updateButton.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error checking and updating rota button:', error);
+        }
+    }
+
+    // Get confirmed rota
+    async function getConfirmedRota(dateString) {
+        showLoading(true);
+        try {
+            const dateParts = dateString.split(' ')[0];
+            const [day, month, year] = dateParts.split('/');
+            const date = new Date(`${month}/${day}/${year}`);
+
+            if (isNaN(date.getTime())) {
+                console.error('Invalid date:', date);
+                return [];
+            }
+
+            const formattedDate = formatDateForDisplay(date);
+            const response = await fetchWithMobileAuth(`/confirmrota/api/confirmed-rota?day=${encodeURIComponent(formattedDate)}`);
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            showMessage(`Error fetching confirmed rota: ${error.message}`, 'error');
+            return [];
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Fetch employees
+    async function fetchEmployees() {
+        showLoading(true);
+        try {
+            const response = await fetchWithMobileAuth('/confirmrota/api/employees');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const employees = await response.json();
+            const employeeDropdown = document.getElementById('employeeDropdown');
+            employeeDropdown.innerHTML = '<option value="">Select Employee</option>';
+
+            employees.forEach(employee => {
+                const option = document.createElement('option');
+                option.value = `${employee.name} ${employee.lastName} ${employee.designation}`;
+                option.textContent = `${employee.name} ${employee.lastName} (${employee.designation})`;
+                option.dataset.name = employee.name;
+                option.dataset.lastName = employee.lastName;
+                option.dataset.designation = employee.designation;
+                employeeDropdown.appendChild(option);
+            });
+        } catch (error) {
+            showMessage(`Error fetching employees: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
+        }
+    }
+
+    // Confirm rota
+    async function confirmRota() {
+        showLoading(true, 'confirmButton');
+        try {
+            const tableRows = document.querySelectorAll('#rotaTable tbody tr');
+            const formattedData = Array.from(tableRows).map(row => {
+                const name = row.querySelector('td:nth-child(1)').textContent.split(' ')[0];
+                const lastName = row.querySelector('td:nth-child(1)').textContent.split(' ')[1];
+                const designation = row.querySelector('td:nth-child(2)').textContent;
+
+                const timeInputs = row.querySelectorAll('.time-input');
+                const times = [];
+
+                for (let i = 0; i < timeInputs.length; i += 2) {
+                    const startTimeInput = timeInputs[i];
+                    const endTimeInput = timeInputs[i + 1];
+
+                    if (startTimeInput && endTimeInput && startTimeInput.value && endTimeInput.value) {
+                        times.push({
+                            startTime: startTimeInput.value,
+                            endTime: endTimeInput.value
+                        });
+                    }
+                }
+
+                return {
+                    name,
+                    lastName,
+                    day: formatDateForDisplay(document.getElementById('rotaDate').value),
+                    designation,
+                    times
+                };
+            });
+
+            const filteredData = formattedData.filter(data => data.times.length > 0);
+
+            const response = await fetchWithMobileAuth('/confirmrota/confirm-rota', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(filteredData)
+            });
+
+            if (response.ok) {
+                showMessage('Rota confirmed successfully!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to confirm rota');
+            }
+        } catch (error) {
+            showMessage(`Error confirming rota: ${error.message}`, 'error');
+        } finally {
+            showLoading(false, 'confirmButton');
+        }
+    }
+
+    // Update rota
+    async function updateRotaData() {
+        showLoading(true, 'updateButton');
+        try {
+            const table = document.querySelector('#rotaTable tbody');
+            const rows = table.querySelectorAll('tr');
+            const updatedData = [];
+            const day = formatDateForDisplay(document.getElementById('rotaDate').value);
+
+            rows.forEach(row => {
+                const name = row.querySelector('td:nth-child(1)').textContent.split(' ')[0];
+                const lastName = row.querySelector('td:nth-child(1)').textContent.split(' ')[1];
+                const designation = row.querySelector('td:nth-child(2)').textContent;
+
+                if (!day || !name || !lastName || !designation) {
+                    console.warn(`Skipping row with missing data: ${row}`);
+                    return;
+                }
+
+                const timeInputs = row.querySelectorAll('.time-input');
+
+                for (let i = 0; i < timeInputs.length; i += 2) {
+                    const startTime = timeInputs[i]?.value.trim();
+                    const endTime = timeInputs[i + 1]?.value.trim();
+
+                    const timeRegex = /^\d{2}:\d{2}(:\d{2})?$/;
+                    if (startTime && endTime && timeRegex.test(startTime) && timeRegex.test(endTime)) {
+                        updatedData.push({
+                            day,
+                            name,
+                            lastName,
+                            designation,
+                            startTime,
+                            endTime,
+                            source: 'client'
+                        });
+                    } else if (startTime || endTime) {
+                        console.warn(`Invalid time input for row: StartTime="${startTime}", EndTime="${endTime}"`);
+                    }
+                }
+            });
+
+            if (updatedData.length === 0) {
+                showMessage('No valid data to update.', 'error');
+                return;
+            }
+
+            const response = await fetchWithMobileAuth('/confirmrota/updateRotaData', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedData)
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showMessage('Rota data updated successfully!', 'success');
+                setTimeout(() => window.location.reload(), 1500);
+            } else {
+                throw new Error(data.message || 'Failed to update rota data');
+            }
+        } catch (error) {
+            showMessage(`Error updating rota: ${error.message}`, 'error');
+        } finally {
+            showLoading(false, 'updateButton');
+        }
+    }
+
+    // Add employee to table
+    async function addEmployeeToTable() {
+        showLoading(true, 'addEmployeeButton');
+        try {
+            const dropdown = document.getElementById('employeeDropdown');
+            const selectedOption = dropdown.options[dropdown.selectedIndex];
+
+            if (!selectedOption || selectedOption.value === "") {
+                showMessage('Please select an employee from the dropdown.', 'error');
+                return;
+            }
+
+            const name = selectedOption.dataset.name;
+            const lastName = selectedOption.dataset.lastName;
+            const designation = selectedOption.dataset.designation;
+            const day = formatDateForDisplay(document.getElementById('rotaDate').value);
+
+            // Check if employee already exists
+            const rows = document.querySelectorAll('#rotaTable tbody tr');
+            let employeeExists = false;
+            rows.forEach(row => {
+                const rowName = row.querySelector('td:nth-child(1)').textContent;
+                if (rowName.includes(name) && rowName.includes(lastName)) {
+                    employeeExists = true;
+                }
+            });
+
+            if (employeeExists) {
+                const userConfirmed = confirm(`${name} ${lastName} is already in the Rota. Do you want to add them again?`);
+                if (!userConfirmed) return;
+            }
+
+            const tableBody = document.querySelector('#rotaTable tbody');
+            if (!tableBody) {
+                showMessage('Table body not found!', 'error');
+                return;
+            }
+
+            const row = document.createElement('tr');
+
+            // Employee name cell
+            const nameCell = document.createElement('td');
+            nameCell.textContent = `${name} ${lastName}`;
+            row.appendChild(nameCell);
+
+            // Designation cell
+            const designationCell = document.createElement('td');
+            designationCell.textContent = designation;
+            row.appendChild(designationCell);
+
+            // Times cell
+            const timesCell = document.createElement('td');
+            timesCell.style.fontSize = '0.75rem';
+            
+            for (let i = 0; i < 2; i++) {
+                const timeGroup = document.createElement('div');
+                timeGroup.className = 'time-input-group';
+                
+                const startTimeInput = document.createElement('input');
+                startTimeInput.type = 'time';
+                startTimeInput.className = 'time-input';
+                startTimeInput.dataset.employee = `${name} ${lastName}`;
+                startTimeInput.dataset.designation = designation;
+                startTimeInput.dataset.timeType = 'start';
+                startTimeInput.dataset.index = i;
+                
+                const separator = document.createElement('span');
+                separator.className = 'time-separator';
+                separator.textContent = '-';
+                
+                const endTimeInput = document.createElement('input');
+                endTimeInput.type = 'time';
+                endTimeInput.className = 'time-input';
+                endTimeInput.dataset.employee = `${name} ${lastName}`;
+                endTimeInput.dataset.designation = designation;
+                endTimeInput.dataset.timeType = 'end';
+                endTimeInput.dataset.index = i;
+                
+                timeGroup.appendChild(startTimeInput);
+                timeGroup.appendChild(separator);
+                timeGroup.appendChild(endTimeInput);
+                timesCell.appendChild(timeGroup);
+            }
+            row.appendChild(timesCell);
+
+            // Status cell (default to pending)
+            const statusCell = document.createElement('td');
+            statusCell.innerHTML = '<span class="status-pending"><i class="fas fa-clock"></i> Pending</span>';
+            row.appendChild(statusCell);
+
+            // Remove button cell
+            const removeCell = document.createElement('td');
+            const removeButton = document.createElement('button');
+            removeButton.className = 'btn btn-remove';
+            removeButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            removeButton.addEventListener('click', () => removeEmployee({ name, lastName, designation, day }, row));
+            removeCell.appendChild(removeButton);
+            row.appendChild(removeCell);
+
+            tableBody.appendChild(row);
+            showMessage(`${name} ${lastName} added to rota.`, 'success');
+        } catch (error) {
+            showMessage(`Error adding employee: ${error.message}`, 'error');
+        } finally {
+            showLoading(false, 'addEmployeeButton');
+            checkAndUpdateRotaButton();
+        }
+    }
+
+    // Remove employee
+    async function removeEmployee(employee, row) {
+        if (!confirm(`Are you sure you want to remove ${employee.name} ${employee.lastName} from the rota?`)) {
+            return;
+        }
+
+        showLoading(true);
+        try {
+            row.remove();
+            
+            const data = {
+                name: employee.name,
+                lastName: employee.lastName,
+                designation: employee.designation,
+                day: employee.day,
+            };
+
+            const response = await fetchWithMobileAuth('/confirmrota/delete-employee', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showMessage(`Successfully removed ${employee.name} ${employee.lastName} from the rota.`, 'success');
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to remove employee');
+            }
+        } catch (error) {
+            showMessage(`Error removing employee: ${error.message}`, 'error');
+        } finally {
+            showLoading(false);
+            checkAndUpdateRotaButton();
+        }
+    }
+
+    // Calendar functions
+    async function renderCalendar(month, year) {
+        const monthNames = ["January", "February", "March", "April", "May", "June",
+                           "July", "August", "September", "October", "November", "December"];
+        
+        document.getElementById('currentMonthYear').textContent = `${monthNames[month]} ${year}`;
+        
+        const firstDay = new Date(year, month, 1);
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        // Adjust to make Monday the first day
+        let firstDayOfWeek = firstDay.getDay();
+        if (firstDayOfWeek === 0) firstDayOfWeek = 6;
+        else firstDayOfWeek--;
+        
+        const calendarGrid = document.getElementById('calendarGrid');
+        calendarGrid.innerHTML = '';
+        
+        // Day headers starting with Monday
+        const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        dayNames.forEach(day => {
+            const dayHeader = document.createElement('div');
+            dayHeader.className = 'calendar-day-header';
+            dayHeader.textContent = day;
+            calendarGrid.appendChild(dayHeader);
+        });
+        
+        // Add empty cells for days before the first day of the month
+        for (let i = 0; i < firstDayOfWeek; i++) {
+            const emptyDay = document.createElement('div');
+            emptyDay.className = 'calendar-day';
+            calendarGrid.appendChild(emptyDay);
+        }
+        
+        // Add days of the current month
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(year, month, day);
+            const dayElement = document.createElement('div');
+            dayElement.className = 'calendar-day';
+            dayElement.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = day;
+            dayElement.appendChild(dayNumber);
+            
+            const statusIndicator = document.createElement('div');
+            statusIndicator.className = 'day-status status-no-data';
+            dayElement.appendChild(statusIndicator);
+            
+            calendarGrid.appendChild(dayElement);
+            
+            dayElement.addEventListener('click', () => {
+                document.getElementById('rotaDate').value = dayElement.dataset.date;
+                populateTable(dayElement.dataset.date);
+            });
+        }
+        
+        await updateCalendarStatuses(month, year);
+    }
+
+    async function updateCalendarStatuses(month, year) {
+        try {
+            const response = await fetchWithMobileAuth(`/confirmrota/api/confirmed-rota-month?year=${year}&month=${month + 1}`);
+            if (!response.ok) throw new Error('Failed to fetch confirmed rotas');
+
+            const { data } = await response.json();
+            const confirmedSet = new Set(Object.keys(data));
+
+            const calendarDays = document.querySelectorAll('.calendar-day[data-date]');
+
+            const dayProcessing = Array.from(calendarDays).map(async (dayElement) => {
+                const date = new Date(dayElement.dataset.date);
+                if (isNaN(date.getTime())) return;
+
+                const day = String(date.getDate()).padStart(2, '0');
+                const monthFormatted = String(date.getMonth() + 1).padStart(2, '0');
+                const formattedDate = `${day}/${monthFormatted}/${date.getFullYear()}`;
+
+                const statusIndicator = dayElement.querySelector('.day-status');
+                if (!statusIndicator) return;
+
+                if (confirmedSet.has(formattedDate)) {
+                    statusIndicator.className = 'day-status status-confirmed-cal';
+                } else {
+                    const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+                    const fullFormattedDate = `${formattedDate} (${weekday})`;
+
+                    const rotaData = await getRotaByDate(fullFormattedDate);
+                    statusIndicator.className = rotaData?.length > 0
+                        ? 'day-status status-pending-cal'
+                        : 'day-status status-no-data';
+                }
+            });
+
+            await Promise.all(dayProcessing);
+
+        } catch (error) {
+            console.error('Error updating calendar statuses:', error);
+        }
+    }
+
+    // Helper functions
+    function showLoading(isLoading, elementId = null) {
+        if (elementId) {
+            const button = document.getElementById(elementId);
+            if (button) {
+                if (isLoading) {
+                    button.disabled = true;
+                    button.innerHTML = `<span class="spinner"></span> Processing...`;
+                } else {
+                    button.disabled = false;
+                    if (elementId === 'confirmButton') {
+                        button.innerHTML = `<i class="fas fa-check-circle"></i> Confirm`;
+                    } else if (elementId === 'updateButton') {
+                        button.innerHTML = `<i class="fas fa-sync-alt"></i> Update`;
+                    } else if (elementId === 'addEmployeeButton') {
+                        button.innerHTML = `<i class="fas fa-plus"></i> Add Employee`;
+                    }
+                }
+            }
+        }
+    }
+
+    function showMessage(message, type) {
+        const messageElement = document.getElementById('statusMessage');
+        messageElement.textContent = message;
+        messageElement.className = `message message-${type === 'error' ? 'error' : 'success'}`;
+        messageElement.style.display = 'block';
+        
+        setTimeout(() => {
+            messageElement.style.display = 'none';
+        }, 5000);
+    }
+
+    // Initialize the page
+    function initializePage() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('rotaDate').value = today;
+        populateTable(today);
+        fetchEmployees();
+        
+        // Initialize calendar with current month
+        const currentDate = new Date();
+        let currentMonth = currentDate.getMonth();
+        let currentYear = currentDate.getFullYear();
+        
+        renderCalendar(currentMonth, currentYear);
+        
+        // Event listeners for navigation
+        document.getElementById('prevMonth').addEventListener('click', () => {
+            currentMonth--;
+            if (currentMonth < 0) {
+                currentMonth = 11;
+                currentYear--;
+            }
+            renderCalendar(currentMonth, currentYear);
+        });
+        
+        document.getElementById('nextMonth').addEventListener('click', () => {
+            currentMonth++;
+            if (currentMonth > 11) {
+                currentMonth = 0;
+                currentYear++;
+            }
+            renderCalendar(currentMonth, currentYear);
+        });
+    }
+
+    // Event Listeners
+    document.getElementById('rotaDate').addEventListener('change', function() {
+        populateTable(this.value);
+    });
+
+    document.getElementById('addEmployeeButton').addEventListener('click', addEmployeeToTable);
+    document.getElementById('confirmButton').addEventListener('click', confirmRota);
+    document.getElementById('updateButton').addEventListener('click', updateRotaData);
+
+    // Export functions for global access
+    window.redirectToMobileLogin = redirectToMobileLogin;
+    window.navigateTo = navigateTo;
+</script>
+</body>
+</html>

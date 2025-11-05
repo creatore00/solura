@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-768D41J8NJ');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Solura | Workforce Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #004f9e;
+            --secondary-color: #007acc;
+            --accent-color: #00a8ff;
+            --light-gray: #f4f6f9;
+            --dark-gray: #333;
+            --white: #ffffff;
+            --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        .boh-cell {
+            background-color: #ffebee;
+            color: #c62828;
+            font-weight: bold;
+        }
+
+        .foh-cell {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            padding: 4px 8px;
+            border-radius: 12px;
+            display: inline-block;
+            font-size: 0.9em;
+        }
+
+        .status-indicator.working {
+            background-color: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .status-indicator.inactive {
+            background-color: #f5f5f5;
+            color: #616161;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: var(--light-gray);
+            color: var(--dark-gray);
+            min-height: 100vh;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+        }
+        
+        /* Header */
+        .app-header {
+            background-color: var(--white);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .app-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        /* Database Switcher */
+        #databaseSwitcher {
+            background-color: var(--white);
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        #currentDbDisplay {
+            font-weight: 500;
+        }
+        
+        #dbSelector {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        #switchDbBtn {
+            padding: 0.25rem 0.75rem;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: none;
+        }
+        
+        #switchDbBtn:hover {
+            background-color: var(--primary-color);
+        }
+        
+        /* Main App Grid */
+        .app-container {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            height: calc(100vh - 120px);
+        }
+        
+        /* Sidebar Navigation */
+        .app-sidebar {
+            background: var(--white);
+            padding: 1.5rem 0;
+            box-shadow: var(--shadow);
+            overflow-y: auto;
+        }
+        
+        .nav-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .nav-section-title {
+            padding: 0.5rem 1.5rem;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .nav-link {
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: var(--dark-gray);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            gap: 10px;
+        }
+        
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(0, 122, 204, 0.1);
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
+        }
+        
+        .nav-link i {
+            width: 24px;
+            text-align: center;
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            width: 10px;
+            height: 10px;
+            background-color: #ff0000;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+            animation: pulse 1.5s infinite;
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+        }
+        
+        /* Main Content Area */
+        .app-content {
+            padding: 1.5rem;
+            overflow-y: auto;
+            background-color: #f8fafc;
+        }
+        
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .content-title {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        /* Dashboard Widgets */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .dashboard-widget {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+        
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .widget-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .widget-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--dark-gray);
+            margin: 0.5rem 0;
+        }
+        
+        .widget-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        /* Quick Actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .action-btn {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 1.25rem;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            text-decoration: none;
+            color: var(--dark-gray);
+            transition: transform 0.2s ease;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .action-icon {
+            font-size: 1.75rem;
+            color: var(--secondary-color);
+            margin-bottom: 0.75rem;
+        }
+        
+        .action-label {
+            font-weight: 500;
+        }
+        
+        /* Data Tables */
+        .data-table {
+            width: 100%;
+            background: var(--white);
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 1.5rem;
+        }
+        
+        .data-table th {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 500;
+        }
+        
+        .data-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .data-table tr:hover td {
+            background-color: #f5f9ff;
+        }
+        
+        /* Footer */
+        .app-footer {
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 1rem;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        
+        /* Reports Modal */
+        #reportsModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .app-container {
+                grid-template-columns: 200px 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .app-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .app-sidebar {
+                display: none;
+            }
+            
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .dashboard-grid,
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+            
+            .app-header {
+                flex-direction: column;
+                gap: 0.75rem;
+                padding: 0.75rem;
+            }
+            
+            #databaseSwitcher {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="app-title">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Solura Workforce</span>
+        </div>
+        <!-- Minimal Database Switcher -->
+        <div style="position: fixed; top: 15px; right: 15px; z-index: 1000;">
+            <select id="databaseSelect" onchange="switchDatabase(this.value)" 
+                    style="padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); cursor: pointer;">
+                <option value="">Loading...</option>
+            </select>
+            <div id="switchStatus" style="font-size: 11px; margin-top: 4px; color: #666;"></div>
+        </div>
+    </header>
+    
+    <!-- Main App Container -->
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <nav class="app-sidebar">
+            <div class="nav-section">
+                <div class="nav-section-title">Management</div>
+                <a href="#" class="nav-link active">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="/updateinfo" class="nav-link">
+                    <i class="fas fa-users"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="/rota" class="nav-link">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span>Rotas</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Daily</div>
+                <a href="/endday" class="nav-link">
+                    <i class="fas fa-clock"></i>
+                    <span>End Of Day</span>
+                </a>
+                <a href="/confirmrota" class="nav-link">
+                    <i class="fas fa-check-double"></i>
+                    <span>Approve Rota</span>
+                </a>
+                <a href="/tip" class="nav-link">
+                    <i class="fas fa-hand-holding-usd"></i>
+                    <span>Tips</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">Holidays</div>
+                <a href="/TotalHolidays" class="nav-link">
+                    <i class="fas fa-calendar-check"></i>
+                    <span>Holidays Management</span>
+                </a>
+                <a href="/request" class="nav-link">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Approve/Reject Holidays</span>
+                    <span class="notification-badge" id="holidayNotification"></span>
+                </a>
+                <a href="/userholidays" class="nav-link">
+                    <i class="fas fa-umbrella-beach"></i>
+                    <span>Request Holidays</span>
+                </a>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-section-title">Finance</div>
+                <a href="#" class="nav-link">
+                    <i class="fas fa-clock"></i>
+                    <span>Time Tracking</span>
+                </a>
+                <a href="/insertpayslip" class="nav-link">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                    <span>Insert Payslips</span>
+                </a>
+                <a href="/pastpayslips" class="nav-link">
+                    <i class="fas fa-receipt"></i>
+                    <span>Past Payslips</span>
+                </a>
+                <a href="#" class="nav-link" id="reportsLink">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Reports</span>
+                </a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-section-title">System</div>
+                <a href="/profile" class="nav-link">
+                    <i class="fas fa-user-circle"></i>
+                    <span>Account</span>
+                </a>
+                <a href="/generate" class="nav-link">
+                    <i class="fas fa-cog"></i>
+                    <span>Manage Access</span>
+                </a>
+                <a href="/logout" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="app-content">
+            <div class="content-header">
+                <h1 class="content-title">Dashboard</h1>
+                <div class="date">
+                    <i class="fas fa-calendar-day"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+            
+            <!-- Stats Widgets -->
+            <div class="dashboard-grid">
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">On Shift Today</h3>
+                        <i class="fas fa-users" style="color: var(--secondary-color);"></i>
+                    </div>
+                    <div class="widget-value" id="employees">--</div>
+                    <div class="widget-footer">
+                        <span>Employees</span>
+                    </div>
+                </div>
+                
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Pending Rota Approvals</h3>
+                        <i class="fas fa-clock" style="color: #ff9800;"></i>
+                    </div>
+                    <div class="widget-value" id="approve">--</div>
+                    <div class="widget-footer">
+                        <span>Rota Confirmations waiting</span>
+                        <a href="/confirmrota" style="color: var(--secondary-color);">Review</a>
+                    </div>
+                </div>
+
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Pending Tips Approvals</h3>
+                        <i class="fas fa-clock" style="color: #29bce0;"></i>
+                    </div>
+                    <div class="widget-value" id="tip">--</div>
+                    <div class="widget-footer">
+                        <span>Tips Confirmations waiting</span>
+                        <a href="/tip" style="color: var(--secondary-color);">Review</a>
+                    </div>
+                </div>
+                
+                <div class="dashboard-widget">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Labor Cost</h3>
+                        <i class="fas fa-pound-sign" style="color: #f44336;"></i>
+                    </div>
+                    <div class="widget-value" id="labor">--</div>
+                    <div class="widget-footer">
+                        <span>This Week</span>
+                        <a href="/labor" style="color: var(--secondary-color);">Details</a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <h2 style="margin-bottom: 1rem; color: var(--primary-color);">Quick Actions</h2>
+            <div class="quick-actions">
+                <a href="/rota" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-calendar-plus"></i>
+                    </div>
+                    <div class="action-label">Create Rota</div>
+                </a>
+                
+                <a href="/confirmrota" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <div class="action-label">Approve Rota</div>
+                </a>
+                
+                <a href="endday" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="action-label">End of Day</div>
+                </a>
+                
+                <a href="tip" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="action-label">Daily Tips</div>
+                </a>
+                
+                <a href="insertpayslip" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-file-invoice-dollar"></i>
+                    </div>
+                    <div class="action-label">New Payslips</div>
+                </a>
+                
+                <a href="/userholidays" class="action-btn">
+                    <div class="action-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="action-label">Holiday Booking</div>
+                </a>
+            </div>
+
+            <!-- Recent Activity -->
+            <h2 style="margin: 2rem 0 1rem; color: var(--primary-color);">Today's Shifts</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>                                   
+                        <th>Employee</th>                                    
+                        <th>Designation</th>
+                        <th>Shift</th>
+                        <th>Activity</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </main>
+    </div>
+    
+    <!-- App Footer -->
+    <footer class="app-footer">
+        <p>Solura Workforce Management System &copy; 2024</p>
+    </footer>
+
+    <!-- Reports Popup Window (Modal) -->
+    <div id="reportsModal">
+        <div style="background: white; border-radius: 8px; width: 80%; max-width: 500px; max-height: 80vh; overflow: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid #eee; background: #f8f9fa;">
+                <h3 style="margin: 0; font-size: 1.2rem; color: #004f9e;">Available Reports</h3>
+                <button id="closeReportsModal" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666;">&times;</button>
+            </div>
+            
+            <div style="padding: 20px;">
+                <!-- Report Item 1 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Payroll Report</div>
+                        <div style="font-size: 0.85rem; color: #666;">Comprehensive Payroll Overview</div>
+                    </div>
+                    <a href="/hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+                
+                <!-- Report Item 2 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Weekly Labor Cost Report</div>
+                        <div style="font-size: 0.85rem; color: #666;">Weekly Performance Metrics</div>
+                    </div>
+                    <a href="/labor" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+                
+                <!-- Report Item 3 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Financial Summary</div>
+                        <div style="font-size: 0.85rem; color: #666;">Revenue & Cost Overview</div>
+                    </div>
+                    <a href="/financialsummary" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+                
+                <!-- Report Item 4 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Coming Soon...</div>
+                        <div style="font-size: 0.85rem; color: #666;">N/A</div>
+                    </div>
+                    <a href="/payroll-analysis" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+
+                <!-- Report Item 5 -->
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; margin-bottom: 10px; background: #f8f9fa; border-radius: 4px;">
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 4px;">Coming Soon...</div>
+                        <div style="font-size: 0.85rem; color: #666;">N/A</div>
+                    </div>
+                    <a href="/employee-hours" class="report-button" style="padding: 6px 12px; background: #007acc; color: white; border-radius: 4px; text-decoration: none; font-size: 0.9rem; white-space: nowrap;">Open</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced session validation
+        async function validateSession() {
+            try {
+                console.log('🔐 Validating session...');
+                const response = await fetch('/api/validate-session', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.status === 401) {
+                    console.log('❌ Session invalid, attempting recovery...');
+                    // Try to recover session from localStorage
+                    const storedUser = localStorage.getItem('userData');
+                    const storedDb = localStorage.getItem('currentDatabase');
+                    
+                    if (storedUser && storedDb) {
+                        const userData = JSON.parse(storedUser);
+                        const recoveryResponse = await fetch('/api/recover-session', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            credentials: 'include',
+                            body: JSON.stringify({
+                                email: userData.email,
+                                dbName: storedDb
+                            })
+                        });
+                        
+                        if (recoveryResponse.ok) {
+                            const result = await recoveryResponse.json();
+                            if (result.success) {
+                                console.log('✅ Session recovered successfully');
+                                return true;
+                            }
+                        }
+                    }
+                    
+                    // If recovery fails, redirect to login
+                    console.log('❌ Session recovery failed, redirecting to login');
+                    window.location.href = '/';
+                    return false;
+                }
+                
+                const data = await response.json();
+                console.log('✅ Session validation result:', data.valid);
+                return data.valid;
+            } catch (error) {
+                console.error('❌ Session validation error:', error);
+                window.location.href = '/';
+                return false;
+            }
+        }
+
+        // Enhanced fetch wrapper with session handling
+        async function authenticatedFetch(url, options = {}) {
+            const fetchOptions = {
+                ...options,
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers,
+                }
+            };
+            
+            try {
+                const response = await fetch(url, fetchOptions);
+                
+                // If unauthorized, try to recover session and retry once
+                if (response.status === 401) {
+                    console.log('🔄 Session expired, attempting recovery...');
+                    const recovered = await attemptSessionRecovery();
+                    if (recovered) {
+                        // Retry the request with recovered session
+                        return await fetch(url, fetchOptions);
+                    } else {
+                        throw new Error('Authentication required');
+                    }
+                }
+                
+                return response;
+            } catch (error) {
+                console.error('❌ Fetch error:', error);
+                throw error;
+            }
+        }
+
+        async function attemptSessionRecovery() {
+            try {
+                // Check if we have user data in localStorage
+                const storedUser = localStorage.getItem('userData');
+                const storedDb = localStorage.getItem('currentDatabase');
+                
+                if (storedUser && storedDb) {
+                    const userData = JSON.parse(storedUser);
+                    
+                    const response = await fetch('/api/recover-session', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            email: userData.email,
+                            dbName: storedDb
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Session recovered successfully');
+                            return true;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Session recovery failed:', error);
+            }
+            
+            // If recovery fails, redirect to login
+            window.location.href = '/';
+            return false;
+        }
+
+        // Fixed frontend heartbeat implementation
+        function startHeartbeat() {
+            console.log('💓 Starting heartbeat...');
+            const eventSource = new EventSource('/api/session-heartbeat');
+            
+            eventSource.onopen = function() {
+                console.log('✅ Heartbeat connection opened');
+            };
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('💓 Heartbeat received:', data);
+                    
+                    if (data.valid === false) {
+                        console.log('🚫 Session invalid, redirecting to login');
+                        eventSource.close();
+                        showLogoutMessage(data.message || 'Please log in again');
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 2000);
+                        return;
+                    }
+                    
+                    if (data.valid === true) {
+                        console.log('✅ Session valid, continuing');
+                        // Session is healthy, continue
+                    }
+                    
+                } catch (error) {
+                    console.error('💔 Heartbeat parse error:', error);
+                }
+            };
+            
+            eventSource.onerror = function(error) {
+                console.error('💔 Heartbeat connection error:', error);
+                eventSource.close();
+                
+                // Try to reconnect after delay
+                setTimeout(() => {
+                    console.log('🔄 Reconnecting heartbeat...');
+                    startHeartbeat();
+                }, 5000);
+            };
+        }
+
+        function showLogoutMessage(message) {
+            // Create a user-friendly logout message
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #f44336;
+                color: white;
+                padding: 15px;
+                border-radius: 5px;
+                z-index: 10000;
+                max-width: 300px;
+            `;
+            messageDiv.textContent = message;
+            document.body.appendChild(messageDiv);
+            
+            setTimeout(() => {
+                if (document.body.contains(messageDiv)) {
+                    document.body.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
+        // Initialize database switcher
+        async function initializeDatabaseSwitcher() {
+            console.log('🔄 Initializing database switcher...');
+            
+            try {
+                // Get current user info from API
+                const response = await fetch('/api/current-user', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to get user data');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.user) {
+                    const user = data.user;
+                    console.log('✅ User data loaded:', user);
+                    
+                    // Store user data in localStorage for recovery
+                    localStorage.setItem('userData', JSON.stringify(user));
+                    localStorage.setItem('currentDatabase', user.dbName);
+                    
+                    // Load available databases
+                    await loadAvailableDatabases();
+                    
+                } else {
+                    throw new Error('No user data received');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading user data:', error);
+            }
+        }
+
+        // Load available databases for the user
+        async function loadAvailableDatabases() {
+            try {
+                const response = await fetch('/api/user-databases', {
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load databases');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('📊 Available databases:', data.databases);
+                    populateDatabaseDropdown(data.databases, data.currentDb);
+                } else {
+                    throw new Error(data.error || 'Failed to load databases');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error loading databases:', error);
+            }
+        }
+
+        // Enhanced switch database function with loading state
+        async function switchDatabase(newDbName) {
+            if (!newDbName) return;
+            
+            const statusDiv = document.getElementById('switchStatus');
+            const dbSelect = document.getElementById('databaseSelect');
+            
+            // Show loading state
+            if (statusDiv) {
+                statusDiv.textContent = 'Switching...';
+                statusDiv.style.color = '#ff9800';
+            }
+            
+            // Disable dropdown during switch
+            if (dbSelect) {
+                dbSelect.disabled = true;
+            }
+            
+            try {
+                const response = await fetch('/api/switch-database', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({ dbName: newDbName })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (statusDiv) {
+                        statusDiv.textContent = '✓ Switched successfully';
+                        statusDiv.style.color = '#4CAF50';
+                    }
+                    
+                    // Update localStorage
+                    localStorage.setItem('currentDatabase', newDbName);
+                    
+                    // Reload page after success
+                    setTimeout(() => {
+                        location.reload();
+                    }, 800);
+                    
+                } else {
+                    throw new Error(data.error || 'Failed to switch database');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error switching database:', error);
+                
+                if (statusDiv) {
+                    statusDiv.textContent = '✗ Switch failed';
+                    statusDiv.style.color = '#f44336';
+                }
+                
+                // Re-enable dropdown on error
+                if (dbSelect) {
+                    dbSelect.disabled = false;
+                }
+                
+                // Clear error message after 3 seconds
+                setTimeout(() => {
+                    if (statusDiv) {
+                        statusDiv.textContent = '';
+                    }
+                }, 3000);
+            }
+        }
+
+        // Update populate function to handle the new design
+        function populateDatabaseDropdown(databases, currentDb) {
+            const dbSelect = document.getElementById('databaseSelect');
+            if (!dbSelect) return;
+            
+            dbSelect.innerHTML = '';
+            
+            databases.forEach(db => {
+                const option = document.createElement('option');
+                option.value = db.db_name;
+                option.textContent = db.db_name;
+                option.selected = db.db_name === currentDb;
+                dbSelect.appendChild(option);
+            });
+            
+            console.log('✅ Database switcher ready');
+        }
+
+        // Function to check for pending requests
+        async function checkPendingRequests() {
+            try {
+                const response = await authenticatedFetch('/request/holidays');
+                const data = await response.json();
+                
+                const pendingRequests = data.filter(request => 
+                    !(request.accepted === 'true' || request.accepted === 'unpaid')
+                );
+                
+                const notificationBadge = document.getElementById('holidayNotification');
+                if (pendingRequests.length > 0) {
+                    notificationBadge.style.display = 'block';
+                } else {
+                    notificationBadge.style.display = 'none';
+                }
+            } catch (error) {
+                console.error('Error checking pending requests:', error);
+            }
+        }
+
+        // Opens Backend page  
+        function setupBackendShortcut() {
+            document.addEventListener('keydown', function(event) {
+                // Check if Ctrl (or Cmd on Mac) and B are pressed together
+                if ((event.ctrlKey || event.metaKey) && event.key === 'b') {
+                    event.preventDefault();
+                    window.location.href = '/Backend';
+                }
+            });
+        }
+
+        // Opens Reports Window
+        function setupReportsModal() {
+            const reportsLink = document.getElementById('reportsLink');
+            const reportsModal = document.getElementById('reportsModal');
+            const closeReportsModal = document.getElementById('closeReportsModal');
+            
+            if (!reportsLink || !reportsModal) return;
+            
+            // Open modal when Reports is clicked
+            reportsLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                reportsModal.style.display = 'flex';
+            });
+            
+            // Close modal when X button is clicked
+            closeReportsModal.addEventListener('click', function() {
+                reportsModal.style.display = 'none';
+            });
+            
+            // Close modal when clicking outside the content
+            reportsModal.addEventListener('click', function(e) {
+                if (e.target === reportsModal) {
+                    reportsModal.style.display = 'none';
+                }
+            });
+            
+            // Close modal with Escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && reportsModal.style.display === 'flex') {
+                    reportsModal.style.display = 'none';
+                }
+            });
+        }
+
+        // Set current date
+        function updateLiveDateTime() {
+            const now = new Date();
+            const dateElement = document.getElementById('currentDate');
+            if (dateElement) {
+                dateElement.textContent = now.toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }).replace(',', '');
+            }
+        }
+
+        // Function for Labor
+        function updateLaborCostWidget(cost) {
+            const formattedCost = new Intl.NumberFormat('en-GB', {
+                style: 'currency',
+                currency: 'GBP',
+                maximumFractionDigits: 0
+            }).format(cost).replace('GBP', '').trim();
+            
+            const widgetValue = document.getElementById('labor');
+            if (widgetValue) {
+                widgetValue.textContent = formattedCost;
+            }
+        }
+
+        // Function to update employees on shift widget
+        function updateEmployeesOnShift(count) {
+            const widgetValue = document.getElementById('employees');
+            if (widgetValue) {
+                widgetValue.textContent = count;
+            }
+        }
+
+        // Helper to format time range
+        function formatTimeRange(start, end) {
+            const format = (time) => {
+                const [h, m] = time.split(':');
+                const hour = h % 12 || 12;
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                return `${hour}:${m} ${ampm}`;
+            };
+            return `${format(start)} - ${format(end)}`;
+        }
+
+        // Function to Populate Shift Table
+        function populateShiftTable(employees) {
+            const tableBody = document.querySelector('.data-table tbody');
+            if (!tableBody) return;
+            tableBody.innerHTML = '';
+
+            employees.forEach(employee => {
+                const row = document.createElement('tr');
+                
+                // Employee column
+                const nameCell = document.createElement('td');
+                nameCell.textContent = employee.employeeName;
+                
+                // Department column
+                const deptCell = document.createElement('td');
+                deptCell.textContent = employee.designation;
+                deptCell.className = employee.designation === 'BOH' ? 'boh-cell' : 'foh-cell';
+                
+                // Time Frames column
+                const timeCell = document.createElement('td');
+                timeCell.innerHTML = employee.timeFrames.map(frame => 
+                    `<div>${formatTimeRange(frame.start, frame.end)}</div>`
+                ).join('');
+                
+                // Status column
+                const statusCell = document.createElement('td');
+                statusCell.innerHTML = `
+                    <div class="status-indicator ${employee.status === 'Working now' ? 'working' : 'inactive'}">
+                        ${employee.status}
+                    </div>
+                    <small>${employee.nextEvent}</small>
+                `;
+                
+                row.appendChild(nameCell);
+                row.appendChild(deptCell);
+                row.appendChild(timeCell);
+                row.appendChild(statusCell);
+                tableBody.appendChild(row);
+            });
+        }
+
+        // Function to update pending approvals count
+        function updatePendingApprovals(count) {
+            const widget = document.getElementById('approve');
+            if (widget) {
+                widget.textContent = count;
+            }
+        }
+
+        // Function to update tip approvals count
+        function updateTipApprovals(count) {
+            const widget = document.getElementById('tip');
+            if (widget) {
+                widget.textContent = count;
+            }
+        }
+
+        // Data loading functions
+        async function loadEmployeesOnShift() {
+            try {
+                const response = await authenticatedFetch('/api/employees-on-shift');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateEmployeesOnShift(data.count);
+                    populateShiftTable(data.employees);
+                } else {
+                    console.error('Error loading employees:', data.error);
+                    updateEmployeesOnShift('--');
+                }
+            } catch (error) {
+                console.error('Failed to load employees:', error);
+                updateEmployeesOnShift('--');
+            }
+        }
+
+        async function loadPendingApprovals() {
+            try {
+                const response = await authenticatedFetch('/api/pending-approvals');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updatePendingApprovals(data.count);
+                } else {
+                    console.error('Error loading approvals:', data.error);
+                    updatePendingApprovals('--');
+                }
+            } catch (error) {
+                console.error('Failed to load approvals:', error);
+                updatePendingApprovals('--');
+            }
+        }
+
+        async function loadTipApprovals() {
+            try {
+                const response = await authenticatedFetch('/api/tip-approvals');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateTipApprovals(data.count);
+                } else {
+                    console.error('Error loading tip approvals:', data.error);
+                    updateTipApprovals('--');
+                }
+            } catch (error) {
+                console.error('Failed to load tip approvals:', error);
+                updateTipApprovals('--');
+            }
+        }
+
+        async function loadLaborCost() {
+            try {
+                const response = await authenticatedFetch('/api/labor-cost');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateLaborCostWidget(data.cost);
+                } else {
+                    console.error('Error loading labor cost:', data.error);
+                    updateLaborCostWidget('--');
+                }
+            } catch (error) {
+                console.error('Failed to load labor cost:', error);
+                updateLaborCostWidget('--');
+            }
+        }
+
+        function startPeriodicUpdates() {
+            // Update employees and approvals every 30 seconds
+            setInterval(() => {
+                loadEmployeesOnShift();
+                loadPendingApprovals();
+                loadTipApprovals();
+                checkPendingRequests();
+            }, 30000);
+            
+            // Update labor cost every 5 minutes
+            setInterval(() => {
+                loadLaborCost();
+            }, 300000);
+            
+            // Update date/time every second
+            setInterval(updateLiveDateTime, 1000);
+            
+            // Initial date update
+            updateLiveDateTime();
+        }
+
+        // Inactivity timer
+        let inactivityTimer;
+
+        function setupInactivityTimer() {
+            const resetInactivityTimer = () => {
+                clearTimeout(inactivityTimer);
+                inactivityTimer = setTimeout(() => {
+                    if (confirm('You have been inactive for a while. Would you like to stay logged in?')) {
+                        resetInactivityTimer();
+                    } else {
+                        window.location.href = '/logout';
+                    }
+                }, 60 * 60 * 1000); // 60 minutes
+            };
+
+            // Initialize timer
+            resetInactivityTimer();
+            
+            // Reset on user activity
+            window.addEventListener('mousemove', resetInactivityTimer);
+            window.addEventListener('keypress', resetInactivityTimer);
+            window.addEventListener('click', resetInactivityTimer);
+            window.addEventListener('scroll', resetInactivityTimer);
+        }
+
+        // Enhanced dashboard functionality
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 Admin page loaded, initializing...');
+            
+            // First validate session
+            const isValid = await validateSession();
+            if (!isValid) {
+                console.log('❌ Session validation failed, stopping initialization');
+                return;
+            }
+
+            console.log('✅ Session validated, initializing dashboard...');
+
+            // Initialize all dashboard components
+            try {
+                await initializeDatabaseSwitcher();
+                await loadEmployeesOnShift();
+                await loadPendingApprovals();
+                await loadTipApprovals();
+                await loadLaborCost();
+                await checkPendingRequests();
+                
+                // Setup navigation and other event listeners
+                setupNavigation();
+                setupEventListeners();
+                
+                // Start periodic updates
+                startPeriodicUpdates();
+                
+                // Start heartbeat AFTER everything is loaded
+                console.log('✅ Dashboard initialized, starting heartbeat...');
+                startHeartbeat();
+                
+            } catch (error) {
+                console.error('❌ Dashboard initialization failed:', error);
+            }
+        });
+
+        function setupNavigation() {
+            // Add click handlers to all navigation links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                if (link.href && !link.href.includes('logout')) {
+                    link.addEventListener('click', async function(e) {
+                        e.preventDefault();
+                        
+                        // Validate session before navigating
+                        const isValid = await validateSession();
+                        if (isValid) {
+                            window.location.href = this.href;
+                        }
+                    });
+                }
+            });
+        }
+
+        function setupEventListeners() {
+            // Set up all event listeners here
+            setupReportsModal();
+            setupBackendShortcut();
+            setupInactivityTimer();
+        }
+
+        // Make functions globally available for HTML onclick events
+        window.validateSession = validateSession;
+        window.authenticatedFetch = authenticatedFetch;
+        window.switchDatabase = switchDatabase;
+    </script>
+</body>
+</html>

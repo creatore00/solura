@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-768D41J8NJ');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+        }
+        .settings-card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        .settings-card:hover {
+            transform: translateY(-5px);
+        }
+        .card-header {
+            background-color: #0d6efd;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        .save-btn {
+            background-color: #198754;
+            border: none;
+        }
+        .save-btn:hover {
+            background-color: #157347;
+        }
+        .form-control:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        .status-message {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4"><i class="bi bi-gear"></i> Backend Administration</h1>
+        
+        <!-- Status Message -->
+        <div id="statusMessage" class="status-message alert alert-success alert-dismissible fade show" role="alert">
+            <span id="messageText">Settings saved successfully!</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div class="row">
+            <!-- Labor Hours Settings -->
+            <div class="col-md-6">
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-clock"></i> Base Hours Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="hoursForm">
+                            <div class="mb-3">
+                                <label for="baseHours" class="form-label">Base Hours</label>
+                                <input type="number" step="0.01" class="form-control" id="baseHours" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="times" class="form-label">Times</label>
+                                <input type="number" step="0.0001" class="form-control" id="times" required>
+                            </div>
+                            <button type="submit" class="btn save-btn w-100">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Percentage Settings -->
+            <div class="col-md-6">
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-percent"></i> Percentage Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="percentageForm">
+                            <div class="mb-3">
+                                <label for="foh" class="form-label">FOH %</label>
+                                <input type="number" step="0.01" class="form-control" id="foh" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="boh" class="form-label">BOH %</label>
+                                <input type="number" step="0.01" class="form-control" id="boh" required>
+                            </div>
+                            <button type="submit" class="btn save-btn w-100">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Holiday Year Settings -->
+            <div class="col-md-6">
+                <div class="card settings-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-calendar"></i> Holiday Year Settings</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="holidayForm">
+                            <div class="mb-3">
+                                <label for="holidayStart" class="form-label">Holiday Year Start Date</label>
+                                <input type="date" class="form-control" id="holidayStart" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="holidayEnd" class="form-label">Holiday Year End Date</label>
+                                <input type="date" class="form-control" id="holidayEnd" required>
+                            </div>
+                            <button type="submit" class="btn save-btn w-100">
+                                <i class="bi bi-save"></i> Save Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load all settings when page loads
+            loadSettings();
+
+            // Form submission handlers
+            document.getElementById('hoursForm').addEventListener('submit', saveHoursSettings);
+            document.getElementById('percentageForm').addEventListener('submit', savePercentageSettings);
+            document.getElementById('holidayForm').addEventListener('submit', saveHolidaySettings);
+        });
+
+        function showMessage(message, isSuccess) {
+            const statusMessage = document.getElementById('statusMessage');
+            const messageText = document.getElementById('messageText');
+            
+            statusMessage.className = `status-message alert alert-${isSuccess ? 'success' : 'danger'} alert-dismissible fade show`;
+            messageText.textContent = message;
+            statusMessage.style.display = 'block';
+            
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        function loadSettings() {
+            // Load labor settings
+            fetch('/Backend/api/labor-settings')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.base_hours && data.times) {
+                        document.getElementById('baseHours').value = data.base_hours;
+                        document.getElementById('times').value = data.times;
+                    }
+                });
+
+            // Load percentage settings
+            fetch('/Backend/api/percentage-settings')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.FOH && data.BOH) {
+                        document.getElementById('foh').value = data.FOH;
+                        document.getElementById('boh').value = data.BOH;
+                    }
+                });
+
+            // Load holiday settings
+            fetch('/Backend/api/holiday-settings')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.HolidayYearStart && data.HolidayYearEnd) {
+                        document.getElementById('holidayStart').value = data.HolidayYearStart;
+                        document.getElementById('holidayEnd').value = data.HolidayYearEnd;
+                    }
+                });
+        }
+
+        function saveHoursSettings(e) {
+            e.preventDefault();
+            const baseHours = document.getElementById('baseHours').value;
+            const times = document.getElementById('times').value;
+
+            fetch('/Backend/api/update-labor-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ base_hours: baseHours, times: times })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Labor settings updated successfully!', true);
+                } else {
+                    showMessage('Error updating labor settings: ' + data.error, false);
+                }
+            })
+            .catch(error => {
+                showMessage('Error updating labor settings: ' + error, false);
+            });
+        }
+
+        function savePercentageSettings(e) {
+            e.preventDefault();
+            const foh = document.getElementById('foh').value;
+            const boh = document.getElementById('boh').value;
+
+            fetch('/Backend/api/update-percentage-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ FOH: foh, BOH: boh })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Percentage settings updated successfully!', true);
+                } else {
+                    showMessage('Error updating percentage settings: ' + data.error, false);
+                }
+            })
+            .catch(error => {
+                showMessage('Error updating percentage settings: ' + error, false);
+            });
+        }
+
+        function saveHolidaySettings(e) {
+            e.preventDefault();
+            const holidayStart = document.getElementById('holidayStart').value;
+            const holidayEnd = document.getElementById('holidayEnd').value;
+
+            fetch('/Backend/api/update-holiday-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    HolidayYearStart: holidayStart, 
+                    HolidayYearEnd: holidayEnd 
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage('Holiday settings updated successfully!', true);
+                } else {
+                    showMessage('Error updating holiday settings: ' + data.error, false);
+                }
+            })
+            .catch(error => {
+                showMessage('Error updating holiday settings: ' + error, false);
+            });
+        }
+    </script>
+</body>
+</html>

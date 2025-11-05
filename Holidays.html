@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-768D41J8NJ');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Holiday Request Form</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy-blue: #001f3f;
+            --light-navy: #003366;
+            --bright-blue: #0074D9;
+            --sky-blue: #7FDBFF;
+            --white: #ffffff;
+            --light-gray: #f5f5f5;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --success-green: #2ECC40;
+            --error-red: #FF4136;
+            --warning-yellow: #FFDC00;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: var(--white);
+            color: var(--dark-gray);
+            line-height: 1.6;
+            padding: 20px;
+            background-image: linear-gradient(135deg, var(--white) 0%, var(--light-gray) 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: var(--white);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 31, 63, 0.1);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, var(--navy-blue) 0%, var(--bright-blue) 100%);
+        }
+        
+        h1 {
+            color: var(--navy-blue);
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            position: relative;
+            padding-bottom: 15px;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: linear-gradient(90deg, var(--navy-blue) 0%, var(--bright-blue) 100%);
+            border-radius: 3px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--navy-blue);
+            font-weight: 500;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        input[type="date"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--medium-gray);
+            border-radius: 8px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            color: var(--dark-gray);
+            transition: all 0.3s ease;
+            background-color: var(--white);
+        }
+        
+        input[type="date"]:focus {
+            outline: none;
+            border-color: var(--bright-blue);
+            box-shadow: 0 0 0 3px rgba(0, 116, 217, 0.2);
+        }
+        
+        input[type="date"]:hover {
+            border-color: var(--bright-blue);
+        }
+        
+        .date-range-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .date-range-container .form-group {
+            flex: 1;
+        }
+        
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--navy-blue) 0%, var(--light-navy) 100%);
+            color: var(--white);
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0, 31, 63, 0.2);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 31, 63, 0.3);
+            background: linear-gradient(135deg, var(--light-navy) 0%, var(--navy-blue) 100%);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn:disabled {
+            background: var(--medium-gray);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        #message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-align: center;
+            display: none;
+        }
+        
+        .success {
+            background-color: rgba(46, 204, 64, 0.1);
+            color: var(--success-green);
+            border: 1px solid var(--success-green);
+            display: block;
+        }
+        
+        .error {
+            background-color: rgba(255, 65, 54, 0.1);
+            color: var(--error-red);
+            border: 1px solid var(--error-red);
+            display: block;
+        }
+        
+        .info {
+            background-color: rgba(0, 116, 217, 0.1);
+            color: var(--bright-blue);
+            border: 1px solid var(--bright-blue);
+            display: block;
+        }
+        
+        .holiday-preview {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: var(--light-gray);
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .holiday-preview h3 {
+            color: var(--navy-blue);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .preview-days {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .preview-day {
+            background-color: var(--white);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            color: var(--navy-blue);
+            font-weight: 500;
+        }
+        
+        .preview-summary {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--dark-gray);
+        }
+        
+        .preview-summary strong {
+            color: var(--navy-blue);
+        }
+        
+        .calendar-icon {
+            display: block;
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--bright-blue);
+            font-size: 50px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            .date-range-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+        }
+        
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .container {
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            display: none;
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--white);
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            margin-left: 5px;
+            cursor: pointer;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--navy-blue);
+            color: var(--white);
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+            font-weight: normal;
+            text-transform: none;
+            letter-spacing: normal;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Datepicker customization */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.5);
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+        
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            filter: invert(0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="calendar-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+        </div>
+        <h1>Holiday Request</h1>
+        
+        <form id="holidayRequestForm">
+            <div class="date-range-container">
+                <div class="form-group">
+                    <label for="startDate">Start Date <span class="tooltip">ℹ️<span class="tooltiptext">Select the first day of your holiday</span></span></label>
+                    <input type="date" id="startDate" name="startDate" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="endDate">End Date <span class="tooltip">ℹ️<span class="tooltiptext">Select the last day of your holiday</span></span></label>
+                    <input type="date" id="endDate" name="endDate" required>
+                </div>
+            </div>
+            
+            <div class="form-group button">
+                <button type="submit" class="btn" id="submitBtn">
+                    <span id="btnText">Submit Request</span>
+                    <div class="spinner" id="spinner"></div>
+                </button>
+            </div>
+        </form>
+        
+        <div id="message"></div>
+        
+        <div class="holiday-preview" id="holidayPreview">
+            <h3>Your Holiday Preview</h3>
+            <div class="preview-days" id="previewDays"></div>
+            <div class="preview-summary" id="previewSummary"></div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set minimum dates (today)
+            const today = new Date();
+            const todayFormatted = today.toISOString().split('T')[0];
+            document.getElementById('startDate').min = todayFormatted;
+            document.getElementById('endDate').min = todayFormatted;
+            
+            // Update end date min when start date changes
+            document.getElementById('startDate').addEventListener('change', function() {
+                const startDate = this.value;
+                document.getElementById('endDate').min = startDate;
+                updateHolidayPreview();
+            });
+            
+            // Update preview when end date changes
+            document.getElementById('endDate').addEventListener('change', updateHolidayPreview);
+            
+            // Form submission
+            document.getElementById('holidayRequestForm').addEventListener('submit', async function(event) {
+                event.preventDefault();
+                
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+                const messageDiv = document.getElementById('message');
+                
+                // Show loading spinner
+                document.getElementById('btnText').style.display = 'none';
+                document.getElementById('spinner').style.display = 'block';
+                document.getElementById('submitBtn').disabled = true;
+                
+                // Clear previous messages
+                messageDiv.innerHTML = '';
+                messageDiv.className = '';
+                
+                try {
+                    const response = await fetch('/userholidays/submitHolidayRequest', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            startDate: startDate,
+                            endDate: endDate
+                        }),
+                        credentials: 'include' // Important for sessions
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(data.message || 'Failed to submit request');
+                    }
+                    
+                    if (data.success) {
+                        showMessage(data.message || 'Holiday request submitted successfully!', 'success');
+                        // Clear form on success if desired
+                        // document.getElementById('holidayRequestForm').reset();
+                    } else {
+                        showMessage(data.message || 'Error submitting request', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    showMessage(error.message || 'An error occurred while submitting the request', 'error');
+                } finally {
+                    resetButton();
+                }
+            });
+            
+            function updateHolidayPreview() {
+                const startDateInput = document.getElementById('startDate');
+                const endDateInput = document.getElementById('endDate');
+                const previewDiv = document.getElementById('holidayPreview');
+                const previewDaysDiv = document.getElementById('previewDays');
+                const previewSummaryDiv = document.getElementById('previewSummary');
+                
+                if (!startDateInput.value || !endDateInput.value) {
+                    previewDiv.style.display = 'none';
+                    return;
+                }
+                
+                const startDate = new Date(startDateInput.value);
+                const endDate = new Date(endDateInput.value);
+                
+                if (startDate > endDate) {
+                    previewDiv.style.display = 'none';
+                    return;
+                }
+                
+                // Calculate days between dates
+                const days = [];
+                let currentDate = new Date(startDate);
+                let weekendDays = 0;
+                let weekdays = 0;
+                
+                previewDaysDiv.innerHTML = '';
+                
+                while (currentDate <= endDate) {
+                    const dayOfWeek = currentDate.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                    
+                    if (isWeekend) {
+                        weekendDays++;
+                    } else {
+                        weekdays++;
+                    }
+                    
+                    const dateString = currentDate.toLocaleDateString('en-US', { 
+                        weekday: 'short', 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                    
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'preview-day';
+                    dayElement.textContent = dateString;
+                    if (isWeekend) {
+                        dayElement.style.backgroundColor = 'rgba(0, 116, 217, 0.1)';
+                    }
+                    
+                    previewDaysDiv.appendChild(dayElement);
+                    
+                    // Move to next day
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                
+                const totalDays = weekendDays + weekdays;
+                previewSummaryDiv.innerHTML = `
+                    You're requesting <strong>${totalDays} day${totalDays !== 1 ? 's' : ''}</strong> off:
+                    <strong>${weekdays} weekday${weekdays !== 1 ? 's' : ''}</strong> and 
+                    <strong>${weekendDays} weekend day${weekendDays !== 1 ? 's' : ''}</strong>.
+                `;
+                
+                previewDiv.style.display = 'block';
+                previewDiv.style.animation = 'fadeIn 0.5s ease-out';
+            }
+            
+            function showMessage(message, type) {
+                const messageDiv = document.getElementById('message');
+                messageDiv.textContent = message;
+                messageDiv.className = type;
+                messageDiv.style.display = 'block';
+                
+                // Scroll to message
+                messageDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            
+            function resetButton() {
+                document.getElementById('btnText').style.display = 'inline';
+                document.getElementById('spinner').style.display = 'none';
+                document.getElementById('submitBtn').disabled = false;
+            }
+            
+            // Initialize date inputs with a suggested date (14 days from today)
+            const suggestedStartDate = new Date();
+            suggestedStartDate.setDate(today.getDate() + 14);
+            document.getElementById('startDate').valueAsDate = suggestedStartDate;
+            
+            const suggestedEndDate = new Date();
+            suggestedEndDate.setDate(suggestedStartDate.getDate() + 6); // 1 week
+            document.getElementById('endDate').valueAsDate = suggestedEndDate;
+            
+            // Trigger initial preview
+            updateHolidayPreview();
+        });
+        </script>
+</body>
+</html>

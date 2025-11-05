@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-768D41J8NJ');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Management | Solura Ltd</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --navy-blue: #001f3f;
+            --dark-blue: #003366;
+            --medium-blue: #005b96;
+            --light-blue: #e6f2ff;
+            --accent-blue: #0074d9;
+            --white: #ffffff;
+            --light-gray: #f5f5f5;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #333333;
+            --success-green: #28a745;
+            --error-red: #dc3545;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-gray);
+            color: var(--dark-gray);
+            line-height: 1.6;
+        }
+
+        /* Navbar Styles */
+        .navbar {
+            width: 100%;
+            background-color: var(--navy-blue);
+            padding: 1rem 2rem;
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .navbar-brand {
+            color: var(--white);
+            font-size: 1.5rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-brand i {
+            margin-right: 0.5rem;
+        }
+
+        .navbar-links {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .navbar-link {
+            color: var(--white);
+            text-decoration: none;
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar-link i {
+            margin-right: 0.5rem;
+        }
+
+        .navbar-link:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Main Content */
+        .content {
+            margin-top: 80px;
+            padding: 2rem;
+            min-height: calc(100vh - 120px);
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+
+        .page-title {
+            color: var(--navy-blue);
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        /* Table Styles */
+        .table-container {
+            background-color: var(--white);
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+            margin-bottom: 2rem;
+        }
+
+        .employee-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+        }
+
+        .employee-table th {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            padding: 1rem;
+            text-align: left;
+            font-weight: 500;
+            position: sticky;
+            top: 80px;
+        }
+
+        .employee-table td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--medium-gray);
+            vertical-align: middle;
+        }
+
+        .employee-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .employee-table tr:hover {
+            background-color: var(--light-blue);
+        }
+
+        /* Button Styles */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.6rem 1.2rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn i {
+            margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-blue);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--medium-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-success {
+            background-color: var(--success-green);
+            color: var(--white);
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background-color: var(--error-red);
+            color: var(--white);
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: var(--white);
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            transform: translateY(-2px);
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 2000;
+    overflow-y: auto;
+    padding: 2rem;
+    backdrop-filter: blur(3px);
+}
+
+.modal-content {
+    background-color: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    max-width: 750px;
+    margin: 2rem auto;
+    animation: modalFadeIn 0.3s ease-out;
+    overflow: hidden;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--medium-gray);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--navy-blue);
+}
+
+.modal-title {
+    color: var(--white);
+    font-size: 1.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: var(--dark-gray);
+    transition: all 0.3s ease;
+    padding: 0.25rem;
+    line-height: 1;
+}
+
+.modal-close:hover {
+    color: var(--light-blue);
+}
+
+.modal-body {
+    padding: 2rem;
+}
+
+.modal-footer {
+    padding: 1.25rem 2rem;
+    border-top: 1px solid var(--medium-gray);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    background-color: var(--light-gray);
+}
+
+/* Form Styles for Modals */
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 500;
+    color: var(--dark-blue);
+    font-size: 0.95rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 0.85rem;
+    border: 1px solid var(--medium-gray);
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background-color: var(--light-gray);
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(0, 116, 217, 0.15);
+    background-color: var(--white);
+}
+
+.form-file {
+    display: block;
+    width: 100%;
+    padding: 1.5rem 1rem;
+    border: 2px dashed var(--medium-gray);
+    border-radius: 6px;
+    background-color: var(--light-gray);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--dark-gray);
+}
+
+.form-file:hover {
+    border-color: var(--accent-blue);
+    background-color: var(--light-blue);
+    color: var(--navy-blue);
+}
+
+.radio-group {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.radio-option {
+    display: flex;
+    align-items: center;
+    background: var(--light-gray);
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.radio-option:hover {
+    background: var(--light-blue);
+}
+
+.radio-option input {
+    margin-right: 0.75rem;
+    accent-color: var(--accent-blue);
+}
+
+/* Responsive Adjustments for Modals */
+@media (max-width: 768px) {
+    .modal {
+        padding: 1rem;
+    }
+    
+    .modal-content {
+        margin: 1rem auto;
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    
+    .radio-group {
+        gap: 0.75rem;
+    }
+    
+    .radio-option {
+        width: 100%;
+    }
+}
+
+        /* Status Messages */
+        .alert {
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert i {
+            margin-right: 0.75rem;
+            font-size: 1.2rem;
+        }
+
+        /* Footer */
+        .footer {
+            background-color: var(--navy-blue);
+            color: var(--white);
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 1rem;
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .navbar-links {
+                margin-top: 1rem;
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .navbar-link {
+                padding: 0.5rem;
+            }
+
+            .content {
+                margin-top: 120px;
+                padding: 1rem;
+            }
+
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            .modal {
+                padding: 1rem;
+            }
+        }
+
+        /* Animation for table rows */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .employee-table tbody tr {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .employee-table tbody tr:nth-child(odd) {
+            animation-delay: 0.1s;
+        }
+
+        .employee-table tbody tr:nth-child(even) {
+            animation-delay: 0.2s;
+        }
+
+        /* Badges for designation and position */
+        .badge {
+            display: inline-block;
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            font-weight: 700;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+        }
+
+        .badge-foh {
+            color: #fff;
+            background-color: #17a2b8;
+        }
+
+        .badge-boh {
+            color: #fff;
+            background-color: #6c757d;
+        }
+
+        .badge-manager {
+            color: #fff;
+            background-color: #28a745;
+        }
+
+        .badge-supervisor {
+            color: #212529;
+            background-color: #ffc107;
+        }
+
+        .badge-tm {
+            color: #fff;
+            background-color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <a href="/Admin.html" class="navbar-brand">
+            <i class="fas fa-user-shield"></i> Solura Admin
+        </a>
+        <div class="navbar-links">
+            <a href="/pastemployees" class="navbar-link">
+                <i class="fas fa-users"></i> Past Employees
+            </a>
+            <a href="/generate" class="navbar-link">
+                <i class="fas fa-key"></i> Manage Access
+            </a>
+            <a href="/logout" class="navbar-link">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="content">
+        <div class="page-header">
+            <h1 class="page-title">
+                <i class="fas fa-users"></i> Employee Management
+            </h1>
+            <button id="showFormButton" class="btn btn-primary">
+                <i class="fas fa-user-plus"></i> Add Employee
+            </button>
+        </div>
+
+        <!-- Success/Error Messages -->
+        <div id="alertMessage" style="display: none;"></div>
+
+        <!-- Employee Table -->
+            <table class="employee-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Wage</th>
+                        <th>Designation</th>
+                        <th>Position</th>
+                        <th>Contractual Hours</th>
+                        <th>Salary</th>
+                        <th>Salary in £</th>
+                        <th>Start Date</th>
+                        <th>Holidays</th>
+                        <th>Documents</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="employeeTableBody">
+                    <!-- Employee data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Add Employee Modal -->
+    <div id="employeeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-user-plus"></i> Add New Employee
+                </h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="employeeForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="name" class="form-label">First Name</label>
+                                <input type="text" id="name" name="name" class="form-control" placeholder="Jhon" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="lastName" class="form-label">Last Name</label>
+                                <input type="text" id="lastName" name="lastName" class="form-control" placeholder="Ross" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" id="email" name="email" class="form-control" placeholder="e.g employee@example.com"required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="phone" class="form-label">Phone Number</label>
+                                <input type="text" id="phone" name="phone" class="form-control" placeholder="e.g 0756xxxxxx" inputmode="numeric" pattern="[0-9]*" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="address" class="form-label">Address</label>
+                        <input type="text" id="address" name="address" class="form-control" placeholder="e.g., 123 Main St, City, Postcode" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="nin" class="form-label">NIN</label>
+                                <input type="text" id="nin" name="nin" class="form-control" placeholder="e.g., AB123456C" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="wage" class="form-label">Wage (£)</label>
+                                <input type="number" step="0.01" id="wage" name="wage" class="form-control" placeholder="e.g 12.21"step="0.01"min="0"inputmode="decimal"pattern="[0-9]+([\.,][0-9]+)?" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label class="form-label">Designation</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="foh" name="designation" value="FOH" checked>
+                                        <label for="foh">Front of House</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="boh" name="designation" value="BOH">
+                                        <label for="boh">Back of House</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label class="form-label">Position</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="AM" name="position" value="AM">
+                                        <label for="AM">Area Manager</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="manager" name="position" value="manager" checked>
+                                        <label for="manager">Manager</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="supervisor" name="position" value="supervisor">
+                                        <label for="supervisor">Supervisor</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="tm" name="position" value="tm">
+                                        <label for="tm">Team Member</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="contractHours" class="form-label">Contractual Hours</label>
+                            <input type="text" id="contractHours" name="contractHours" class="form-control" placeholder="e.g 35" inputmode="numeric" pattern="[0-9]*" required>
+                            <label class="form-label">Pension</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="yespension_payer" name="pension_payer" value="Yes">
+                                        <label for="yespension_payer">Yes</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="nopension_payer" name="pension_payer" value="No" checked>
+                                        <label for="nopension_payer">No</label>
+                                    </div>
+                                </div>                            
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label class="form-label">Salary</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="yessalary" name="Salary" value="Yes">
+                                        <label for="yessalary">Yes</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="nosalary" name="Salary" value="No" checked>
+                                        <label for="nosalary">No</label>
+                                    </div>
+                                </div>
+                                <label for="SalaryPrice" class="form-label">Salary Amount</label>
+                                <input type="text" id="SalaryPrice" name="SalaryPrice" class="form-control" placeholder="e.g 30000 or Leave Empty if Null" inputmode="numeric" pattern="[0-9]*">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="dateStart" class="form-label">Start Date</label>
+                                <input type="date" id="dateStart" name="dateStart" class="form-control" required>
+                            </div>
+                        </div>
+                        <div><label class="form-label">Holiday/Financial Year</label><br><br>
+                        <label class="form-label">Contractual Holidays</label></div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="holiday" class="form-label">Holiday Allowance</label>
+                                <input type="number" id="holiday" name="holiday" class="form-control" required readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="passportImage" class="form-label">Passport</label>
+                                <input type="file" id="passportImage" name="passportImage" class="form-file" accept=".pdf,.jpg,.jpeg,.png" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="visa" class="form-label">Visa</label>
+                                <input type="file" id="visa" name="visa" class="form-file" accept=".pdf,.jpg,.jpeg,.png">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Employee</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Employee Modal -->
+    <div id="editEmployeeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">
+                    <i class="fas fa-user-edit"></i> Edit Employee
+                </h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="editEmployeeForm" enctype="multipart/form-data">
+                <input type="hidden" id="editId" name="id">
+                <div class="modal-body">
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editName" class="form-label">First Name</label>
+                                <input type="text" id="editName" name="name" class="form-control" placeholder="Jhon" readonly>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editLastName" class="form-label">Last Name</label>
+                                <input type="text" id="editLastName" name="lastName" class="form-control" placeholder="Ross" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editEmail" class="form-label">Email</label>
+                                <input type="email" id="editEmail" name="email" class="form-control" placeholder="e.g employee@example.com"required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editPhone" class="form-label">Phone Number</label>
+                                <input type="text" id="editPhone" name="phone" class="form-control" placeholder="e.g 0756xxxxxx" inputmode="numeric" pattern="[0-9]*" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                    <div class="form-col">
+                        <div class="form-group">
+                            <label for="editcontractHours" class="form-label">Contractual Hours</label>
+                            <input type="text" id="editcontractHours" name="contractHours" class="form-control" placeholder="e.g 35" inputmode="numeric" pattern="[0-9]*" required>
+                            <label class="form-label">Pension</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="edityespension_payer" name="pension_payer" value="Yes">
+                                        <label for="edityespension_payer">Yes</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="editnopension_payer" name="pension_payer" value="No" checked>
+                                        <label for="editnopension_payer">No</label><br>
+                                    </div>
+                                </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label class="form-label">Salary</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="edityessalary" name="Salary" value="Yes">
+                                        <label for="edityessalary">Yes</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="editnosalary" name="Salary" value="No" checked>
+                                        <label for="editnosalary">No</label><br>
+                                    </div>
+                                </div>
+                                <label for="editSalaryPrice" class="form-label">Salary Amount</label>
+                                <input type="text" id="editSalaryPrice" name="SalaryPrice" class="form-control" placeholder="e.g 30000" inputmode="numeric" pattern="[0-9]*">
+                            </div>
+                        
+                        </div>
+                    </div>
+                </div>
+                    <div class="form-group">
+                        <label for="editAddress" class="form-label">Address</label>
+                        <input type="text" id="editAddress" name="address" class="form-control" placeholder="e.g., 123 Main St, City, Postcode" required>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editNin" class="form-label">NIN</label>
+                                <input type="text" id="editNin" name="nin" class="form-control" placeholder="e.g., AB123456C" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editWage" class="form-label">Wage (£)</label>
+                                <input type="number" id="editWage" name="wage" class="form-control" placeholder="e.g 12.21"step="0.01"min="0"inputmode="decimal"pattern="[0-9]+([\.,][0-9]+)?" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label class="form-label">Designation</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="editFoh" name="designation" value="FOH">
+                                        <label for="editFoh">Front of House</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="editBoh" name="designation" value="BOH">
+                                        <label for="editBoh">Back of House</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label class="form-label">Position</label>
+                                <div class="radio-group">
+                                    <div class="radio-option">
+                                        <input type="radio" id="editAM" name="position" value="AM">
+                                        <label for="editAM">Area Manager</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="editManager" name="position" value="manager">
+                                        <label for="editManager">Manager</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="editSupervisor" name="position" value="supervisor">
+                                        <label for="editSupervisor">Supervisor</label>
+                                    </div>
+                                    <div class="radio-option">
+                                        <input type="radio" id="editTm" name="position" value="tm">
+                                        <label for="editTm">Team Member</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editDateStart" class="form-label">Start Date</label>
+                                <input type="date" id="editDateStart" name="dateStart" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editHoliday" class="form-label">Holiday Allowance</label>
+                                <input type="number" id="editHoliday" name="holiday" class="form-control"  placeholder="e.g 28" inputmode="numeric" pattern="[0-9]*" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editPassportImage" class="form-label">Passport (Leave empty to keep current)</label>
+                                <input type="file" id="editPassportImage" name="passportImage" class="form-file" accept=".pdf,.jpg,.jpeg,.png">
+                            </div>
+                        </div>
+                        <div class="form-col">
+                            <div class="form-group">
+                                <label for="editVisa" class="form-label">Visa (Leave empty to keep current)</label>
+                                <input type="file" id="editVisa" name="visa" class="form-file" accept=".pdf,.jpg,.jpeg,.png">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary modal-close">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Footer -->
+    <footer class="footer">
+        &copy; 2024 Solura Ltd. All rights reserved.
+    </footer>
+
+    <script>
+        // Holiday Calculation Functionality
+        const dateStartInput = document.getElementById('dateStart');
+        const holidayInput = document.getElementById('holiday');
+        const holidayYearStartInput = document.createElement('input');
+        const contractHolidayInput = document.createElement('input');
+        const formGroup = document.querySelector('.form-group:has(#holiday)');
+
+        // Create and insert the holiday year start input
+        holidayYearStartInput.type = 'date';
+        holidayYearStartInput.id = 'holidayYearStart';
+        holidayYearStartInput.className = 'form-control';
+        holidayYearStartInput.required = true;
+
+        const holidayYearLabel = document.createElement('label');
+        holidayYearLabel.className = 'form-label';
+        holidayYearLabel.textContent = 'Holiday Year Start Date';
+        holidayYearLabel.htmlFor = 'holidayYearStart';
+
+        const holidayYearGroup = document.createElement('div');
+        holidayYearGroup.className = 'form-group';
+        holidayYearGroup.appendChild(holidayYearLabel.cloneNode());
+        holidayYearGroup.appendChild(holidayYearStartInput);
+
+        // Create and insert the contract holiday days input
+        contractHolidayInput.type = 'number';
+        contractHolidayInput.id = 'contractHoliday';
+        contractHolidayInput.className = 'form-control';
+        contractHolidayInput.required = true;
+        contractHolidayInput.min = '0';
+        contractHolidayInput.step = '0.5';
+
+        const contractHolidayLabel = document.createElement('label');
+        contractHolidayLabel.className = 'form-label';
+        contractHolidayLabel.textContent = 'Total Holiday Days in Contract';
+        contractHolidayLabel.htmlFor = 'contractHoliday';
+
+        const contractHolidayGroup = document.createElement('div');
+        contractHolidayGroup.className = 'form-group';
+        contractHolidayGroup.appendChild(contractHolidayLabel.cloneNode());
+        contractHolidayGroup.appendChild(contractHolidayInput);
+
+        // Insert the new inputs before the holiday allowance input
+        formGroup.parentNode.insertBefore(holidayYearGroup, formGroup);
+        formGroup.parentNode.insertBefore(contractHolidayGroup, formGroup);
+
+        // Function to calculate pro-rated holiday
+        function calculateHolidayAllowance() {
+            const startDate = new Date(dateStartInput.value);
+            const holidayYearStart = new Date(holidayYearStartInput.value);
+            const contractHoliday = parseFloat(contractHolidayInput.value) || 0;
+            
+            if (!startDate || !holidayYearStart || isNaN(contractHoliday)) {
+                return;
+            }
+
+            // Calculate holiday year end (1 year from start)
+            const holidayYearEnd = new Date(holidayYearStart);
+            holidayYearEnd.setFullYear(holidayYearEnd.getFullYear() + 1);
+            
+            // Check if start date is within the current holiday year
+            if (startDate >= holidayYearStart && startDate <= holidayYearEnd) {
+                // Calculate days remaining in holiday year
+                const msPerDay = 1000 * 60 * 60 * 24;
+                const daysInYear = Math.round((holidayYearEnd - holidayYearStart) / msPerDay);
+                const daysRemaining = Math.round((holidayYearEnd - startDate) / msPerDay);
+                
+                // Calculate pro-rated holiday
+                const proRatedHoliday = (contractHoliday * daysRemaining / daysInYear).toFixed(1);
+                holidayInput.value = proRatedHoliday;
+            } else if (startDate < holidayYearStart) {
+                // If started before holiday year, gets full allowance
+                holidayInput.value = contractHoliday;
+            } else {
+                // If started after holiday year, gets zero (will get in next year)
+                holidayInput.value = '0';
+            }
+        }
+
+        // Set up event listeners
+        dateStartInput.addEventListener('change', calculateHolidayAllowance);
+        holidayYearStartInput.addEventListener('change', calculateHolidayAllowance);
+        contractHolidayInput.addEventListener('input', calculateHolidayAllowance);
+
+        // Set default holiday year to current year January 1st
+        const today = new Date();
+        holidayYearStartInput.value = `${today.getFullYear()}-01-01`;
+        // DOM Elements
+        const showFormButton = document.getElementById('showFormButton');
+        const employeeModal = document.getElementById('employeeModal');
+        const editEmployeeModal = document.getElementById('editEmployeeModal');
+        const employeeForm = document.getElementById('employeeForm');
+        const editEmployeeForm = document.getElementById('editEmployeeForm');
+        const employeeTableBody = document.getElementById('employeeTableBody');
+        const alertMessage = document.getElementById('alertMessage');
+        const modalCloseButtons = document.querySelectorAll('.modal-close');
+
+        // Show modal
+        showFormButton.addEventListener('click', () => {
+            employeeModal.style.display = 'block';
+        });
+
+        // Close modals
+        modalCloseButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                employeeModal.style.display = 'none';
+                editEmployeeModal.style.display = 'none';
+            });
+        });
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === employeeModal) {
+                employeeModal.style.display = 'none';
+            }
+            if (event.target === editEmployeeModal) {
+                editEmployeeModal.style.display = 'none';
+            }
+        });
+
+        // Show alert message
+        function showAlert(message, type = 'success') {
+            alertMessage.innerHTML = `
+                <div class="alert alert-${type}">
+                    <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+                    ${message}
+                </div>
+            `;
+            alertMessage.style.display = 'block';
+            
+            // Hide alert after 5 seconds
+            setTimeout(() => {
+                alertMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // Format date for display
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString('en-GB', options);
+        }
+
+        // Load employees
+        function loadEmployees() {
+            fetch('/updateinfo/employees')
+                .then(response => response.json())
+                .then(data => {
+                    // Sort employees
+                    data.sort((a, b) => {
+                        if (a.designation === 'BOH' && b.designation !== 'BOH') return -1;
+                        if (a.designation !== 'BOH' && b.designation === 'BOH') return 1;
+                        if (a.designation === b.designation) {
+                            const positionOrder = { AM: 1, manager: 2, supervisor: 3, tm: 4 };
+                            const positionComparison = (positionOrder[a.position] || 5) - (positionOrder[b.position] || 5);
+                            if (positionComparison !== 0) return positionComparison;
+                            return b.wage - a.wage;
+                        }
+                        return 0;
+                    });
+
+                    employeeTableBody.innerHTML = ''; // Clear the table body
+
+                    data.forEach(employee => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${employee.id}</td>
+                            <td>${employee.name} ${employee.lastName}</td>
+                            <td>${employee.email}</td>
+                            <td>${employee.phone}</td>
+                            <td>£${employee.wage}</td>
+                            <td><span class="badge badge-${employee.designation.toLowerCase()}">${employee.designation}</span></td>
+                            <td><span class="badge badge-${employee.position}">${employee.position.charAt(0).toUpperCase() + employee.position.slice(1)}</span></td>
+                            <td>${employee.contractHours}</td>
+                            <td>${employee.Salary}</td>
+                            <td>${employee.SalaryPrice}</td>
+                            <td>${formatDate(employee.dateStart)}</td>
+                            <td>
+                                <div>Total: ${employee.startHoliday}</div>
+                                <div>Left: ${employee.TotalHoliday}</div>
+                                <div>Accrued: ${employee.Accrued}</div>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-primary download-passport-btn" data-employee-id="${employee.id}">
+                                        <i class="fas fa-passport"></i> Passport
+                                    </button>
+                                    <button class="btn btn-sm btn-primary download-visa-btn" data-employee-id="${employee.id}">
+                                        <i class="fas fa-file-alt"></i> Visa
+                                    </button>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="btn btn-sm btn-success edit-btn" data-employee-id="${employee.id}">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="btn btn-sm btn-danger delete-btn" data-employee-id="${employee.id}">
+                                        <i class="fas fa-trash"></i> Remove
+                                    </button>
+                                </div>
+                            </td>
+                        `;
+                        employeeTableBody.appendChild(row);
+                    });
+
+                    // Attach event listeners to edit buttons
+                    document.querySelectorAll('.edit-btn').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const employeeId = button.getAttribute('data-employee-id');
+                            fetchEmployeeData(employeeId);
+                        });
+                    });
+
+                    // Attach event listeners to delete buttons
+                    document.querySelectorAll('.delete-btn').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const employeeId = button.getAttribute('data-employee-id');
+                            deleteEmployee(employeeId);
+                        });
+                    });
+
+                    // Attach event listeners to download passport buttons
+                    document.querySelectorAll('.download-passport-btn').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const employeeId = button.getAttribute('data-employee-id');
+                            downloadPassport(employeeId);
+                        });
+                    });
+
+                    // Attach event listeners to download visa buttons
+                    document.querySelectorAll('.download-visa-btn').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const employeeId = button.getAttribute('data-employee-id');
+                            downloadVisa(employeeId);
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching employee data:', error);
+                    showAlert('Failed to load employee data. Please try again.', 'error');
+                });
+        }
+
+        // Add new employee with cleaned name fields
+        employeeForm.addEventListener('submit', function(event) {
+    event.preventDefault();
+    const formData = new FormData(this);
+    
+    // Clean the name and lastname fields
+    const name = formData.get('name').trim().replace(/\s+/g, '-');
+    const lastName = formData.get('lastName').trim().replace(/\s+/g, '-');
+    
+    // Update the form data with cleaned values
+    formData.set('name', name);
+    formData.set('lastName', lastName);
+    
+    fetch('/updateinfo', {
+        method: 'POST',
+        body: formData,
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Employee added successfully!');
+            loadEmployees();
+            employeeForm.reset();
+            employeeModal.style.display = 'none';
+        } else {
+            showAlert(data.message || 'Error adding employee', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Failed to add employee. Please try again.', 'error');
+    });
+});
+        
+        // Fetch employee data and properly populate form including radio buttons
+        async function fetchEmployeeData(employeeId) {
+    try {
+        const response = await fetch(`/updateinfo/edit-employee/${employeeId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (!result.success) {
+            throw new Error(result.message || 'Failed to load employee data');
+        }
+
+        const data = result.data;
+        
+        // Populate text/input fields
+        document.getElementById('editId').value = data.id;
+        document.getElementById('editName').value = data.name || '';
+        document.getElementById('editLastName').value = data.lastName || '';
+        document.getElementById('editEmail').value = data.email || '';
+        document.getElementById('editPhone').value = data.phone || '';
+        document.getElementById('editAddress').value = data.address || '';
+        document.getElementById('editNin').value = data.nin || '';
+        document.getElementById('editWage').value = data.wage || '';
+        document.getElementById('editSalaryPrice').value = data.SalaryPrice || '';
+        document.getElementById('editcontractHours').value = data.contractHours || '';
+        document.getElementById('editHoliday').value = data.startHoliday || '';
+        document.getElementById('editDateStart').value = data.dateStart || '';
+        
+        // Reset all radio buttons first
+        document.querySelectorAll('input[name="designation"]').forEach(radio => {
+            radio.checked = false;
+            console.log('Designation option:', radio.value); // Debug
+        });
+        document.querySelectorAll('input[name="position"]').forEach(radio => {
+            radio.checked = false;
+            console.log('Position option:', radio.value); // Debug
+        });
+        document.querySelectorAll('input[name="salary"]').forEach(radio => {
+            radio.checked = false;
+            console.log('Salary option:', radio.value); // Debug
+        });
+        document.querySelectorAll('input[name="pension_payer"]').forEach(radio => {
+            radio.checked = false;
+            console.log('Pension option:', radio.value); // Debug
+        });
+        
+        // Set designation radio button (case-sensitive exact match)
+        if (data.designation) {
+            const designationRadios = document.querySelectorAll('input[name="designation"]');
+            let found = false;
+            
+            designationRadios.forEach(radio => {
+                if (radio.value === data.designation) {
+                    radio.checked = true;
+                    found = true;
+                    console.log('Matched designation:', radio.value); // Debug
+                }
+            });
+            
+            if (!found) {
+                console.warn(`No radio button matches designation: ${data.designation}`);
+                // Fallback to first option
+                if (designationRadios.length > 0) {
+                    designationRadios[0].checked = true;
+                }
+            }
+        }
+
+            // Set salary radio button (case-sensitive exact match)
+            if (data.Salary) {
+            const SalaryRadios = document.querySelectorAll('input[name="Salary"]');
+            let found = false;
+            
+            SalaryRadios.forEach(radio => {
+                if (radio.value === data.Salary) {
+                    radio.checked = true;
+                    found = true;
+                    console.log('Matched Salary:', radio.value); // Debug
+                }
+            });
+            
+            if (!found) {
+                console.warn(`No radio button matches Salary: ${data.Salary}`);
+                // Fallback to first option
+                if (SalaryRadios.length > 0) {
+                    SalaryRadios[0].checked = true;
+                }
+            }
+        }
+        
+        // Set position radio button (case-sensitive exact match)
+        if (data.position) {
+            const positionRadios = document.querySelectorAll('input[name="position"]');
+            let found = false;
+            
+            positionRadios.forEach(radio => {
+                if (radio.value === data.position) {
+                    radio.checked = true;
+                    found = true;
+                    console.log('Matched position:', radio.value); // Debug
+                }
+            });
+            
+            if (!found) {
+                console.warn(`No radio button matches position: ${data.position}`);
+                // Fallback to first option
+                if (positionRadios.length > 0) {
+                    positionRadios[0].checked = true;
+                }
+            }
+        }
+
+        // Set position radio button (case-sensitive exact match)
+        if (data.pension_payer) {
+            const pensionRadios = document.querySelectorAll('input[name="pension_payer"]');
+            let found = false;
+            
+            pensionRadios.forEach(radio => {
+                if (radio.value === data.pension_payer) {
+                    radio.checked = true;
+                    found = true;
+                    console.log('Matched pension:', radio.value); // Debug
+                }
+            });
+            
+            if (!found) {
+                console.warn(`No radio button matches pension: ${data.Pension}`);
+                // Fallback to first option
+                if (pensionRadios.length > 0) {
+                    pensionRadios[0].checked = true;
+                }
+            }
+        }
+        
+        // Show the modal
+        editEmployeeModal.style.display = 'block';
+    } catch (error) {
+        console.error('Error fetching employee data:', error);
+        showAlert(error.message || 'Failed to load employee data for editing. Please try again.', 'error');
+    }
+}
+
+        // Form Edit Handler
+        editEmployeeForm.addEventListener('submit', async function(event) {
+    event.preventDefault();
+    const formData = new FormData(this);
+    const employeeId = document.getElementById('editId').value;
+
+    try {
+        const response = await fetch(`/updateinfo/edit-employee/${employeeId}`, {
+            method: 'POST',
+            body: formData
+            // Don't set Content-Type header - let browser set it with boundary
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || 'Failed to update employee');
+        }
+
+        showAlert('Employee updated successfully!');
+        loadEmployees();
+        editEmployeeModal.style.display = 'none';
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert(error.message || 'Failed to update employee. Please try again.', 'error');
+    }
+});
+       
+        // Delete employee
+        function deleteEmployee(employeeId) {
+            // Create modal elements
+            const modalOverlay = document.createElement('div');
+            modalOverlay.style.position = 'fixed';
+            modalOverlay.style.top = '0';
+            modalOverlay.style.left = '0';
+            modalOverlay.style.right = '0';
+            modalOverlay.style.bottom = '0';
+            modalOverlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+            modalOverlay.style.display = 'flex';
+            modalOverlay.style.justifyContent = 'center';
+            modalOverlay.style.alignItems = 'center';
+            modalOverlay.style.zIndex = '1000';
+
+            const modalContent = document.createElement('div');
+            modalContent.style.backgroundColor = 'white';
+            modalContent.style.padding = '20px';
+            modalContent.style.borderRadius = '8px';
+            modalContent.style.width = '400px';
+            modalContent.style.maxWidth = '90%';
+
+            // Modal HTML content
+            modalContent.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #d9534f;">Confirm Deletion</h3>
+                    <p>Are you sure you want to mark this employee as past?</p>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; margin-bottom: 5px; font-weight: bold;">Last Working Date:</label>
+                        <input type="date" id="leavingDate" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" max="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div id="deleteError" style="color: #d9534f; margin-bottom: 15px; display: none;"></div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button id="cancelDelete" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px;">Cancel</button>
+                    <button id="confirmDelete" style="padding: 8px 16px; background: #d9534f; color: white; border: none; border-radius: 4px;">Confirm</button>
+                </div>
+            `;
+
+            modalOverlay.appendChild(modalContent);
+            document.body.appendChild(modalOverlay);
+
+            // Modal functionality
+            const closeModal = () => {
+                document.body.removeChild(modalOverlay);
+            };
+
+            // Cancel button
+            document.getElementById('cancelDelete').addEventListener('click', closeModal);
+
+            // Confirm button
+            document.getElementById('confirmDelete').addEventListener('click', () => {
+                const dateInput = document.getElementById('leavingDate');
+                const errorDiv = document.getElementById('deleteError');
+                
+                if (!dateInput.value) {
+                    errorDiv.textContent = "Please select a date";
+                    errorDiv.style.display = 'block';
+                    return;
+                }
+
+                const [year, month, day] = dateInput.value.split('-');
+                const formattedDate = `${day}/${month}/${year}`;
+
+                fetch(`/updateinfo/employee/${employeeId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ended: formattedDate })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        closeModal();
+                        location.reload(); // Or update UI as needed
+                    } else {
+                        throw new Error(data.message || 'Deletion failed');
+                    }
+                })
+                .catch(error => {
+                    errorDiv.textContent = error.message;
+                    errorDiv.style.display = 'block';
+                });
+            });
+
+            // Close when clicking outside modal
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) {
+                    closeModal();
+                }
+            });
+        }
+            
+        // Download passport
+        function downloadPassport(employeeId) {
+            fetch(`/updateinfo/api/download-file/${employeeId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Passport_${employeeId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('Error downloading passport:', error);
+                    showAlert('Failed to download passport. Please try again.', 'error');
+                });
+        }
+
+        // Download visa
+        function downloadVisa(employeeId) {
+            fetch(`/updateinfo/api/download-visa/${employeeId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Visa_${employeeId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('Error downloading visa:', error);
+                    showAlert('Failed to download visa. Please try again.', 'error');
+                });
+        }
+
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadEmployees();
+            
+            // Check for accrued holidays daily
+            setInterval(updateAccruedHolidays, 24 * 60 * 60 * 1000);
+            
+            // Also check now in case the page was loaded on the 1st
+            updateAccruedHolidays();
+        });
+        </script>
+</body>
+</html>
