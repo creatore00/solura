@@ -2138,63 +2138,54 @@ async function handleWebBiometricLogin() {
         document.getElementById('biometricPrompt').style.display = 'block';
     }
 
-// CORRECTED Biometric verification for iOS
+// CORRECTED Biometric verification for iOS using the NEW plugin
 async function enhancedBiometricVerification(policy = 'device_owner_authentication') {
-    if (!isCapacitor) {
-        return await handleWebBiometricAuth();
-    }
-
+    // We don't need to check for isCapacitor, this plugin only works there.
     try {
-        const { BiometricAuth } = window.Capacitor.Plugins;
-        
-        if (!BiometricAuth) {
-            throw new Error('BiometricAuth plugin not available');
+        // The new way to import and use the plugin
+        const { NativeBiometric } = window.Capacitor.Plugins;
+
+        if (!NativeBiometric) {
+            throw new Error('NativeBiometric plugin not available');
         }
 
-        // First, check what biometric methods are available
-        const available = await BiometricAuth.isAvailable();
+        const available = await NativeBiometric.isAvailable();
         console.log('📱 Biometric availability:', available);
 
         if (!available.isAvailable) {
             throw new Error('Biometric authentication not available on this device');
         }
 
-        // PROPER iOS Face ID/Touch ID configuration
+        // Configuration for the NEW plugin
         const verificationConfig = {
             reason: 'Sign in to Enterprise Data Management Suite',
-            title: 'Biometric Login Required',
+            title: 'Biometric Login',
             subtitle: 'Use Face ID to access your account',
             description: 'Authentication is required to access your secure data',
-            // iOS-specific settings
-            fallbackButtonTitle: 'Use Passcode', // This enables passcode fallback
-            useFallback: policy === 'device_owner_authentication', // Allow passcode fallback based on policy
-            maxAttempts: 3 // iOS allows limited attempts
+            useFallback: true, // Allow passcode fallback
         };
 
         console.log('🔐 Starting iOS biometric verification with config:', verificationConfig);
-        
-        // THIS IS THE CRITICAL CALL THAT TRIGGERS FACE ID PROMPT
-        const result = await BiometricAuth.verifyIdentity(verificationConfig);
-        
+
+        // Call the 'verify' method (previously 'verifyIdentity')
+        const result = await NativeBiometric.verify(verificationConfig);
+
         console.log('📋 Biometric verification result:', result);
-        
+
         if (!result.verified) {
             throw new Error('Biometric verification failed or was cancelled');
         }
-        
+
         console.log('✅ Biometric verification successful');
         return result;
-        
+
     } catch (error) {
         console.error('❌ Biometric verification error:', error);
-        
-        // Handle specific iOS error cases
-        if (error.message.includes('Not enrolled') || error.message.includes('No passcode')) {
-            throw new Error('Biometric authentication not set up. Please configure Face ID/Touch ID in device settings.');
-        } else if (error.message.includes('canceled') || error.message.includes('user cancel')) {
+
+        if (error.message.includes('User cancellation')) {
             throw new Error('Authentication cancelled by user');
-        } else if (error.message.includes('locked') || error.message.includes('max attempts')) {
-            throw new Error('Biometric authentication locked. Use passcode or try again later.');
+        } else if (error.message.includes('No enrolled biometrics')) {
+            throw new Error('Biometric authentication not set up. Please configure Face ID/Touch ID in device settings.');
         } else {
             throw new Error(`Authentication failed: ${error.message}`);
         }
