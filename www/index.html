@@ -632,6 +632,8 @@
     </div>
 </div>
 <script>
+     // DEFINE YOUR LIVE SERVER ADDRESS HERE
+    const API_BASE_URL = 'https://www.solura.uk'; 
     // Enhanced biometric authentication system with device fingerprinting
     let databases = [];
     let currentUserData = null;
@@ -861,8 +863,12 @@ async function debugBiometricStatus() {
         }
     }
 
-    // Include session ID in all API requests - FIXED for all devices
-    function makeApiRequest(url, options = {}) {
+function makeApiRequest(url, options = {}) {
+        // Construct the full URL by combining the base URL with the specific endpoint
+        const fullUrl = `${API_BASE_URL}${url}`;
+
+        console.log(`Making API request to: ${fullUrl}`); // Log to confirm it's working
+
         const sessionId = currentSessionId || localStorage.getItem('sessionId');
         
         if (!options.headers) options.headers = {};
@@ -878,15 +884,11 @@ async function debugBiometricStatus() {
             options.headers['X-Device-Fingerprint'] = currentDeviceFingerprint;
         }
         
-        // Ensure credentials are included
+        // Ensure credentials are included for cross-domain requests
         options.credentials = 'include';
         
-        // Also add to URL for GET requests as backup
-        if ((options.method === 'GET' || !options.method) && sessionId) {
-            url += (url.includes('?') ? '&' : '?') + 'sessionId=' + encodeURIComponent(sessionId);
-        }
-        
-        return fetch(url, options);
+        // The fetch call now uses the full, absolute URL
+        return fetch(fullUrl, options);
     }
 
     function initializeEventListeners() {
