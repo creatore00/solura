@@ -1341,132 +1341,118 @@ async function debugBiometricStatus() {
         }
     }
 
-// Enhanced biometric login handler with policy support
-async function handleBiometricLogin(useStrictPolicy = false) {
+// A complete, production-ready function for handling biometric login.
+async function handleBiometricLogin() {
     const btn = document.getElementById('biometricBtn');
     const errorDiv = document.getElementById('biometricError');
     const successDiv = document.getElementById('biometricSuccess');
-    
-    console.log('🔐 STARTING ENHANCED BIOMETRIC LOGIN');
-    
-    // Show loading state
+
+    // --- 1. SETUP UI FOR LOGIN PROCESS ---
+    console.log("✅ Starting full biometric login process...");
     btn.disabled = true;
-    const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> Authenticating...';
+    btn.innerHTML = '<span class="spinner"></span>Authenticating...';
     errorDiv.style.display = 'none';
     successDiv.style.display = 'none';
 
     try {
-        if (!biometricSupported && !hasStoredCredentials) {
-            throw new Error('Biometric authentication not available on this device');
+        // --- 2. NATIVE BIOMETRIC VERIFICATION (ON-DEVICE) ---
+        // Get the native plugin from the window object.
+        const { NativeBiometric } = window.Capacitor.Plugins;
+        if (!NativeBiometric) {
+            throw new Error("NativeBiometric plugin is not available on the window object.");
         }
+
+        // Check if the device hardware supports biometrics and if it's configured.
+        const available = await NativeBiometric.isAvailable();
+        if (!available.isAvailable) {
+            throw new Error(`Biometrics not available. Reason: ${available.reason || 'Not configured'}`);
+        }
+
+        // Prepare the configuration for the native iOS prompt.
+        const verificationConfig = {
+            reason: 'Sign in to your Solura account',
+            title: 'Biometric Login',
+            subtitle: 'Fast & Secure',
+            useFallback: true, // Allows using the device passcode as a backup
+        };
+
+        // Call the plugin to show the native prompt. This is the most important step.
+        console.log("Requesting user verification from device (Face ID / Touch ID)...");
+        const result = await NativeBiometric.verify(verificationConfig);
+
+        // Check the result from the prompt.
+        if (!result.verified) {
+            throw new Error("Verification was cancelled or failed on the device.");
+        }
+
+        // --- 3. SERVER-SIDE AUTHENTICATION (POST-BIOMETRIC SUCCESS) ---
+        console.log("✅ Device verification successful. Now authenticating with the server...");
 
         if (!currentDeviceFingerprint) {
-            throw new Error('Device identification failed');
+            throw new Error('Device identification failed. Cannot contact server.');
         }
+        console.log('📱 Using Device fingerprint for server auth:', currentDeviceFingerprint);
 
-        console.log('📱 Device fingerprint:', currentDeviceFingerprint);
 
-        // STEP 1: Check device registration
-        console.log('🔍 Step 1: Checking device registration...');
+        // Step 3a: Check if this device is registered with your server.
+        console.log("Checking device registration with server...");
         const registrationCheck = await makeApiRequest('/api/check-device-registration', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint })
+        });
+        const registrationData = await registrationCheck.json();
+        
+        if (!registrationCheck.ok || !registrationData.registered) {
+            throw new Error('This device is not registered for biometric access. Please log in with your password first.');
+        }
+        console.log("✅ Device is registered.");
+
+
+        // Step 3b: Perform the actual login with your backend.
+        console.log("Performing biometric login with server...");
+        const response = await makeApiRequest('/api/biometric-login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-Device-Fingerprint': currentDeviceFingerprint
             },
-            credentials: 'include'
         });
-
-        console.log('📋 Registration response status:', registrationCheck.status);
-        const registrationData = await registrationCheck.json();
-        console.log('📋 Registration response data:', registrationData);
-        
-        if (!registrationData.registered) {
-            throw new Error('Device not registered for biometric access. Please login with email and password first.');
-        }
-
-        console.log('✅ Step 1: Device verified');
-
-        // STEP 2: Biometric Verification with Policy
-        console.log('🔐 Step 2: Starting biometric verification...');
-        
-        const policy = useStrictPolicy 
-            ? BiometricPolicy.getStrictPolicy() 
-            : BiometricPolicy.getOptimalPolicy();
-            
-        console.log('📋 Using authentication policy:', policy);
-        
-        await enhancedBiometricVerification(policy);
-        console.log('✅ Step 2: Biometric verification successful');
-
-        // STEP 3: Authenticate with device fingerprint
-        console.log('🔄 Step 3: Authenticating with device fingerprint...');
-        const response = await makeApiRequest('/api/biometric-login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-Fingerprint': currentDeviceFingerprint,
-                'X-Biometric-Policy': policy
-            },
-            credentials: 'include'
-        });
-
-        console.log('📋 Biometric login response status:', response.status);
         const data = await response.json();
-        console.log('📋 Biometric login response data:', data);
-        
+
         if (!response.ok) {
-            throw new Error(data.error || `Server returned ${response.status}`);
+            throw new Error(data.error || `Server authentication failed with status ${response.status}`);
         }
 
-        if (data.success) {
-            console.log('✅ Step 3: Biometric authentication successful');
-            
-            // Show success message
-            successDiv.textContent = 'Biometric authentication successful!';
-            successDiv.style.display = 'block';
+        // --- 4. HANDLE SUCCESSFUL LOGIN RESPONSE ---
+        console.log("✅ Server authentication successful!");
+        successDiv.textContent = 'Login successful! Redirecting...';
+        successDiv.style.display = 'block';
 
-            // Handle the login response
-            if (data.requiresDatabaseSelection && data.databases) {
-                console.log('📊 Multiple databases found, showing selection');
-                databases = data.databases;
-                showDatabasePopup(databases);
-                currentUserData = {
-                    sessionId: data.sessionId,
-                    userInfo: data.user
-                };
-            } else if (data.redirectUrl) {
-                // Direct login successful
-                console.log('🔄 Single database, redirecting directly');
-                storeSessionData(data);
-                
-                successDiv.textContent = 'Welcome back! Redirecting...';
-                successDiv.style.display = 'block';
-                
-                setTimeout(() => {
-                    window.location.replace(data.redirectUrl);
-                }, 1000);
-            } else {
-                throw new Error('Invalid response from server - no redirect URL or database selection');
-            }
+        if (data.redirectUrl) {
+            storeSessionData(data); // Store session ID, tokens, etc.
+            setTimeout(() => {
+                window.location.replace(data.redirectUrl);
+            }, 500); // A small delay to let the user see the success message.
         } else {
-            throw new Error(data.error || 'Authentication failed');
+            // This part of your logic can be added back if needed
+            // showDatabasePopup(data.databases);
+            throw new Error("Server response did not contain a redirect URL.");
         }
 
     } catch (error) {
-        console.error('❌ BIOMETRIC AUTHENTICATION ERROR:', error);
-        
-        errorDiv.textContent = getEnhancedFriendlyErrorMessage(error);
+        // --- 5. CATCH AND DISPLAY ANY ERRORS ---
+        // This will catch errors from both the native prompt and the server calls.
+        console.error("❌ Full biometric process failed:", error);
+        errorDiv.textContent = `Login Failed: ${error.message}`;
         errorDiv.style.display = 'block';
-        
-        // Reset button after delay
-        setTimeout(() => {
-            resetBiometricButton();
-        }, 3000);
+
+    } finally {
+        // --- 6. ALWAYS RESET THE BUTTON ---
+        btn.disabled = false;
+        btn.innerHTML = '<span class="biometric-icon">🔒</span><span id="biometricBtnText">Sign in with Biometrics</span>';
     }
 }
-
 // Enhanced error messaging
 function getEnhancedFriendlyErrorMessage(error) {
     const message = error.message || error.toString();
