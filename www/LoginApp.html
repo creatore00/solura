@@ -866,21 +866,25 @@
     // =================================================================================
 
     // This is the single, central function for all server calls.
+// This is the single, central function for all server calls.
     function makeApiRequest(url, options = {}) {
-    const fullUrl = `${API_BASE_URL}${url}`;
-    if (!options.headers) options.headers = {};
-    options.credentials = 'include';
-    
-    // NEW: Add the JWT token to every API request header
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-        options.headers['Authorization'] = `Bearer ${token}`;
+        const fullUrl = `${API_BASE_URL}${url}`;
+        if (!options.headers) options.headers = {};
+        options.credentials = 'include';
+
+        // Add the JWT token to every API request header if it exists
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+            options.headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        // **FIX: Add the device fingerprint to every API request header**
+        if (currentDeviceFingerprint) {
+            options.headers['x-device-fingerprint'] = currentDeviceFingerprint;
+        }
+
+        return fetch(fullUrl, options);
     }
-    
-    // ... (rest of the function) ...
-    return fetch(fullUrl, options);
-}
-    
     // This is a simple function to save session info for later use.
     function storeSessionData(data) {
         if (data.sessionId) {
