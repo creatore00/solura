@@ -645,46 +645,17 @@
     let currentSessionId = null;
     let currentDeviceFingerprint = null;
 
-    // Device fingerprinting function
     async function generateDeviceFingerprint() {
         try {
-            const fingerprintData = {
-                userAgent: navigator.userAgent,
-                screenResolution: `${screen.width}x${screen.height}`,
-                colorDepth: screen.colorDepth,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                language: navigator.language,
-                languages: navigator.languages ? navigator.languages.join(',') : navigator.language,
-                hardwareConcurrency: navigator.hardwareConcurrency || 'unknown',
-                platform: navigator.platform,
-                deviceMemory: navigator.deviceMemory || 'unknown',
-                maxTouchPoints: navigator.maxTouchPoints || 0,
-                cookieEnabled: navigator.cookieEnabled,
-                doNotTrack: navigator.doNotTrack || 'unknown'
-            };
-
-            // Create a stable hash of the fingerprint data
+            const fingerprintData = { userAgent: navigator.userAgent, screenResolution: `${screen.width}x${screen.height}`, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
             const fingerprintString = JSON.stringify(fingerprintData);
-            const hash = await sha256(fingerprintString);
-            
-            console.log('📱 Device Fingerprint Generated:', {
-                hash: hash,
-                data: fingerprintData
-            });
-            
-            return {
-                hash: hash,
-                data: fingerprintData
-            };
+            const msgBuffer = new TextEncoder().encode(fingerprintString);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         } catch (error) {
-            console.error('Error generating device fingerprint:', error);
-            // Fallback to simpler fingerprint
-            const fallbackFingerprint = `ua-${navigator.userAgent.substring(0, 50)}-res-${screen.width}x${screen.height}-tz-${Intl.DateTimeFormat().resolvedOptions().timeZone}`;
-            const fallbackHash = await sha256(fallbackFingerprint);
-            return {
-                hash: fallbackHash,
-                data: { fallback: true, userAgent: navigator.userAgent }
-            };
+            console.error('Fingerprint generation failed', error);
+            return 'fingerprint-failed';
         }
     }
 
@@ -704,27 +675,20 @@
         return hashHex;
     }
 
-    // Initialize everything when DOM is ready
     document.addEventListener('DOMContentLoaded', async function() {
-        console.log('🚀 Initializing ENHANCED biometric login system...');
+        console.log('🚀 Initializing application...');
         
-        // Generate device fingerprint first
-        const fingerprint = await generateDeviceFingerprint();
-        currentDeviceFingerprint = fingerprint.hash;
+        // This function will run regardless of platform
+        currentDeviceFingerprint = await generateDeviceFingerprint();
         
-        console.log('📱 Device Fingerprint:', {
-            hash: currentDeviceFingerprint,
-            data: fingerprint.data
-        });
-        
-        // Emergency CSS fix first
-        document.body.style.backgroundColor = '#ffffff';
-        document.body.style.minHeight = '100vh';
-        
-        const loginContainer = document.querySelector('.login-container');
-        if (loginContainer) {
-            loginContainer.style.display = 'flex';
-            loginContainer.style.opacity = '1';
+        // This checks if the app is running in the native Capacitor shell
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            console.log("✅ Capacitor native platform detected. Initializing biometrics.");
+            initializeBiometricSystem();
+        } else {
+            console.log("- Running in a standard web browser. Hiding biometrics.");
+            document.getElementById('biometricSection').style.display = 'none';
+            document.getElementById('biometricDivider').style.display = 'none';
         }
         
         // Initialize mobile session first - CRITICAL FIX
@@ -863,43 +827,18 @@ async function debugBiometricStatus() {
         }
     }
 
-function makeApiRequest(url, options = {}) {
-        // Construct the full URL by combining the base URL with the specific endpoint
+    // --- API & HELPER FUNCTIONS ---
+    function makeApiRequest(url, options = {}) {
         const fullUrl = `${API_BASE_URL}${url}`;
-
-        console.log(`Making API request to: ${fullUrl}`); // Log to confirm it's working
-
-        const sessionId = currentSessionId || localStorage.getItem('sessionId');
-        
+        console.log(`-> Calling API: ${fullUrl}`);
         if (!options.headers) options.headers = {};
-        
-        // Always include session ID in headers
-        if (sessionId) {
-            options.headers['X-Session-ID'] = sessionId;
-        }
-        
-        // Include device type and fingerprint
-        options.headers['X-Device-Type'] = getDeviceType();
-        if (currentDeviceFingerprint) {
-            options.headers['X-Device-Fingerprint'] = currentDeviceFingerprint;
-        }
-        
-        // Ensure credentials are included for cross-domain requests
         options.credentials = 'include';
-        
-        // The fetch call now uses the full, absolute URL
         return fetch(fullUrl, options);
     }
 
     function initializeEventListeners() {
         document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
-// CORRECTED Biometric button event listener
-document.getElementById('biometricBtn').addEventListener('click', async function() {
-    console.log('🔘 Biometric button clicked. Calling handleBiometricLogin directly...');
-    // We don't need a separate permission check here.
-    // The handleBiometricLogin function already does it correctly as its first step.
-    await handleBiometricLogin(); 
-});
+document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
 // Helper function to show biometric errors
 function showBiometricError(message) {
     const errorDiv = document.getElementById('biometricError');
@@ -995,37 +934,24 @@ addTestButton();
         });
     }
 
-// CORRECTED Biometric system initialization
-async function initializeBiometricSystem() {
-    console.log('🔄 Starting ENHANCED biometric system initialization...');
-    
-    // First, detect iOS capabilities
-    const capabilities = await detectIOSCapabilities();
-    
-    await checkBiometricSupport();
-    console.log('Biometric support check complete:', biometricSupported);
-    
-    await checkDeviceRegistration();
-    console.log('Device registration check complete:', hasStoredCredentials);
-    
-    await checkStoredCredentials();
-    console.log('Stored credentials check complete:', hasStoredCredentials);
-    
-    // FORCE update the UI with proper iOS detection
-    updateBiometricUI();
-    
-    // If biometric is supported but UI is still hidden, force it to show
-    setTimeout(() => {
-        const biometricSection = document.getElementById('biometricSection');
-        if (biometricSupported && biometricSection.style.display === 'none') {
-            console.log('⚠️ Biometric supported but section hidden - forcing display');
-            forceShowBiometricSection();
+    async function initializeBiometricSystem() {
+        try {
+            // Use the correct plugin name
+            const { NativeBiometric } = window.Capacitor.Plugins;
+            if (NativeBiometric) {
+                const available = await NativeBiometric.isAvailable();
+                if (available.isAvailable) {
+                    console.log("✅ Biometrics are available on this device.");
+                    document.getElementById('biometricSection').style.display = 'block';
+                    document.getElementById('biometricDivider').style.display = 'flex';
+                } else {
+                     console.log("- Biometrics are not available on this device.", available.reason);
+                }
+            }
+        } catch(e) {
+            console.error("Error initializing biometrics", e);
         }
-    }, 500);
-    
-    console.log('✅ ENHANCED biometric system initialization complete');
-}
-// CORRECTED VERSION
+    }// CORRECTED VERSION
 async function checkIOSBiometricPermissions() {
     // isCapacitor check is good, but let's rely on the plugin check itself.
     try {
@@ -1331,119 +1257,60 @@ async function debugBiometricStatus() {
         }
     }
 
-// A complete, production-ready function for handling biometric login.
-async function handleBiometricLogin() {
-    const btn = document.getElementById('biometricBtn');
-    const errorDiv = document.getElementById('biometricError');
-    const successDiv = document.getElementById('biometricSuccess');
-
-    // --- 1. SETUP UI FOR LOGIN PROCESS ---
-    console.log("✅ Starting full biometric login process...");
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Authenticating...';
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
-
-    try {
-        // --- 2. NATIVE BIOMETRIC VERIFICATION (ON-DEVICE) ---
-        // Get the native plugin from the window object.
-        const { NativeBiometric } = window.Capacitor.Plugins;
-        if (!NativeBiometric) {
-            throw new Error("NativeBiometric plugin is not available on the window object.");
-        }
-
-        // Check if the device hardware supports biometrics and if it's configured.
-        const available = await NativeBiometric.isAvailable();
-        if (!available.isAvailable) {
-            throw new Error(`Biometrics not available. Reason: ${available.reason || 'Not configured'}`);
-        }
-
-        // Prepare the configuration for the native iOS prompt.
-        const verificationConfig = {
-            reason: 'Sign in to your Solura account',
-            title: 'Biometric Login',
-            subtitle: 'Fast & Secure',
-            useFallback: true, // Allows using the device passcode as a backup
-        };
-
-        // Call the plugin to show the native prompt. This is the most important step.
-        console.log("Requesting user verification from device (Face ID / Touch ID)...");
-       const result = await NativeBiometric.authenticate(verificationConfig);
-        // Check the result from the prompt.
-        if (!result.verified) {
-            throw new Error("Verification was cancelled or failed on the device.");
-        }
-
-        // --- 3. SERVER-SIDE AUTHENTICATION (POST-BIOMETRIC SUCCESS) ---
-        console.log("✅ Device verification successful. Now authenticating with the server...");
-
-        if (!currentDeviceFingerprint) {
-            throw new Error('Device identification failed. Cannot contact server.');
-        }
-        console.log('📱 Using Device fingerprint for server auth:', currentDeviceFingerprint);
-
-
-        // Step 3a: Check if this device is registered with your server.
-        console.log("Checking device registration with server...");
-        const registrationCheck = await makeApiRequest('/api/check-device-registration', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint })
-        });
-        const registrationData = await registrationCheck.json();
+    // --- CORE BIOMETRIC LOGIN FUNCTION ---
+    async function handleBiometricLogin() {
+        const btn = document.getElementById('biometricBtn');
+        const errorDiv = document.getElementById('biometricError');
         
-        if (!registrationCheck.ok || !registrationData.registered) {
-            throw new Error('This device is not registered for biometric access. Please log in with your password first.');
+        console.log("-> Starting biometric login flow...");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Authenticating...';
+        errorDiv.style.display = 'none';
+
+        try {
+            // Step 1: Get the native plugin
+            const { NativeBiometric } = window.Capacitor.Plugins;
+            if (!NativeBiometric) {
+                throw new Error("NativeBiometric plugin is not available.");
+            }
+
+            // Step 2: Trigger the native iOS prompt using the correct method name
+            console.log("... Requesting user verification (Face ID / Touch ID)...");
+            const result = await NativeBiometric.authenticate({
+                reason: 'Sign in to your Solura account'
+            });
+
+            if (!result.verified) {
+                throw new Error("User verification failed or was cancelled.");
+            }
+
+            // Step 3: Authenticate with your server
+            console.log("✅ Device verification successful. Logging in with server...");
+            const response = await makeApiRequest('/api/biometric-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': currentDeviceFingerprint },
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Server authentication failed.");
+            }
+            
+            // Step 4: Handle successful login
+            console.log("✅ Server login successful! Redirecting...");
+            // You can store session data here if needed
+            window.location.replace(data.redirectUrl);
+
+        } catch (error) {
+            console.error("❌ Biometric process failed:", error);
+            errorDiv.textContent = `Error: ${error.message}`;
+            errorDiv.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="biometric-icon">🔒</span><span>Sign in with Biometrics</span>';
         }
-        console.log("✅ Device is registered.");
+    }// Enhanced error messaging
 
-
-        // Step 3b: Perform the actual login with your backend.
-        console.log("Performing biometric login with server...");
-        const response = await makeApiRequest('/api/biometric-login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-Fingerprint': currentDeviceFingerprint
-            },
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || `Server authentication failed with status ${response.status}`);
-        }
-
-        // --- 4. HANDLE SUCCESSFUL LOGIN RESPONSE ---
-        console.log("✅ Server authentication successful!");
-        successDiv.textContent = 'Login successful! Redirecting...';
-        successDiv.style.display = 'block';
-
-        if (data.redirectUrl) {
-            storeSessionData(data); // Store session ID, tokens, etc.
-            setTimeout(() => {
-                window.location.replace(data.redirectUrl);
-            }, 500); // A small delay to let the user see the success message.
-        } else {
-            // This part of your logic can be added back if needed
-            // showDatabasePopup(data.databases);
-            throw new Error("Server response did not contain a redirect URL.");
-        }
-
-    } catch (error) {
-        // --- 5. CATCH AND DISPLAY ANY ERRORS ---
-        // This will catch errors from both the native prompt and the server calls.
-        console.error("❌ Full biometric process failed:", error);
-        errorDiv.textContent = `Login Failed: ${error.message}`;
-        errorDiv.style.display = 'block';
-
-    } finally {
-        // --- 6. ALWAYS RESET THE BUTTON ---
-        btn.disabled = false;
-        btn.innerHTML = '<span class="biometric-icon">🔒</span><span id="biometricBtnText">Sign in with Biometrics</span>';
-    }
-}
-// Enhanced error messaging
-function getEnhancedFriendlyErrorMessage(error) {
+    function getEnhancedFriendlyErrorMessage(error) {
     const message = error.message || error.toString();
     
     if (message.includes('cancelled') || message.includes('user cancel')) {
