@@ -747,7 +747,7 @@
             // Step 3: Handle a successful login by redirecting.
             console.log("✅ Server login successful! Redirecting...");
             storeSessionData(data);
-            window.location.replace(data.redirectUrl);
+            window.location.replace(`${data.redirectUrl}?token=${data.accessToken}`);
 
         } catch (error) {
             console.error("❌ Biometric process failed:", error);
@@ -786,23 +786,21 @@
         loginButton.innerHTML = '<span class="spinner"></span>Connecting...';
 
         try {
-            // Now, re-submit the login request, but this time INCLUDE the dbName
-            const response = await makeApiRequest('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    email: currentUserData.email,       // currentUserData was saved from the first login attempt
-                    password: currentUserData.password,
-                    dbName: selectedDbName              // This is the key difference
-                })
-            });
+        const response = await makeApiRequest('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                email: currentUserData.email,
+                password: currentUserData.password,
+                dbName: selectedDbName
+            })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Database selection failed.");
 
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Database selection failed.");
-
-            console.log("✅ Database selection successful! Redirecting...");
-            storeSessionData(data);
-            window.location.replace(data.redirectUrl);
+        console.log("✅ Database selection successful! Redirecting with token...");
+        storeSessionData(data); // This now saves the accessToken
+            window.location.replace(`${data.redirectUrl}?token=${data.accessToken}`);
 
         } catch (error) {
             console.error("❌ Database submission failed:", error);
@@ -844,7 +842,7 @@
         if (data.redirectUrl) {
             console.log("✅ Single DB login successful! Redirecting...");
             storeSessionData(data);
-            window.location.replace(data.redirectUrl);
+            window.location.replace(`${data.redirectUrl}?token=${data.accessToken}`);
         } else if (data.databases) {
             console.log("-> Multiple databases found. Showing selection popup.");
             showDatabasePopup(data.databases); // Now we call the popup
