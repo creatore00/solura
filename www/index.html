@@ -892,26 +892,26 @@
         console.log("Session data stored.");
     }
 
-    // This generates a unique ID for the device based on its properties.
+        // This generates a unique ID for the device based on its properties.
     async function generateDeviceFingerprint() {
         try {
             const data = {
-                userAgent: navigator.userAgent,
+                // These properties are much more stable than userAgent
+                platform: navigator.platform,
+                language: navigator.language,
                 screenResolution: `${screen.width}x${screen.height}`,
                 timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                platform: navigator.platform,
-                language: navigator.language
             };
             const jsonString = JSON.stringify(data);
             const msgBuffer = new TextEncoder().encode(jsonString);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            console.log(`Device Fingerprint: ${hashHex}`);
+            console.log(`Generated STABLE Fingerprint: ${hashHex}`);
             return hashHex;
         } catch (error) {
             console.error('Fingerprint generation failed', error);
-            return 'fingerprint-failed'; // Provide a fallback
+            return 'fingerprint-failed';
         }
     }
 </script>

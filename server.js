@@ -272,10 +272,11 @@ app.post('/api/biometric-login', async (req, res) => {
                     console.log(`✅ Biometric login successful for ${email}`);
                     res.json({
                         success: true,
-                        message: 'Biometric login successful',
+                        message: 'Login successful',
                         redirectUrl: redirectUrl,
                         user: userInfo,
                         sessionId: req.sessionID,
+                        accessToken: generateToken(userInfo) // <-- ADD THIS LINE
                     });
                 });
             });
