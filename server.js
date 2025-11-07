@@ -152,48 +152,37 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// ENHANCED CORS for all devices
+// Define a list of origins that are allowed to connect.
+const allowedOrigins = [
+    'https://www.solura.uk', // Your main web domain
+    'http://localhost:8080',   // Your local development environment
+    'http://localhost',        // Common for local testing
+    'capacitor://localhost',   // **Crucial for Capacitor on iOS/Android**
+    'ionic://localhost'        // **Crucial for Ionic Framework**
+];
+
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow all origins for iOS/Capacitor and mobile devices
-        if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
-            return callback(null, true);
-        }
-        
-        const allowedOrigins = [
-            'https://www.solura.uk', 
-            'https://solura.uk', 
-            'http://localhost:8080',
-            'http://localhost:3000',
-            'capacitor://localhost',
-            'ionic://localhost',
-            'http://localhost',
-            'https://localhost'
-        ];
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || origin?.includes('solura.uk')) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        // or requests from an origin in our whitelist.
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
-            console.log('Blocked by CORS:', origin);
+            console.error('CORS Error: This origin is not allowed:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true,
+    credentials: true, // This allows cookies to be sent and received
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID', 'X-Capacitor', 'Origin', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'X-Session-ID', 'X-Capacitor'],
     exposedHeaders: ['Set-Cookie', 'X-Session-ID', 'Authorization']
 };
-app.use(cors({
-  origin: [
-    'capacitor://localhost',
-    'http://localhost',
-    'https://solura.uk',
-    /\.solura\.uk$/,
-  ],
-  credentials: true,
-}));
 
-// Handle preflight requests
+// **Use this single, robust CORS configuration for your entire app.**
+app.use(cors(corsOptions));
+
+// **Handle pre-flight requests for all routes.**
+// This is essential for requests with custom headers or non-simple methods (like POST with JSON).
 app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
@@ -284,22 +273,34 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: Session configuration MUST be before any session-related middleware
+// Enhanced session configuration for iOS/Capacitor
 app.use(session({
   key: 'solura.session',
   secret: process.env.SESSION_SECRET || 'supersecret',
   store: sessionStore,
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true,
+  proxy: true,
   cookie: {
-    httpOnly: true,              // prevent JS access
-    secure: isProduction,        // must be true for HTTPS
-    sameSite: 'none',            // ✅ required for iOS WebView
-    maxAge: 24 * 60 * 60 * 1000, // 24h
+    // CRITICAL FOR iOS: These settings work best for iOS Safari/Capacitor
+    httpOnly: false, // Allow JavaScript access for Capacitor
+    secure: isProduction, // Use secure cookies in production
+    sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-site in production
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
     domain: isProduction ? '.solura.uk' : undefined,
+    // iOS-specific optimizations
+    path: '/',
+    // Add these for better iOS compatibility
+    ...(req.isIOS && {
+      secure: false, // iOS Safari has issues with secure cookies
+      sameSite: 'Lax' // Lax works better for iOS
+    })
+  },
+  // Add genid function for better session ID management
+  genid: (req) => {
+    return require('crypto').randomBytes(16).toString('hex');
   }
 }));
-
 // CRITICAL FIX: Enhanced session persistence middleware
 app.use((req, res, next) => {
   // Store original session save method
@@ -450,45 +451,36 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: Cookie and session persistence middleware
+// CRITICAL FIX: iOS Cookie Persistence Middleware
 app.use((req, res, next) => {
-    // Store original cookie method
-    const originalCookie = res.cookie;
-    
-    // Enhanced cookie method that ensures session cookie is properly set
-    res.cookie = function(name, value, options = {}) {
-        if (name === 'solura.session') {
-            // Ensure consistent cookie settings
-            options = {
-                maxAge: 24 * 60 * 60 * 1000,
-                httpOnly: false,
-                secure: false,
-                sameSite: 'Lax',
-                path: '/',
-                domain: isProduction ? '.solura.uk' : undefined,
-                ...options
-            };
-            console.log('🍪 Setting session cookie:', { name, value, options });
-        }
-        return originalCookie.call(this, name, value, options);
-    };
-    
-    // Ensure session ID consistency across requests
-    if (req.sessionID && req.session && req.session.user) {
-        console.log('🔗 Maintaining session consistency:', req.sessionID);
-        
-        // Always set the session cookie for authenticated users
-        res.cookie('solura.session', req.sessionID, {
-            maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: false,
-            secure: false,
-            sameSite: 'Lax',
-            path: '/',
-            domain: isProduction ? '.solura.uk' : undefined
-        });
+  // Store original cookie method
+  const originalCookie = res.cookie;
+  
+  // Enhanced cookie method for iOS
+  res.cookie = function(name, value, options = {}) {
+    // iOS-specific cookie settings
+    if (req.isIOS || req.isIPad) {
+      options = {
+        httpOnly: false,
+        secure: false, // iOS Safari works better with non-secure cookies
+        sameSite: 'Lax',
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+        domain: isProduction ? '.solura.uk' : undefined,
+        ...options
+      };
     }
     
-    next();
+    console.log(`🍪 Setting cookie: ${name}=${value}`, {
+      ios: req.isIOS,
+      ipad: req.isIPad,
+      options
+    });
+    
+    return originalCookie.call(this, name, value, options);
+  };
+  
+  next();
 });
 
 // FIXED: Session recovery with proper session recreation
@@ -1566,25 +1558,26 @@ app.post('/api/ios-restore-session', async (req, res) => {
 });
 
 // NEW: Device registration endpoint
-app.post('/api/register-device', async (req, res) => {
+app.post('/api/register-device', isAuthenticated, async (req, res) => { // ADDED: isAuthenticated
     safeSessionTouch(req);
     try {
-        const { email, deviceFingerprint, deviceInfo } = req.body;
+        // **FIX: Get the email from the authenticated session, not the request body.**
+        const email = req.session.user.email;
+        const { deviceFingerprint, deviceInfo } = req.body;
 
-        if (!email || !deviceFingerprint || !deviceInfo) {
+        if (!deviceFingerprint || !deviceInfo) { // Email check is no longer needed here
             return res.status(400).json({ 
                 success: false, 
-                error: 'Email, device fingerprint, and device info are required' 
+                error: 'Device fingerprint and device info are required' 
             });
         }
 
-        console.log('📱 Registering device for biometric access:', {
-            email: email,
-            deviceFingerprint: deviceFingerprint,
-            deviceInfo: deviceInfo
+        console.log('📱 Registering device for authenticated user:', {
+            email: email, // Log the email from the session
+            deviceFingerprint: deviceFingerprint
         });
 
-        // Insert device registration into database
+        // The rest of your database insertion logic remains the same...
         const sql = `
             INSERT INTO biometric_devices 
             (user_email, device_fingerprint, device_name, platform, user_agent, screen_resolution, 
@@ -1970,40 +1963,164 @@ app.post('/api/recover-session', async (req, res) => {
     }
 });
 
-// FIXED: Session initialization endpoint for iOS
+// ENHANCED: iOS session initialization with cookie guarantee
 app.get('/api/init-session', (req, res) => {
-    console.log('🔄 Initializing session');
-    
-    // Ensure session is created and marked as initialized
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-    }
-    
-    // iPad-specific initialization
-    if (req.isIPad) {
-        req.session.ipadDevice = true;
-        console.log('📱 iPad session initialization');
-    }
-    
-    // Touch the session to ensure it's saved
-    safeSessionTouch(req);
-    
-    req.session.save((err) => {
-        if (err) {
-            console.error('Error saving session:', err);
-            return res.status(500).json({ success: false, error: 'Session initialization failed' });
-        }
-        
-        console.log('✅ Session initialized with ID:', req.sessionID);
-        
-        res.json({
-            success: true,
-            sessionId: req.sessionID,
-            message: 'Session initialized successfully'
-        });
-    });
+  console.log('🔄 iOS Session Initialization Request');
+  
+  const isIOS = req.isIOS || req.isIPad;
+  const sessionId = req.sessionID;
+  
+  console.log('📱 Device Info:', {
+    isIOS: isIOS,
+    isIPad: req.isIPad,
+    sessionId: sessionId,
+    hasCookies: !!req.headers.cookie,
+    userAgent: req.headers['user-agent']
+  });
+
+  // Always initialize session for iOS
+  if (!req.session.initialized) {
+    req.session.initialized = true;
+    req.session.deviceType = isIOS ? 'ios' : 'web';
+    req.session.createdAt = new Date();
+    console.log('✅ Session marked as initialized');
+  }
+
+  // CRITICAL: Set multiple cookie formats for iOS compatibility
+  const cookieOptions = {
+    maxAge: 24 * 60 * 60 * 1000,
+    path: '/',
+    domain: isProduction ? '.solura.uk' : undefined
+  };
+
+  // iOS-specific cookie settings
+  if (isIOS) {
+    cookieOptions.httpOnly = false;
+    cookieOptions.secure = false;
+    cookieOptions.sameSite = 'Lax';
+  } else {
+    cookieOptions.httpOnly = true;
+    cookieOptions.secure = isProduction;
+    cookieOptions.sameSite = isProduction ? 'none' : 'lax';
+  }
+
+  // Set the session cookie
+  res.cookie('solura.session', sessionId, cookieOptions);
+  
+  // Also set a custom header for iOS to store manually
+  res.setHeader('X-Session-ID', sessionId);
+  res.setHeader('X-Session-Initialized', 'true');
+  res.setHeader('X-Device-Type', isIOS ? 'ios' : 'web');
+
+  console.log('✅ iOS Session Response Headers:', {
+    sessionId: sessionId,
+    hasSetCookie: true,
+    deviceType: isIOS ? 'ios' : 'web'
+  });
+
+  res.json({
+    success: true,
+    sessionId: sessionId,
+    message: 'Session initialized successfully',
+    deviceType: isIOS ? 'ios' : 'web',
+    requiresManualStorage: isIOS, // Tell iOS to store session manually
+    timestamp: new Date().toISOString()
+  });
 });
 
+// NEW: iOS Session Restoration via Headers
+app.post('/api/ios-session-restore', (req, res) => {
+  console.log('📱 iOS Session Restoration via Headers');
+  
+  const sessionId = req.headers['x-session-id'];
+  const deviceFingerprint = req.headers['x-device-fingerprint'];
+  
+  if (!sessionId) {
+    return res.status(400).json({
+      success: false,
+      error: 'Session ID required'
+    });
+  }
+
+  console.log('🔄 Attempting to restore iOS session:', sessionId);
+
+  // Load the session from store
+  sessionStore.get(sessionId, (err, sessionData) => {
+    if (err) {
+      console.error('❌ Error loading session:', err);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to load session'
+      });
+    }
+
+    if (sessionData && sessionData.user) {
+      console.log('✅ iOS session restored successfully:', {
+        sessionId: sessionId,
+        user: sessionData.user.email
+      });
+
+      // Assign session data to current request
+      req.sessionID = sessionId;
+      Object.assign(req.session, sessionData);
+      
+      // Mark as iOS device
+      req.session.deviceType = 'ios';
+      req.session.lastAccess = new Date();
+
+      // Set cookie again for good measure
+      res.cookie('solura.session', sessionId, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax',
+        path: '/',
+        domain: isProduction ? '.solura.uk' : undefined
+      });
+
+      res.json({
+        success: true,
+        sessionId: sessionId,
+        user: sessionData.user,
+        message: 'Session restored successfully'
+      });
+    } else {
+      console.log('❌ No valid session found for:', sessionId);
+      res.status(404).json({
+        success: false,
+        error: 'Session not found or expired'
+      });
+    }
+  });
+});
+// Add session headers to all API requests from iOS
+app.use((req, res, next) => {
+  // For iOS devices, also check for session ID in headers
+  const sessionIdFromHeader = req.headers['x-session-id'];
+  const sessionIdFromLocalStorage = req.headers['x-client-session-id'];
+  
+  if ((req.isIOS || req.isIPad) && (sessionIdFromHeader || sessionIdFromLocalStorage)) {
+    const externalSessionId = sessionIdFromHeader || sessionIdFromLocalStorage;
+    
+    if (externalSessionId !== req.sessionID) {
+      console.log('📱 iOS session header detected:', externalSessionId);
+      
+      // Try to load this session
+      sessionStore.get(externalSessionId, (err, sessionData) => {
+        if (!err && sessionData && sessionData.user) {
+          console.log('✅ Restoring iOS session from header');
+          req.sessionID = externalSessionId;
+          Object.assign(req.session, sessionData);
+        }
+        next();
+      });
+    } else {
+      next();
+    }
+  } else {
+    next();
+  }
+});
 // CRITICAL FIX: Enhanced authentication middleware for iOS and iPad
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
