@@ -3126,6 +3126,53 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
     }
 });
 
+// NEW: Mobile session initialization endpoint
+app.get('/api/mobile-init', (req, res) => {
+    const isIOS = req.isIOS || req.isIPad;
+    const sessionId = req.sessionID;
+    
+    console.log('📱 Mobile Init Request:', {
+        sessionId: sessionId,
+        isIOS: isIOS,
+        hasCookies: !!req.headers.cookie,
+        userAgent: req.headers['user-agent']
+    });
+
+    // Initialize session for mobile devices
+    if (!req.session.initialized) {
+        req.session.initialized = true;
+        req.session.deviceType = isIOS ? 'ios' : 'mobile';
+        req.session.createdAt = new Date();
+        console.log('✅ Mobile session initialized');
+    }
+
+    // iOS-specific cookie settings
+    const cookieOptions = {
+        maxAge: 24 * 60 * 60 * 1000,
+        path: '/',
+        domain: isProduction ? '.solura.uk' : undefined,
+        httpOnly: false,
+        secure: false,
+        sameSite: 'Lax'
+    };
+
+    // Set session cookie
+    res.cookie('solura.session', sessionId, cookieOptions);
+    
+    // Additional headers for mobile
+    res.setHeader('X-Session-ID', sessionId);
+    res.setHeader('X-Session-Initialized', 'true');
+    res.setHeader('X-Device-Type', isIOS ? 'ios' : 'mobile');
+
+    res.json({
+        success: true,
+        sessionId: sessionId,
+        message: 'Mobile session initialized',
+        deviceType: isIOS ? 'ios' : 'mobile',
+        requiresManualStorage: isIOS
+    });
+});
+
 // Enhanced logout route
 app.get('/logout', (req, res) => {
     if (req.session) {
