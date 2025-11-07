@@ -2212,38 +2212,25 @@ function isUser(req, res, next) {
     sendAuthError(res, req, 'User access required');
 }
 
-// Enhanced database selection with force logout support
+// --- (FULLY CORRECTED) LOGIN ENDPOINT ---
 app.post('/submit', async (req, res) => {
     console.log('=== LOGIN ATTEMPT ===');
     console.log('Session ID at login start:', req.sessionID);
-    console.log('Session object exists:', !!req.session);
     console.log('Device Fingerprint:', req.headers['x-device-fingerprint']);
-    console.log('Request Body:', {
-        email: req.body.email,
-        hasPassword: !!req.body.password,
-        dbName: req.body.dbName,
-        forceLogout: req.body.forceLogout,
-        enableBiometric: req.body.enableBiometric,
-        deviceFingerprint: req.body.deviceFingerprint
-    });
+    console.log('Request Body:', req.body);
 
-    const { email, password, dbName, forceLogout, enableBiometric, deviceFingerprint } = req.body;
+    const { email, password, dbName, forceLogout } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ 
-            success: false,
-            message: 'Email and password are required' 
-        });
+        return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
     try {
         // --- (FIX) Smarter Active Session Check ---
-        // This query now correctly checks for sessions that are actually authenticated with the user's email.
         const [activeSessions] = await mainPool.promise().query("SELECT session_id, data FROM user_sessions");
         const userActiveSessions = activeSessions.filter(s => {
             try {
                 const sessionData = JSON.parse(s.data);
-                // Check if the session has a user object and if the email matches.
                 return sessionData && sessionData.user && sessionData.user.email === email;
             } catch (e) {
                 return false;
@@ -2258,27 +2245,16 @@ app.post('/submit', async (req, res) => {
             });
         }
         
-        // If forceLogout is true, destroy all of that user's other sessions.
         if (forceLogout) {
-            console.log(`Force logout requested for ${email}. Destroying ${userActiveSessions.length} sessions.`);
+            console.log(`Force logout for ${email}. Destroying ${userActiveSessions.length} sessions.`);
             for (const activeSession of userActiveSessions) {
-                await new Promise((resolve, reject) => {
-                    sessionStore.destroy(activeSession.session_id, (err) => {
-                        if (err) {
-                            console.error(`Error destroying session ${activeSession.session_id}:`, err);
-                            // Don't block login if one fails to destroy, just log it.
-                        }
-                        resolve();
-                    });
-                });
+                await new Promise(resolve => sessionStore.destroy(activeSession.session_id, () => resolve()));
             }
         }
         // --- END OF FIX ---
 
-
-        // First verify the user credentials
+        // (The rest of your login logic continues from here...)
         const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
-        
         mainPool.query(sql, [email], async (err, results) => {
             if (err) {
                 console.error('Error querying database:', err);

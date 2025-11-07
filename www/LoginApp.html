@@ -1368,63 +1368,66 @@ async function handleBiometricLogin() {
 
 
     // --- (FIX #2) CORRECTED MAIN LOGIN FUNCTION ---
-    async function performLogin(email, password, forceLogout = false) {
-        const submitBtn = document.getElementById('loginButton');
-        const loadingDiv = document.getElementById('loading');
-        const errorDiv = document.getElementById('errorMessage');
-        
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner"></span> Signing in...';
-        loadingDiv.style.display = 'block';
-        errorDiv.style.display = 'none';
+// --- (FULLY CORRECTED) MAIN LOGIN FUNCTION ---
+async function performLogin(email, password, forceLogout = false) {
+    const submitBtn = document.getElementById('loginButton');
+    const loadingDiv = document.getElementById('loading');
+    const errorDiv = document.getElementById('errorMessage');
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner"></span> Signing in...';
+    loadingDiv.style.display = 'block';
+    errorDiv.style.display = 'none';
 
-        try {
-            const res = await apiSubmitLogin(email, password, forceLogout, document.getElementById('enableBiometric').checked);
-            const data = await res.json();
+    try {
+        const res = await apiSubmitLogin(email, password, forceLogout, document.getElementById('enableBiometric').checked);
+        const data = await res.json();
 
-            // --- THE FIX FOR THE "Already Logged In" BUG ---
-            if (res.status === 409 && data.message === 'already_logged_in') {
-                showDuplicateSessionModal(email, password, data.activeSessions || 1);
-                // We MUST stop execution here and wait for the user to interact with the modal.
-                return;
-            }
-            // --- END OF FIX ---
+        // --- (FIX) Explicitly handle the 409 Conflict status ---
+        if (res.status === 409 && data.message === 'already_logged_in') {
+            showDuplicateSessionModal(email, password, data.activeSessions || 1);
+            // Stop execution here to wait for user input from the modal.
+            return;
+        }
+        // --- END OF FIX ---
 
-            if (!res.ok) {
-                throw new Error(data.message || `Server error: ${res.status}`);
-            }
+        if (!res.ok) {
+            throw new Error(data.message || `Server error: ${res.status}`);
+        }
 
-            if (data.message === 'Multiple databases found') {
-                databases = data.databases;
-                showDatabasePopup(databases);
-                currentUserData = { 
-                    email, 
-                    password,
-                    enableBiometric: document.getElementById('enableBiometric').checked,
-                };
-            } else if (data.redirectUrl) {
-                const enableBiometric = document.getElementById('enableBiometric').checked;
-                if (enableBiometric && currentDeviceFingerprint) {
-                    await registerDeviceForBiometric(email, currentDeviceFingerprint);
-                }
-                storeSessionData(data);
-                setTimeout(() => window.location.replace(data.redirectUrl), 500);
-            } else {
-                throw new Error('Invalid response from server');
+        if (data.message === 'Multiple databases found') {
+            databases = data.databases;
+            showDatabasePopup(databases);
+            currentUserData = { 
+                email, 
+                password,
+                enableBiometric: document.getElementById('enableBiometric').checked,
+            };
+        } else if (data.redirectUrl) {
+            const enableBiometric = document.getElementById('enableBiometric').checked;
+            if (enableBiometric && currentDeviceFingerprint) {
+                await registerDeviceForBiometric(email, currentDeviceFingerprint);
             }
-        } catch (error) {
-            console.error('Login error:', error);
-            showError(`Login failed: ${error.message}`);
-        } finally {
-            // Only reset the button if the duplicate session modal is NOT being displayed
-            if (document.getElementById('duplicateSessionModal').style.display !== 'block') {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign In';
-                loadingDiv.style.display = 'none';
-            }
+            storeSessionData(data);
+            setTimeout(() => {
+                window.location.replace(data.redirectUrl);
+            }, 500);
+        } else {
+            throw new Error('Invalid response from server');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        showError(`Login failed: ${error.message}`);
+    } finally {
+        // Only reset the button if the duplicate session modal is NOT being displayed
+        if (document.getElementById('duplicateSessionModal').style.display !== 'block') {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Sign In';
+            loadingDiv.style.display = 'none';
         }
     }
-// --- (FIX #2) CORRECTED LOGIN SUBMIT FUNCTION ---
+}
+    // --- (FIX #2) CORRECTED LOGIN SUBMIT FUNCTION ---
 async function handleLoginSubmit(event, forceLogout = false) {
     event.preventDefault();
     
