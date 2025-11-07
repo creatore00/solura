@@ -1370,7 +1370,7 @@ async function handleBiometricLogin() {
         console.log("Requesting user verification from device (Face ID / Touch ID)...");
        const result = await NativeBiometric.verifyIdentity(verificationConfig);
         // Check the result from the prompt.
-        if (!result.verified) {
+        if (!result || !result.verified) {
             throw new Error("Verification was cancelled or failed on the device.");
         }
 
@@ -1430,13 +1430,22 @@ async function handleBiometricLogin() {
         }
 
     } catch (error) {
-        // --- 5. CATCH AND DISPLAY ANY ERRORS ---
-        // This will catch errors from both the native prompt and the server calls.
-        console.error("❌ Full biometric process failed:", error);
-        errorDiv.textContent = `Login Failed: ${error.message}`;
-        errorDiv.style.display = 'block';
+    // --- 5. (IMPROVED) CATCH AND DISPLAY ERRORS ---
+    console.error("❌ Full biometric process failed:", error);
+    const errorMessage = error.message || 'An unknown error occurred.';
 
-    } finally {
+    // --- (THE FIX) ---
+    // Check for the specific "Device not registered" error from the server.
+    if (errorMessage.includes('Device not registered')) {
+        // Provide clear, actionable instructions to the user.
+        errorDiv.textContent = 'This device is not registered. Please sign in with your email and password first, making sure to check the "Enable biometric" box to set up this device.';
+    } else {
+        // For all other errors, show the original message.
+        errorDiv.textContent = `Login Failed: ${errorMessage}`;
+    }
+    
+    errorDiv.style.display = 'block';
+} {
         // --- 6. ALWAYS RESET THE BUTTON ---
         btn.disabled = false;
         btn.innerHTML = '<span class="biometric-icon">🔒</span><span id="biometricBtnText">Sign in with Biometrics</span>';

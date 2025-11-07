@@ -1370,7 +1370,7 @@ async function handleBiometricLogin() {
         console.log("Requesting user verification from device (Face ID / Touch ID)...");
        const result = await NativeBiometric.verifyIdentity(verificationConfig);
         // Check the result from the prompt.
-        if (!result.verified) {
+        if (!result || !result.verified) {
             throw new Error("Verification was cancelled or failed on the device.");
         }
 
