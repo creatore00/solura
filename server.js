@@ -152,48 +152,37 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// ENHANCED CORS for all devices
+// Define a list of origins that are allowed to connect.
+const allowedOrigins = [
+    'https://www.solura.uk', // Your main web domain
+    'http://localhost:8080',   // Your local development environment
+    'http://localhost',        // Common for local testing
+    'capacitor://localhost',   // **Crucial for Capacitor on iOS/Android**
+    'ionic://localhost'        // **Crucial for Ionic Framework**
+];
+
 const corsOptions = {
     origin: function (origin, callback) {
-        // Allow all origins for iOS/Capacitor and mobile devices
-        if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
-            return callback(null, true);
-        }
-        
-        const allowedOrigins = [
-            'https://www.solura.uk', 
-            'https://solura.uk', 
-            'http://localhost:8080',
-            'http://localhost:3000',
-            'capacitor://localhost',
-            'ionic://localhost',
-            'http://localhost',
-            'https://localhost'
-        ];
-        
-        if (allowedOrigins.indexOf(origin) !== -1 || origin?.includes('solura.uk')) {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        // or requests from an origin in our whitelist.
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
-            console.log('Blocked by CORS:', origin);
+            console.error('CORS Error: This origin is not allowed:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true,
+    credentials: true, // This allows cookies to be sent and received
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID', 'X-Capacitor', 'Origin', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'X-Session-ID', 'X-Capacitor'],
     exposedHeaders: ['Set-Cookie', 'X-Session-ID', 'Authorization']
 };
-app.use(cors({
-  origin: [
-    'capacitor://localhost',
-    'http://localhost',
-    'https://solura.uk',
-    /\.solura\.uk$/,
-  ],
-  credentials: true,
-}));
 
-// Handle preflight requests
+// **Use this single, robust CORS configuration for your entire app.**
+app.use(cors(corsOptions));
+
+// **Handle pre-flight requests for all routes.**
+// This is essential for requests with custom headers or non-simple methods (like POST with JSON).
 app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
