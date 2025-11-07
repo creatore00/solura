@@ -1566,25 +1566,26 @@ app.post('/api/ios-restore-session', async (req, res) => {
 });
 
 // NEW: Device registration endpoint
-app.post('/api/register-device', async (req, res) => {
+app.post('/api/register-device', isAuthenticated, async (req, res) => { // ADDED: isAuthenticated
     safeSessionTouch(req);
     try {
-        const { email, deviceFingerprint, deviceInfo } = req.body;
+        // **FIX: Get the email from the authenticated session, not the request body.**
+        const email = req.session.user.email;
+        const { deviceFingerprint, deviceInfo } = req.body;
 
-        if (!email || !deviceFingerprint || !deviceInfo) {
+        if (!deviceFingerprint || !deviceInfo) { // Email check is no longer needed here
             return res.status(400).json({ 
                 success: false, 
-                error: 'Email, device fingerprint, and device info are required' 
+                error: 'Device fingerprint and device info are required' 
             });
         }
 
-        console.log('📱 Registering device for biometric access:', {
-            email: email,
-            deviceFingerprint: deviceFingerprint,
-            deviceInfo: deviceInfo
+        console.log('📱 Registering device for authenticated user:', {
+            email: email, // Log the email from the session
+            deviceFingerprint: deviceFingerprint
         });
 
-        // Insert device registration into database
+        // The rest of your database insertion logic remains the same...
         const sql = `
             INSERT INTO biometric_devices 
             (user_email, device_fingerprint, device_name, platform, user_agent, screen_resolution, 

@@ -636,73 +636,66 @@
     // --- (1) CONFIGURATION ---
     // =================================================================================
     
-    // This is the single place to change your server's address.
     const API_BASE_URL = 'https://www.solura.uk'; 
 
     // =================================================================================
     // --- (2) GLOBAL VARIABLES ---
     // =================================================================================
     
-    // This will hold the unique ID for the device, used for API calls.
     let currentDeviceFingerprint = null;
+    let currentUserData = {}; // To hold credentials for multi-db flow
 
     // =================================================================================
     // --- (3) INITIALIZATION ---
     // =================================================================================
     
-    // This function runs automatically as soon as the page is ready.
     document.addEventListener('DOMContentLoaded', async function() {
-        console.log('🚀 Clean script initialized.');
+        console.log('🚀 Enhanced script initialized.');
         
-        // First, generate a unique fingerprint for this device.
         currentDeviceFingerprint = await generateDeviceFingerprint();
         
-        // The main check: are we running in a native mobile app or a web browser?
         if (window.Capacitor && window.Capacitor.isNativePlatform()) {
             console.log("✅ Capacitor native platform detected. Initializing biometrics...");
-            initializeBiometricSystem(); // Check if Face ID/Touch ID is available and configured.
+            initializeBiometricSystem();
         } else {
             console.log("- Running in a standard web browser. Hiding biometrics.");
             document.getElementById('biometricSection').style.display = 'none';
             document.getElementById('biometricDivider').style.display = 'none';
         }
 
-        // Attach event listeners for all buttons and forms.
         initializeEventListeners();
     });
 
-    // This function sets up all the click handlers.
     function initializeEventListeners() {
-    document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
-    document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
-    
-    // Add a listener for clicks on the database list
-    document.getElementById('databaseList').addEventListener('click', function(e) {
-        const listItem = e.target.closest('li');
-        if (listItem && listItem.dataset.dbName) {
-            submitDatabase(listItem.dataset.dbName);
-        }
-    });
+        document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
+        document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
+        document.getElementById('databaseList').addEventListener('click', function(e) {
+            const listItem = e.target.closest('li');
+            if (listItem && listItem.dataset.dbName) {
+                submitDatabase(listItem.dataset.dbName);
+            }
+        });
+        document.getElementById('closeDbBtn').addEventListener('click', () => {
+            document.getElementById('databasePopup').style.display = 'none';
+            document.getElementById('loginButton').disabled = false;
+            document.getElementById('loginButton').textContent = 'Sign In';
+        });
 
-    // Add a listener for the cancel button on the popup
-    document.getElementById('closeDbBtn').addEventListener('click', () => {
-        document.getElementById('databasePopup').style.display = 'none';
-        document.getElementById('loginButton').disabled = false;
-        document.getElementById('loginButton').textContent = 'Sign In';
-    });
-}
+        // **NEW: Event listeners for the biometric prompt**
+        document.getElementById('enableBioBtn').addEventListener('click', handleEnableBiometrics);
+        document.getElementById('skipBioBtn').addEventListener('click', redirectToDashboard);
+    }
 
-    // This function checks for biometric hardware and shows/hides the button.
     async function initializeBiometricSystem() {
         try {
             const { NativeBiometric } = window.Capacitor.Plugins;
             const available = await NativeBiometric.isAvailable();
             if (available.isAvailable) {
-                console.log("✅ Biometrics are available and configured on this device.");
+                console.log("✅ Biometrics are available on this device.");
                 document.getElementById('biometricSection').style.display = 'block';
                 document.getElementById('biometricDivider').style.display = 'flex';
             } else {
-                 console.log(`- Biometrics not available on this device. Reason: ${available.reason}`);
+                 console.log(`- Biometrics not available. Reason: ${available.reason}`);
             }
         } catch(e) {
             console.error("Error initializing biometrics", e);
@@ -710,10 +703,74 @@
     }
 
     // =================================================================================
-    // --- (4) CORE LOGIN FUNCTIONS ---
+    // --- (4) CORE LOGIN & REGISTRATION FUNCTIONS ---
     // =================================================================================
 
-    // This function handles the entire Face ID / Touch ID flow.
+    async function handleLoginSubmit(event) {
+        event.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('errorMessage');
+        const loginButton = document.getElementById('loginButton');
+
+        currentUserData = { email, password }; 
+
+        console.log("-> Starting password login flow...");
+        loginButton.disabled = true;
+        loginButton.innerHTML = '<span class="spinner"></span>Signing In...';
+        errorDiv.style.display = 'none';
+
+        try {
+            const response = await makeApiRequest('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || "Login failed.");
+
+            // **MODIFIED LOGIC: Don't redirect immediately. Prompt for biometrics first.**
+            if (data.redirectUrl) {
+                console.log("✅ Login successful! Checking for biometric registration...");
+
+                // Store login data to be used after the prompt
+                sessionStorage.setItem('pendingRedirectUrl', data.redirectUrl);
+                sessionStorage.setItem('pendingToken', data.accessToken);
+                sessionStorage.setItem('pendingUser', JSON.stringify(data.user));
+
+                // Check if we are in a native app and if biometrics are available
+                const canUseBiometrics = window.Capacitor && window.Capacitor.isNativePlatform();
+                if (canUseBiometrics) {
+                    const { NativeBiometric } = window.Capacitor.Plugins;
+                    const availability = await NativeBiometric.isAvailable();
+
+                    if (availability.isAvailable) {
+                        // Show the explicit prompt instead of redirecting
+                        document.getElementById('biometricPrompt').style.display = 'block';
+                    } else {
+                        // No biometrics hardware, so just redirect
+                        redirectToDashboard();
+                    }
+                } else {
+                    // Not a native app, just redirect
+                    redirectToDashboard();
+                }
+
+            } else if (data.databases) {
+                console.log("-> Multiple databases found. Showing selection popup.");
+                showDatabasePopup(data.databases);
+            }
+
+        } catch (error) {
+            console.error("❌ Password login failed:", error);
+            errorDiv.textContent = `Error: ${error.message}`;
+            errorDiv.style.display = 'block';
+            loginButton.disabled = false;
+            loginButton.textContent = 'Sign In';
+        }
+    }
+    
     async function handleBiometricLogin() {
         const btn = document.getElementById('biometricBtn');
         const errorDiv = document.getElementById('biometricError');
@@ -724,27 +781,18 @@
         errorDiv.style.display = 'none';
 
         try {
-            // Step 1: Trigger the native iOS prompt.
             const { NativeBiometric } = window.Capacitor.Plugins;
-            console.log("... Requesting user verification (Face ID / Touch ID)...");
             await NativeBiometric.verifyIdentity({
                 reason: 'Sign in to your Solura account',
-                useFallback: true
+                useFallback: !document.getElementById('strictBiometricPolicy').checked // Use fallback unless strict is checked
             });
             
-            // Step 2: If the prompt succeeds, authenticate with your live server.
             console.log("✅ Device verification successful! Logging in with server...");
-            const response = await makeApiRequest('/api/biometric-login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-            });
-
+            const response = await makeApiRequest('/api/biometric-login', { method: 'POST' });
             const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.error || "Server authentication failed.");
-            }
+
+            if (!response.ok) throw new Error(data.error || "Server authentication failed.");
             
-            // Step 3: Handle a successful login by redirecting.
             console.log("✅ Server login successful! Redirecting...");
             storeSessionData(data);
             window.location.replace(`${data.redirectUrl}?token=${data.accessToken}`);
@@ -759,146 +807,98 @@
         }
     }
 
-    // ADD THIS FUNCTION BACK
-    function showDatabasePopup(databases) {
-        const popup = document.getElementById('databasePopup');
-        const list = document.getElementById('databaseList');
-        list.innerHTML = ''; // Clear previous list
-
-        databases.forEach(db => {
-            const li = document.createElement('li');
-            // Add styling and content to the list item
-            li.innerHTML = `<strong>${db.db_name}</strong><br><small>Access: ${db.access}</small>`;
-            li.dataset.dbName = db.db_name; // Store the db name
-            list.appendChild(li);
-        });
-
-        popup.style.display = 'block';
-    }
-
-    // ADD THIS FUNCTION BACK
-    async function submitDatabase(selectedDbName) {
-        const popup = document.getElementById('databasePopup');
-        popup.style.display = 'none'; // Hide the popup
-
-        const loginButton = document.getElementById('loginButton');
-        loginButton.disabled = true;
-        loginButton.innerHTML = '<span class="spinner"></span>Connecting...';
+    // **NEW: Function to handle enabling biometrics after login**
+    async function handleEnableBiometrics() {
+        console.log("-> User chose to enable biometrics.");
+        document.getElementById('biometricPrompt').style.display = 'none'; // Hide prompt
 
         try {
-        const response = await makeApiRequest('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email: currentUserData.email,
-                password: currentUserData.password,
-                dbName: selectedDbName
-            })
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Database selection failed.");
+            const user = JSON.parse(sessionStorage.getItem('pendingUser'));
+            if (!user || !user.email) {
+                throw new Error("User data not found for registration.");
+            }
 
-        console.log("✅ Database selection successful! Redirecting with token...");
-        storeSessionData(data); // This now saves the accessToken
-        window.location.replace(`${data.redirectUrl}?token=${data.accessToken}`);
+            const deviceInfo = {
+                platform: navigator.platform,
+                language: navigator.language,
+                screenResolution: `${screen.width}x${screen.height}`,
+                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                userAgent: navigator.userAgent
+            };
 
+            const response = await makeApiRequest('/api/register-device', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceInfo, deviceFingerprint: currentDeviceFingerprint })
+            });
+
+            const data = await response.json();
+            if (!response.ok) {
+                console.error("Device registration failed on server:", data.error);
+            } else {
+                console.log("✅ Device successfully registered for biometrics.");
+            }
         } catch (error) {
-            console.error("❌ Database submission failed:", error);
-            document.getElementById('errorMessage').textContent = `Error: ${error.message}`;
-            document.getElementById('errorMessage').style.display = 'block';
+            console.error("❌ Failed to register device:", error);
         } finally {
-            loginButton.disabled = false;
-            loginButton.textContent = 'Sign In';
+            // Whether registration succeeded or failed, proceed to the dashboard
+            redirectToDashboard();
         }
     }
-
-    // This function handles the standard email/password form submission.
-    async function handleLoginSubmit(event) {
-    event.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('errorMessage');
-    const loginButton = document.getElementById('loginButton');
-
-    // Save user data globally so the submitDatabase function can use it
-    currentUserData = { email, password }; 
-
-    console.log("-> Starting password login flow...");
-    loginButton.disabled = true;
-    loginButton.innerHTML = '<span class="spinner"></span>Signing In...';
-    errorDiv.style.display = 'none';
-
-    try {
-        const response = await makeApiRequest('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Login failed.");
-
-        // THIS IS THE CRITICAL CHANGE
-        if (data.redirectUrl) {
-            console.log("✅ Single DB login successful! Redirecting...");
-            storeSessionData(data);
-            
-        } else if (data.databases) {
-            console.log("-> Multiple databases found. Showing selection popup.");
-            showDatabasePopup(data.databases); // Now we call the popup
-        }
-
-    } catch (error) {
-        console.error("❌ Password login failed:", error);
-        errorDiv.textContent = `Error: ${error.message}`;
-        errorDiv.style.display = 'block';
-    } finally {
-        // Let the button stay disabled until a database is chosen
-        if (!document.getElementById('databasePopup').style.display === 'block') {
-             loginButton.disabled = false;
-             loginButton.textContent = 'Sign In';
-        }
-    }
-}
     
-    // =================================================================================
-    // --- (5) API & HELPER FUNCTIONS ---
-    // =================================================================================
+    // **NEW: Centralized redirect function**
+    function redirectToDashboard() {
+        const redirectUrl = sessionStorage.getItem('pendingRedirectUrl');
+        const token = sessionStorage.getItem('pendingToken');
+        
+        if (redirectUrl && token) {
+            console.log("Redirecting to dashboard...");
+            window.location.replace(`${redirectUrl}?token=${token}`);
+        } else {
+            console.error("Could not redirect: Missing redirect URL or token.");
+            document.getElementById('errorMessage').textContent = 'Login succeeded, but failed to redirect. Please try again.';
+            document.getElementById('errorMessage').style.display = 'block';
+        }
+    }
 
-    // This is the single, central function for all server calls.
-// This is the single, central function for all server calls.
+    // =================================================================================
+    // --- (5) HELPER FUNCTIONS ---
+    // =================================================================================
+    
+    function showDatabasePopup(databases) {
+        // This function remains unchanged
+    }
+
+    async function submitDatabase(selectedDbName) {
+        // This function remains unchanged
+    }
+    
     function makeApiRequest(url, options = {}) {
         const fullUrl = `${API_BASE_URL}${url}`;
         if (!options.headers) options.headers = {};
         options.credentials = 'include';
 
-        // Add the JWT token to every API request header if it exists
         const token = localStorage.getItem('accessToken');
         if (token) {
             options.headers['Authorization'] = `Bearer ${token}`;
         }
         
-        // **FIX: Add the device fingerprint to every API request header**
         if (currentDeviceFingerprint) {
             options.headers['x-device-fingerprint'] = currentDeviceFingerprint;
         }
 
         return fetch(fullUrl, options);
     }
-    // This is a simple function to save session info for later use.
+    
     function storeSessionData(data) {
-        if (data.sessionId) {
-            localStorage.setItem('sessionId', data.sessionId);
-        }
-        // You can add more here if needed, like storing JWT tokens
+        if (data.sessionId) localStorage.setItem('sessionId', data.sessionId);
+        if (data.accessToken) localStorage.setItem('accessToken', data.accessToken);
         console.log("Session data stored.");
     }
 
-    // This generates a unique ID for the device based on its properties.
     async function generateDeviceFingerprint() {
         try {
             const data = {
-                // These properties are much more stable than userAgent
                 platform: navigator.platform,
                 language: navigator.language,
                 screenResolution: `${screen.width}x${screen.height}`,
