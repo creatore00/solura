@@ -282,11 +282,11 @@ app.use(session({
   saveUninitialized: true, // This is crucial for establishing the session early.
   proxy: true, // **CHANGE 2: Trust the proxy (like Heroku) to handle secure connections.**
   cookie: {
-    httpOnly: true,
+    httpOnly: false,
     // **CHANGE 3: Force secure cookies in production.**
-    secure: isProduction,
+    secure: true,
     // **CHANGE 4: Explicitly set SameSite to 'none' for cross-origin requests.**
-    sameSite: isProduction ? 'none' : 'lax', // Use 'none' for production (HTTPS), 'lax' for local dev (HTTP)
+    sameSite: none, // Use 'none' for production (HTTPS), 'lax' for local dev (HTTP)
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
     domain: isProduction ? '.solura.uk' : undefined,
   }
