@@ -1973,37 +1973,40 @@ app.post('/api/recover-session', async (req, res) => {
     }
 });
 
-// FIXED: Session initialization endpoint for iOS
+// FIXED: Session initialization endpoint for all devices, especially iOS
 app.get('/api/init-session', (req, res) => {
-    console.log('🔄 Initializing session');
+    console.log('🔄 Initializing or confirming session...');
     
-    // Ensure session is created and marked as initialized
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-    }
-    
-    // iPad-specific initialization
-    if (req.isIPad) {
-        req.session.ipadDevice = true;
-        console.log('📱 iPad session initialization');
-    }
-    
-    // Touch the session to ensure it's saved
-    safeSessionTouch(req);
-    
-    req.session.save((err) => {
-        if (err) {
-            console.error('Error saving session:', err);
-            return res.status(500).json({ success: false, error: 'Session initialization failed' });
-        }
-        
-        console.log('✅ Session initialized with ID:', req.sessionID);
-        
-        res.json({
+    // Check if a session already exists and has a user
+    if (req.session && req.session.user) {
+        console.log('✅ Session already exists for user:', req.session.user.email);
+        return res.json({
             success: true,
             sessionId: req.sessionID,
-            message: 'Session initialized successfully'
+            message: 'Existing session confirmed.'
         });
+    }
+    
+    // If no session or no user, ensure a new session is saved
+    req.session.initialized = true; // Mark it as initialized
+    
+    // The express-session middleware with `saveUninitialized: true` will handle saving it.
+    console.log('✅ New session initialized with ID:', req.sessionID);
+    
+    // Explicitly set the cookie in the response to be safe
+    res.cookie('solura.session', req.sessionID, {
+        maxAge: 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        path: '/',
+        domain: isProduction ? '.solura.uk' : undefined
+    });
+
+    res.json({
+        success: true,
+        sessionId: req.sessionID,
+        message: 'New session initialized successfully.'
     });
 });
 
