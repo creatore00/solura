@@ -673,11 +673,24 @@
 
     // This function sets up all the click handlers.
     function initializeEventListeners() {
-        document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
-        document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
-        // Add other listeners here, for example:
-        // document.getElementById('continueDbBtn').addEventListener('click', submitDatabase);
-    }
+    document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
+    document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
+    
+    // Add a listener for clicks on the database list
+    document.getElementById('databaseList').addEventListener('click', function(e) {
+        const listItem = e.target.closest('li');
+        if (listItem && listItem.dataset.dbName) {
+            submitDatabase(listItem.dataset.dbName);
+        }
+    });
+
+    // Add a listener for the cancel button on the popup
+    document.getElementById('closeDbBtn').addEventListener('click', () => {
+        document.getElementById('databasePopup').style.display = 'none';
+        document.getElementById('loginButton').disabled = false;
+        document.getElementById('loginButton').textContent = 'Sign In';
+    });
+}
 
     // This function checks for biometric hardware and shows/hides the button.
     async function initializeBiometricSystem() {
@@ -746,57 +759,110 @@
         }
     }
 
-    // This function handles the standard email/password form submission.
-    async function handleLoginSubmit(event) {
-        event.preventDefault();
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        const errorDiv = document.getElementById('errorMessage');
-        const loginButton = document.getElementById('loginButton');
+    // ADD THIS FUNCTION BACK
+    function showDatabasePopup(databases) {
+        const popup = document.getElementById('databasePopup');
+        const list = document.getElementById('databaseList');
+        list.innerHTML = ''; // Clear previous list
 
-        console.log("-> Starting password login flow...");
+        databases.forEach(db => {
+            const li = document.createElement('li');
+            // Add styling and content to the list item
+            li.innerHTML = `<strong>${db.db_name}</strong><br><small>Access: ${db.access}</small>`;
+            li.dataset.dbName = db.db_name; // Store the db name
+            list.appendChild(li);
+        });
+
+        popup.style.display = 'block';
+    }
+
+    // ADD THIS FUNCTION BACK
+    async function submitDatabase(selectedDbName) {
+        const popup = document.getElementById('databasePopup');
+        popup.style.display = 'none'; // Hide the popup
+
+        const loginButton = document.getElementById('loginButton');
         loginButton.disabled = true;
-        loginButton.innerHTML = '<span class="spinner"></span>Signing In...';
-        errorDiv.style.display = 'none';
+        loginButton.innerHTML = '<span class="spinner"></span>Connecting...';
 
         try {
-            // Call the live server to log in
+            // Now, re-submit the login request, but this time INCLUDE the dbName
             const response = await makeApiRequest('/submit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
-                    email, 
-                    password,
-                    enableBiometric: document.getElementById('enableBiometric').checked,
-                    deviceFingerprint: currentDeviceFingerprint
+                    email: currentUserData.email,       // currentUserData was saved from the first login attempt
+                    password: currentUserData.password,
+                    dbName: selectedDbName              // This is the key difference
                 })
             });
 
             const data = await response.json();
-            if (!response.ok) {
-                throw new Error(data.message || "Login failed.");
-            }
+            if (!response.ok) throw new Error(data.message || "Database selection failed.");
 
-            // Handle success
-            if (data.redirectUrl) {
-                console.log("✅ Password login successful! Redirecting...");
-                storeSessionData(data);
-                window.location.replace(data.redirectUrl);
-            } else if (data.databases) {
-                console.log("Multiple databases found. Need to implement database popup.");
-                // showDatabasePopup(data.databases); // You can re-implement this if needed.
-            }
+            console.log("✅ Database selection successful! Redirecting...");
+            storeSessionData(data);
+            window.location.replace(data.redirectUrl);
 
         } catch (error) {
-            console.error("❌ Password login failed:", error);
-            errorDiv.textContent = `Error: ${error.message}`;
-            errorDiv.style.display = 'block';
+            console.error("❌ Database submission failed:", error);
+            document.getElementById('errorMessage').textContent = `Error: ${error.message}`;
+            document.getElementById('errorMessage').style.display = 'block';
         } finally {
             loginButton.disabled = false;
             loginButton.textContent = 'Sign In';
         }
     }
 
+    // This function handles the standard email/password form submission.
+    async function handleLoginSubmit(event) {
+    event.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const errorDiv = document.getElementById('errorMessage');
+    const loginButton = document.getElementById('loginButton');
+
+    // Save user data globally so the submitDatabase function can use it
+    currentUserData = { email, password }; 
+
+    console.log("-> Starting password login flow...");
+    loginButton.disabled = true;
+    loginButton.innerHTML = '<span class="spinner"></span>Signing In...';
+    errorDiv.style.display = 'none';
+
+    try {
+        const response = await makeApiRequest('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Login failed.");
+
+        // THIS IS THE CRITICAL CHANGE
+        if (data.redirectUrl) {
+            console.log("✅ Single DB login successful! Redirecting...");
+            storeSessionData(data);
+            window.location.replace(data.redirectUrl);
+        } else if (data.databases) {
+            console.log("-> Multiple databases found. Showing selection popup.");
+            showDatabasePopup(data.databases); // Now we call the popup
+        }
+
+    } catch (error) {
+        console.error("❌ Password login failed:", error);
+        errorDiv.textContent = `Error: ${error.message}`;
+        errorDiv.style.display = 'block';
+    } finally {
+        // Let the button stay disabled until a database is chosen
+        if (!document.getElementById('databasePopup').style.display === 'block') {
+             loginButton.disabled = false;
+             loginButton.textContent = 'Sign In';
+        }
+    }
+}
+    
     // =================================================================================
     // --- (5) API & HELPER FUNCTIONS ---
     // =================================================================================
@@ -838,7 +904,7 @@
             };
             const jsonString = JSON.stringify(data);
             const msgBuffer = new TextEncoder().encode(jsonString);
-            const hashBuffer = await crypto.subtle.digest('SHA-266', msgBuffer);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
             const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
             console.log(`Device Fingerprint: ${hashHex}`);
