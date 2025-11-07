@@ -707,69 +707,70 @@
     // =================================================================================
 
     async function handleLoginSubmit(event) {
-        event.preventDefault();
-        const email = document.getElementById('email').value.trim();
-        const password = document.getElementById('password').value;
-        const errorDiv = document.getElementById('errorMessage');
-        const loginButton = document.getElementById('loginButton');
+    event.preventDefault();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    // **FIX: Correctly get the boolean value from the checkbox.**
+    const enableBiometric = document.getElementById('enableBiometric').checked;
+    const errorDiv = document.getElementById('errorMessage');
+    const loginButton = document.getElementById('loginButton');
 
-        currentUserData = { email, password }; 
+    currentUserData = { email, password }; 
 
-        console.log("-> Starting password login flow...");
-        loginButton.disabled = true;
-        loginButton.innerHTML = '<span class="spinner"></span>Signing In...';
-        errorDiv.style.display = 'none';
+    console.log("-> Starting password login flow...");
+    loginButton.disabled = true;
+    loginButton.innerHTML = '<span class="spinner"></span>Signing In...';
+    errorDiv.style.display = 'none';
 
-        try {
-            const response = await makeApiRequest('/submit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+    try {
+        // **FIX: Send the enableBiometric value in the request body.**
+        const response = await makeApiRequest('/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, enableBiometric, deviceFingerprint: currentDeviceFingerprint })
+        });
 
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || "Login failed.");
+        // The rest of the function remains the same...
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || "Login failed.");
 
-            // **MODIFIED LOGIC: Don't redirect immediately. Prompt for biometrics first.**
-            if (data.redirectUrl) {
-                console.log("✅ Login successful! Checking for biometric registration...");
+        if (data.redirectUrl) {
+            console.log("✅ Login successful! Checking for biometric registration...");
 
-                // Store login data to be used after the prompt
-                sessionStorage.setItem('pendingRedirectUrl', data.redirectUrl);
-                sessionStorage.setItem('pendingToken', data.accessToken);
-                sessionStorage.setItem('pendingUser', JSON.stringify(data.user));
+            sessionStorage.setItem('pendingRedirectUrl', data.redirectUrl);
+            sessionStorage.setItem('pendingToken', data.accessToken);
+            sessionStorage.setItem('pendingUser', JSON.stringify(data.user));
 
-                // Check if we are in a native app and if biometrics are available
-                const canUseBiometrics = window.Capacitor && window.Capacitor.isNativePlatform();
-                if (canUseBiometrics) {
-                    const { NativeBiometric } = window.Capacitor.Plugins;
-                    const availability = await NativeBiometric.isAvailable();
-
-                    if (availability.isAvailable) {
-                        // Show the explicit prompt instead of redirecting
-                        document.getElementById('biometricPrompt').style.display = 'block';
-                    } else {
-                        // No biometrics hardware, so just redirect
-                        redirectToDashboard();
-                    }
+            const canUseBiometrics = window.Capacitor && window.Capacitor.isNativePlatform();
+            // **CHANGE: Only prompt if the user actually checked the box**
+            if (canUseBiometrics && enableBiometric) {
+                const { NativeBiometric } = window.Capacitor.Plugins;
+                const availability = await NativeBiometric.isAvailable();
+                if (availability.isAvailable) {
+                    document.getElementById('biometricPrompt').style.display = 'block';
                 } else {
-                    // Not a native app, just redirect
                     redirectToDashboard();
                 }
-
-            } else if (data.databases) {
-                console.log("-> Multiple databases found. Showing selection popup.");
-                showDatabasePopup(data.databases);
+            } else {
+                redirectToDashboard();
             }
 
-        } catch (error) {
-            console.error("❌ Password login failed:", error);
-            errorDiv.textContent = `Error: ${error.message}`;
-            errorDiv.style.display = 'block';
-            loginButton.disabled = false;
-            loginButton.textContent = 'Sign In';
+        } else if (data.databases) {
+            console.log("-> Multiple databases found. Showing selection popup.");
+            showDatabasePopup(data.databases);
+        }
+
+    } catch (error) {
+        console.error("❌ Password login failed:", error);
+        errorDiv.textContent = `Error: ${error.message}`;
+        errorDiv.style.display = 'block';
+    } finally {
+        if (!document.getElementById('databasePopup').style.display === 'block') {
+             loginButton.disabled = false;
+             loginButton.textContent = 'Sign In';
         }
     }
+}
     
     async function handleBiometricLogin() {
         const btn = document.getElementById('biometricBtn');

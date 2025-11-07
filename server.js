@@ -284,22 +284,24 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: Session configuration MUST be before any session-related middleware
 app.use(session({
   key: 'solura.session',
   secret: process.env.SESSION_SECRET || 'supersecret',
   store: sessionStore,
   resave: false,
-  saveUninitialized: false,
+  // **CHANGE 1: Save uninitialized sessions to ensure a cookie is always set on the first visit.**
+  saveUninitialized: true, // This is crucial for establishing the session early.
+  proxy: true, // **CHANGE 2: Trust the proxy (like Heroku) to handle secure connections.**
   cookie: {
-    httpOnly: true,              // prevent JS access
-    secure: isProduction,        // must be true for HTTPS
-    sameSite: 'none',            // ✅ required for iOS WebView
-    maxAge: 24 * 60 * 60 * 1000, // 24h
+    httpOnly: true,
+    // **CHANGE 3: Force secure cookies in production.**
+    secure: isProduction,
+    // **CHANGE 4: Explicitly set SameSite to 'none' for cross-origin requests.**
+    sameSite: isProduction ? 'none' : 'lax', // Use 'none' for production (HTTPS), 'lax' for local dev (HTTP)
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
     domain: isProduction ? '.solura.uk' : undefined,
   }
 }));
-
 // CRITICAL FIX: Enhanced session persistence middleware
 app.use((req, res, next) => {
   // Store original session save method
