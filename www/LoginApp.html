@@ -1285,116 +1285,145 @@
         });
     }
 
-// --- (FIX #1) CORRECTED BIOMETRIC LOGIN FUNCTION ---
 async function handleBiometricLogin() {
-    const btn = document.getElementById('biometricBtn');
-    const errorDiv = document.getElementById('biometricError');
-    const successDiv = document.getElementById('biometricSuccess');
+        const btn = document.getElementById('biometricBtn');
+        const errorDiv = document.getElementById('biometricError');
+        const successDiv = document.getElementById('biometricSuccess');
 
-    // --- 1. SETUP UI FOR LOGIN PROCESS ---
-    console.log("✅ Starting full biometric login process...");
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>Authenticating...';
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
+        console.log("✅ Starting full biometric login process...");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Authenticating...';
+        errorDiv.style.display = 'none';
+        successDiv.style.display = 'none';
 
-    try {
-        // --- 2. NATIVE BIOMETRIC VERIFICATION (ON-DEVICE) ---
-        const { NativeBiometric } = window.Capacitor.Plugins;
-        if (!NativeBiometric) {
-            throw new Error("NativeBiometric plugin is not available on the window object.");
+        try {
+            const { NativeBiometric } = window.Capacitor.Plugins;
+            if (!NativeBiometric) throw new Error("NativeBiometric plugin is not available.");
+
+            const available = await NativeBiometric.isAvailable();
+            if (!available.isAvailable) throw new Error(`Biometrics not available: ${available.reason || 'Not configured'}`);
+
+            const verificationConfig = {
+                reason: 'Sign in to your Solura account',
+                title: 'Biometric Login',
+                subtitle: 'Fast & Secure',
+                useFallback: true,
+            };
+
+            console.log("Requesting user verification from device (Face ID / Touch ID)...");
+            const result = await NativeBiometric.verifyIdentity(verificationConfig);
+            
+            // --- THE FIX FOR "result.verified" CRASH ---
+            if (!result || !result.verified) {
+                throw new Error("Verification was cancelled or failed on the device.");
+            }
+            // --- END OF FIX ---
+
+            console.log("✅ Device verification successful. Now authenticating with the server...");
+            if (!currentDeviceFingerprint) throw new Error('Device identification failed.');
+
+            console.log("Checking device registration with server...");
+            const registrationCheck = await apiCheckDeviceRegistration();
+            const registrationData = await registrationCheck.json();
+            
+            if (!registrationCheck.ok || !registrationData.registered) {
+                throw new Error('This device is not registered for biometric access. Please log in with your password first.');
+            }
+
+            console.log("Performing biometric login with server...");
+            const response = await apiBiometricLogin();
+            const data = await response.json();
+
+            if (!response.ok) throw new Error(data.error || `Server authentication failed: ${response.status}`);
+
+            console.log("✅ Server authentication successful!");
+            successDiv.textContent = 'Login successful! Redirecting...';
+            successDiv.style.display = 'block';
+
+            if (data.redirectUrl) {
+                storeSessionData(data);
+                setTimeout(() => window.location.replace(data.redirectUrl), 500);
+            } else {
+                throw new Error("Server response did not contain a redirect URL.");
+            }
+
+        } catch (error) {
+            console.error("❌ Full biometric process failed:", error);
+            const errorMessage = error.message || 'An unknown error occurred.';
+
+            if (errorMessage.includes('cancelled')) {
+                console.log("Biometric prompt was cancelled by the user.");
+            } else if (errorMessage.includes('Device not registered')) {
+                errorDiv.textContent = 'This device is not registered. Please sign in with your email and password first, and check the "Enable biometric" box.';
+                errorDiv.style.display = 'block';
+            } else {
+                errorDiv.textContent = `Login Failed: ${errorMessage}`;
+                errorDiv.style.display = 'block';
+            }
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span class="biometric-icon">🔒</span><span id="biometricBtnText">Sign in with Biometrics</span>';
         }
-
-        const available = await NativeBiometric.isAvailable();
-        if (!available.isAvailable) {
-            throw new Error(`Biometrics not available. Reason: ${available.reason || 'Not configured'}`);
-        }
-
-        const verificationConfig = {
-            reason: 'Sign in to your Solura account',
-            title: 'Biometric Login',
-            subtitle: 'Fast & Secure',
-            useFallback: true,
-        };
-
-        console.log("Requesting user verification from device (Face ID / Touch ID)...");
-        const result = await NativeBiometric.verifyIdentity(verificationConfig);
-        
-        // --- THE FIX FOR "result.verified" CRASH ---
-        // Safely check if result exists before trying to access its properties.
-        if (!result || !result.verified) {
-            throw new Error("Verification was cancelled or failed on the device.");
-        }
-        // --- END OF FIX ---
-
-        // --- 3. SERVER-SIDE AUTHENTICATION ---
-        console.log("✅ Device verification successful. Now authenticating with the server...");
-
-        if (!currentDeviceFingerprint) {
-            throw new Error('Device identification failed. Cannot contact server.');
-        }
-
-        console.log("Checking device registration with server...");
-        const registrationCheck = await makeApiRequest('/api/check-device-registration', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint })
-        });
-        const registrationData = await registrationCheck.json();
-        
-        if (!registrationCheck.ok || !registrationData.registered) {
-            throw new Error('This device is not registered for biometric access. Please log in with your password first.');
-        }
-
-        console.log("Performing biometric login with server...");
-        const response = await makeApiRequest('/api/biometric-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Device-Fingerprint': currentDeviceFingerprint },
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.error || `Server authentication failed with status ${response.status}`);
-        }
-
-        // --- 4. HANDLE SUCCESSFUL LOGIN RESPONSE ---
-        console.log("✅ Server authentication successful!");
-        successDiv.textContent = 'Login successful! Redirecting...';
-        successDiv.style.display = 'block';
-
-        if (data.redirectUrl) {
-            storeSessionData(data);
-            setTimeout(() => {
-                window.location.replace(data.redirectUrl);
-            }, 500);
-        } else {
-            throw new Error("Server response did not contain a redirect URL.");
-        }
-
-    } catch (error) {
-        // --- 5. (IMPROVED) CATCH AND DISPLAY ERRORS ---
-        console.error("❌ Full biometric process failed:", error);
-        const errorMessage = error.message || 'An unknown error occurred.';
-
-        if (errorMessage.includes('cancelled')) {
-            // Don't show an error if the user just cancelled.
-            console.log("Biometric prompt was cancelled by the user.");
-        } else if (errorMessage.includes('Device not registered')) {
-            errorDiv.textContent = 'This device is not registered. Please sign in with your email and password first, making sure to check the "Enable biometric" box to set up this device.';
-            errorDiv.style.display = 'block';
-        } else {
-            errorDiv.textContent = `Login Failed: ${errorMessage}`;
-            errorDiv.style.display = 'block';
-        }
-
-    } finally {
-        // --- 6. ALWAYS RESET THE BUTTON ---
-        btn.disabled = false;
-        btn.innerHTML = '<span class="biometric-icon">🔒</span><span id="biometricBtnText">Sign in with Biometrics</span>';
     }
-}
 
 
+    // --- (FIX #2) CORRECTED MAIN LOGIN FUNCTION ---
+    async function performLogin(email, password, forceLogout = false) {
+        const submitBtn = document.getElementById('loginButton');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('errorMessage');
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> Signing in...';
+        loadingDiv.style.display = 'block';
+        errorDiv.style.display = 'none';
+
+        try {
+            const res = await apiSubmitLogin(email, password, forceLogout, document.getElementById('enableBiometric').checked);
+            const data = await res.json();
+
+            // --- THE FIX FOR THE "Already Logged In" BUG ---
+            if (res.status === 409 && data.message === 'already_logged_in') {
+                showDuplicateSessionModal(email, password, data.activeSessions || 1);
+                // We MUST stop execution here and wait for the user to interact with the modal.
+                return;
+            }
+            // --- END OF FIX ---
+
+            if (!res.ok) {
+                throw new Error(data.message || `Server error: ${res.status}`);
+            }
+
+            if (data.message === 'Multiple databases found') {
+                databases = data.databases;
+                showDatabasePopup(databases);
+                currentUserData = { 
+                    email, 
+                    password,
+                    enableBiometric: document.getElementById('enableBiometric').checked,
+                };
+            } else if (data.redirectUrl) {
+                const enableBiometric = document.getElementById('enableBiometric').checked;
+                if (enableBiometric && currentDeviceFingerprint) {
+                    await registerDeviceForBiometric(email, currentDeviceFingerprint);
+                }
+                storeSessionData(data);
+                setTimeout(() => window.location.replace(data.redirectUrl), 500);
+            } else {
+                throw new Error('Invalid response from server');
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            showError(`Login failed: ${error.message}`);
+        } finally {
+            // Only reset the button if the duplicate session modal is NOT being displayed
+            if (document.getElementById('duplicateSessionModal').style.display !== 'block') {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
+                loadingDiv.style.display = 'none';
+            }
+        }
+    }
 // --- (FIX #2) CORRECTED LOGIN SUBMIT FUNCTION ---
 async function handleLoginSubmit(event, forceLogout = false) {
     event.preventDefault();
@@ -1423,74 +1452,6 @@ async function handleLoginSubmit(event, forceLogout = false) {
     await performLogin(email, password, forceLogout);
 }
 
-async function performLogin(email, password, forceLogout = false) {
-    const submitBtn = document.getElementById('loginButton');
-    const loadingDiv = document.getElementById('loading');
-    const errorDiv = document.getElementById('errorMessage');
-    
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<span class="spinner"></span> Signing in...';
-    loadingDiv.style.display = 'block';
-    errorDiv.style.display = 'none';
-
-    try {
-        const res = await makeApiRequest('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                email, 
-                password,
-                forceLogout,
-                enableBiometric: document.getElementById('enableBiometric').checked,
-                deviceFingerprint: currentDeviceFingerprint
-            })
-        });
-
-        const data = await res.json();
-
-        // --- THE FIX FOR THE "Already Logged In" BUG ---
-        // Explicitly check for the 409 status code.
-        if (res.status === 409 && data.message === 'already_logged_in') {
-            showDuplicateSessionModal(email, password, data.activeSessions || 1);
-            // We must stop here and wait for user input from the modal.
-            return; 
-        }
-        // --- END OF FIX ---
-
-        if (!res.ok) {
-            throw new Error(data.message || `Server error: ${res.status}`);
-        }
-
-        if (data.message === 'Multiple databases found') {
-            databases = data.databases;
-            showDatabasePopup(databases);
-            currentUserData = { 
-                email, 
-                password,
-                enableBiometric: document.getElementById('enableBiometric').checked,
-            };
-        } else if (data.redirectUrl) {
-            const enableBiometric = document.getElementById('enableBiometric').checked;
-            if (enableBiometric && currentDeviceFingerprint) {
-                await registerDeviceForBiometric(email, currentDeviceFingerprint);
-            }
-            storeSessionData(data);
-            window.location.replace(data.redirectUrl);
-        } else {
-            throw new Error('Invalid response from server');
-        }
-    } catch (error) {
-        console.error('Login error:', error);
-        showError(`Login failed: ${error.message}`);
-    } finally {
-        // Only reset the button if the duplicate session modal is NOT shown
-        if (document.getElementById('duplicateSessionModal').style.display !== 'block') {
-            submitBtn.disabled = false;
-            submitBtn.textContent = 'Sign In';
-            loadingDiv.style.display = 'none';
-        }
-    }
-}
     // =================================================================================
     // DEVICE REGISTRATION
     // =================================================================================
