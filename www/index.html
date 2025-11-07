@@ -1276,7 +1276,7 @@ async function debugBiometricStatus() {
 
             // Step 2: Trigger the native iOS prompt using the correct method name
             console.log("... Requesting user verification (Face ID / Touch ID)...");
-            const result = await NativeBiometric.authenticate({
+            const result = await NativeBiometric.verifyIdentity({
                 reason: 'Sign in to your Solura account'
             });
 
