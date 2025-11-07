@@ -1,543 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-        <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-768D41J8NJ');
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="icon" href="/Front.ico" type="image/png">
     <title>Enterprise Login | Data Management Suite</title>
+    <!-- Your existing CSS styles go here -->
     <style>
-        :root {
-            --primary-color: #001f3f;
-            --secondary-color: #003366;
-            --accent-color: #0074D9;
-            --success-color: #28a745;
-            --light-accent: #7FDBFF;
-            --text-color: #333;
-            --light-text: #666;
-            --background-color: #ffffff;
-            --input-bg: #f8f9fa;
-            --border-radius: 16px;
-            --shadow: 0 8px 32px rgba(0, 31, 63, 0.1);
-            --gradient: linear-gradient(135deg, #001f3f 0%, #0074D9 100%);
-        }
-        /* TEMPORARY FIX - Force biometric section to show */
-#biometricSection {
-    display: block !important;
-}
-
-#biometricDivider {
-    display: flex !important;
-}
-        * { 
-            box-sizing: border-box; 
-            -webkit-tap-highlight-color: transparent; 
-            margin: 0; 
-            padding: 0; 
-        }
-        
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif; 
-            height: 100vh; 
-            overflow: hidden; 
-            background: var(--background-color); 
-            background-image: linear-gradient(135deg, rgba(0,31,63,0.05) 0%, rgba(255,255,255,1) 100%); 
-            color: var(--text-color); 
-            display: flex; 
-            flex-direction: column; 
-            padding: 0; 
-            position: fixed; 
-            width: 100%; 
-            height: 100%; 
-        }
-        
-        .login-container { 
-            background: var(--background-color); 
-            padding: 2rem 1.5rem; 
-            width: 100%; 
-            height: 100%; 
-            text-align: center; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            position: relative; 
-            overflow-y: auto; 
-        }
-        
-        .login-header {
-            margin-bottom: 2rem;
-        }
-        
-        .logo-container {
-            width: 100px;
-            height: 100px;
-            margin: 0 auto 1.5rem;
-            background: var(--gradient);
-            border-radius: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 36px;
-            font-weight: bold;
-            box-shadow: var(--shadow);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .logo-container::after {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
-            transform: rotate(45deg);
-        }
-        
-        .login-container h2 { 
-            color: var(--primary-color); 
-            font-size: 28px; 
-            margin-bottom: 0.5rem; 
-            font-weight: 700; 
-            letter-spacing: -0.5px;
-        }
-        
-        .login-container p { 
-            color: var(--light-text); 
-            margin-bottom: 2rem; 
-            font-size: 16px; 
-            line-height: 1.6; 
-            padding: 0 1rem; 
-        }
-        
-        .login-form {
-            max-width: 400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-        
-        .form-group { 
-            margin-bottom: 1.5rem; 
-            text-align: left; 
-        }
-        
-        .form-group label { 
-            display: block; 
-            font-weight: 600; 
-            margin-bottom: 0.75rem; 
-            color: var(--primary-color); 
-            font-size: 14px; 
-            text-transform: uppercase; 
-            letter-spacing: 0.5px; 
-        }
-        
-        .input-container {
-            position: relative;
-        }
-        
-        .form-group input { 
-            width: 100%; 
-            padding: 18px 20px; 
-            border: 2px solid #e9ecef; 
-            border-radius: var(--border-radius); 
-            font-size: 16px; 
-            background-color: var(--input-bg);
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .form-group input:focus { 
-            border-color: var(--accent-color); 
-            outline: none; 
-            box-shadow: 0 0 0 4px rgba(0,116,217,0.1); 
-            background-color: white;
-            transform: translateY(-2px);
-        }
-        
-        .form-group input::placeholder {
-            color: #adb5bd;
-            font-weight: 400;
-        }
-        
-        .form-group button { 
-            background: var(--gradient); 
-            color: white; 
-            padding: 18px; 
-            border: none; 
-            border-radius: var(--border-radius); 
-            cursor: pointer; 
-            width: 100%; 
-            font-size: 16px; 
-            font-weight: 600; 
-            margin-top: 0.5rem; 
-            letter-spacing: 0.5px; 
-            transition: all 0.3s ease;
-            box-shadow: var(--shadow);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .form-group button:hover { 
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(0, 31, 63, 0.2);
-        }
-        
-        .form-group button:active {
-            transform: translateY(0);
-        }
-        
-        .form-group button::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s;
-        }
-        
-        .form-group button:hover::after {
-            left: 100%;
-        }
-        
-        /* Biometric Section - Enhanced */
-        .biometric-section { 
-            margin: 2rem 0 1rem; 
-            padding: 0; 
-            text-align: center; 
-        }
-        
-        .biometric-divider {
-            display: flex;
-            align-items: center;
-            margin: 2rem 0;
-            color: var(--light-text);
-            font-size: 14px;
-        }
-        
-        .biometric-divider::before,
-        .biometric-divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #e9ecef;
-        }
-        
-        .biometric-divider span {
-            padding: 0 1rem;
-        }
-        
-        .biometric-btn { 
-            background: white; 
-            color: var(--primary-color); 
-            border: 2px solid #e9ecef;
-            padding: 16px 24px; 
-            border-radius: var(--border-radius); 
-            cursor: pointer; 
-            font-size: 16px; 
-            font-weight: 600; 
-            display: inline-flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 12px; 
-            width: 100%; 
-            transition: all 0.3s ease;
-            box-shadow: var(--shadow);
-        }
-        
-        .biometric-btn:hover { 
-            transform: translateY(-2px); 
-            border-color: var(--accent-color);
-            box-shadow: 0 8px 25px rgba(0, 31, 63, 0.15);
-        }
-        
-        .biometric-btn:active {
-            transform: translateY(0);
-        }
-        
-        .biometric-icon { 
-            font-size: 20px; 
-        }
-        
-        .biometric-text { 
-            font-size: 14px; 
-            color: var(--light-text); 
-            margin-top: 12px; 
-        }
-        
-        .biometric-error, .biometric-success {
-            padding: 12px;
-            border-radius: var(--border-radius);
-            margin-top: 1rem;
-            font-size: 14px;
-            font-weight: 500;
-            display: none;
-        }
-        
-        .biometric-error {
-            background: #ffe6e6;
-            color: #dc3545;
-            border: 1px solid #ffcccc;
-        }
-        
-        .biometric-success {
-            background: #e6ffe6;
-            color: var(--success-color);
-            border: 1px solid #ccffcc;
-        }
-        
-        /* Biometric Option Toggle - Enhanced */
-        .biometric-option { 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            margin: 1.5rem 0; 
-            padding: 1.25rem; 
-            background: #f8f9fa; 
-            border-radius: var(--border-radius); 
-            border: 2px solid #e9ecef;
-        }
-        
-        .biometric-option label { 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            cursor: pointer; 
-            font-size: 14px; 
-            color: var(--text-color); 
-            font-weight: 500;
-            margin: 0;
-        }
-        
-        .toggle-switch {
-            position: relative;
-            width: 50px;
-            height: 26px;
-            background: #ddd;
-            border-radius: 13px;
-            transition: all 0.3s ease;
-        }
-        
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            width: 22px;
-            height: 22px;
-            background: white;
-            border-radius: 50%;
-            top: 2px;
-            left: 2px;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        #enableBiometric:checked + .toggle-switch {
-            background: var(--success-color);
-        }
-        
-        #enableBiometric:checked + .toggle-switch::after {
-            transform: translateX(24px);
-        }
-        
-        #enableBiometric {
-            display: none;
-        }
-        
-        /* Loading States */
-        .loading { 
-            display: none; 
-            text-align: center; 
-            margin: 20px 0; 
-        }
-        
-        .loading-spinner { 
-            border: 3px solid #f3f3f3; 
-            border-top: 3px solid var(--accent-color); 
-            border-radius: 50%; 
-            width: 40px; 
-            height: 40px; 
-            animation: spin 1s linear infinite; 
-            margin: 0 auto 1rem; 
-        }
-        
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: #fff;
-            animation: spin 1s ease-in-out infinite;
-        }
-        
-        @keyframes spin { 
-            to { transform:rotate(360deg); } 
-        }
-        
-        /* Error Message */
-        .error-message { 
-            color: #dc3545; 
-            margin-top: 1rem; 
-            padding: 1rem; 
-            border-radius: var(--border-radius); 
-            background-color: #ffe6e6; 
-            border: 1px solid #ffcccc;
-            display: none; 
-            font-weight: 500;
-        }
-        
-        .powered-by { 
-            margin-top: 2rem; 
-            font-size: 12px; 
-            color: var(--light-text); 
-            padding: 0 1rem; 
-        }
-        
-        /* Modal Styles */
-        #databasePopup, #biometricPrompt, #duplicateSessionModal { 
-            display:none; 
-            position:fixed; 
-            top:0; 
-            left:0; 
-            right:0; 
-            bottom:0; 
-            background: rgba(0,0,0,0.7); 
-            z-index:1000; 
-            padding:1rem; 
-            overflow-y:auto; 
-        }
-        
-        .popup-content, .prompt-content, .modal-content { 
-            background:white; 
-            border-radius:var(--border-radius); 
-            padding:2rem; 
-            position:absolute; 
-            top:50%; 
-            left:50%; 
-            transform:translate(-50%,-50%); 
-            width:90%; 
-            max-width:400px; 
-            text-align:center; 
-            max-height:80vh; 
-            overflow-y:auto; 
-            box-shadow: var(--shadow);
-        }
-        
-        .popup-content::before, .prompt-content::before { 
-            content:''; 
-            position:absolute; 
-            top:0; 
-            left:0; 
-            width:100%; 
-            height:6px; 
-            background: var(--gradient); 
-            border-radius:var(--border-radius) var(--border-radius) 0 0; 
-        }
-        
-        .prompt-buttons, .popup-buttons, .modal-buttons { 
-            display:flex; 
-            gap:0.75rem; 
-            margin-top:1.5rem; 
-        }
-        
-        .prompt-buttons button, .popup-buttons button, .modal-buttons button { 
-            flex:1; 
-            padding:14px; 
-            border:none; 
-            border-radius:var(--border-radius); 
-            cursor:pointer; 
-            font-weight:600; 
-            transition: all 0.3s ease;
-        }
-        
-        .primary-btn { 
-            background: var(--gradient); 
-            color:white; 
-        }
-        
-        .primary-btn:hover { 
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 31, 63, 0.3);
-        }
-        
-        .secondary-btn, .close-btn { 
-            background-color:#f8f9fa; 
-            color:var(--text-color); 
-            border:2px solid #ddd; 
-        }
-        
-        .secondary-btn:hover, .close-btn:hover { 
-            background-color:#e9ecef; 
-            transform: translateY(-2px);
-        }
-        
-        /* Database List */
-        #databaseList {
-            list-style: none;
-            margin: 1.5rem 0;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        
-        #databaseList li {
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            border: 2px solid #e9ecef;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        
-        #databaseList li:hover {
-            border-color: var(--accent-color);
-            background: #f8f9fa;
-            transform: translateY(-2px);
-        }
-        
-        #databaseList li.selected {
-            border-color: var(--accent-color);
-            background: rgba(0, 116, 217, 0.05);
-        }
-        
-        /* Safe Area Support */
-        @supports (padding: max(0px)) {
-            .login-container {
-                padding-left: max(1.5rem, env(safe-area-inset-left));
-                padding-right: max(1.5rem, env(safe-area-inset-right));
-                padding-top: max(2rem, env(safe-area-inset-top));
-                padding-bottom: max(2rem, env(safe-area-inset-bottom));
-            }
-        }
+        :root{--primary-color:#001f3f;--secondary-color:#003366;--accent-color:#0074D9;--success-color:#28a745;--light-accent:#7FDBFF;--text-color:#333;--light-text:#666;--background-color:#fff;--input-bg:#f8f9fa;--border-radius:16px;--shadow:0 8px 32px rgba(0,31,63,.1);--gradient:linear-gradient(135deg,#001f3f 0%,#0074D9 100%)}*
+        {box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Roboto',sans-serif;height:100vh;overflow:hidden;background:var(--background-color);background-image:linear-gradient(135deg,rgba(0,31,63,.05) 0%,#fff 100%);color:var(--text-color);display:flex;flex-direction:column;padding:0;position:fixed;width:100%;height:100%}.login-container{background:var(--background-color);padding:2rem 1.5rem;width:100%;height:100%;text-align:center;display:flex;flex-direction:column;justify-content:center;position:relative;overflow-y:auto}.login-header{margin-bottom:2rem}.logo-container{width:100px;height:100px;margin:0 auto 1.5rem;background:var(--gradient);border-radius:25px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:36px;font-weight:700;box-shadow:var(--shadow);position:relative;overflow:hidden}.logo-container::after{content:'';position:absolute;top:-50%;left:-50%;width:200%;height:200%;background:linear-gradient(45deg,transparent,rgba(255,255,255,.1),transparent);transform:rotate(45deg)}.login-container h2{color:var(--primary-color);font-size:28px;margin-bottom:.5rem;font-weight:700;letter-spacing:-.5px}.login-container p{color:var(--light-text);margin-bottom:2rem;font-size:16px;line-height:1.6;padding:0 1rem}.login-form{max-width:400px;margin:0 auto;width:100%}.form-group{margin-bottom:1.5rem;text-align:left}.form-group label{display:block;font-weight:600;margin-bottom:.75rem;color:var(--primary-color);font-size:14px;text-transform:uppercase;letter-spacing:.5px}.input-container{position:relative}.form-group input{width:100%;padding:18px 20px;border:2px solid #e9ecef;border-radius:var(--border-radius);font-size:16px;background-color:var(--input-bg);transition:all .3s ease;font-weight:500}.form-group input:focus{border-color:var(--accent-color);outline:0;box-shadow:0 0 0 4px rgba(0,116,217,.1);background-color:#fff;transform:translateY(-2px)}.form-group input::placeholder{color:#adb5bd;font-weight:400}.form-group button{background:var(--gradient);color:#fff;padding:18px;border:none;border-radius:var(--border-radius);cursor:pointer;width:100%;font-size:16px;font-weight:600;margin-top:.5rem;letter-spacing:.5px;transition:all .3s ease;box-shadow:var(--shadow);position:relative;overflow:hidden}.form-group button:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,31,63,.2)}.form-group button:active{transform:translateY(0)}.form-group button::after{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.2),transparent);transition:left .5s}.form-group button:hover::after{left:100%}.biometric-section{margin:2rem 0 1rem;padding:0;text-align:center}.biometric-divider{display:flex;align-items:center;margin:2rem 0;color:var(--light-text);font-size:14px}.biometric-divider::after,.biometric-divider::before{content:'';flex:1;height:1px;background:#e9ecef}.biometric-divider span{padding:0 1rem}.biometric-btn{background:#fff;color:var(--primary-color);border:2px solid #e9ecef;padding:16px 24px;border-radius:var(--border-radius);cursor:pointer;font-size:16px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:12px;width:100%;transition:all .3s ease;box-shadow:var(--shadow)}.biometric-btn:hover{transform:translateY(-2px);border-color:var(--accent-color);box-shadow:0 8px 25px rgba(0,31,63,.15)}.biometric-btn:active{transform:translateY(0)}.biometric-icon{font-size:20px}.biometric-text{font-size:14px;color:var(--light-text);margin-top:12px}.biometric-error,.biometric-success{padding:12px;border-radius:var(--border-radius);margin-top:1rem;font-size:14px;font-weight:500;display:none}.biometric-error{background:#ffe6e6;color:#dc3545;border:1px solid #ffcccc}.biometric-success{background:#e6ffe6;color:var(--success-color);border:1px solid #ccffcc}.biometric-option{display:flex;align-items:center;justify-content:center;margin:1.5rem 0;padding:1.25rem;background:#f8f9fa;border-radius:var(--border-radius);border:2px solid #e9ecef}.biometric-option label{display:flex;align-items:center;gap:12px;cursor:pointer;font-size:14px;color:var(--text-color);font-weight:500;margin:0}.toggle-switch{position:relative;width:50px;height:26px;background:#ddd;border-radius:13px;transition:all .3s ease}.toggle-switch::after{content:'';position:absolute;width:22px;height:22px;background:#fff;border-radius:50%;top:2px;left:2px;transition:all .3s ease;box-shadow:0 2px 4px rgba(0,0,0,.2)}#enableBiometric:checked+.toggle-switch{background:var(--success-color)}#enableBiometric:checked+.toggle-switch::after{transform:translateX(24px)}#enableBiometric{display:none}.loading{display:none;text-align:center;margin:20px 0}.loading-spinner{border:3px solid #f3f3f3;border-top:3px solid var(--accent-color);border-radius:50%;width:40px;height:40px;animation:spin 1s linear infinite;margin:0 auto 1rem}.spinner{display:inline-block;width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-radius:50%;border-top-color:#fff;animation:spin 1s ease-in-out infinite}@keyframes spin{to{transform:rotate(360deg)}}.error-message{color:#dc3545;margin-top:1rem;padding:1rem;border-radius:var(--border-radius);background-color:#ffe6e6;border:1px solid #ffcccc;display:none;font-weight:500}.powered-by{margin-top:2rem;font-size:12px;color:var(--light-text);padding:0 1rem}#biometricPrompt,#databasePopup,#duplicateSessionModal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:1000;padding:1rem;overflow-y:auto}.modal-content,.popup-content,.prompt-content{background:#fff;border-radius:var(--border-radius);padding:2rem;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:90%;max-width:400px;text-align:center;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow)}.popup-content::before,.prompt-content::before{content:'';position:absolute;top:0;left:0;width:100%;height:6px;background:var(--gradient);border-radius:var(--border-radius) var(--border-radius) 0 0}.modal-buttons,.popup-buttons,.prompt-buttons{display:flex;gap:.75rem;margin-top:1.5rem}.modal-buttons button,.popup-buttons button,.prompt-buttons button{flex:1;padding:14px;border:none;border-radius:var(--border-radius);cursor:pointer;font-weight:600;transition:all .3s ease}.primary-btn{background:var(--gradient);color:#fff}.primary-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,31,63,.3)}.close-btn,.secondary-btn{background-color:#f8f9fa;color:var(--text-color);border:2px solid #ddd}.close-btn:hover,.secondary-btn:hover{background-color:#e9ecef;transform:translateY(-2px)}#databaseList{list-style:none;margin:1.5rem 0;max-height:200px;overflow-y:auto}#databaseList li{padding:1rem;margin-bottom:.75rem;border:2px solid #e9ecef;border-radius:var(--border-radius);cursor:pointer;transition:all .3s ease}#databaseList li:hover{border-color:var(--accent-color);background:#f8f9fa;transform:translateY(-2px)}#databaseList li.selected{border-color:var(--accent-color);background:rgba(0,116,217,.05)}@supports (padding:max(0px)){.login-container{padding-left:max(1.5rem,env(safe-area-inset-left));padding-right:max(1.5rem,env(safe-area-inset-right));padding-top:max(2rem,env(safe-area-inset-top));padding-bottom:max(2rem,env(safe-area-inset-bottom))}}
     </style>
 </head>
 <body>
-    <!-- Database Selection Popup -->
-    <div id="databasePopup">
+    <!-- Your existing HTML body content goes here -->
+        <div id="databasePopup">
         <div class="popup-content">
             <h3 style="color: var(--primary-color); margin-bottom: 1rem;">Select Account</h3>
             <p style="color: var(--light-text); margin-bottom: 1.5rem;">Your account has access to multiple databases. Please select one to continue.</p>
             <ul id="databaseList"></ul>
-            <div class="popup-buttons">
-                <button id="continueDbBtn" class="primary-btn">Continue</button>
-                <button id="closeDbBtn" class="secondary-btn">Cancel</button>
-            </div>
         </div>
     </div>
 
-    <!-- Biometric Prompt -->
     <div id="biometricPrompt">
         <div class="prompt-content">
             <div class="biometric-icon" style="font-size: 48px; margin-bottom: 1rem;">🔒</div>
@@ -550,20 +32,6 @@
         </div>
     </div>
 
-    <!-- Duplicate Session Modal -->
-    <div id="duplicateSessionModal" class="modal">
-        <div class="modal-content">
-            <h3 style="color: var(--primary-color); margin-bottom: 1rem;">Already Logged In</h3>
-            <p id="modalMessage" style="color: var(--light-text); margin-bottom: 1rem;">You are already logged in on another device or browser tab.</p>
-            <p style="color: var(--text-color); font-weight: 600; margin-bottom: 1.5rem;"><strong>What would you like to do?</strong></p>
-            <div class="modal-buttons">
-                <button id="logoutOthersBtn" class="primary-btn">Logout Others & Login Here</button>
-                <button id="cancelLoginBtn" class="secondary-btn">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Login Container -->
     <div class="login-container">
         <div class="login-header">
             <div class="logo-container">EDM</div>
@@ -571,426 +39,274 @@
             <p>Sign in to access your Enterprise Data Management Suite.</p>
         </div>
 
-        <!-- Biometric Authentication Section -->
         <div class="biometric-section" id="biometricSection" style="display: none;">
             <button class="biometric-btn" id="biometricBtn">
                 <span class="biometric-icon">🔒</span>
                 <span id="biometricBtnText">Sign in with Biometrics</span>
             </button>
-            <div class="biometric-text" id="biometricText">
-                Use Face ID, Touch ID, or device passcode
-            </div>
             <div class="biometric-error" id="biometricError"></div>
-            <div class="biometric-success" id="biometricSuccess"></div>
         </div>
-        <!-- Add policy selection to your existing biometric section -->
-<div class="biometric-policy" style="margin-top: 10px; font-size: 12px; color: var(--light-text);">
-    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-        <input type="checkbox" id="strictBiometricPolicy" style="margin: 0;">
-        <span>Require biometric only (no passcode fallback)</span>
-    </label>
-</div>
+
         <form class="login-form" id="loginForm">
-            <!-- Show divider only if biometric is available -->
             <div class="biometric-divider" id="biometricDivider" style="display: none;">
                 <span>or sign in with email</span>
             </div>
-
             <div class="form-group">
                 <label for="email">Email Address</label>
-                <div class="input-container">
-                    <input type="email" id="email" name="email" required placeholder="your.email@company.com">
-                </div>
+                <input type="email" id="email" name="email" required placeholder="your.email@company.com">
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
-                <div class="input-container">
-                    <input type="password" id="password" name="password" required placeholder="••••••••">
-                </div>
+                <input type="password" id="password" name="password" required placeholder="••••••••">
             </div>
-            
-            <!-- Biometric Option Toggle -->
             <div class="biometric-option">
                 <label>
                     <input type="checkbox" id="enableBiometric">
                     <span class="toggle-switch"></span>
-                    Enable biometric authentication for faster login
+                    Enable biometric authentication
                 </label>
             </div>
-
             <div class="form-group">
                 <button type="submit" id="loginButton">Sign In</button>
             </div>
-            
-            <div class="loading" id="loading">
-                <div class="loading-spinner"></div>
-                <p style="color: var(--light-text);">Checking session...</p>
-            </div>
             <div id="errorMessage" class="error-message"></div>
         </form>
-        <div class="powered-by">Enterprise Data Management Suite v3.2 · Secure Login</div>
     </div>
-</div>
+
 <script>
     // =================================================================================
     // --- (1) CONFIGURATION ---
     // =================================================================================
-    
-    const API_BASE_URL = 'https://www.solura.uk'; 
+    const API_BASE_URL = 'https://www.solura.uk';
 
     // =================================================================================
     // --- (2) GLOBAL VARIABLES ---
     // =================================================================================
-    
     let currentDeviceFingerprint = null;
-    let currentUserData = {}; // To hold credentials for multi-db flow
+    let tempCredentials = {}; // For multi-DB flow
 
     // =================================================================================
     // --- (3) INITIALIZATION ---
     // =================================================================================
-    
-// REPLACE the existing 'DOMContentLoaded' function in your <script> tag
-// ENHANCED: iOS-compatible session initialization
-document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Enhanced iOS-compatible script initialized.');
-    
-    // STEP 1: Initialize session with iOS-specific handling
-    await initializeSession();
-    
-    // STEP 2: Generate device fingerprint
-    currentDeviceFingerprint = await generateDeviceFingerprint();
-    
-    // STEP 3: Initialize biometrics if available
-    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-        console.log("✅ Capacitor native platform detected. Initializing biometrics...");
-        initializeBiometricSystem();
-    } else {
-        console.log("- Running in a standard web browser. Hiding biometrics.");
-        document.getElementById('biometricSection').style.display = 'none';
-        document.getElementById('biometricDivider').style.display = 'none';
-    }
-
-    // STEP 4: Attach event listeners
-    initializeEventListeners();
-});
-
-async function initializeSession() {
-    try {
-        console.log("-> Initializing session for iOS device...");
+    document.addEventListener('DOMContentLoaded', async () => {
+        console.log('🚀 Token-based script initialized.');
         
-        const response = await fetch(`${API_BASE_URL}/api/init-session`, {
-            method: 'GET',
-            credentials: 'include' // Important for cookies
-        });
+        currentDeviceFingerprint = await generateDeviceFingerprint();
         
-        const data = await response.json();
-        
-        if (data.success) {
-            console.log(`✅ Session initialized: ${data.sessionId}`);
-            
-            // Store session ID for iOS (cookies are unreliable)
-            if (data.requiresManualStorage) {
-                localStorage.setItem('ios_session_id', data.sessionId);
-                console.log('📱 Stored session ID in localStorage for iOS');
-            }
-            
-            // Store session ID from headers too
-            const sessionHeader = response.headers.get('X-Session-ID');
-            if (sessionHeader) {
-                localStorage.setItem('current_session_id', sessionHeader);
-            }
-            
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform();
+        if (isNative) {
+            await initializeBiometricSystem();
         } else {
-            throw new Error('Session initialization failed');
+            document.getElementById('biometricSection').style.display = 'none';
+            document.getElementById('biometricDivider').style.display = 'none';
         }
-    } catch (error) {
-        console.error("❌ Session initialization failed:", error);
-        
-        // Try to restore any existing session
-        await restoreExistingSession();
-    }
-}
 
-async function restoreExistingSession() {
-    const savedSessionId = localStorage.getItem('ios_session_id') || 
-                           localStorage.getItem('current_session_id');
-    
-    if (savedSessionId) {
-        console.log('🔄 Attempting to restore existing session:', savedSessionId);
-        
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/ios-session-restore`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Session-ID': savedSessionId,
-                    'X-Device-Fingerprint': currentDeviceFingerprint
-                },
-                credentials: 'include'
-            });
-            
-            const data = await response.json();
-            if (data.success) {
-                console.log('✅ Session restored successfully');
-                // Redirect to dashboard if user is already logged in
-                if (data.user) {
-                    window.location.href = getDashboardUrl(data.user.role);
-                }
-            }
-        } catch (error) {
-            console.error('❌ Session restoration failed:', error);
-            // Clear invalid session
-            localStorage.removeItem('ios_session_id');
-            localStorage.removeItem('current_session_id');
-        }
-    }
-}
-
-function getDashboardUrl(role) {
-    const isMobile = window.Capacitor && window.Capacitor.isNativePlatform();
-    
-    switch(role) {
-        case 'admin':
-        case 'AM':
-            return isMobile ? '/AdminApp.html' : '/Admin.html';
-        case 'user':
-            return isMobile ? '/UserApp.html' : '/User.html';
-        case 'supervisor':
-            return isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
-        default:
-            return '/';
-    }
-}
-
-function initializeEventListeners() {
-        document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
-        document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
-        document.getElementById('databaseList').addEventListener('click', function(e) {
-            const listItem = e.target.closest('li');
-            if (listItem && listItem.dataset.dbName) {
-                submitDatabase(listItem.dataset.dbName);
-            }
-        });
-        document.getElementById('closeDbBtn').addEventListener('click', () => {
-            document.getElementById('databasePopup').style.display = 'none';
-            document.getElementById('loginButton').disabled = false;
-            document.getElementById('loginButton').textContent = 'Sign In';
-        });
-
-        // **NEW: Event listeners for the biometric prompt**
-        document.getElementById('enableBioBtn').addEventListener('click', handleEnableBiometrics);
-        document.getElementById('skipBioBtn').addEventListener('click', redirectToDashboard);
-    }
+        initializeEventListeners();
+    });
 
     async function initializeBiometricSystem() {
         try {
             const { NativeBiometric } = window.Capacitor.Plugins;
             const available = await NativeBiometric.isAvailable();
             if (available.isAvailable) {
-                console.log("✅ Biometrics are available on this device.");
+                console.log("✅ Biometrics available.");
                 document.getElementById('biometricSection').style.display = 'block';
                 document.getElementById('biometricDivider').style.display = 'flex';
             } else {
-                 console.log(`- Biometrics not available. Reason: ${available.reason}`);
+                console.log(`- Biometrics not available: ${available.reason}`);
             }
-        } catch(e) {
+        } catch (e) {
             console.error("Error initializing biometrics", e);
         }
     }
 
+    function initializeEventListeners() {
+        document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
+        document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
+        document.getElementById('enableBioBtn').addEventListener('click', handleEnableBiometrics);
+        document.getElementById('skipBioBtn').addEventListener('click', () => redirectToDashboard());
+        document.getElementById('databaseList').addEventListener('click', (e) => {
+            const listItem = e.target.closest('li');
+            if (listItem && listItem.dataset.dbName) {
+                handleDatabaseSelection(listItem.dataset.dbName);
+            }
+        });
+    }
+
     // =================================================================================
-    // --- (4) CORE LOGIN & REGISTRATION FUNCTIONS ---
+    // --- (4) CORE AUTHENTICATION FLOW ---
     // =================================================================================
 
     async function handleLoginSubmit(event) {
-    event.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    // **FIX: Correctly get the boolean value from the checkbox.**
-    const enableBiometric = document.getElementById('enableBiometric').checked;
-    const errorDiv = document.getElementById('errorMessage');
-    const loginButton = document.getElementById('loginButton');
+        event.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        const wantsBiometric = document.getElementById('enableBiometric').checked;
 
-    currentUserData = { email, password }; 
+        setLoading(true);
+        tempCredentials = { email, password };
 
-    console.log("-> Starting password login flow...");
-    loginButton.disabled = true;
-    loginButton.innerHTML = '<span class="spinner"></span>Signing In...';
-    errorDiv.style.display = 'none';
+        try {
+            const response = await makeApiRequest('/submit', {
+                method: 'POST',
+                body: JSON.stringify({ email, password })
+            });
 
-    try {
-        // **FIX: Send the enableBiometric value in the request body.**
-        const response = await makeApiRequest('/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password, enableBiometric, deviceFingerprint: currentDeviceFingerprint })
-        });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Login failed');
 
-        // The rest of the function remains the same...
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || "Login failed.");
-
-        if (data.redirectUrl) {
-            console.log("✅ Login successful! Checking for biometric registration...");
-
-            sessionStorage.setItem('pendingRedirectUrl', data.redirectUrl);
-            sessionStorage.setItem('pendingToken', data.accessToken);
-            sessionStorage.setItem('pendingUser', JSON.stringify(data.user));
-
-            const canUseBiometrics = window.Capacitor && window.Capacitor.isNativePlatform();
-            // **CHANGE: Only prompt if the user actually checked the box**
-            if (canUseBiometrics && enableBiometric) {
-                const { NativeBiometric } = window.Capacitor.Plugins;
-                const availability = await NativeBiometric.isAvailable();
-                if (availability.isAvailable) {
-                    document.getElementById('biometricPrompt').style.display = 'block';
-                } else {
-                    redirectToDashboard();
-                }
+            if (data.requiresDbSelection) {
+                showDatabasePopup(data.databases);
             } else {
-                redirectToDashboard();
+                await handleAuthSuccess(data, wantsBiometric);
             }
-
-        } else if (data.databases) {
-            console.log("-> Multiple databases found. Showing selection popup.");
-            showDatabasePopup(data.databases);
-        }
-
-    } catch (error) {
-        console.error("❌ Password login failed:", error);
-        errorDiv.textContent = `Error: ${error.message}`;
-        errorDiv.style.display = 'block';
-    } finally {
-        if (!document.getElementById('databasePopup').style.display === 'block') {
-             loginButton.disabled = false;
-             loginButton.textContent = 'Sign In';
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoading(false);
         }
     }
-}
-    
+
+    async function handleDatabaseSelection(dbName) {
+        document.getElementById('databasePopup').style.display = 'none';
+        const wantsBiometric = document.getElementById('enableBiometric').checked;
+        setLoading(true);
+
+        try {
+            const response = await makeApiRequest('/submit', {
+                method: 'POST',
+                body: JSON.stringify({ ...tempCredentials, dbName })
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Database selection failed');
+
+            await handleAuthSuccess(data, wantsBiometric);
+        } catch (error) {
+            showError(error.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
     async function handleBiometricLogin() {
         const btn = document.getElementById('biometricBtn');
         const errorDiv = document.getElementById('biometricError');
-        
-        console.log("-> Starting biometric login flow...");
         btn.disabled = true;
-        btn.innerHTML = '<span class="spinner"></span>Authenticating...';
+        btn.innerHTML = '<span class="spinner"></span> Authenticating...';
         errorDiv.style.display = 'none';
 
         try {
             const { NativeBiometric } = window.Capacitor.Plugins;
-            await NativeBiometric.verifyIdentity({
-                reason: 'Sign in to your Solura account',
-                useFallback: !document.getElementById('strictBiometricPolicy').checked // Use fallback unless strict is checked
+            await NativeBiometric.verifyIdentity({ reason: 'Sign in to your account' });
+            
+            const response = await makeApiRequest('/api/biometric-login', {
+                method: 'POST',
+                body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint })
             });
-            
-            console.log("✅ Device verification successful! Logging in with server...");
-            const response = await makeApiRequest('/api/biometric-login', { method: 'POST' });
             const data = await response.json();
+            if (!response.ok) throw new Error(data.error);
 
-            if (!response.ok) throw new Error(data.error || "Server authentication failed.");
-            
-            console.log("✅ Server login successful! Redirecting...");
-            storeSessionData(data);
-            window.location.replace(`${data.redirectUrl}?token=${data.accessToken}`);
+            await handleAuthSuccess(data, false); // Don't re-prompt for biometrics
 
         } catch (error) {
-            console.error("❌ Biometric process failed:", error);
-            errorDiv.textContent = `Error: ${error.message || 'User cancelled or verification failed.'}`;
+            errorDiv.textContent = error.message || 'Biometric login failed.';
             errorDiv.style.display = 'block';
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<span class="biometric-icon">🔒</span><span>Sign in with Biometrics</span>';
+            btn.innerHTML = '<span class="biometric-icon">🔒</span> Sign in with Biometrics';
         }
     }
 
-    // **NEW: Function to handle enabling biometrics after login**
-    async function handleEnableBiometrics() {
-        console.log("-> User chose to enable biometrics.");
-        document.getElementById('biometricPrompt').style.display = 'none'; // Hide prompt
-
-        try {
-            const user = JSON.parse(sessionStorage.getItem('pendingUser'));
-            if (!user || !user.email) {
-                throw new Error("User data not found for registration.");
-            }
-
-            const deviceInfo = {
-                platform: navigator.platform,
-                language: navigator.language,
-                screenResolution: `${screen.width}x${screen.height}`,
-                timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                userAgent: navigator.userAgent
-            };
-
-            const response = await makeApiRequest('/api/register-device', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deviceInfo, deviceFingerprint: currentDeviceFingerprint })
-            });
-
-            const data = await response.json();
-            if (!response.ok) {
-                console.error("Device registration failed on server:", data.error);
-            } else {
-                console.log("✅ Device successfully registered for biometrics.");
-            }
-        } catch (error) {
-            console.error("❌ Failed to register device:", error);
-        } finally {
-            // Whether registration succeeded or failed, proceed to the dashboard
+    async function handleAuthSuccess(data, wantsBiometric) {
+        console.log('✅ Authentication successful.');
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        
+        // Store data needed for redirect and registration
+        sessionStorage.setItem('pendingRedirectUrl', data.redirectUrl);
+        
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform();
+        if (isNative && wantsBiometric) {
+            document.getElementById('biometricPrompt').style.display = 'flex';
+        } else {
             redirectToDashboard();
         }
     }
-    
-    // **NEW: Centralized redirect function**
-    function redirectToDashboard() {
-        const redirectUrl = sessionStorage.getItem('pendingRedirectUrl');
-        const token = sessionStorage.getItem('pendingToken');
-        
-        if (redirectUrl && token) {
-            console.log("Redirecting to dashboard...");
-            window.location.replace(`${redirectUrl}?token=${token}`);
-        } else {
-            console.error("Could not redirect: Missing redirect URL or token.");
-            document.getElementById('errorMessage').textContent = 'Login succeeded, but failed to redirect. Please try again.';
-            document.getElementById('errorMessage').style.display = 'block';
+
+    async function handleEnableBiometrics() {
+        document.getElementById('biometricPrompt').style.display = 'none';
+        console.log('-> User opted to enable biometrics. Registering device...');
+
+        try {
+            const deviceInfo = {
+                platform: navigator.platform,
+                userAgent: navigator.userAgent
+            };
+            const response = await makeApiRequest('/api/register-device', {
+                method: 'POST',
+                body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint, deviceInfo })
+            });
+
+            if (!response.ok) throw new Error('Device registration failed.');
+            console.log('✅ Device registered successfully.');
+
+        } catch (error) {
+            console.error('Biometric registration error:', error);
+        } finally {
+            redirectToDashboard();
         }
     }
 
     // =================================================================================
-    // --- (5) HELPER FUNCTIONS ---
+    // --- (5) UI & HELPER FUNCTIONS ---
     // =================================================================================
-    
-    function showDatabasePopup(databases) {
-        // This function remains unchanged
+
+    function redirectToDashboard() {
+        const url = sessionStorage.getItem('pendingRedirectUrl');
+        if (url) {
+            window.location.replace(url);
+        } else {
+            showError('Could not find redirect information. Please log in again.');
+        }
     }
 
-    async function submitDatabase(selectedDbName) {
-        // This function remains unchanged
+    function showDatabasePopup(databases) {
+        const list = document.getElementById('databaseList');
+        list.innerHTML = '';
+        databases.forEach(db => {
+            const li = document.createElement('li');
+            li.dataset.dbName = db.db_name;
+            li.innerHTML = `<strong>${db.db_name}</strong><br><small>Access: ${db.access}</small>`;
+            list.appendChild(li);
+        });
+        document.getElementById('databasePopup').style.display = 'flex';
     }
-    
-    function makeApiRequest(url, options = {}) {
+
+    function setLoading(isLoading) {
+        const button = document.getElementById('loginButton');
+        button.disabled = isLoading;
+        button.innerHTML = isLoading ? '<span class="spinner"></span>' : 'Sign In';
+    }
+
+    function showError(message) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+
+    async function makeApiRequest(url, options = {}) {
         const fullUrl = `${API_BASE_URL}${url}`;
-        if (!options.headers) options.headers = {};
-        options.credentials = 'include';
+        const headers = { 'Content-Type': 'application/json', ...options.headers };
 
         const token = localStorage.getItem('accessToken');
         if (token) {
-            options.headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        if (currentDeviceFingerprint) {
-            options.headers['x-device-fingerprint'] = currentDeviceFingerprint;
+            headers['Authorization'] = `Bearer ${token}`;
         }
 
-        return fetch(fullUrl, options);
-    }
-    
-    function storeSessionData(data) {
-        if (data.sessionId) localStorage.setItem('sessionId', data.sessionId);
-        if (data.accessToken) localStorage.setItem('accessToken', data.accessToken);
-        console.log("Session data stored.");
+        return fetch(fullUrl, {
+            ...options,
+            headers,
+        });
     }
 
     async function generateDeviceFingerprint() {
@@ -1005,9 +321,7 @@ function initializeEventListeners() {
             const msgBuffer = new TextEncoder().encode(jsonString);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             const hashArray = Array.from(new Uint8Array(hashBuffer));
-            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-            console.log(`Generated STABLE Fingerprint: ${hashHex}`);
-            return hashHex;
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         } catch (error) {
             console.error('Fingerprint generation failed', error);
             return 'fingerprint-failed';
