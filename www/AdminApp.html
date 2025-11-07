@@ -4,6 +4,27 @@
         <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-768D41J8NJ"></script>
 <script>
+    // This script runs immediately when the page loads
+    (function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+
+        if (token) {
+            console.log("Token found in URL. Saving to localStorage.");
+            // Store the token so we can use it for all future API calls
+            localStorage.setItem('accessToken', token);
+            // Clean the URL so the token isn't visible
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        // We can also add a check here: if there's no token, redirect to login
+        if (!localStorage.getItem('accessToken')) {
+            // Optional but good for security:
+            // window.location.replace('/index.html'); 
+        }
+    })();
+</script>
+<script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
