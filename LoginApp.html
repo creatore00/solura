@@ -650,36 +650,17 @@
     // =================================================================================
     
 // REPLACE the existing 'DOMContentLoaded' function in your <script> tag
-
+// ENHANCED: iOS-compatible session initialization
 document.addEventListener('DOMContentLoaded', async function() {
-    console.log('🚀 Enhanced script initialized.');
+    console.log('🚀 Enhanced iOS-compatible script initialized.');
     
-    // **STEP 1: Explicitly initialize the session with the backend.**
-    // This is the most critical fix to ensure cookies are set correctly on iOS.
-    try {
-        console.log("-> Attempting to initialize session with server...");
-        const response = await fetch(`${API_BASE_URL}/api/init-session`, {
-             method: 'GET',
-             // 'credentials: include' tells the browser to accept and send cookies
-             credentials: 'include'
-        });
-        const data = await response.json();
-        if (data.success) {
-            console.log(`✅ Session successfully initialized. Session ID: ${data.sessionId}`);
-        } else {
-            throw new Error('Session initialization failed.');
-        }
-    } catch (error) {
-        console.error("❌ CRITICAL: Could not initialize session with the server.", error);
-        // You could show an error message to the user here.
-        document.body.innerHTML = '<h1>Connection Error</h1><p>Could not connect to the server. Please check your internet connection and try again.</p>';
-        return; // Stop further execution if session fails
-    }
-
-    // STEP 2: Generate the device fingerprint (as before)
+    // STEP 1: Initialize session with iOS-specific handling
+    await initializeSession();
+    
+    // STEP 2: Generate device fingerprint
     currentDeviceFingerprint = await generateDeviceFingerprint();
     
-    // STEP 3: Check for native platform and initialize biometrics (as before)
+    // STEP 3: Initialize biometrics if available
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
         console.log("✅ Capacitor native platform detected. Initializing biometrics...");
         initializeBiometricSystem();
@@ -689,10 +670,99 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('biometricDivider').style.display = 'none';
     }
 
-    // STEP 4: Attach event listeners (as before)
+    // STEP 4: Attach event listeners
     initializeEventListeners();
 });
-    function initializeEventListeners() {
+
+async function initializeSession() {
+    try {
+        console.log("-> Initializing session for iOS device...");
+        
+        const response = await fetch(`${API_BASE_URL}/api/init-session`, {
+            method: 'GET',
+            credentials: 'include' // Important for cookies
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log(`✅ Session initialized: ${data.sessionId}`);
+            
+            // Store session ID for iOS (cookies are unreliable)
+            if (data.requiresManualStorage) {
+                localStorage.setItem('ios_session_id', data.sessionId);
+                console.log('📱 Stored session ID in localStorage for iOS');
+            }
+            
+            // Store session ID from headers too
+            const sessionHeader = response.headers.get('X-Session-ID');
+            if (sessionHeader) {
+                localStorage.setItem('current_session_id', sessionHeader);
+            }
+            
+        } else {
+            throw new Error('Session initialization failed');
+        }
+    } catch (error) {
+        console.error("❌ Session initialization failed:", error);
+        
+        // Try to restore any existing session
+        await restoreExistingSession();
+    }
+}
+
+async function restoreExistingSession() {
+    const savedSessionId = localStorage.getItem('ios_session_id') || 
+                           localStorage.getItem('current_session_id');
+    
+    if (savedSessionId) {
+        console.log('🔄 Attempting to restore existing session:', savedSessionId);
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/ios-session-restore`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Session-ID': savedSessionId,
+                    'X-Device-Fingerprint': currentDeviceFingerprint
+                },
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                console.log('✅ Session restored successfully');
+                // Redirect to dashboard if user is already logged in
+                if (data.user) {
+                    window.location.href = getDashboardUrl(data.user.role);
+                }
+            }
+        } catch (error) {
+            console.error('❌ Session restoration failed:', error);
+            // Clear invalid session
+            localStorage.removeItem('ios_session_id');
+            localStorage.removeItem('current_session_id');
+        }
+    }
+}
+
+function getDashboardUrl(role) {
+    const isMobile = window.Capacitor && window.Capacitor.isNativePlatform();
+    
+    switch(role) {
+        case 'admin':
+        case 'AM':
+            return isMobile ? '/AdminApp.html' : '/Admin.html';
+        case 'user':
+            return isMobile ? '/UserApp.html' : '/User.html';
+        case 'supervisor':
+            return isMobile ? '/SupervisorApp.html' : '/Supervisor.html';
+        default:
+            return '/';
+    }
+}
+
+function initializeEventListeners() {
         document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
         document.getElementById('loginForm').addEventListener('submit', handleLoginSubmit);
         document.getElementById('databaseList').addEventListener('click', function(e) {
