@@ -300,40 +300,44 @@
 let currentEditingCell = null;
 let employeeData = {};
 let currentMonth = '';
+
 // Function to get the list of months in the format 'YYYY-MM'
 function getMonthList(startYear, endYear) {
-            const months = [];
-            for (let year = startYear; year <= endYear; year++) {
-                for (let month = 1; month <= 12; month++) {
-                    const monthStr = month < 10 ? '0' + month : month;
-                    months.push(`${year}-${monthStr}`);
-                }
-            }
-            return months;
+    const months = [];
+    for (let year = startYear; year <= endYear; year++) {
+        for (let month = 1; month <= 12; month++) {
+            const monthStr = month < 10 ? '0' + month : month;
+            months.push(`${year}-${monthStr}`);
         }
+    }
+    return months;
+}
+
 // Function to populate month dropdown
 function populateMonthDropdown() {
-            const monthSelect = document.getElementById('month');
-            const startYear = 2000;
-            const endYear = 2100;
+    const monthSelect = document.getElementById('month');
+    const startYear = 2000;
+    const endYear = 2100;
 
-            const months = getMonthList(startYear, endYear);
-            months.forEach(month => {
-                const option = document.createElement('option');
-                option.value = month;
-                option.text = month;
-                monthSelect.appendChild(option);
-            });
-            monthSelect.value = getCurrentMonth();
-        }
+    const months = getMonthList(startYear, endYear);
+    months.forEach(month => {
+        const option = document.createElement('option');
+        option.value = month;
+        option.text = month;
+        monthSelect.appendChild(option);
+    });
+    monthSelect.value = getCurrentMonth();
+}
+
 // Function to get the current month in the format 'YYYY-MM'
 function getCurrentMonth() {
-            const currentDate = new Date();
-            const year = currentDate.getFullYear();
-            let month = currentDate.getMonth() + 1;
-            month = month < 10 ? '0' + month : month;
-            return `${year}-${month}`;
-        }
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    let month = currentDate.getMonth() + 1;
+    month = month < 10 ? '0' + month : month;
+    return `${year}-${month}`;
+}
+
 // Function to retrieve data for the selected Month
 async function retrieveAndPrintData() {
     const currentMonth = document.getElementById('month').value;
@@ -356,8 +360,8 @@ async function retrieveAndPrintData() {
         }
 
         // Process holiday year settings
-        const holidayYearStart = holidayYearSettings.HolidayYearStart; // format dd/mm/yyyy
-        const holidayYearEnd = holidayYearSettings.HolidayYearEnd; // format dd/mm/yyyy
+        const holidayYearStart = holidayYearSettings.HolidayYearStart;
+        const holidayYearEnd = holidayYearSettings.HolidayYearEnd;
 
         // Merge tip data by employee name and sum the tip values
         const tipMap = new Map();
@@ -365,7 +369,7 @@ async function retrieveAndPrintData() {
             const name = tip.name + ' ' + tip.lastName;
             const tipValue = parseFloat(tip.tip);
             if (isNaN(tipValue)) {
-                console.warn('Invalid tip value:', tip.tip);
+                return;
             }
             if (tipMap.has(name)) {
                 tipMap.set(name, tipMap.get(name) + tipValue);
@@ -399,6 +403,8 @@ async function retrieveAndPrintData() {
 
         // Calculate total hours and total tips for each employee
         employeeData = {};
+        const employeeShifts = {}; // Track individual shifts for logging
+        
         rotaData.forEach(entry => {
             const name = entry.name + ' ' + entry.lastName;
             if (!employeeData[name]) {
@@ -411,18 +417,32 @@ async function retrieveAndPrintData() {
                     holidays: 0,
                     holidayDays: 0
                 };
+                employeeShifts[name] = [];
             }
+            
             const startTime = new Date(`1970-01-01T${entry.startTime}Z`);
             const endTime = new Date(`1970-01-01T${entry.endTime}Z`);
             const hoursWorked = (endTime - startTime) / (1000 * 60 * 60);
+            
             employeeData[name].totalHours += hoursWorked;
             employeeData[name].totalTips = tipMap.get(name) || 0;
+            
+            // Store shift details for logging
+            employeeShifts[name].push({
+                date: entry.day,
+                startTime: entry.startTime,
+                endTime: entry.endTime,
+                hoursWorked: hoursWorked.toFixed(2)
+            });
             
             // Add holiday days if any
             if (holidaysMap.has(name)) {
                 employeeData[name].holidayDays = holidaysMap.get(name);
             }
         });
+
+        // Log employee hours breakdown
+        logEmployeeHoursBreakdown(employeeShifts);
 
         // Now calculate holiday hours for each employee
         await calculateHolidayHours(currentMonth, employeeData, employeesStartDates);
@@ -431,20 +451,43 @@ async function retrieveAndPrintData() {
         printDataTable();
 
     } catch (error) {
-        console.error('Error retrieving and printing data:', error);
         showNoDataMessage();
     }
 }
+
+// Function to log employee hours breakdown
+function logEmployeeHoursBreakdown(employeeShifts) {
+    console.log('=== EMPLOYEE HOURS BREAKDOWN ===');
+    
+    Object.keys(employeeShifts).forEach(employeeName => {
+        const shifts = employeeShifts[employeeName];
+        const totalHours = shifts.reduce((sum, shift) => sum + parseFloat(shift.hoursWorked), 0);
+        
+        console.log(`👤 ${employeeName}:`);
+        console.log(`   Total Hours: ${totalHours.toFixed(2)}`);
+        console.log(`   Number of Shifts: ${shifts.length}`);
+        
+        shifts.forEach(shift => {
+            console.log(`   📅 ${shift.date}: ${shift.startTime} - ${shift.endTime} (${shift.hoursWorked} hours)`);
+        });
+        
+        console.log(''); // Empty line for readability
+    });
+    
+    console.log('=== END EMPLOYEE HOURS BREAKDOWN ===');
+}
+
 // Helper function to parse date in dd/mm/yyyy format
 function parseDate(dateStr) {
     const [day, month, year] = dateStr.split('/');
     return new Date(year, month - 1, day);
 }
+
 // Function to calculate holiday hours for each employee
 async function calculateHolidayHours(selectedMonth, employeeData, employeesStartDates) {
     const [year, month] = selectedMonth.split('-');
     const currentDate = new Date(year, month - 1, 1);
-    const currentDateEnd = new Date(year, month, 0); // Last day of selected month
+    const currentDateEnd = new Date(year, month, 0);
 
     try {
         // 1. Fetch holiday year settings
@@ -453,7 +496,7 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
         const holidayYearEnd = holidaySettings.HolidayYearEnd;
         
         if (!holidayYearStart || !holidayYearEnd) {
-            throw new Error('Holiday year dates not found in settings');
+            return;
         }
 
         const holidayStartDate = new Date(holidayYearStart);
@@ -469,7 +512,7 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
             .then(res => res.json());
 
         // 3. Also fetch holiday data for the same period
-        const holidayData = await fetch(`/hours/holidays-since-date?startDate=${startDateStr}&endDate=${endDateStr}`)
+        await fetch(`/hours/holidays-since-date?startDate=${startDateStr}&endDate=${endDateStr}`)
             .then(res => res.json());
 
         // 4. Process each employee with holiday days
@@ -481,7 +524,6 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
                 )?.dateStart;
                 
                 if (!employeeStartDate) {
-                    console.warn(`Start date not found for ${data.name} ${data.lastName}`);
                     continue;
                 }
 
@@ -504,7 +546,6 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
                         const hours = calculateShiftHours(entry.startTime, entry.endTime);
                         return sum + hours;
                     } catch (e) {
-                        console.warn(`Invalid shift times for ${entry.day}: ${e.message}`);
                         return sum;
                     }
                 }, 0);
@@ -531,35 +572,25 @@ async function calculateHolidayHours(selectedMonth, employeeData, employeesStart
 
                 // Store final calculation
                 data.holidays = holidayHours;
-                
-                // Debug logging
-                console.log([
-                    `Employee: ${data.name} ${data.lastName}`,
-                    `Period: ${effectiveStartDate.toDateString()} to ${currentDateEnd.toDateString()}`,
-                    `Total days in period: ${totalDaysInPeriod}`,
-                    `Total weeks in period: ${totalWeeksInPeriod.toFixed(2)}`,
-                    `Total hours worked: ${totalHoursWorked.toFixed(2)}`,
-                    `Final average weekly hours: ${averageWeeklyHours.toFixed(2)}`,
-                    `Final daily average: ${averageDailyHours.toFixed(2)}`,
-                    `Final holiday hours: ${data.holidays.toFixed(2)} (${data.holidayDays} days)`
-                ].join('\n  '));
             }
         }
     } catch (error) {
-        console.error('Error calculating holiday hours:', error);
-        throw error;
+        // Silently handle errors in holiday calculation
     }
 }
+
 // Function to Calculate Shift Hours
 function calculateShiftHours(startTime, endTime) {
     const start = new Date(`1970-01-01T${startTime}Z`);
     const end = new Date(`1970-01-01T${endTime}Z`);
-    return (end - start) / (1000 * 60 * 60); // Convert ms to hours
+    return (end - start) / (1000 * 60 * 60);
 }
+
 // Helper function to compare dates
 function isDateAfterOrEqual(date1, date2) {
     return date1 >= date2;
 }
+
 // Helper function to parse date strings
 function parseDate(dateString) {
     if (dateString.includes('/')) {
@@ -568,14 +599,7 @@ function parseDate(dateString) {
     }
     return new Date(dateString);
 }
-// Helper function to calculate month difference between two dates
-function monthDiff(startDate, endDate) {
-    let months;
-    months = (endDate.getFullYear() - startDate.getFullYear()) * 12;
-    months -= startDate.getMonth();
-    months += endDate.getMonth();
-    return months <= 0 ? 0 : months;
-}
+
 // Function to print the data table (updated to show holiday days)
 function printDataTable() {
     const container = document.getElementById('hoursSummary');
@@ -613,82 +637,89 @@ function printDataTable() {
 
     container.appendChild(table);
 }
+
 // Function to show no data message
 function showNoDataMessage() {
-            const container = document.getElementById('hoursSummary');
-            container.innerHTML = '<div class="no-data">No data for this month yet</div>';
-            employeeData = {};
-        }
+    const container = document.getElementById('hoursSummary');
+    container.innerHTML = '<div class="no-data">No data for this month yet</div>';
+    employeeData = {};
+}
+
 // Function to open edit modal
 function openEditModal(cell, type) {
-        currentEditingCell = cell;
-        const modal = document.getElementById('editModal');
-        const editHoursInput = document.getElementById('editHours');
-        const currentTotalSpan = document.getElementById('currentTotal');
+    currentEditingCell = cell;
+    const modal = document.getElementById('editModal');
+    const editHoursInput = document.getElementById('editHours');
+    const currentTotalSpan = document.getElementById('currentTotal');
 
-        // Set current total
-        const currentValue = parseFloat(cell.textContent) || 0;
-        currentTotalSpan.textContent = currentValue.toFixed(2);
-        
-        // Reset input field
-        editHoursInput.value = '';
-        
-        // Configure based on what we're editing
-        if (type === 'hours') {
-            document.querySelector('.modal-content h3').textContent = 'Add Hours';
-        } else {
-            document.querySelector('.modal-content h3').textContent = 'Add Holiday Hours';
-        }
-
-        modal.style.display = 'block';
-        
-        // Focus the input field
-        editHoursInput.focus();
+    // Set current total
+    const currentValue = parseFloat(cell.textContent) || 0;
+    currentTotalSpan.textContent = currentValue.toFixed(2);
+    
+    // Reset input field
+    editHoursInput.value = '';
+    
+    // Configure based on what we're editing
+    if (type === 'hours') {
+        document.querySelector('.modal-content h3').textContent = 'Add Hours';
+    } else {
+        document.querySelector('.modal-content h3').textContent = 'Add Holiday Hours';
     }
+
+    modal.style.display = 'block';
+    
+    // Focus the input field
+    editHoursInput.focus();
+}
+
 // Function to save added hours
 function saveAddedHours() {
-        const editHoursInput = document.getElementById('editHours');
-        const hoursToAdd = parseFloat(editHoursInput.value) || 0;
-        
-        if (hoursToAdd <= 0) {
-            alert('Please enter a positive number of hours to add');
-            return;
-        }
-
-        const currentTotal = parseFloat(document.getElementById('currentTotal').textContent) || 0;
-        const newTotal = currentTotal + hoursToAdd;
-
-        // Update the cell
-        currentEditingCell.textContent = newTotal.toFixed(2);
-
-        // Update the employee data
-        const row = currentEditingCell.parentElement;
-        const name = row.cells[0].textContent + ' ' + row.cells[1].textContent;
-        
-        if (currentEditingCell.cellIndex === 3) { // Hours column
-            employeeData[name].totalHours = newTotal;
-        } else if (currentEditingCell.cellIndex === 4) { // Holidays column
-            employeeData[name].holidays = newTotal;
-        }
-
-        closeModal();
+    const editHoursInput = document.getElementById('editHours');
+    const hoursToAdd = parseFloat(editHoursInput.value) || 0;
+    
+    if (hoursToAdd <= 0) {
+        alert('Please enter a positive number of hours to add');
+        return;
     }
+
+    const currentTotal = parseFloat(document.getElementById('currentTotal').textContent) || 0;
+    const newTotal = currentTotal + hoursToAdd;
+
+    // Update the cell
+    currentEditingCell.textContent = newTotal.toFixed(2);
+
+    // Update the employee data
+    const row = currentEditingCell.parentElement;
+    const name = row.cells[0].textContent + ' ' + row.cells[1].textContent;
+    
+    if (currentEditingCell.cellIndex === 3) {
+        employeeData[name].totalHours = newTotal;
+    } else if (currentEditingCell.cellIndex === 4) {
+        employeeData[name].holidays = newTotal;
+    }
+
+    closeModal();
+}
+
 // Rename the old save function to avoid confusion
 function saveEditedHours() {
-        saveAddedHours(); // Now we just call the new function
-    }
+    saveAddedHours();
+}
+
 // Function to save changes to server
 function saveChanges() {
-            if (Object.keys(employeeData).length === 0) {
-                alert('No data to save for this month');
-                return;
-            }
-            alert('Changes saved successfully!');
-        }
+    if (Object.keys(employeeData).length === 0) {
+        alert('No data to save for this month');
+        return;
+    }
+    alert('Changes saved successfully!');
+}
+
 // Function to close the modal
 function closeModal() {
     document.getElementById('editModal').style.display = 'none';
 }
+
 // Function to download PDF
 async function downloadPDF() {
     if (Object.keys(employeeData).length === 0) {
@@ -783,7 +814,6 @@ async function downloadPDF() {
         }, 100);
 
     } catch (error) {
-        console.error('Error generating PDF:', error);
         alert('Error generating PDF. Please try again.');
     } finally {
         // Reset loading state
@@ -791,19 +821,20 @@ async function downloadPDF() {
         submitBtn.textContent = originalText;
     }
 }
+
 // Initialize the page
 window.onload = () => {
-            populateMonthDropdown();
-            retrieveAndPrintData();
-            
-            // Close modal when clicking outside
-            window.onclick = function(event) {
-                const modal = document.getElementById('editModal');
-                if (event.target == modal) {
-                    closeModal();
-                }
-            }
-        };
+    populateMonthDropdown();
+    retrieveAndPrintData();
+    
+    // Close modal when clicking outside
+    window.onclick = function(event) {
+        const modal = document.getElementById('editModal');
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+};
 </script>
 <footer style="position: absolute; bottom: 10px; width: 100%; text-align: center; color: rgba(11, 106, 184, 0.7); font-size: 0.9rem;">
     &copy; 2024 Solura Ltd. All rights reserved.

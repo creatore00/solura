@@ -87,7 +87,58 @@
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.25);
     }
-    
+        /* small circular ? */
+    .help {
+      display: inline-block;
+      margin-left: 8px;
+      width: 20px;
+      height: 20px;
+      line-height: 20px;
+      text-align: center;
+      border-radius: 50%;
+      font-weight: 700;
+      cursor: default;
+      border: 1px solid #ccc;
+      background: #f5f5f5;
+      position: relative; /* for tooltip placement */
+      font-size: 12px;
+      color: #333;
+      user-select: none;
+    }
+
+    /* tooltip box (hidden by default) */
+    .tooltip {
+      position: absolute;
+      bottom: calc(100% + 8px); /* above the ? */
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      white-space: nowrap;
+      background: #111;
+      color: #fff;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity .12s ease, transform .12s ease;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* show on hover or keyboard focus */
+    .help:hover .tooltip,
+    .help:focus .tooltip {
+      visibility: visible;
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* visible focus ring for accessibility */
+    .help:focus {
+      outline: 3px solid rgba(21,156,228,0.35);
+      outline-offset: 2px;
+    }
+
     .btn {
       padding: 10px 20px;
       font-size: 16px;
@@ -336,7 +387,14 @@
             <tr>
               <th>Name</th>
               <th>Designation</th>
-              <th>Total Cost</th>
+              <th>Total cost
+                <span class="help" tabindex="0" aria-describedby="tt-total" aria-label="More info about total cost">
+                  ?
+                  <span role="tooltip" id="tt-total" class="tooltip">
+                    Comprises applicable taxes, pension contributions where applicable, and holiday allocation.
+                  </span>
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody id="reportBody"></tbody>
@@ -356,6 +414,9 @@
       const errorDiv = document.getElementById('error');
       const reportDiv = document.getElementById('reportResult');
 
+      console.log('📊 === FINANCIAL REPORT GENERATION STARTED ===');
+      console.log('📅 Date Range:', { startDate, endDate });
+
       if (!startDate || !endDate) {
         errorDiv.textContent = "Please select both start and end dates.";
         errorDiv.style.display = 'block';
@@ -373,6 +434,7 @@
       reportDiv.style.display = 'none';
 
       try {
+        console.log('🔄 Fetching financial data from server...');
         const res = await fetch('/financialsummary/generate-report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -385,11 +447,12 @@
         }
 
         const data = await res.json();
+        console.log('✅ Server response received:', data);
         displayReport(data);
       } catch (err) {
+        console.error('❌ Error generating report:', err);
         errorDiv.textContent = err.message || 'Error generating report';
         errorDiv.style.display = 'block';
-        console.error('Error:', err);
       } finally {
         loading.style.display = 'none';
       }
@@ -398,6 +461,8 @@
     let salesChart, costChart;
 
     function displayReport(data) {
+      console.log('📈 === DISPLAYING FINANCIAL REPORT ===');
+      
       const reportDiv = document.getElementById('reportResult');
       const reportBody = document.getElementById('reportBody');
       const totalCostSpan = document.getElementById('totalCost');
@@ -413,29 +478,62 @@
       if (salesChart) salesChart.destroy();
       if (costChart) costChart.destroy();
 
-      // Set summary values
+      // Parse and log raw data
+      console.log('💰 RAW DATA FROM SERVER:', {
+        totalCost: data.totalCost,
+        zReportTotal: data.zReportTotal,
+        onAccountTotal: data.onAccountTotal,
+        employeeCount: data.report ? data.report.length : 0,
+        employees: data.report
+      });
+
+      // Calculate financial metrics
       const staffCost = parseFloat(data.totalCost);
       const zReport = parseFloat(data.zReportTotal);
       const onAccount = parseFloat(data.onAccountTotal);
       const totalSales = zReport + onAccount;
       const profit = totalSales - staffCost;
       const profitMargin = totalSales > 0 ? (profit / totalSales * 100) : 0;
-      
+      const costPercentage = totalSales > 0 ? (staffCost / totalSales * 100) : 0;
+
+      console.log('🧮 FINANCIAL CALCULATIONS:', {
+        staffCost,
+        zReport,
+        onAccount,
+        totalSales,
+        profit,
+        profitMargin: profitMargin.toFixed(2) + '%',
+        costPercentage: costPercentage.toFixed(2) + '%'
+      });
+
+      // Set summary values in UI
       totalCostSpan.textContent = staffCost.toFixed(2);
       zReportTotalSpan.textContent = zReport.toFixed(2);
       onAccountTotalSpan.textContent = onAccount.toFixed(2);
       totalSalesSpan.textContent = totalSales.toFixed(2);
       profitMarginSpan.textContent = profitMargin.toFixed(2);
-      
-      // Calculate financial metrics
-      const costPercentage = totalSales > 0 ? (staffCost / totalSales * 100) : 0;
       costPercentageSpan.textContent = costPercentage.toFixed(2);
+
+      console.log('📊 UI VALUES SET:', {
+        totalCost: staffCost.toFixed(2),
+        zReportTotal: zReport.toFixed(2),
+        onAccountTotal: onAccount.toFixed(2),
+        totalSales: totalSales.toFixed(2),
+        profitMargin: profitMargin.toFixed(2) + '%',
+        costPercentage: costPercentage.toFixed(2) + '%'
+      });
 
       // Create charts
       createCharts(data, totalSales, staffCost);
 
-      // Populate staff cost table
-      data.report.forEach(employee => {
+      // Populate staff cost table with detailed logging
+      console.log('👥 STAFF COST BREAKDOWN:');
+      let totalEmployeeCost = 0;
+      
+      data.report.forEach((employee, index) => {
+        console.log(`   ${index + 1}. ${employee.name} (${employee.designation}): £${employee.totalWithExtras.toFixed(2)}`);
+        totalEmployeeCost += employee.totalWithExtras;
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${employee.name}</td>
@@ -445,31 +543,60 @@
         reportBody.appendChild(tr);
       });
 
+      console.log(`📋 TOTAL EMPLOYEE COSTS: £${totalEmployeeCost.toFixed(2)}`);
+      console.log(`📋 REPORTED TOTAL COST: £${staffCost.toFixed(2)}`);
+      console.log(`📋 DIFFERENCE: £${Math.abs(totalEmployeeCost - staffCost).toFixed(2)}`);
+
       // Show the report and download button
       reportDiv.style.display = 'block';
       downloadPdfBtn.style.display = 'inline-block';
       
       // Store the data for PDF generation
       downloadPdfBtn.onclick = () => downloadReportPDF(data, document.getElementById('startDate').value, document.getElementById('endDate').value);
+      
+      console.log('✅ REPORT DISPLAY COMPLETE');
     }
 
     function createCharts(data, totalSales, totalCost) {
+      console.log('📊 === CREATING CHARTS ===');
+      
       const salesCtx = document.getElementById('salesChart').getContext('2d');
       const costCtx = document.getElementById('costChart').getContext('2d');
       
-      // Calculate FOH and BOH costs
+      // Calculate FOH and BOH costs with detailed logging
       let fohTotal = 0;
       let bohTotal = 0;
+      let otherTotal = 0;
       
+      console.log('🏷️ ANALYZING EMPLOYEE DESIGNATIONS:');
       data.report.forEach(employee => {
+        const cost = employee.totalWithExtras;
         if (employee.designation.includes('FOH')) {
-          fohTotal += employee.totalWithExtras;
+          fohTotal += cost;
+          console.log(`   🍽️  FOH: ${employee.name} - £${cost.toFixed(2)}`);
         } else if (employee.designation.includes('BOH')) {
-          bohTotal += employee.totalWithExtras;
+          bohTotal += cost;
+          console.log(`   👨‍🍳 BOH: ${employee.name} - £${cost.toFixed(2)}`);
+        } else {
+          otherTotal += cost;
+          console.log(`   ❓ OTHER: ${employee.name} (${employee.designation}) - £${cost.toFixed(2)}`);
         }
       });
-      
+
+      console.log('🏷️ DEPARTMENT TOTALS:', {
+        fohTotal: fohTotal.toFixed(2),
+        bohTotal: bohTotal.toFixed(2),
+        otherTotal: otherTotal.toFixed(2),
+        calculatedTotal: (fohTotal + bohTotal + otherTotal).toFixed(2),
+        reportedTotal: totalCost.toFixed(2)
+      });
+
       // Sales Chart
+      console.log('📈 Creating Sales Chart with data:', {
+        zReport: data.zReportTotal,
+        onAccount: data.onAccountTotal
+      });
+      
       salesChart = new Chart(salesCtx, {
         type: 'doughnut',
         data: {
@@ -498,6 +625,12 @@
       });
       
       // Cost Chart
+      console.log('📊 Creating Cost Chart with data:', {
+        fohTotal: fohTotal.toFixed(2),
+        bohTotal: bohTotal.toFixed(2),
+        otherTotal: otherTotal.toFixed(2)
+      });
+      
       costChart = new Chart(costCtx, {
         type: 'bar',
         data: {
@@ -512,6 +645,11 @@
               label: 'BOH',
               data: [bohTotal],
               backgroundColor: '#f8961e'
+            },
+            {
+              label: 'Other',
+              data: [otherTotal],
+              backgroundColor: '#7209b7'
             }
           ]
         },
@@ -540,9 +678,13 @@
           }
         }
       });
+
+      console.log('✅ CHARTS CREATED SUCCESSFULLY');
     }
 
     async function downloadReportPDF(data, startDate, endDate) {
+      console.log('📄 === PDF GENERATION STARTED ===');
+      
       const loading = document.getElementById('loading');
       const errorDiv = document.getElementById('error');
       
@@ -555,6 +697,25 @@
         const formattedEndDate = new Date(endDate).toLocaleDateString('en-GB');
         const dateRange = `${formattedStartDate} to ${formattedEndDate}`;
         
+        console.log('📅 PDF Date Range:', dateRange);
+
+        // Recalculate for PDF to ensure consistency
+        const staffCost = parseFloat(data.totalCost);
+        const zReport = parseFloat(data.zReportTotal);
+        const onAccount = parseFloat(data.onAccountTotal);
+        const totalSales = zReport + onAccount;
+        const profit = totalSales - staffCost;
+        const profitMargin = totalSales > 0 ? (profit / totalSales * 100) : 0;
+        const costPercentage = totalSales > 0 ? (staffCost / totalSales * 100) : 0;
+
+        console.log('🧮 PDF CALCULATIONS:', {
+          totalSales: totalSales.toFixed(2),
+          staffCost: staffCost.toFixed(2),
+          profit: profit.toFixed(2),
+          profitMargin: profitMargin.toFixed(2) + '%',
+          costPercentage: costPercentage.toFixed(2) + '%'
+        });
+
         // Create HTML for PDF
         const htmlContent = `
 <!DOCTYPE html>
@@ -582,32 +743,32 @@
         <h2>Financial Summary</h2>
         <div class="summary-item">
             <span>Total Sales:</span>
-            <span class="income">£${(parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal)).toFixed(2)}</span>
+            <span class="income">£${totalSales.toFixed(2)}</span>
         </div>
         <div class="summary-item">
             <span>Total Staff Costs:</span>
-            <span class="expense">£${data.totalCost.toFixed(2)}</span>
+            <span class="expense">£${staffCost.toFixed(2)}</span>
         </div>
         <div class="summary-item" style="font-weight: 600;">
             <span>Profit Margin:</span>
-            <span class="income">${(((parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal)) - parseFloat(data.totalCost)) / (parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal)) * 100 || 0).toFixed(2)}%</span>
+            <span class="income">${profitMargin.toFixed(2)}%</span>
         </div>
     </div>
     
     <h2>Income Breakdown</h2>
     <div class="summary-item">
         <span>Z Report Total:</span>
-        <span class="income">£${data.zReportTotal.toFixed(2)}</span>
+        <span class="income">£${zReport.toFixed(2)}</span>
     </div>
     <div class="summary-item">
         <span>On Account Total:</span>
-        <span class="income">£${data.onAccountTotal.toFixed(2)}</span>
+        <span class="income">£${onAccount.toFixed(2)}</span>
     </div>
     
     <h2>Cost Analysis</h2>
     <div class="summary-item">
         <span>Staff Cost Percentage:</span>
-        <span>${((parseFloat(data.totalCost) / (parseFloat(data.zReportTotal) + parseFloat(data.onAccountTotal))) * 100 || 0).toFixed(2)}% of sales</span>
+        <span>${costPercentage.toFixed(2)}% of sales</span>
     </div>
     
     <h2>Staff Cost Breakdown</h2>
@@ -632,6 +793,10 @@
 </body>
 </html>`;
 
+        console.log('📧 Sending HTML content to server for PDF generation...');
+        console.log('📊 HTML Content Length:', htmlContent.length, 'characters');
+        console.log('👥 Employee rows in PDF:', data.report.length);
+
         // Send to server to generate PDF
         const response = await fetch('/financialsummary/generate-pdf', {
             method: 'POST',
@@ -644,6 +809,7 @@
 
         if (!response.ok) throw new Error('Failed to generate PDF');
 
+        console.log('✅ PDF generated successfully, creating download...');
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -652,17 +818,21 @@
         document.body.appendChild(a);
         a.click();
 
+        console.log('📥 PDF download initiated');
+
         setTimeout(() => {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
+            console.log('🧹 Cleaned up PDF resources');
         }, 100);
 
       } catch (error) {
-        console.error('PDF generation error:', error);
+        console.error('❌ PDF generation error:', error);
         errorDiv.textContent = 'Error generating PDF: ' + error.message;
         errorDiv.style.display = 'block';
       } finally {
         loading.style.display = 'none';
+        console.log('📄 PDF GENERATION COMPLETE');
       }
     }
 
@@ -674,6 +844,11 @@
       
       document.getElementById('startDate').valueAsDate = startDate;
       document.getElementById('endDate').valueAsDate = endDate;
+      
+      console.log('📅 Default dates set:', {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0]
+      });
     };
   </script>
 </body>

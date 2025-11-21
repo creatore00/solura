@@ -97,7 +97,9 @@ app.post('/generate-report', async (req, res) => {
         const [taxRows] = await pool.promise().query(`SELECT tax, pension, holiday FROM rota_tax LIMIT 1`);
         const { tax = 0, pension = 0, holiday = 0 } = taxRows[0] || {};
 
-        // Fetch rota data
+        console.log('📊 TAX RATES:', { tax, pension, holiday });
+
+        // Fetch rota data with pension_payer information
         const [rotaResults] = await pool.promise().query(`
             SELECT 
                 cr.day,
@@ -106,7 +108,8 @@ app.post('/generate-report', async (req, res) => {
                 cr.designation,
                 cr.startTime,
                 cr.endTime,
-                IFNULL(e.wage, 0) AS wage
+                IFNULL(e.wage, 0) AS wage,
+                IFNULL(e.pension_payer, 'No') AS pension_payer
             FROM 
                 ConfirmedRota cr
             LEFT JOIN 
@@ -117,18 +120,31 @@ app.post('/generate-report', async (req, res) => {
                 cr.day, cr.name, cr.lastName
         `, [formattedDays]);
 
+        console.log('👥 ROTA RESULTS COUNT:', rotaResults.length);
+        console.log('📋 PENSION PAYER BREAKDOWN:');
+        
         const employeeData = {};
         let totalCost = 0;
+        let pensionPayerCount = 0;
+        let nonPensionPayerCount = 0;
 
         rotaResults.forEach(shift => {
             const key = `${shift.name} ${shift.lastName}`;
             const day = shift.day;
+            const isPensionPayer = shift.pension_payer === 'Yes';
+
+            if (isPensionPayer) {
+                pensionPayerCount++;
+            } else {
+                nonPensionPayerCount++;
+            }
 
             if (!employeeData[key]) {
                 employeeData[key] = {
                     name: key,
                     designation: shift.designation,
                     wage: parseFloat(shift.wage) || 0,
+                    pension_payer: isPensionPayer,
                     shifts: {}
                 };
             }
@@ -143,6 +159,13 @@ app.post('/generate-report', async (req, res) => {
             });
         });
 
+        console.log('💰 PENSION PAYER STATS:', {
+            totalEmployees: Object.keys(employeeData).length,
+            pensionPayers: pensionPayerCount,
+            nonPensionPayers: nonPensionPayerCount,
+            pensionRate: pension + '%'
+        });
+
         const report = Object.values(employeeData).map(employee => {
             let employeeBaseTotal = 0;
 
@@ -154,7 +177,16 @@ app.post('/generate-report', async (req, res) => {
             });
 
             const taxAmount = (tax / 100) * employeeBaseTotal;
-            const pensionAmount = (pension / 100) * employeeBaseTotal;
+            
+            // Only calculate pension for pension payers
+            let pensionAmount = 0;
+            if (employee.pension_payer) {
+                pensionAmount = (pension / 100) * employeeBaseTotal;
+                console.log(`💰 PENSION APPLIED for ${employee.name}: £${pensionAmount.toFixed(2)} (${pension}% of £${employeeBaseTotal.toFixed(2)})`);
+            } else {
+                console.log(`❌ NO PENSION for ${employee.name}: Not a pension payer`);
+            }
+
             const holidayAmount = (holiday / 100) * employeeBaseTotal;
 
             const employeeTotalCost = employeeBaseTotal + taxAmount + pensionAmount + holidayAmount;
@@ -167,7 +199,8 @@ app.post('/generate-report', async (req, res) => {
                 tax: parseFloat(taxAmount.toFixed(2)),
                 pension: parseFloat(pensionAmount.toFixed(2)),
                 holiday: parseFloat(holidayAmount.toFixed(2)),
-                totalWithExtras: parseFloat(employeeTotalCost.toFixed(2))
+                totalWithExtras: parseFloat(employeeTotalCost.toFixed(2)),
+                isPensionPayer: employee.pension_payer // Include for debugging
             };
         });
 
@@ -186,16 +219,33 @@ app.post('/generate-report', async (req, res) => {
             onAccountTotal += parseFloat(entry.onaccount || 0);
         });
 
+        console.log('💳 CASH REPORT TOTALS:', {
+            zReportTotal: zReportTotal.toFixed(2),
+            onAccountTotal: onAccountTotal.toFixed(2),
+            totalSales: (zReportTotal + onAccountTotal).toFixed(2)
+        });
+
+        console.log('📊 FINAL REPORT SUMMARY:', {
+            totalCost: totalCost.toFixed(2),
+            employeeCount: report.length,
+            pensionPayersInReport: report.filter(emp => emp.isPensionPayer).length
+        });
+
         return res.json({
             totalCost: parseFloat(totalCost.toFixed(2)),
             report,
             zReportTotal: parseFloat(zReportTotal.toFixed(2)),
             onAccountTotal: parseFloat(onAccountTotal.toFixed(2)),
-            appliedRates: { tax, pension, holiday }
+            appliedRates: { tax, pension, holiday },
+            pensionStats: {
+                totalEmployees: Object.keys(employeeData).length,
+                pensionPayers: pensionPayerCount,
+                nonPensionPayers: nonPensionPayerCount
+            }
         });
 
     } catch (err) {
-        console.error('Error in generate-report:', err);
+        console.error('❌ Error in generate-report:', err);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -250,7 +300,7 @@ app.post('/generate-pdf', isAuthenticated, async (req, res) => {
         res.end(pdfBuffer);
 
     } catch (error) {
-        console.error('PDF Generation Error:', error);
+        console.error('❌ PDF Generation Error:', error);
         res.status(500).json({ error: 'Failed to generate PDF: ' + error.message });
     } finally {
         if (browser) await browser.close();

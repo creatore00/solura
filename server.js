@@ -11,6 +11,7 @@ const newRota2 = require('./rota2.js');
 const confirmpassword = require('./ConfirmPassword.js'); 
 const token = require('./Token.js');
 const Backend = require('./Backend.js');
+const TimeTracking = require('./TimeTracking.js');
 const generate = require('./Generate.js');
 const pastemployees = require('./PastEmployees.js');
 const updateinfo = require('./UpdateInfo.js');
@@ -66,12 +67,12 @@ function parseCookies(cookieHeader) {
             const parts = cookie.trim().split('=');
             if (parts.length >= 2) {
                 const name = parts[0].trim();
-                const value = parts.slice(1).join('=').trim();
+                const value = parts.slice(1).join('=').trim(); // Handle values with '='
                 if (name && value) {
                     try {
                         cookies[name] = decodeURIComponent(value);
                     } catch (e) {
-                        cookies[name] = value;
+                        cookies[name] = value; // Use raw value if decode fails
                     }
                 }
             }
@@ -79,26 +80,11 @@ function parseCookies(cookieHeader) {
     }
     return cookies;
 }
-const isAuthenticated = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (err) return res.status(403).json({ success: false, error: 'Forbidden: Invalid Token' });
-            req.user = user;
-            next();
-        });
-    } else if (req.session && req.session.user) {
-        req.user = req.session.user;
-        next();
-    } else {
-        res.status(401).json({ success: false, error: 'Unauthorized' });
-    }
-};
+
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
 
-// Enhanced device detection helper
+// Enhanced device detection helper - SERVER SAFE
 function isMobileDevice(req) {
     const userAgent = req.headers['user-agent'] || '';
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
@@ -108,11 +94,13 @@ function isMobileDevice(req) {
                        req.headers.origin?.startsWith('capacitor://') ||
                        req.headers.origin?.startsWith('ionic://');
 
+    // Server-safe iPad detection
     const isIPad = /iPad/.test(userAgent) || 
                   (/Macintosh/.test(userAgent) && /AppleWebKit/.test(userAgent) && !/Safari/.test(userAgent));
 
     return isIOS || isIPad || isAndroid || isMobileApp;
 }
+
 // Enhanced iPad detection
 function isIPadDevice(req) {
     const userAgent = req.headers['user-agent'] || '';
@@ -129,12 +117,19 @@ function safeSessionTouch(req) {
     }
 }
 
-// Token generation function (UNIFIED)
-function generateTokens(userPayload) {
-    return {
-        accessToken: jwt.sign(userPayload, JWT_SECRET, { expiresIn: '1h' }),
-        refreshToken: jwt.sign(userPayload, JWT_REFRESH_SECRET, { expiresIn: '30d' })
-    };
+// Token generation function
+function generateToken(user) {
+    return jwt.sign(
+        { 
+            email: user.email, 
+            role: user.role, 
+            name: user.name, 
+            lastName: user.lastName, 
+            dbName: user.dbName
+        },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
 }
 
 // MySQL session store
@@ -158,35 +153,48 @@ const sessionStore = new MySQLStore({
     clearExpired: true
 }, mainPool);
 
-// Define a list of origins that are allowed to connect.
-const allowedOrigins = [
-    'https://www.solura.uk',
-    'http://localhost:8080',
-    'http://localhost',
-    'capacitor://localhost',
-    'ionic://localhost'
-];
-
+// ENHANCED CORS for all devices
 const corsOptions = {
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        // Allow all origins for iOS/Capacitor and mobile devices
+        if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
+            return callback(null, true);
+        }
+        
+        const allowedOrigins = [
+            'https://www.solura.uk', 
+            'https://solura.uk', 
+            'http://localhost:8080',
+            'http://localhost:3000',
+            'capacitor://localhost',
+            'ionic://localhost',
+            'http://localhost',
+            'https://localhost:'
+        ];
+        
+        if (allowedOrigins.indexOf(origin) !== -1 || origin?.includes('solura.uk')) {
             callback(null, true);
         } else {
-            console.error('CORS Error: This origin is not allowed:', origin);
+            console.log('Blocked by CORS:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'X-Session-ID', 'X-Capacitor'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie', 'Accept', 'X-Session-ID', 'X-Capacitor', 'Origin', 'X-Requested-With'],
     exposedHeaders: ['Set-Cookie', 'X-Session-ID', 'Authorization']
 };
+app.use(cors({
+  origin: [
+    'capacitor://localhost',
+    'http://localhost',
+    'https://solura.uk',
+    /\.solura\.uk$/,
+  ],
+  credentials: true,
+}));
 
-// **Use this single, robust CORS configuration for your entire app.**
-app.use(cors(corsOptions));
-
-// **Handle pre-flight requests for all routes.**
-// This is essential for requests with custom headers or non-simple methods (like POST with JSON).
+// Handle preflight requests
 app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
@@ -195,6 +203,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Enhanced static file serving for all devices
 app.use(express.static(__dirname, {
     setHeaders: (res, path) => {
+        // Set proper MIME types
         if (path.endsWith('.js')) {
             res.set('Content-Type', 'application/javascript');
         } else if (path.endsWith('.css')) {
@@ -202,6 +211,8 @@ app.use(express.static(__dirname, {
         } else if (path.endsWith('.html')) {
             res.set('Content-Type', 'text/html');
         }
+        
+        // Allow all origins for static files
         res.set('Access-Control-Allow-Origin', '*');
         res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
         res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -212,6 +223,7 @@ app.use(express.static(__dirname, {
 app.use((req, res, next) => {
     const origin = req.headers.origin;
     
+    // Always set CORS headers
     if (!origin || origin.startsWith('capacitor://') || origin.startsWith('ionic://') || origin.startsWith('file://')) {
         res.header('Access-Control-Allow-Origin', '*');
     } else {
@@ -273,41 +285,55 @@ app.use((req, res, next) => {
     next();
 });
 
-// Enhanced session configuration for iOS/Capacitor
 app.use(session({
-    key: 'solura.session',
-    secret: SESSION_SECRET,
-    store: sessionStore,
-    resave: false,
-    saveUninitialized: false, // Set to false, we only create sessions for logged-in web users
-    proxy: true,
-    cookie: { 
-        httpOnly: true, 
-        secure: isProduction, 
-        sameSite: isProduction ? 'none' : 'lax', 
-        maxAge: 24 * 60 * 60 * 1000 
-    }
+  key: 'solura.session',
+  secret: process.env.SESSION_SECRET || 'your-fallback-session-secret',
+  store: sessionStore,
+  resave: false,
+  saveUninitialized: true, // Recommended to establish session before login
+  rolling: true, // Keeps the session active as the user browses
+
+  cookie: {
+    httpOnly: true, // Helps prevent XSS attacks
+
+    // **THE FIX: Conditional settings for Production vs. Localhost**
+    secure: isProduction, // Use secure cookies ONLY in production (HTTPS)
+    sameSite: isProduction ? 'none' : 'lax', // 'none' for cross-origin on HTTPS, 'lax' for localhost
+    
+    // **THE FIX: Conditionally set the domain**
+    domain: isProduction ? '.solura.uk' : undefined, // ONLY set domain for production
+
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    path: '/',
+  }
 }));
-// Enhanced session persistence middleware
+
+// CRITICAL FIX: Enhanced session persistence middleware
 app.use((req, res, next) => {
-    const originalSave = req.session.save;
+  // Store original session save method
+  const originalSave = req.session.save;
+  
+  // Enhanced session save with proper error handling
+  req.session.save = function(callback) {
+    console.log('💾 Attempting to save session:', req.sessionID);
+    console.log('💾 Session data to save:', {
+      user: req.session.user,
+      initialized: req.session.initialized
+    });
     
-    req.session.save = function(callback) {
-        console.log('💾 Attempting to save session:', req.sessionID);
-        
-        return originalSave.call(this, (err) => {
-            if (err) {
-                console.error('❌ Session save error:', err);
-                if (callback) return callback(err);
-                return;
-            }
-            
-            console.log('✅ Session saved successfully:', req.sessionID);
-            if (callback) callback(null);
-        });
-    };
-    
-    next();
+    return originalSave.call(this, (err) => {
+      if (err) {
+        console.error('❌ Session save error:', err);
+        if (callback) return callback(err);
+        return;
+      }
+      
+      console.log('✅ Session saved successfully:', req.sessionID);
+      if (callback) callback(null);
+    });
+  };
+  
+  next();
 });
 
 // CRITICAL FIX: iPad-specific session handling - COMPLETELY REWRITTEN
@@ -432,36 +458,45 @@ app.use((req, res, next) => {
     next();
 });
 
-// CRITICAL FIX: iOS Cookie Persistence Middleware
+// CRITICAL FIX: Cookie and session persistence middleware
 app.use((req, res, next) => {
-  // Store original cookie method
-  const originalCookie = res.cookie;
-  
-  // Enhanced cookie method for iOS
-  res.cookie = function(name, value, options = {}) {
-    // iOS-specific cookie settings
-    if (req.isIOS || req.isIPad) {
-      options = {
-        httpOnly: false,
-        secure: false, // iOS Safari works better with non-secure cookies
-        sameSite: 'Lax',
-        maxAge: 24 * 60 * 60 * 1000,
-        path: '/',
-        domain: isProduction ? '.solura.uk' : undefined,
-        ...options
-      };
+    // Store original cookie method
+    const originalCookie = res.cookie;
+    
+    // Enhanced cookie method that ensures session cookie is properly set
+    res.cookie = function(name, value, options = {}) {
+        if (name === 'solura.session') {
+            // Ensure consistent cookie settings
+            options = {
+                maxAge: 24 * 60 * 60 * 1000,
+                httpOnly: false,
+                secure: false,
+                sameSite: 'Lax',
+                path: '/',
+                domain: isProduction ? '.solura.uk' : undefined,
+                ...options
+            };
+            console.log('🍪 Setting session cookie:', { name, value, options });
+        }
+        return originalCookie.call(this, name, value, options);
+    };
+    
+    // Ensure session ID consistency across requests
+    if (req.sessionID && req.session && req.session.user) {
+        console.log('🔗 Maintaining session consistency:', req.sessionID);
+        
+        // Always set the session cookie for authenticated users
+        res.cookie('solura.session', req.sessionID, {
+            maxAge: 24 * 60 * 60 * 1000,
+            httpOnly: false,
+            secure: false,
+            sameSite: 'Lax',
+            path: '/',
+            domain: isProduction ? '.solura.uk' : undefined
+        });
     }
     
-    console.log(`🍪 Setting cookie: ${name}=${value}`, {
-      ios: req.isIOS,
-      ipad: req.isIPad,
-      options
-    });
-    
-    return originalCookie.call(this, name, value, options);
-  };
-  
-  next();
+    next();
 });
 
 // FIXED: Session recovery with proper session recreation
@@ -535,15 +570,29 @@ app.use((req, res, next) => {
     }
 });
 
+// Enhanced root route with proper device detection
 app.get('/', (req, res) => {
+    const userAgent = req.headers['user-agent'] || '';
+    const referer = req.headers.referer || '';
+    const origin = req.headers.origin || '';
+
+    console.log('=== ROOT REQUEST DETECTION ===');
+    console.log('User-Agent:', userAgent);
+    console.log('Referer:', referer);
+    console.log('Origin:', origin);
+
+    // Use the enhanced device detection
     const useMobileApp = isMobileDevice(req);
-    
+
+    console.log('Mobile app detected:', useMobileApp);
+
+    // Set session cookie for all devices
     if (req.sessionID) {
         res.cookie('solura.session', req.sessionID, {
             maxAge: 24 * 60 * 60 * 1000,
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
+            httpOnly: false,
+            secure: false,
+            sameSite: 'Lax',
             path: '/',
             domain: isProduction ? '.solura.uk' : undefined
         });
@@ -704,6 +753,7 @@ app.use('/tip', tip);
 app.use('/pastemployees', pastemployees);
 app.use('/TotalHolidays', TotalHolidays);
 app.use('/UserCrota', UserCrota);
+app.use('/TimeTracking', TimeTracking);
 app.use('/UserHoliday', UserHolidays);
 app.use('/confirmrota', confirmrota);
 app.use('/confirmrota2', confirmrota2);
@@ -1525,26 +1575,25 @@ app.post('/api/ios-restore-session', async (req, res) => {
 });
 
 // NEW: Device registration endpoint
-app.post('/api/register-device', isAuthenticated, async (req, res) => { // ADDED: isAuthenticated
+app.post('/api/register-device', async (req, res) => {
     safeSessionTouch(req);
     try {
-        // **FIX: Get the email from the authenticated session, not the request body.**
-        const email = req.session.user.email;
-        const { deviceFingerprint, deviceInfo } = req.body;
+        const { email, deviceFingerprint, deviceInfo } = req.body;
 
-        if (!deviceFingerprint || !deviceInfo) { // Email check is no longer needed here
+        if (!email || !deviceFingerprint || !deviceInfo) {
             return res.status(400).json({ 
                 success: false, 
-                error: 'Device fingerprint and device info are required' 
+                error: 'Email, device fingerprint, and device info are required' 
             });
         }
 
-        console.log('📱 Registering device for authenticated user:', {
-            email: email, // Log the email from the session
-            deviceFingerprint: deviceFingerprint
+        console.log('📱 Registering device for biometric access:', {
+            email: email,
+            deviceFingerprint: deviceFingerprint,
+            deviceInfo: deviceInfo
         });
 
-        // The rest of your database insertion logic remains the same...
+        // Insert device registration into database
         const sql = `
             INSERT INTO biometric_devices 
             (user_email, device_fingerprint, device_name, platform, user_agent, screen_resolution, 
@@ -1930,164 +1979,40 @@ app.post('/api/recover-session', async (req, res) => {
     }
 });
 
-// ENHANCED: iOS session initialization with cookie guarantee
+// FIXED: Session initialization endpoint for iOS
 app.get('/api/init-session', (req, res) => {
-  console.log('🔄 iOS Session Initialization Request');
-  
-  const isIOS = req.isIOS || req.isIPad;
-  const sessionId = req.sessionID;
-  
-  console.log('📱 Device Info:', {
-    isIOS: isIOS,
-    isIPad: req.isIPad,
-    sessionId: sessionId,
-    hasCookies: !!req.headers.cookie,
-    userAgent: req.headers['user-agent']
-  });
-
-  // Always initialize session for iOS
-  if (!req.session.initialized) {
-    req.session.initialized = true;
-    req.session.deviceType = isIOS ? 'ios' : 'web';
-    req.session.createdAt = new Date();
-    console.log('✅ Session marked as initialized');
-  }
-
-  // CRITICAL: Set multiple cookie formats for iOS compatibility
-  const cookieOptions = {
-    maxAge: 24 * 60 * 60 * 1000,
-    path: '/',
-    domain: isProduction ? '.solura.uk' : undefined
-  };
-
-  // iOS-specific cookie settings
-  if (isIOS) {
-    cookieOptions.httpOnly = false;
-    cookieOptions.secure = false;
-    cookieOptions.sameSite = 'Lax';
-  } else {
-    cookieOptions.httpOnly = true;
-    cookieOptions.secure = isProduction;
-    cookieOptions.sameSite = isProduction ? 'none' : 'lax';
-  }
-
-  // Set the session cookie
-  res.cookie('solura.session', sessionId, cookieOptions);
-  
-  // Also set a custom header for iOS to store manually
-  res.setHeader('X-Session-ID', sessionId);
-  res.setHeader('X-Session-Initialized', 'true');
-  res.setHeader('X-Device-Type', isIOS ? 'ios' : 'web');
-
-  console.log('✅ iOS Session Response Headers:', {
-    sessionId: sessionId,
-    hasSetCookie: true,
-    deviceType: isIOS ? 'ios' : 'web'
-  });
-
-  res.json({
-    success: true,
-    sessionId: sessionId,
-    message: 'Session initialized successfully',
-    deviceType: isIOS ? 'ios' : 'web',
-    requiresManualStorage: isIOS, // Tell iOS to store session manually
-    timestamp: new Date().toISOString()
-  });
-});
-
-// NEW: iOS Session Restoration via Headers
-app.post('/api/ios-session-restore', (req, res) => {
-  console.log('📱 iOS Session Restoration via Headers');
-  
-  const sessionId = req.headers['x-session-id'];
-  const deviceFingerprint = req.headers['x-device-fingerprint'];
-  
-  if (!sessionId) {
-    return res.status(400).json({
-      success: false,
-      error: 'Session ID required'
-    });
-  }
-
-  console.log('🔄 Attempting to restore iOS session:', sessionId);
-
-  // Load the session from store
-  sessionStore.get(sessionId, (err, sessionData) => {
-    if (err) {
-      console.error('❌ Error loading session:', err);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to load session'
-      });
-    }
-
-    if (sessionData && sessionData.user) {
-      console.log('✅ iOS session restored successfully:', {
-        sessionId: sessionId,
-        user: sessionData.user.email
-      });
-
-      // Assign session data to current request
-      req.sessionID = sessionId;
-      Object.assign(req.session, sessionData);
-      
-      // Mark as iOS device
-      req.session.deviceType = 'ios';
-      req.session.lastAccess = new Date();
-
-      // Set cookie again for good measure
-      res.cookie('solura.session', sessionId, {
-        maxAge: 24 * 60 * 60 * 1000,
-        httpOnly: false,
-        secure: false,
-        sameSite: 'Lax',
-        path: '/',
-        domain: isProduction ? '.solura.uk' : undefined
-      });
-
-      res.json({
-        success: true,
-        sessionId: sessionId,
-        user: sessionData.user,
-        message: 'Session restored successfully'
-      });
-    } else {
-      console.log('❌ No valid session found for:', sessionId);
-      res.status(404).json({
-        success: false,
-        error: 'Session not found or expired'
-      });
-    }
-  });
-});
-// Add session headers to all API requests from iOS
-app.use((req, res, next) => {
-  // For iOS devices, also check for session ID in headers
-  const sessionIdFromHeader = req.headers['x-session-id'];
-  const sessionIdFromLocalStorage = req.headers['x-client-session-id'];
-  
-  if ((req.isIOS || req.isIPad) && (sessionIdFromHeader || sessionIdFromLocalStorage)) {
-    const externalSessionId = sessionIdFromHeader || sessionIdFromLocalStorage;
+    console.log('🔄 Initializing session');
     
-    if (externalSessionId !== req.sessionID) {
-      console.log('📱 iOS session header detected:', externalSessionId);
-      
-      // Try to load this session
-      sessionStore.get(externalSessionId, (err, sessionData) => {
-        if (!err && sessionData && sessionData.user) {
-          console.log('✅ Restoring iOS session from header');
-          req.sessionID = externalSessionId;
-          Object.assign(req.session, sessionData);
-        }
-        next();
-      });
-    } else {
-      next();
+    // Ensure session is created and marked as initialized
+    if (!req.session.initialized) {
+        req.session.initialized = true;
     }
-  } else {
-    next();
-  }
+    
+    // iPad-specific initialization
+    if (req.isIPad) {
+        req.session.ipadDevice = true;
+        console.log('📱 iPad session initialization');
+    }
+    
+    // Touch the session to ensure it's saved
+    safeSessionTouch(req);
+    
+    req.session.save((err) => {
+        if (err) {
+            console.error('Error saving session:', err);
+            return res.status(500).json({ success: false, error: 'Session initialization failed' });
+        }
+        
+        console.log('✅ Session initialized with ID:', req.sessionID);
+        
+        res.json({
+            success: true,
+            sessionId: req.sessionID,
+            message: 'Session initialized successfully'
+        });
+    });
 });
+
 // CRITICAL FIX: Enhanced authentication middleware for iOS and iPad
 function isAuthenticated(req, res, next) {
     console.log('=== AUTH CHECK ===');
@@ -2179,61 +2104,240 @@ function isUser(req, res, next) {
     sendAuthError(res, req, 'User access required');
 }
 
-// --- (FULLY CORRECTED) LOGIN ENDPOINT ---
-// --- (FINAL, FULLY CORRECTED) LOGIN ENDPOINT ---
-app.post('/submit', async (req, res) => {
-    const { email, password, dbName } = req.body;
-    if (!email || !password) return res.status(400).json({ success: false, message: 'Email and password are required' });
+// Enhanced database selection with force logout support
+app.post('/submit-database', async (req, res) => {
+    console.log('=== DATABASE SELECTION ===');
+    console.log('Session ID:', req.sessionID);
+    
+    const { email, password, dbName, forceLogout } = req.body;
+
+    if (!email || !password || !dbName) {
+        return res.status(400).json({ 
+            success: false,
+            message: 'Email, password, and database name are required' 
+        });
+    }
 
     try {
-        const [results] = await mainPool.promise().query(`SELECT Access, Password, Email, db_name FROM users WHERE Email = ?`, [email]);
-        if (results.length === 0) return res.status(401).json({ success: false, message: 'Incorrect email or password' });
-
-        const matchingDatabases = [];
-        for (const row of results) {
-            if (await bcrypt.compare(password, row.Password)) {
-                matchingDatabases.push({ db_name: row.db_name, access: row.Access });
-            }
-        }
-        if (matchingDatabases.length === 0) return res.status(401).json({ success: false, message: 'Incorrect email or password' });
-
-        if (matchingDatabases.length > 1 && !dbName) {
-            return res.json({ success: true, requiresDbSelection: true, databases: matchingDatabases });
-        }
-
-        const userDetails = dbName ? matchingDatabases.find(db => db.db_name === dbName) : matchingDatabases[0];
-        if (!userDetails) return res.status(400).json({ success: false, error: 'Invalid database selection' });
-
-        const [companyResults] = await getPool(userDetails.db_name).promise().query(`SELECT name, lastName FROM Employees WHERE email = ?`, [email]);
-        if (companyResults.length === 0) return res.status(401).json({ success: false, message: 'User not found in company records' });
-
-        const { name, lastName } = companyResults[0];
-        const userPayload = { email, role: userDetails.access, name, lastName, dbName: userDetails.db_name };
-
-        // Only create session for web browsers (not mobile apps)
-        if (!isMobileDevice(req)) {
-            req.session.user = userPayload;
-        }
-
-        const { accessToken, refreshToken } = generateTokens(userPayload);
-        const useMobileApp = isMobileDevice(req);
-        let redirectUrl = '';
+        // First verify the user credentials
+        const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
         
-        if (userPayload.role === 'admin' || userPayload.role === 'AM') redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
-        else if (userPayload.role === 'user') redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
-        else if (userPayload.role === 'supervisor') redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
+        mainPool.query(sql, [email, dbName], async (err, results) => {
+            if (err) {
+                console.error('Error querying database:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Internal Server Error'
+                });
+            }
 
-        res.json({ 
-            success: true, 
-            message: 'Login successful', 
-            redirectUrl, 
-            user: userPayload, 
-            accessToken, 
-            refreshToken 
+            if (results.length === 0) {
+                return res.status(401).json({ 
+                    success: false,
+                    message: 'Invalid database selection' 
+                });
+            }
+
+            // Verify password
+            const row = results[0];
+            const storedPassword = row.Password;
+            try {
+                const isMatch = await bcrypt.compare(password, storedPassword);
+                if (!isMatch) {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'Invalid credentials' 
+                    });
+                }
+            } catch (err) {
+                console.error('Error comparing passwords:', err);
+                return res.status(500).json({ 
+                    success: false,
+                    error: 'Internal Server Error'
+                });
+            }
+
+            // Check for active sessions
+            const activeSessionIds = activeSessions.get(email);
+            let hasActiveSessions = false;
+            
+            if (activeSessionIds && activeSessionIds.size > 0) {
+                for (const sessionId of activeSessionIds) {
+                    await new Promise((resolve) => {
+                        sessionStore.get(sessionId, (err, sessionData) => {
+                            if (!err && sessionData && sessionData.user) {
+                                hasActiveSessions = true;
+                            }
+                            resolve();
+                        });
+                    });
+                    if (hasActiveSessions) break;
+                }
+            }
+
+            // If user has active sessions and hasn't chosen to force logout, return warning
+            if (hasActiveSessions && forceLogout !== true) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'already_logged_in',
+                    activeSessions: activeSessionIds ? activeSessionIds.size : 0
+                });
+            }
+
+            // If force logout is requested, destroy other sessions
+            if (hasActiveSessions && forceLogout === true) {
+                console.log('🔄 Force logout requested for database selection:', email);
+                for (const sessionId of activeSessionIds) {
+                    if (sessionId !== req.sessionID) {
+                        await new Promise((resolve) => {
+                            sessionStore.destroy(sessionId, (err) => {
+                                if (err) {
+                                    console.error('Error destroying session:', err);
+                                } else {
+                                    console.log(`✅ Destroyed previous session: ${sessionId}`);
+                                }
+                                resolve();
+                            });
+                        });
+                    }
+                }
+                // Clear tracking and only keep current session
+                activeSessions.set(email, new Set([req.sessionID]));
+            }
+
+            // Continue with login
+            const companyPool = getPool(dbName);
+            const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
+
+            companyPool.query(companySql, [email], (err, companyResults) => {
+                if (err) {
+                    console.error('Error querying company database:', err);
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Internal Server Error'
+                    });
+                }
+
+                if (companyResults.length === 0) {
+                    return res.status(401).json({ 
+                        success: false,
+                        message: 'User not found in company database' 
+                    });
+                }
+
+                const name = companyResults[0].name;
+                const lastName = companyResults[0].lastName;
+
+                const userInfo = {
+                    email: email,
+                    role: row.Access,
+                    name: name,
+                    lastName: lastName,
+                    dbName: dbName,
+                };
+
+                console.log('✅ Database selection successful, creating session for user:', userInfo);
+
+                // Set session data
+                req.session.user = userInfo;
+                req.session.initialized = true;
+                
+                // iPad-specific session handling
+                if (req.isIPad) {
+                    req.session.ipadDevice = true;
+                    console.log('📱 iPad database selection - marking device');
+                }
+                
+                // Track this session
+                if (!activeSessions.has(email)) {
+                    activeSessions.set(email, new Set());
+                }
+                // Only add if not already present
+                if (!activeSessions.get(email).has(req.sessionID)) {
+                    activeSessions.get(email).add(req.sessionID);
+                    console.log(`✅ Login session tracked for ${email}: ${req.sessionID}`);
+                }
+                
+                // Generate tokens
+                const authToken = generateToken(userInfo);
+                const refreshToken = jwt.sign(
+                    {
+                        email: userInfo.email,
+                        role: userInfo.role,
+                        name: userInfo.name,
+                        lastName: userInfo.lastName,
+                        dbName: userInfo.dbName
+                    },
+                    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret',
+                    { expiresIn: '30d' }
+                );
+
+                // PROPER DEVICE DETECTION
+                const useMobileApp = isMobileDevice(req);
+                let redirectUrl = '';
+
+                if (row.Access === 'admin' || row.Access === 'AM') {
+                    redirectUrl = useMobileApp ? '/AdminApp.html' : '/Admin.html';
+                } else if (row.Access === 'user') {
+                    redirectUrl = useMobileApp ? '/UserApp.html' : '/User.html';
+                } else if (row.Access === 'supervisor') {
+                    redirectUrl = useMobileApp ? '/SupervisorApp.html' : '/Supervisor.html';
+                }
+
+                console.log(`🔄 Redirecting to: ${redirectUrl} (Mobile: ${useMobileApp})`);
+
+                // Save session and then respond
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('Error saving session:', err);
+                        return res.status(500).json({ 
+                            success: false,
+                            error: 'Failed to create session'
+                        });
+                    }
+
+                    console.log('✅ Session saved successfully. Session ID:', req.sessionID);
+
+                    // Set session cookie with device-specific settings
+                    const cookieOptions = {
+                        maxAge: 24 * 60 * 60 * 1000,
+                        path: '/',
+                        domain: isProduction ? '.solura.uk' : undefined
+                    };
+
+                    // iPad-specific cookie settings
+                    if (req.isIPad) {
+                        cookieOptions.httpOnly = false; // iPad needs JS access
+                        cookieOptions.secure = false;   // iPad Safari issues with secure
+                        cookieOptions.sameSite = 'Lax'; // Lax works better for iPad
+                    } else {
+                        cookieOptions.httpOnly = true;
+                        cookieOptions.secure = isProduction;
+                        cookieOptions.sameSite = 'none';
+                    }
+
+                    res.cookie('solura.session', req.sessionID, cookieOptions);
+
+                    res.json({
+                        success: true,
+                        message: 'Login successful',
+                        redirectUrl: redirectUrl,
+                        user: userInfo,
+                        accessToken: authToken,
+                        refreshToken: refreshToken,
+                        sessionId: req.sessionID,
+                        isMobile: useMobileApp,
+                        isIPad: req.isIPad
+                    });
+                });
+            });
         });
     } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ success: false, error: 'Internal server error' });
+        console.error('Database selection error:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Internal server error'
+        });
     }
 });
 
@@ -2251,7 +2355,7 @@ app.post('/submit', async (req, res) => {
         enableBiometric: req.body.enableBiometric,
         deviceFingerprint: req.body.deviceFingerprint
     });
-
+    
     const { email, password, dbName, forceLogout, enableBiometric, deviceFingerprint } = req.body;
 
     if (!email || !password) {
@@ -2262,45 +2366,6 @@ app.post('/submit', async (req, res) => {
     }
 
     try {
-        // --- (FIX) Smarter Active Session Check ---
-        // This query now correctly checks for sessions that are actually authenticated with the user's email.
-        const [activeSessions] = await mainPool.promise().query("SELECT session_id, data FROM user_sessions");
-        const userActiveSessions = activeSessions.filter(s => {
-            try {
-                const sessionData = JSON.parse(s.data);
-                // Check if the session has a user object and if the email matches.
-                return sessionData && sessionData.user && sessionData.user.email === email;
-            } catch (e) {
-                return false;
-            }
-        });
-
-        if (userActiveSessions.length > 0 && !forceLogout) {
-            return res.status(409).json({
-                success: false,
-                message: 'already_logged_in',
-                activeSessions: userActiveSessions.length
-            });
-        }
-        
-        // If forceLogout is true, destroy all of that user's other sessions.
-        if (forceLogout) {
-            console.log(`Force logout requested for ${email}. Destroying ${userActiveSessions.length} sessions.`);
-            for (const activeSession of userActiveSessions) {
-                await new Promise((resolve, reject) => {
-                    sessionStore.destroy(activeSession.session_id, (err) => {
-                        if (err) {
-                            console.error(`Error destroying session ${activeSession.session_id}:`, err);
-                            // Don't block login if one fails to destroy, just log it.
-                        }
-                        resolve();
-                    });
-                });
-            }
-        }
-        // --- END OF FIX ---
-
-
         // First verify the user credentials
         const sql = `SELECT u.Access, u.Password, u.Email, u.db_name FROM users u WHERE u.Email = ?`;
         
@@ -2345,6 +2410,55 @@ app.post('/submit', async (req, res) => {
                     success: false,
                     message: 'Incorrect email or password' 
                 });
+            }
+
+            // Check for active sessions
+            const activeSessionIds = activeSessions.get(email);
+            let hasActiveSessions = false;
+            
+            if (activeSessionIds && activeSessionIds.size > 0) {
+                // Verify sessions are still valid
+                for (const sessionId of activeSessionIds) {
+                    await new Promise((resolve) => {
+                        sessionStore.get(sessionId, (err, sessionData) => {
+                            if (!err && sessionData && sessionData.user) {
+                                hasActiveSessions = true;
+                            }
+                            resolve();
+                        });
+                    });
+                    if (hasActiveSessions) break;
+                }
+            }
+
+            // If user has active sessions and hasn't chosen to force logout, return warning
+            if (hasActiveSessions && forceLogout !== true) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'already_logged_in',
+                    activeSessions: activeSessionIds ? activeSessionIds.size : 0
+                });
+            }
+
+            // If force logout is requested, destroy other sessions
+            if (hasActiveSessions && forceLogout === true) {
+                console.log('🔄 Force logout requested for:', email);
+                for (const sessionId of activeSessionIds) {
+                    if (sessionId !== req.sessionID) {
+                        await new Promise((resolve) => {
+                            sessionStore.destroy(sessionId, (err) => {
+                                if (err) {
+                                    console.error('Error destroying session:', err);
+                                } else {
+                                    console.log(`✅ Destroyed previous session: ${sessionId}`);
+                                }
+                                resolve();
+                            });
+                        });
+                    }
+                }
+                // Clear tracking and only keep current session
+                activeSessions.set(email, new Set([req.sessionID]));
             }
 
             // Continue with database selection or login
@@ -2399,6 +2513,15 @@ app.post('/submit', async (req, res) => {
 
                 console.log('✅ Login successful, creating session for user:', userInfo);
 
+                // CRITICAL: Ensure we have a valid session before proceeding
+                if (!req.sessionID) {
+                    console.error('❌ No session ID available');
+                    return res.status(500).json({ 
+                        success: false,
+                        error: 'Session initialization failed' 
+                    });
+                }
+
                 // CRITICAL: Ensure session object exists
                 if (!req.session) {
                     console.error('❌ No session object available');
@@ -2414,6 +2537,8 @@ app.post('/submit', async (req, res) => {
                 // Set session data
                 req.session.user = userInfo;
                 req.session.initialized = true;
+                req.session.loginTime = new Date();
+                req.session.lastAccess = new Date();
                 
                 // iPad-specific session handling
                 if (req.isIPad) {
@@ -2423,8 +2548,47 @@ app.post('/submit', async (req, res) => {
 
                 console.log('💾 Session data set for session:', loginSessionId);
 
+                // AFTER SUCCESSFUL LOGIN - Register device if biometric is enabled
                 if (enableBiometric && deviceFingerprint) {
-                    // (Device registration logic remains the same)
+                    console.log('📱 Registering device for biometric access:', deviceFingerprint);
+                    
+                    // Get comprehensive device info from headers
+                    const deviceInfo = {
+                        userAgent: req.headers['user-agent'],
+                        platform: req.headers['sec-ch-ua-platform'] || 'unknown',
+                        screenResolution: 'unknown', // Would need client to send this
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        language: req.headers['accept-language'] || 'unknown',
+                        deviceType: req.headers['x-device-type'] || 'unknown'
+                    };
+
+                    // Register device
+                    const registerSql = `
+                        INSERT INTO biometric_devices 
+                        (user_email, device_fingerprint, device_name, platform, user_agent, screen_resolution, 
+                         hardware_concurrency, timezone, language, registration_date, last_used, is_active) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), TRUE)
+                        ON DUPLICATE KEY UPDATE 
+                        last_used = NOW(), is_active = TRUE
+                    `;
+
+                    mainPool.query(registerSql, [
+                        email,
+                        deviceFingerprint,
+                        `Device-${deviceFingerprint.substring(0, 8)}`,
+                        deviceInfo.platform,
+                        deviceInfo.userAgent,
+                        deviceInfo.screenResolution,
+                        0, // hardware concurrency not available server-side
+                        deviceInfo.timezone,
+                        deviceInfo.language
+                    ], (err) => {
+                        if (err) {
+                            console.error('Error registering device:', err);
+                        } else {
+                            console.log('✅ Device registered successfully for biometric access');
+                        }
+                    });
                 }
 
                 // Save session and then respond
@@ -2852,53 +3016,6 @@ app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
         console.error('Error:', error);
         res.status(500).json({ success: false, error: 'Server error' });
     }
-});
-
-// NEW: Mobile session initialization endpoint
-app.get('/api/mobile-init', (req, res) => {
-    const isIOS = req.isIOS || req.isIPad;
-    const sessionId = req.sessionID;
-    
-    console.log('📱 Mobile Init Request:', {
-        sessionId: sessionId,
-        isIOS: isIOS,
-        hasCookies: !!req.headers.cookie,
-        userAgent: req.headers['user-agent']
-    });
-
-    // Initialize session for mobile devices
-    if (!req.session.initialized) {
-        req.session.initialized = true;
-        req.session.deviceType = isIOS ? 'ios' : 'mobile';
-        req.session.createdAt = new Date();
-        console.log('✅ Mobile session initialized');
-    }
-
-    // iOS-specific cookie settings
-    const cookieOptions = {
-        maxAge: 24 * 60 * 60 * 1000,
-        path: '/',
-        domain: isProduction ? '.solura.uk' : undefined,
-        httpOnly: false,
-        secure: false,
-        sameSite: 'Lax'
-    };
-
-    // Set session cookie
-    res.cookie('solura.session', sessionId, cookieOptions);
-    
-    // Additional headers for mobile
-    res.setHeader('X-Session-ID', sessionId);
-    res.setHeader('X-Session-Initialized', 'true');
-    res.setHeader('X-Device-Type', isIOS ? 'ios' : 'mobile');
-
-    res.json({
-        success: true,
-        sessionId: sessionId,
-        message: 'Mobile session initialized',
-        deviceType: isIOS ? 'ios' : 'mobile',
-        requiresManualStorage: isIOS
-    });
 });
 
 // Enhanced logout route
