@@ -80,7 +80,22 @@ function parseCookies(cookieHeader) {
     }
     return cookies;
 }
-
+// Add this to your server - BEFORE your routes
+app.use((req, res, next) => {
+    // Special handling for Capacitor iOS
+    if (req.headers['x-capacitor'] === 'true' || req.headers.origin?.includes('capacitor://')) {
+        res.header('Access-Control-Allow-Origin', '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, X-Capacitor, X-Session-ID');
+        res.header('Access-Control-Expose-Headers', 'Set-Cookie');
+        
+        // Bypass some security for Capacitor
+        if (req.method === 'OPTIONS') {
+            return res.sendStatus(200);
+        }
+    }
+    next();
+});
 // Track active sessions for duplicate login prevention
 const activeSessions = new Map(); // email -> sessionIds
 
@@ -720,21 +735,13 @@ app.get('/api/device-debug', (req, res) => {
     });
 });
 
-// Health check with session info
 app.get('/health', (req, res) => {
-    res.json({
-        status: 'OK',
-        session: {
-            id: req.sessionID,
-            exists: !!req.session,
-            user: req.session?.user,
-            initialized: req.session?.initialized,
-            ipadDevice: req.session?.ipadDevice
-        },
-        timestamp: new Date().toISOString()
+    res.json({ 
+        status: 'OK', 
+        timestamp: new Date().toISOString(),
+        session: req.sessionID ? 'active' : 'none'
     });
 });
-
 // ALL YOUR ORIGINAL ROUTES - KEPT INTACT
 app.use('/rota', newRota);
 app.use('/rota2', newRota2);

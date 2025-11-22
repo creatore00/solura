@@ -636,53 +636,187 @@
     let currentDeviceFingerprint = null;
     let tempCredentials = {}; // For multi-step login flows
 
-    // --- INITIALIZATION ---
-    document.addEventListener('DOMContentLoaded', async () => {
-        currentDeviceFingerprint = (await generateDeviceFingerprint()).hash;
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-            await initializeBiometricSystem();
-        } else {
-            document.getElementById('biometricSection').style.display = 'none';
-            document.getElementById('biometricDivider').style.display = 'none';
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 App starting...');
+    
+    // Generate device fingerprint first
+    currentDeviceFingerprint = (await generateDeviceFingerprint()).hash;
+    console.log('📱 Device fingerprint:', currentDeviceFingerprint);
+    
+    // Initialize mobile session
+    await initializeMobileSession();
+    
+    // Initialize biometric system
+    await initializeBiometricSystem();
+    
+    // Initialize event listeners
+    initializeEventListeners();
+    
+    // Try auto-login if credentials exist
+    await attemptAutoLogin();
+    
+    console.log('✅ App initialization complete');
+});
+
+async function attemptAutoLogin() {
+    const token = localStorage.getItem('accessToken');
+    const sessionId = localStorage.getItem('mobileSessionId');
+    
+    if (token || sessionId) {
+        console.log('🔐 Attempting auto-login...');
+        try {
+            const response = await makeApiRequest('/api/validate-session');
+            const data = await response.json();
+            
+            if (data.valid && data.user) {
+                console.log('✅ Auto-login successful, redirecting...');
+                redirectToDashboard(data.user);
+            } else {
+                console.log('❌ Auto-login failed, showing login form');
+                showLoginForm();
+            }
+        } catch (error) {
+            console.log('❌ Auto-login failed:', error.message);
+            showLoginForm();
         }
-        initializeEventListeners();
-    });
+    } else {
+        console.log('🔐 No auto-login credentials available, showing login form');
+        showLoginForm();
+    }
+}
+
+function showLoginForm() {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('loading').style.display = 'none';
+}
+
+function redirectToDashboard(user) {
+    let redirectUrl = '/UserApp.html'; // Default
+    
+    if (user.role === 'admin' || user.role === 'AM') {
+        redirectUrl = '/AdminApp.html';
+    } else if (user.role === 'supervisor') {
+        redirectUrl = '/SupervisorApp.html';
+    }
+    
+    console.log(`🔄 Redirecting to: ${redirectUrl}`);
+    window.location.href = redirectUrl;
+}
 // ENHANCE your initialization
 async function initializeBiometricSystem() {
     try {
-        // First, initialize session for iOS
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-            await makeApiRequest('/api/ios-session-setup', { method: 'POST' });
-        }
+        console.log('📱 Checking biometric capabilities...');
+        
+        // First, ensure network connectivity
+        await testNetworkConnection();
         
         const { NativeBiometric } = window.Capacitor.Plugins;
-        const result = await NativeBiometric.isAvailable();
         
-        if (result.isAvailable) {
-            document.getElementById('biometricSection').style.display = 'block';
-            document.getElementById('biometricDivider').style.display = 'flex';
+        // More robust biometric check
+        try {
+            const result = await NativeBiometric.isAvailable();
+            console.log('🔐 Biometric availability:', result);
             
-            // Check if device is already registered
-            try {
-                const checkResponse = await makeApiRequest('/api/check-device-registration', {
-                    method: 'POST',
-                    headers: {
-                        'X-Device-Fingerprint': currentDeviceFingerprint
-                    }
-                });
-                const checkData = await checkResponse.json();
-                
-                if (checkData.registered) {
-                    document.getElementById('biometricBtnText').textContent = 'Welcome Back! Sign in with Biometrics';
-                }
-            } catch (e) {
-                console.log('Device not registered yet');
+            if (result.isAvailable) {
+                showBiometricUI(result.biometryType);
+            } else {
+                handleBiometricUnavailable(result);
             }
+        } catch (biometricError) {
+            console.log('🔐 Biometric check error:', biometricError);
+            handleBiometricUnavailable({ errorCode: 999, errorMessage: biometricError.message });
         }
-    } catch (e) { 
-        console.log("Biometrics not available or setup failed", e);
-        document.getElementById('biometricSection').style.display = 'none';
-        document.getElementById('biometricDivider').style.display = 'none';
+        
+    } catch (error) {
+        console.error('📱 Biometric system init failed:', error);
+        hideBiometricUI();
+    }
+}
+
+function showBiometricUI(biometryType) {
+    document.getElementById('biometricSection').style.display = 'block';
+    document.getElementById('biometricDivider').style.display = 'flex';
+    
+    let buttonText = 'Sign in with Biometrics';
+    let description = 'Use Face ID, Touch ID, or device passcode';
+    
+    switch(biometryType) {
+        case 1: // FaceID
+            buttonText = 'Sign in with Face ID';
+            description = 'Use Face ID for secure login';
+            break;
+        case 2: // TouchID
+            buttonText = 'Sign in with Touch ID';
+            description = 'Use Touch ID for secure login';
+            break;
+        case 3: // Iris
+            buttonText = 'Sign in with Iris Scan';
+            description = 'Use iris recognition for secure login';
+            break;
+    }
+    
+    document.getElementById('biometricBtnText').textContent = buttonText;
+    document.getElementById('biometricText').textContent = description;
+}
+
+function handleBiometricUnavailable(result) {
+    console.log('🔐 Biometrics unavailable:', result);
+    
+    // Show fallback option or hide biometric section
+    document.getElementById('biometricSection').style.display = 'none';
+    document.getElementById('biometricDivider').style.display = 'none';
+    
+    // You could show a message or alternative login method
+    if (result.errorCode === 3) {
+        console.log('🔐 No biometric enrollment or hardware issue');
+    }
+}
+
+async function testNetworkConnection() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/health`, {
+            method: 'GET',
+            headers: {
+                'X-Capacitor': 'true'
+            }
+        });
+        console.log('🌐 Network test:', response.status);
+        return response.ok;
+    } catch (error) {
+        console.error('🌐 Network test failed:', error);
+        throw new Error('Network connection failed');
+    }
+}
+async function initializeMobileSession() {
+    try {
+        console.log('📱 Initializing mobile session...');
+        
+        const response = await fetch(`${API_BASE_URL}/api/ios-session-setup`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Capacitor': 'true',
+                'X-Device-Type': 'ios'
+            },
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Mobile session initialized:', data);
+            
+            // Store session ID for future requests
+            if (data.sessionId) {
+                localStorage.setItem('mobileSessionId', data.sessionId);
+            }
+            
+            return true;
+        } else {
+            throw new Error(`Session init failed: ${response.status}`);
+        }
+    } catch (error) {
+        console.warn('⚠️ Mobile session init failed, continuing without session:', error.message);
+        return false;
     }
 }
     function initializeEventListeners() {
@@ -857,34 +991,47 @@ async function handleBiometricLogin() {
     
     // --- UTILITY AND UI FUNCTIONS ---
 
-// UPDATE your makeApiRequest function to handle iOS properly
 async function makeApiRequest(url, options = {}) {
     const headers = {
         'Content-Type': 'application/json',
         'X-Capacitor': 'true',
+        'X-Device-Type': 'ios',
         ...options.headers
     };
-    
+
+    // Add authorization if available
     const token = localStorage.getItem('accessToken');
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }
-    
-    // For iOS/Capacitor, include session ID if available
-    const sessionId = getSessionId();
+
+    // Add session ID for mobile
+    const sessionId = localStorage.getItem('mobileSessionId');
     if (sessionId) {
         headers['X-Session-ID'] = sessionId;
     }
-    
+
     const config = {
         ...options,
         headers,
-        credentials: 'include' // Important for cookies
+        // Important: include credentials for cookies
+        credentials: 'include'
     };
-    
-    return fetch(`${API_BASE_URL}${url}`, config);
-}
 
+    try {
+        console.log(`-> Calling API: ${API_BASE_URL}${url}`);
+        const response = await fetch(`${API_BASE_URL}${url}`, config);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response;
+    } catch (error) {
+        console.error(`❌ API call failed for ${url}:`, error);
+        throw error;
+    }
+}
 // Helper to get session ID
 function getSessionId() {
     // Try to get from cookie
