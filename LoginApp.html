@@ -1187,13 +1187,43 @@ function getSessionId() {
     // Try to get from localStorage (for mobile)
     return localStorage.getItem('sessionId');
 }
+function redirectToDashboard(user) {
+    // 1. Determine the base target path
+    let path = '/UserApp.html'; // Default
     
-    function redirectToDashboard() {
-        const url = sessionStorage.getItem('pendingRedirectUrl');
-        if (url) redirectToPage(url);
-        else showError('Could not find redirect information.');
+    // If user object is passed directly (auto-login), check roles
+    if (user) {
+        if (user.role === 'admin' || user.role === 'AM') path = '/AdminApp.html';
+        else if (user.role === 'supervisor') path = '/SupervisorApp.html';
+    } 
+    // Otherwise check local storage for role info if available
+    else {
+        const storedUser = localStorage.getItem('userData');
+        if (storedUser) {
+            const u = JSON.parse(storedUser);
+            if (u.role === 'admin' || u.role === 'AM') path = '/AdminApp.html';
+            else if (u.role === 'supervisor') path = '/SupervisorApp.html';
+        }
     }
 
+    // 2. Construct Absolute URL
+    // We ALWAYS use the remote server URL
+    let redirectUrl = API_BASE_URL + path;
+
+    // 3. Append Session ID (Critical for crossing from Capacitor to Web)
+    const sessionId = localStorage.getItem('mobileSessionId');
+    
+    if (sessionId) {
+        // Check if URL already has query params
+        const separator = redirectUrl.includes('?') ? '&' : '?';
+        redirectUrl = `${redirectUrl}${separator}sessionId=${sessionId}`;
+    }
+
+    console.log(`🔄 Performing Redirect to: ${redirectUrl}`);
+    
+    // 4. Force navigation
+    window.location.href = redirectUrl;
+}
     function setLoading(isLoading, button = document.getElementById('loginButton'), text = 'Sign In') {
         button.disabled = isLoading;
         button.innerHTML = isLoading ? '<span class="spinner"></span>' : text;
