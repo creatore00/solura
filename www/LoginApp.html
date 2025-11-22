@@ -497,7 +497,7 @@
             padding: 1rem;
             margin-bottom: 0.75rem;
             border: 2px solid #e9ecef;
-            border-radius: var(--border-radius); 
+            border-radius: var(--border-radius);
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -699,19 +699,28 @@ function showLoginForm() {
 }
 
 function redirectToDashboard(user) {
-    let redirectUrl = '/UserApp.html'; // Default
+    // 1. Try to get the precise URL from server response stored in session storage
+    // This URL includes the sessionId and is correctly formatted by handleAuthSuccess
+    let redirectUrl = sessionStorage.getItem('pendingRedirectUrl');
     
-    if (user && (user.role === 'admin' || user.role === 'AM')) {
-        redirectUrl = '/AdminApp.html';
-    } else if (user && user.role === 'supervisor') {
-        redirectUrl = '/SupervisorApp.html';
-    }
-    
-    // IMPORTANT: Fix session loss during redirect on mobile/hybrid apps
-    // Append session ID to the URL to ensure it is carried over even if cookies fail
-    const sessionId = localStorage.getItem('mobileSessionId');
-    if (sessionId) {
-        redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + sessionId;
+    // 2. If missing (e.g. auto-login flow), construct a fallback
+    if (!redirectUrl) {
+        let path = '/UserApp.html'; // Default
+        
+        if (user && (user.role === 'admin' || user.role === 'AM')) {
+            path = '/AdminApp.html';
+        } else if (user && user.role === 'supervisor') {
+            path = '/SupervisorApp.html';
+        }
+        
+        // Ensure absolute URL for mobile
+        redirectUrl = API_BASE_URL + path;
+        
+        // Append session ID
+        const sessionId = localStorage.getItem('mobileSessionId');
+        if (sessionId) {
+            redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + sessionId;
+        }
     }
     
     console.log(`🔄 Redirecting to dashboard: ${redirectUrl}`);
@@ -1007,12 +1016,19 @@ async function handleBiometricLogin() {
         successDiv.textContent = 'Authentication successful! Redirecting...';
         successDiv.style.display = 'block';
         
-        // Construct Redirect URL with Session ID appended
+        // Calculate redirect URL properly
         let redirectUrl = data.redirectUrl;
+        // Fix for relative URLs - ensure we go to remote server
+        if (redirectUrl && redirectUrl.startsWith('/')) {
+            redirectUrl = API_BASE_URL + redirectUrl;
+        }
+        // Append session ID to URL to carry session over during navigation
         if (data.sessionId) {
-             // Append session ID to URL to carry session over during navigation
              redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + data.sessionId;
         }
+        
+        // Store it so redirectToDashboard uses it correctly
+        sessionStorage.setItem('pendingRedirectUrl', redirectUrl);
 
         console.log('🔄 Redirecting to:', redirectUrl);
         
@@ -1051,22 +1067,27 @@ function redirectToPage(url) {
         console.log('🔄 Appended missing session ID to redirect URL');
     }
 
-    // Remove leading slash for relative native path
-    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    
-    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-         // Direct location assign is safest on iOS Capacitor
-         window.location.href = cleanUrl;
-    } else {
-        window.location.replace(url);
-    }
+    // For Hybrid/Capacitor apps pointing to remote server, 
+    // use window.location.href to navigate the WebView completely.
+    window.location.href = url;
 }
+
 async function handleAuthSuccess(data, wantsBiometric) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         
+        if (data.sessionId) {
+            localStorage.setItem('mobileSessionId', data.sessionId);
+        }
+        
         // Construct Redirect URL with Session ID for storage
         let redirectUrl = data.redirectUrl;
+        
+        // Fix relative path for remote server redirect
+        if (redirectUrl && redirectUrl.startsWith('/')) {
+            redirectUrl = API_BASE_URL + redirectUrl;
+        }
+        
         if (data.sessionId) {
              redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + data.sessionId;
         }
@@ -1089,9 +1110,24 @@ async function handleAuthSuccess(data, wantsBiometric) {
             // IMPORTANT: Save the fingerprint used for registration
             localStorage.setItem('registeredFingerprint', currentDeviceFingerprint);
             
+            // FIX: Need to send email along with fingerprint
+            let email = tempCredentials.email; 
+            if (!email) {
+                const userData = localStorage.getItem('userData');
+                if (userData) {
+                    try { email = JSON.parse(userData).email; } catch(e){}
+                }
+            }
+            
+            if (!email) throw new Error('Email not found for registration');
+            
             await makeApiRequest('/api/register-device', {
                 method: 'POST',
-                body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint, deviceInfo })
+                body: JSON.stringify({ 
+                    email: email, 
+                    deviceFingerprint: currentDeviceFingerprint, 
+                    deviceInfo 
+                })
             });
             alert('Biometrics Enabled Successfully!');
         } catch (error) {

@@ -1,3 +1,4 @@
+
 // Environment Check: Ensure this file is running in Node.js
 // We use an IIFE to create a safe scope and prevent browser execution issues
 (function() {
@@ -18,6 +19,7 @@
 })();
 
 function startServer() {
+    // All require calls must be inside this function or strictly guarded
     const express = require('express');
     const { query } = require('./dbPromise');
     const mysql = require('mysql2');
@@ -304,16 +306,6 @@ function startServer() {
         req.isMobileDevice = isMobileDevice(req);
         req.isIOS = /iPhone|iPad|iPod/i.test(userAgent);
         req.isIPad = isIPadDevice(req);
-        
-        if (req.isIPad) {
-            console.log('📱 iPad Device Detected');
-        } else if (req.isIOS) {
-            console.log('📱 iOS Device Detected');
-        } else if (req.isMobileDevice) {
-            console.log('📱 Mobile Device Detected');
-        } else {
-            console.log('💻 Desktop Device Detected');
-        }
         next();
     });
 
@@ -356,43 +348,29 @@ function startServer() {
     // iPad-specific session handling
     app.use((req, res, next) => {
         if (req.isIPad) {
-            console.log('🔧 iPad-specific session handling initiated');
-            
             // Enhanced iPad session recovery
             const cookieHeader = req.headers.cookie;
             const cookies = parseCookies(cookieHeader);
-            
-            console.log('📱 iPad Session Analysis:', {
-                hasCookieHeader: !!cookieHeader,
-                currentSessionId: req.sessionID,
-                hasUser: !!req.session?.user,
-                sessionInitialized: req.session?.initialized
-            });
             
             // iPad-specific session initialization
             if (!req.session.initialized) {
                 req.session.initialized = true;
                 req.session.ipadDevice = true;
-                console.log('📱 iPad session marked as initialized');
             }
             
             // iPad session persistence enhancement
             if (req.sessionID) {
                 res.cookie('solura.session', req.sessionID, {
                     maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'Lax',
+                    httpOnly: false, 
+                    secure: false,   
+                    sameSite: 'Lax', 
                     path: '/',
                     domain: isProduction ? '.solura.uk' : undefined
                 });
-                
-                console.log('📱 iPad session cookie set:', req.sessionID);
             }
             
-            // iPad session validation
             if (req.session.user && !activeSessions.has(req.session.user.email)) {
-                console.log('📱 iPad session not in active sessions, adding it');
                 if (!activeSessions.has(req.session.user.email)) {
                     activeSessions.set(req.session.user.email, new Set());
                 }
@@ -420,19 +398,6 @@ function startServer() {
                 });
             });
         });
-    });
-
-    // Session debugging middleware
-    app.use((req, res, next) => {
-    console.log('=== ENHANCED SESSION DEBUG ===');
-    console.log('URL:', req.url);
-    console.log('Method:', req.method);
-    console.log('Session ID:', req.sessionID);
-    console.log('Session exists:', !!req.session);
-    console.log('Session User:', req.session?.user);
-    console.log('Session Keys:', req.session ? Object.keys(req.session) : 'No session');
-    console.log('=== END ENHANCED DEBUG ===');
-    next();
     });
 
     // Mobile device session enhancement
@@ -489,16 +454,6 @@ function startServer() {
         const sessionCookie = cookies['solura.session'];
         const headerSessionId = req.headers['x-session-id'];
         const querySessionId = req.query.sessionId;
-        
-        console.log('🔄 Session Recovery Check:', {
-            hasCookies: !!cookieHeader,
-            cookie: sessionCookie,
-            header: headerSessionId,
-            query: querySessionId,
-            currentSessionId: req.sessionID,
-            hasSessionObject: !!req.session,
-            hasUser: !!req.session?.user
-        });
         
         const externalSessionId = sessionCookie || headerSessionId || querySessionId;
         
@@ -606,31 +561,8 @@ function startServer() {
         }
     });
 
-    // Device debug endpoint
-    app.get('/api/device-debug', (req, res) => {
-        console.log('=== DEVICE DEBUG INFO ===');
-        
-        res.json({
-            success: true,
-            platform: req.isIPad ? 'ipad' : req.isIOS ? 'ios' : req.isMobileDevice ? 'mobile' : 'desktop',
-            session: {
-                id: req.sessionID,
-                exists: !!req.session,
-                user: req.session?.user,
-                initialized: req.session?.initialized,
-                ipadDevice: req.session?.ipadDevice
-            },
-            headers: req.headers,
-            timestamp: new Date().toISOString()
-        });
-    });
-
     app.get('/health', (req, res) => {
-        res.json({ 
-            status: 'OK', 
-            timestamp: new Date().toISOString(),
-            session: req.sessionID ? 'active' : 'none'
-        });
+        res.json({ status: 'OK', timestamp: new Date().toISOString(), session: req.sessionID ? 'active' : 'none' });
     });
 
     // Other Route Imports
@@ -722,7 +654,6 @@ function startServer() {
         }
     });
 
-    // Biometric authentication endpoints
     app.post('/api/biometric-login', async (req, res) => {
         safeSessionTouch(req);
         try {
@@ -853,7 +784,6 @@ function startServer() {
         }
     });
 
-    // Enhanced login with biometric support
     app.post('/submit', async (req, res) => {
         const { email, password, dbName, forceLogout, enableBiometric, deviceFingerprint } = req.body;
         if (!email || !password) return res.status(400).json({ success: false, message: 'Credentials required' });
@@ -913,6 +843,7 @@ function startServer() {
 
                     // Biometric auto-registration
                     if (enableBiometric && deviceFingerprint) {
+                        // Simplified registration for this flow
                         const regSql = `INSERT INTO biometric_devices (user_email, device_fingerprint, is_active, last_used) VALUES (?, ?, TRUE, NOW()) ON DUPLICATE KEY UPDATE is_active=TRUE, last_used=NOW()`;
                         mainPool.query(regSql, [email, deviceFingerprint]);
                     }
@@ -956,778 +887,88 @@ function startServer() {
         }
     });
 
-    // Additional endpoints from second version
-    app.get('/api/current-user', isAuthenticated, (req, res) => {
-        safeSessionTouch(req);
-        res.json({
-            success: true,
-            user: req.session.user
-        });
-    });
-
-    app.get('/api/session-debug', (req, res) => {
-        const sessionCookie = req.cookies['solura.session'];
-        const headerSessionId = req.headers['x-session-id'];
-        
-        res.json({
-            session: {
-                id: req.sessionID,
-                exists: !!req.session,
-                user: req.session?.user,
-                cookie: sessionCookie,
-                header: headerSessionId
-            },
-            headers: {
-                cookie: req.headers.cookie,
-                'x-session-id': req.headers['x-session-id'],
-                origin: req.headers.origin,
-                'user-agent': req.headers['user-agent']
-            },
-            timestamp: new Date().toISOString()
-        });
-    });
-
-    app.get('/api/validate-session-real-time', async (req, res) => {
-        console.log('=== REAL-TIME SESSION VALIDATION ===');
-        console.log('Session ID from cookie:', req.sessionID);
-        console.log('Session exists:', !!req.session);
-        console.log('Session User:', req.session?.user);
-        
-        if (!req.session) {
-            return res.json({
-                valid: false,
-                reason: 'session_not_loaded',
-                message: 'Session not loaded'
-            });
-        }
-
-        if (!req.session.user) {
-            return res.json({
-                valid: false,
-                reason: 'no_session_user',
-                message: 'No user in session'
-            });
-        }
-
-        const email = req.session.user.email;
-        const activeSessionIds = activeSessions.get(email);
-        
-        console.log('Active sessions for user:', activeSessionIds ? Array.from(activeSessionIds) : 'None');
-        console.log('Current session in active sessions:', activeSessionIds?.has(req.sessionID));
-        
-        if (!activeSessionIds || !activeSessionIds.has(req.sessionID)) {
-            console.log('🚫 Session terminated - no longer in active sessions');
-            
-            req.session.destroy((err) => {
-                if (err) {
-                    console.error('Error destroying invalid session:', err);
-                }
-            });
-            
-            return res.json({
-                valid: false,
-                reason: 'session_terminated',
-                message: 'Your session was terminated from another device',
-                terminated: true
-            });
-        }
-
-        safeSessionTouch(req);
-        
-        res.json({
-            valid: true,
-            user: req.session.user,
-            sessionId: req.sessionID,
-            activeSessions: activeSessionIds ? Array.from(activeSessionIds) : [],
-            message: 'Session is valid'
-        });
-    });
-
-    app.get('/api/session-heartbeat', (req, res) => {
-        console.log('💓 Heartbeat connection established - Session ID:', req.sessionID);
-        
-        res.writeHead(200, {
-            'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'Access-Control-Allow-Origin': req.headers.origin || '*',
-            'Access-Control-Allow-Credentials': 'true'
-        });
-
-        res.write('data: ' + JSON.stringify({
-            type: 'connected',
-            message: 'Heartbeat connection established',
-            sessionId: req.sessionID,
-            timestamp: Date.now()
-        }) + '\n\n');
-
-        let isConnected = true;
-
-        const checkSession = () => {
-            if (!isConnected) return;
-
-            try {
-                if (!req.session?.user) {
-                    console.log('💔 Heartbeat: No user in session');
-                    res.write('data: ' + JSON.stringify({
-                        valid: false,
-                        reason: 'no_session_user',
-                        message: 'Please log in again',
-                        timestamp: Date.now()
-                    }) + '\n\n');
-                    return;
-                }
-
-                res.write('data: ' + JSON.stringify({
-                    valid: true,
-                    type: 'heartbeat',
-                    user: req.session.user.email,
-                    timestamp: Date.now()
-                }) + '\n\n');
-
-            } catch (error) {
-                console.error('💔 Heartbeat error:', error);
-            }
-        };
-
-        checkSession();
-        const intervalId = setInterval(checkSession, 10000);
-
-        req.on('close', () => {
-            console.log('💓 Heartbeat connection closed');
-            isConnected = false;
-            clearInterval(intervalId);
-        });
-
-        req.on('error', (error) => {
-            console.error('💓 Heartbeat connection error:', error);
-            isConnected = false;
-            clearInterval(intervalId);
-        });
-    });
-
-    app.get('/api/user-databases', isAuthenticated, (req, res) => {
-        safeSessionTouch(req);
-        const email = req.session.user.email;
-        
-        const sql = `SELECT u.db_name, u.Access FROM users u WHERE u.Email = ?`;
-        
-        mainPool.query(sql, [email], (err, results) => {
-            if (err) {
-                console.error('Error querying user databases:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    error: 'Internal Server Error' 
-                });
-            }
-
-            const databases = results.map(row => ({
-                db_name: row.db_name,
-                access: row.Access
-            }));
-
-            res.json({
-                success: true,
-                databases: databases,
-                currentDb: req.session.user.dbName
-            });
-        });
-    });
-
-    app.post('/api/switch-database', isAuthenticated, async (req, res) => {
-        const { dbName } = req.body;
-        const email = req.session.user.email;
-
-        if (!dbName) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Database name is required' 
-            });
-        }
-
-        try {
-            const verifySql = `SELECT u.Access, u.Email, u.db_name FROM users u WHERE u.Email = ? AND u.db_name = ?`;
-            
-            mainPool.query(verifySql, [email, dbName], (err, results) => {
-                if (err) {
-                    console.error('Error verifying database access:', err);
-                    return res.status(500).json({ 
-                        success: false, 
-                        error: 'Internal Server Error' 
-                    });
-                }
-
-                if (results.length === 0) {
-                    return res.status(403).json({ 
-                        success: false, 
-                        error: 'User not authorized for this database' 
-                    });
-                }
-
-                const userDetails = results[0];
-                
-                const companyPool = getPool(dbName);
-                const companySql = `SELECT name, lastName FROM Employees WHERE email = ?`;
-                
-                companyPool.query(companySql, [email], (err, companyResults) => {
-                    if (err) {
-                        console.error('Error querying company database:', err);
-                        return res.status(500).json({ 
-                            success: false, 
-                            error: 'Internal Server Error' 
-                        });
-                    }
-
-                    if (companyResults.length === 0) {
-                        return res.status(404).json({ 
-                            success: false, 
-                            error: 'User not found in company database' 
-                        });
-                    }
-
-                    const name = companyResults[0].name;
-                    const lastName = companyResults[0].lastName;
-
-                    req.session.user = {
-                        email: email,
-                        role: userDetails.Access,
-                        name: name,
-                        lastName: lastName,
-                        dbName: dbName,
-                    };
-
-                    if (req.isIPad) {
-                        req.session.ipadDevice = true;
-                        console.log('📱 iPad database switch - preserving device type');
-                    }
-
-                    console.log('🔄 Database switching - Same session ID:', req.sessionID);
-                    console.log('🔄 Updated session user:', req.session.user);
-
-                    req.session.save((err) => {
-                        if (err) {
-                            console.error('Error saving session after database switch:', err);
-                            return res.status(500).json({ 
-                                success: false, 
-                                error: 'Failed to update session' 
-                            });
-                        }
-
-                        console.log('✅ Database switched successfully to:', dbName);
-
-                        res.json({
-                            success: true,
-                            message: 'Database switched successfully',
-                            user: req.session.user,
-                            sessionId: req.sessionID
-                        });
-                    });
-                });
-            });
-        } catch (error) {
-            console.error('Database switch error:', error);
-            res.status(500).json({ 
-                success: false, 
-                error: 'Internal server error' 
-            });
-        }
-    });
-
-    app.get('/api/init-session', (req, res) => {
-        console.log('🔄 Initializing session');
-        
-        if (!req.session.initialized) {
-            req.session.initialized = true;
-        }
-        
-        if (req.isIPad) {
-            req.session.ipadDevice = true;
-            console.log('📱 iPad session initialization');
-        }
-        
-        safeSessionTouch(req);
-        
-        req.session.save((err) => {
-            if (err) {
-                console.error('Error saving session:', err);
-                return res.status(500).json({ success: false, error: 'Session initialization failed' });
-            }
-            
-            console.log('✅ Session initialized with ID:', req.sessionID);
-            
-            res.json({
-                success: true,
-                sessionId: req.sessionID,
-                message: 'Session initialized successfully'
-            });
-        });
-    });
-
     // Authentication Middleware
     function isAuthenticated(req, res, next) {
-        console.log('=== AUTH CHECK ===');
-        console.log('Session ID:', req.sessionID);
-        console.log('Session exists:', !!req.session);
-        console.log('Session User:', req.session?.user);
-        console.log('iPad Device:', req.session?.ipadDevice);
-        
         const sessionIdFromHeader = req.headers['x-session-id'];
         const sessionIdFromQuery = req.query.sessionId;
         
         if ((!req.session?.user) && (sessionIdFromHeader || sessionIdFromQuery)) {
             const externalSessionId = sessionIdFromHeader || sessionIdFromQuery;
-            console.log('📱 iOS/iPad - Attempting session recovery from external ID:', externalSessionId);
-            
-            if (!req.sessionStore || typeof req.sessionStore.get !== 'function') {
-                console.log('❌ Session store not available for recovery');
-                return sendAuthError(res, req);
-            }
             
             req.sessionStore.get(externalSessionId, (err, sessionData) => {
-                if (err) {
-                    console.error('Error loading external session:', err);
+                if (err || !sessionData || !sessionData.user) {
                     return sendAuthError(res, req);
                 }
-                
-                if (sessionData && sessionData.user) {
-                    console.log('✅ External session recovery successful');
-                    Object.assign(req.session, sessionData);
-                    
-                    req.session.save((saveErr) => {
+                Object.assign(req.session, sessionData);
+                // Force save the recovered session to establish the cookie for this request context
+                req.session.save((saveErr) => {
                     if (saveErr) console.error('Error saving recovered session', saveErr);
-                    return next();
-                    });
-                } else {
-                    console.log('❌ No valid session data found for recovery');
-                    sendAuthError(res, req);
-                }
+                    next();
+                });
             });
-        } else if (req.session?.user && req.session.user.dbName && req.session.user.email) {
-            console.log('✅ Authentication SUCCESS for user:', req.session.user.email);
-            
+        } else if (req.session?.user) {
             if (req.isIPad && !req.session.ipadDevice) {
-                console.log('📱 iPad session - marking as iPad device');
                 req.session.ipadDevice = true;
-                req.session.save(() => {});
+                req.session.save(() => {}); 
             }
-            
-            return next();
+            next();
         } else {
-            console.log('❌ Authentication FAILED');
             sendAuthError(res, req);
         }
     }
 
     function sendAuthError(res, req, customMessage = null) {
         const message = customMessage || 'Please log in again';
-        
         if (req.path.startsWith('/api/') || req.xhr) {
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Unauthorized',
-                message: message,
-                requiresLogin: true
-            });
+            return res.status(401).json({ success: false, error: 'Unauthorized', message: message, requiresLogin: true });
         }
-        
         res.redirect('/?error=' + encodeURIComponent(message));
     }
 
     function isAdmin(req, res, next) {
-        if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) {
-            return next();
-        }
+        if (req.session?.user && (req.session.user.role === 'admin' || req.session.user.role === 'AM')) return next();
         sendAuthError(res, req, 'Admin access required');
     }
-
     function isSupervisor(req, res, next) {
-        if (req.session?.user && req.session.user.role === 'supervisor') {
-            return next();
-        }
+        if (req.session?.user && req.session.user.role === 'supervisor') return next();
         sendAuthError(res, req, 'Supervisor access required');
     }
-
     function isUser(req, res, next) {
-        if (req.session?.user && req.session.user.role === 'user') {
-            return next();
-        }
+        if (req.session?.user && req.session.user.role === 'user') return next();
         sendAuthError(res, req, 'User access required');
     }
 
     // Protected HTML Routes
-    app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => {
-        if (req.isIPad && req.session) {
-            safeSessionTouch(req);
-        }
-        res.sendFile(path.join(__dirname, 'Admin.html'));
-    });
+    app.get('/Admin.html', isAuthenticated, isAdmin, (req, res) => res.sendFile(path.join(__dirname, 'Admin.html')));
+    app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => res.sendFile(path.join(__dirname, 'AdminApp.html')));
+    app.get('/User.html', isAuthenticated, isUser, (req, res) => res.sendFile(path.join(__dirname, 'User.html')));
+    app.get('/UserApp.html', isAuthenticated, isUser, (req, res) => res.sendFile(path.join(__dirname, 'UserApp.html')));
+    app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => res.sendFile(path.join(__dirname, 'Supervisor.html')));
+    app.get('/SupervisorApp.html', isAuthenticated, isSupervisor, (req, res) => res.sendFile(path.join(__dirname, 'SupervisorApp.html')));
 
-    app.get('/AdminApp.html', isAuthenticated, isAdmin, (req, res) => {
-        if (req.isIPad && req.session) {
-            safeSessionTouch(req);
-        }
-        res.sendFile(path.join(__dirname, 'AdminApp.html'));
-    });
-
-    app.get('/User.html', isAuthenticated, isUser, (req, res) => {
-        if (req.isIPad && req.session) {
-            safeSessionTouch(req);
-        }
-        res.sendFile(path.join(__dirname, 'User.html'));
-    });
-
-    app.get('/UserApp.html', isAuthenticated, isUser, (req, res) => {
-        if (req.isIPad && req.session) {
-            safeSessionTouch(req);
-        }
-        res.sendFile(path.join(__dirname, 'UserApp.html'));
-    });
-
-    app.get('/Supervisor.html', isAuthenticated, isSupervisor, (req, res) => {
-        if (req.isIPad && req.session) {
-            safeSessionTouch(req);
-        }
-        res.sendFile(path.join(__dirname, 'Supervisor.html'));
-    });
-
-    app.get('/SupervisorApp.html', isAuthenticated, isSupervisor, (req, res) => {
-        if (req.isIPad && req.session) {
-            safeSessionTouch(req);
-        }
-        res.sendFile(path.join(__dirname, 'SupervisorApp.html'));
-    });
-
-    // Additional business endpoints from second version
-    app.get('/api/employees-on-shift', isAuthenticated, (req, res) => {
-        safeSessionTouch(req);
-        const dbName = req.session.user.dbName;
-        if (!dbName) return res.status(401).json({ success: false, message: 'User not authenticated' });
-
-        const pool = getPool(dbName);
-        const today = new Date();
-        const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
-        const formattedDate = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()} (${dayName})`;
-        
-        pool.query(
-            `SELECT name, lastName, startTime, endTime, designation 
-            FROM rota 
-            WHERE day = ?
-            ORDER BY designation DESC, lastName, name, startTime`,
-            [formattedDate],
-            (error, results) => {
-                if (error) {
-                    console.error('Database error:', error);
-                    return res.status(500).json({ success: false, error: 'Database error' });
-                }
-
-                const employeeMap = new Map();
-                const now = new Date();
-                const currentTime = now.getHours() * 60 + now.getMinutes();
-                
-                results.forEach(row => {
-                    const key = `${row.name} ${row.lastName}`;
-                    if (!employeeMap.has(key)) {
-                        employeeMap.set(key, {
-                            name: row.name,
-                            lastName: row.lastName,
-                            designation: row.designation,
-                            timeFrames: []
-                        });
-                    }
-                    
-                    const [startH, startM] = row.startTime.split(':').map(Number);
-                    const [endH, endM] = row.endTime.split(':').map(Number);
-                    const startMinutes = startH * 60 + startM;
-                    const endMinutes = endH * 60 + endM;
-                    
-                    employeeMap.get(key).timeFrames.push({
-                        start: row.startTime,
-                        end: row.endTime,
-                        startMinutes,
-                        endMinutes
-                    });
-                });
-
-                const employees = Array.from(employeeMap.values()).map(emp => {
-                    emp.timeFrames.sort((a, b) => a.startMinutes - b.startMinutes);
-                    
-                    let currentStatus = 'Not started';
-                    let nextEvent = '';
-                    let activeFrame = null;
-                    
-                    for (const frame of emp.timeFrames) {
-                        if (currentTime < frame.startMinutes) {
-                            const minsLeft = frame.startMinutes - currentTime;
-                            const hoursLeft = Math.floor(minsLeft / 60);
-                            const remainingMins = minsLeft % 60;
-                            nextEvent = `Starts in ${hoursLeft}h ${remainingMins}m`;
-                            break;
-                        } else if (currentTime <= frame.endMinutes) {
-                            currentStatus = 'Working now';
-                            const minsLeft = frame.endMinutes - currentTime;
-                            const hoursLeft = Math.floor(minsLeft / 60);
-                            const remainingMins = minsLeft % 60;
-                            nextEvent = `Ends in ${hoursLeft}h ${remainingMins}m`;
-                            activeFrame = frame;
-                            break;
-                        }
-                    }
-                    
-                    if (!nextEvent && emp.timeFrames.length > 0) {
-                        const lastFrame = emp.timeFrames[emp.timeFrames.length - 1];
-                        const minsAgo = currentTime - lastFrame.endMinutes;
-                        if (minsAgo > 0) {
-                            const hoursAgo = Math.floor(minsAgo / 60);
-                            const remainingMins = minsAgo % 60;
-                            nextEvent = `Ended ${hoursAgo}h ${remainingMins}m ago`;
-                            currentStatus = 'Shift ended';
-                        }
-                    }
-
-                    return {
-                        employeeName: `${emp.name} ${emp.lastName}`,
-                        designation: emp.designation,
-                        timeFrames: emp.timeFrames.map(f => ({ start: f.start, end: f.end })),
-                        status: currentStatus,
-                        nextEvent,
-                        currentFrame: activeFrame ? {
-                            endMinutes: activeFrame.endMinutes,
-                            currentTime: currentTime
-                        } : null
-                    };
-                });
-
-                res.json({
-                    success: true,
-                    count: employeeMap.size,
-                    employees,
-                    serverTime: currentTime 
-                });
-            }
-        );
-    });
-
-    // Helper function to get current Monday's date
-    function getCurrentMonday() {
-        const today = new Date();
-        const day = today.getDay();
-        const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-        const monday = new Date(today.setDate(diff));
-        return monday.toISOString().split('T')[0];
-    }
-
-    // Function to get labor cost
-    app.get('/api/labor-cost', isAuthenticated, (req, res) => {
-        safeSessionTouch(req);
-        const dbName = req.session.user.dbName;
-        if (!dbName) {
-            return res.status(401).json({ success: false, message: 'User not authenticated' });
-        }
-
-        const pool = getPool(dbName);
-        const mondayDate = getCurrentMonday();
-        
-        pool.query(
-            `SELECT Weekly_Cost_Before FROM Data WHERE WeekStart = ?`,
-            [mondayDate],
-            (error, results) => {
-                if (error) {
-                    console.error('Database error:', error);
-                    return res.status(500).json({ success: false, error: 'Database error' });
-                }
-                
-                if (results.length === 0) {
-                    return res.status(404).json({
-                        success: false,
-                        message: 'No data found for current week',
-                        week_start_date: mondayDate
-                    });
-                }
-                
-                res.json({
-                    success: true,
-                    cost: results[0].Weekly_Cost_Before,
-                    week_start_date: mondayDate
-                });
-            }
-        );
-    });
-
-    // API routes
-    app.get('/api/pending-approvals', isAuthenticated, async (req, res) => {
-        safeSessionTouch(req);
-        const dbName = req.session.user.dbName;
-        if (!dbName) {
-            return res.status(401).json({ success: false, message: 'User not authenticated' });
-        }
-
-        const pool = getPool(dbName);
-        const today = new Date();
-        const currentMonth = today.getMonth() + 1;
-        const currentYear = today.getFullYear();
-
-        try {
-            const yesterday = new Date(today);
-            yesterday.setDate(today.getDate() - 1);
-            const daysToCheck = yesterday.getDate();
-
-            let missingDaysCount = 0;
-
-            for (let day = 1; day <= daysToCheck; day++) {
-                const date = new Date(currentYear, currentMonth - 1, day);
-                const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-                const formattedDay = `${String(day).padStart(2, '0')}/${String(currentMonth).padStart(2, '0')}/${currentYear} (${dayName})`;
-
-                const dayExists = await new Promise((resolve, reject) => {
-                    pool.query(
-                        `SELECT 1 FROM ConfirmedRota WHERE day = ? LIMIT 1`,
-                        [formattedDay],
-                        (error, results) => {
-                            if (error) return reject(error);
-                            resolve(results.length > 0);
-                        }
-                    );
-                });
-
-                if (!dayExists) {
-                    missingDaysCount++;
-                }
-            }
-
-            res.json({
-                success: true,
-                count: missingDaysCount,
-                checkedDays: daysToCheck
-            });
-
-        } catch (error) {
-            console.error('Error:', error);
-            res.status(500).json({ success: false, error: 'Server error' });
-        }
-    });
-
-    app.get('/api/tip-approvals', isAuthenticated, async (req, res) => {
-        safeSessionTouch(req);
-        const dbName = req.session.user.dbName;
-        if (!dbName) {
-            return res.status(401).json({ success: false, message: 'User not authenticated' });
-        }
-
-        const pool = getPool(dbName);
-        const today = new Date();
-        const currentMonth = today.getMonth() + 1;
-        const currentYear = today.getFullYear();
-
-        try {
-            const yesterday = new Date(today);
-            yesterday.setDate(today.getDate() - 1);
-            const daysToCheck = yesterday.getDate();
-
-            let missingDaysCount = 0;
-
-            for (let day = 1; day <= daysToCheck; day++) {
-                const date = new Date(currentYear, currentMonth - 1, day);
-                const formattedDay = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-
-                const dayExists = await new Promise((resolve, reject) => {
-                    pool.query(
-                        `SELECT 1 FROM tip WHERE day = ? LIMIT 1`,
-                        [formattedDay],
-                        (error, results) => {
-                            if (error) return reject(error);
-                            resolve(results.length > 0);
-                        }
-                    );
-                });
-
-                if (!dayExists) {
-                    missingDaysCount++;
-                }
-            }
-
-            res.json({
-                success: true,
-                count: missingDaysCount,
-                checkedDays: daysToCheck
-            });
-
-        } catch (error) {
-            console.error('Error:', error);
-            res.status(500).json({ success: false, error: 'Server error' });
-        }
-    });
-
-    // Enhanced logout route
     app.get('/logout', (req, res) => {
         if (req.session) {
-            const sessionId = req.sessionID;
             const userEmail = req.session.user?.email;
-            
-            req.session.destroy(err => {
-                if (err) {
-                    console.error('Failed to destroy session:', err);
-                }
-                
-                if (userEmail && activeSessions.has(userEmail)) {
-                    activeSessions.get(userEmail).delete(sessionId);
-                    if (activeSessions.get(userEmail).size === 0) {
-                        activeSessions.delete(userEmail);
-                    }
-                }
-                
-                res.clearCookie('solura.session', {
-                    path: '/',
-                    httpOnly: true,
-                    secure: isProduction,
-                    sameSite: 'none',
-                    domain: isProduction ? '.solura.uk' : undefined
-                });
-
-                
-                console.log('✅ Logout successful for session:', sessionId);
-                res.redirect('/');
-            });
-        } else {
-            res.redirect('/');
+            const sid = req.sessionID;
+            req.session.destroy();
+            if (userEmail && activeSessions.has(userEmail)) activeSessions.get(userEmail).delete(sid);
+            res.clearCookie('solura.session', { path: '/', domain: isProduction ? '.solura.uk' : undefined });
         }
+        res.redirect('/');
     });
 
-    // Catch-all handler
     app.get('*', (req, res) => {
         const requestedPath = path.join(__dirname, req.path);
-        
         if (fs.existsSync(requestedPath) && fs.statSync(requestedPath).isFile()) {
-            if (req.sessionID) {
-                res.cookie('solura.session', req.sessionID, {
-                    maxAge: 24 * 60 * 60 * 1000,
-                    httpOnly: false,
-                    secure: false,
-                    sameSite: 'Lax',
-                    path: '/',
-                    domain: isProduction ? '.solura.uk' : undefined
-                });
-            }
             res.sendFile(requestedPath);
-        } else if (req.path.startsWith('/api/')) {
-            res.status(404).json({ error: 'API endpoint not found' });
         } else {
             res.redirect('/');
         }
     });
 
-    // Session store event handlers
-    sessionStore.on('connected', () => {
-        console.log('✅ Session store connected to database');
-    });
-
-    sessionStore.on('error', (error) => {
-        console.error('❌ Session store error:', error);
-    });
+    sessionStore.on('error', (error) => console.error('❌ Session store error:', error));
 
     app.listen(port, () => {
         console.log(`Server listening at http://localhost:${port}`);
-        console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
-        const databaseNames = ['bbuonaoxford', '100%pastaoxford'];
-        scheduleTestUpdates(databaseNames);
     });
 }

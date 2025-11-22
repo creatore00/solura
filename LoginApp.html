@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -698,26 +699,28 @@ function showLoginForm() {
 }
 
 function redirectToDashboard(user) {
-    let redirectUrl = '/UserApp.html'; // Default
+    // 1. Try to get the precise URL from server response stored in session storage
+    // This URL includes the sessionId and is correctly formatted by handleAuthSuccess
+    let redirectUrl = sessionStorage.getItem('pendingRedirectUrl');
     
-    if (user && (user.role === 'admin' || user.role === 'AM')) {
-        redirectUrl = '/AdminApp.html';
-    } else if (user && user.role === 'supervisor') {
-        redirectUrl = '/SupervisorApp.html';
-    }
-    
-    // Fix for "Nothing Happens":
-    // If the URL is relative (starts with /), prepend API_BASE_URL to ensure
-    // the WebView navigates to the remote authenticated server pages instead of 
-    // trying to find a local file which doesn't exist or isn't authenticated.
-    if (redirectUrl.startsWith('/')) {
-        redirectUrl = API_BASE_URL + redirectUrl;
-    }
-    
-    // Append session ID to the URL to ensure it is carried over even if cookies fail
-    const sessionId = localStorage.getItem('mobileSessionId');
-    if (sessionId) {
-        redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + sessionId;
+    // 2. If missing (e.g. auto-login flow), construct a fallback
+    if (!redirectUrl) {
+        let path = '/UserApp.html'; // Default
+        
+        if (user && (user.role === 'admin' || user.role === 'AM')) {
+            path = '/AdminApp.html';
+        } else if (user && user.role === 'supervisor') {
+            path = '/SupervisorApp.html';
+        }
+        
+        // Ensure absolute URL for mobile
+        redirectUrl = API_BASE_URL + path;
+        
+        // Append session ID
+        const sessionId = localStorage.getItem('mobileSessionId');
+        if (sessionId) {
+            redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + sessionId;
+        }
     }
     
     console.log(`🔄 Redirecting to dashboard: ${redirectUrl}`);
@@ -1013,18 +1016,19 @@ async function handleBiometricLogin() {
         successDiv.textContent = 'Authentication successful! Redirecting...';
         successDiv.style.display = 'block';
         
-        // Construct Redirect URL
+        // Calculate redirect URL properly
         let redirectUrl = data.redirectUrl;
-        
         // Fix for relative URLs - ensure we go to remote server
         if (redirectUrl && redirectUrl.startsWith('/')) {
             redirectUrl = API_BASE_URL + redirectUrl;
         }
-        
         // Append session ID to URL to carry session over during navigation
         if (data.sessionId) {
              redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + data.sessionId;
         }
+        
+        // Store it so redirectToDashboard uses it correctly
+        sessionStorage.setItem('pendingRedirectUrl', redirectUrl);
 
         console.log('🔄 Redirecting to:', redirectUrl);
         
@@ -1106,7 +1110,7 @@ async function handleAuthSuccess(data, wantsBiometric) {
             // IMPORTANT: Save the fingerprint used for registration
             localStorage.setItem('registeredFingerprint', currentDeviceFingerprint);
             
-            // FIX: Need to send email along with fingerprint (Fixes 400 Bad Request)
+            // FIX: Need to send email along with fingerprint
             let email = tempCredentials.email; 
             if (!email) {
                 const userData = localStorage.getItem('userData');
