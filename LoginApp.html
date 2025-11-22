@@ -706,6 +706,14 @@ function redirectToDashboard(user) {
         redirectUrl = '/SupervisorApp.html';
     }
     
+    // IMPORTANT: Fix session loss during redirect on mobile/hybrid apps
+    // Append session ID to the URL to ensure it is carried over even if cookies fail
+    const sessionId = localStorage.getItem('mobileSessionId');
+    if (sessionId) {
+        redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + sessionId;
+    }
+    
+    console.log(`🔄 Redirecting to dashboard: ${redirectUrl}`);
     redirectToPage(redirectUrl);
 }
 // ENHANCE your initialization
@@ -998,14 +1006,18 @@ async function handleBiometricLogin() {
         successDiv.textContent = 'Authentication successful! Redirecting...';
         successDiv.style.display = 'block';
         
-        // Explicit alert to confirm we reached this stage (Temporary Debug)
-        // alert('Login Success! Redirecting to ' + data.redirectUrl);
-        
-        console.log('🔄 Redirecting to:', data.redirectUrl);
+        // Construct Redirect URL with Session ID appended
+        let redirectUrl = data.redirectUrl;
+        if (data.sessionId) {
+             // Append session ID to URL to carry session over during navigation
+             redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + data.sessionId;
+        }
+
+        console.log('🔄 Redirecting to:', redirectUrl);
         
         // Use a small delay to show success message
         setTimeout(() => {
-            redirectToPage(data.redirectUrl);
+            redirectToPage(redirectUrl);
         }, 1000);
 
     } catch (error) {
@@ -1031,6 +1043,13 @@ async function handleBiometricLogin() {
 function redirectToPage(url) {
     console.log('🔄 Redirecting to:', url);
     
+    // Ensure session ID is in the URL if we have it in storage (Final Safety Net)
+    const sessionId = localStorage.getItem('mobileSessionId');
+    if (sessionId && !url.includes('sessionId=')) {
+        url += (url.includes('?') ? '&' : '?') + 'sessionId=' + sessionId;
+        console.log('🔄 Appended missing session ID to redirect URL');
+    }
+
     // Remove leading slash for relative native path
     const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
     
@@ -1044,7 +1063,14 @@ function redirectToPage(url) {
 async function handleAuthSuccess(data, wantsBiometric) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
-        sessionStorage.setItem('pendingRedirectUrl', data.redirectUrl);
+        
+        // Construct Redirect URL with Session ID for storage
+        let redirectUrl = data.redirectUrl;
+        if (data.sessionId) {
+             redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + data.sessionId;
+        }
+        
+        sessionStorage.setItem('pendingRedirectUrl', redirectUrl);
         
         const isNative = window.Capacitor && window.Capacitor.isNativePlatform();
         if (isNative && wantsBiometric) {
