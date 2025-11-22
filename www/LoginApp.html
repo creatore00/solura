@@ -647,18 +647,44 @@
         }
         initializeEventListeners();
     });
-
-    async function initializeBiometricSystem() {
-        try {
-            const { NativeBiometric } = window.Capacitor.Plugins;
-            const result = await NativeBiometric.isAvailable();
-            if (result.isAvailable) {
-                document.getElementById('biometricSection').style.display = 'block';
-                document.getElementById('biometricDivider').style.display = 'flex';
+// ENHANCE your initialization
+async function initializeBiometricSystem() {
+    try {
+        // First, initialize session for iOS
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            await makeApiRequest('/api/ios-session-setup', { method: 'POST' });
+        }
+        
+        const { NativeBiometric } = window.Capacitor.Plugins;
+        const result = await NativeBiometric.isAvailable();
+        
+        if (result.isAvailable) {
+            document.getElementById('biometricSection').style.display = 'block';
+            document.getElementById('biometricDivider').style.display = 'flex';
+            
+            // Check if device is already registered
+            try {
+                const checkResponse = await makeApiRequest('/api/check-device-registration', {
+                    method: 'POST',
+                    headers: {
+                        'X-Device-Fingerprint': currentDeviceFingerprint
+                    }
+                });
+                const checkData = await checkResponse.json();
+                
+                if (checkData.registered) {
+                    document.getElementById('biometricBtnText').textContent = 'Welcome Back! Sign in with Biometrics';
+                }
+            } catch (e) {
+                console.log('Device not registered yet');
             }
-        } catch (e) { console.error("Biometrics not available", e); }
+        }
+    } catch (e) { 
+        console.log("Biometrics not available or setup failed", e);
+        document.getElementById('biometricSection').style.display = 'none';
+        document.getElementById('biometricDivider').style.display = 'none';
     }
-
+}
     function initializeEventListeners() {
         document.getElementById('loginForm').addEventListener('submit', (e) => handleLoginSubmit(e, false));
         document.getElementById('biometricBtn').addEventListener('click', handleBiometricLogin);
@@ -731,42 +757,74 @@
             setLoading(false);
         }
     }
-    
-    // --- (FINAL) Biometric Login Handler ---
-    async function handleBiometricLogin() {
-        const btn = document.getElementById('biometricBtn');
-        const errorDiv = document.getElementById('biometricError');
-        setLoading(true, btn, '<span class="spinner"></span> Authenticating...');
-        errorDiv.style.display = 'none';
+    // REPLACE your handleBiometricLogin function with this:
+async function handleBiometricLogin() {
+    const btn = document.getElementById('biometricBtn');
+    const errorDiv = document.getElementById('biometricError');
+    setLoading(true, btn, '<span class="spinner"></span> Authenticating...');
+    errorDiv.style.display = 'none';
 
-        try {
-            const { NativeBiometric } = window.Capacitor.Plugins;
-            // --- (FIX) Safely check the result from the biometric prompt ---
-            const result = await NativeBiometric.verifyIdentity({ reason: 'Sign in to your account' });
-            if (!result || !result.verified) {
-                throw new Error('Biometric verification cancelled.');
-            }
-            
-            const response = await makeApiRequest('/api/biometric-login', {
-                method: 'POST',
-                body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint })
-            });
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
-
-            await handleAuthSuccess(data, false);
-        } catch (error) {
-            if (error.message !== 'Biometric verification cancelled.') {
-                const userMessage = error.message.includes('Device not registered') 
-                    ? 'Device not registered. Please log in with password first and check "Enable biometric".'
-                    : error.message;
-                errorDiv.textContent = userMessage;
-                errorDiv.style.display = 'block';
-            }
-        } finally {
-            setLoading(false, btn, '<span class="biometric-icon">🔒</span> Sign in with Biometrics');
+    try {
+        const { NativeBiometric } = window.Capacitor.Plugins;
+        
+        // Verify biometric identity
+        const result = await NativeBiometric.verifyIdentity({ 
+            reason: 'Sign in to your account',
+            title: 'Biometric Login',
+            subtitle: 'Authenticate to access your account',
+            description: ''
+        });
+        
+        if (!result || !result.verified) {
+            throw new Error('Biometric verification failed or cancelled');
         }
+        
+        // Call the biometric login endpoint
+        const response = await makeApiRequest('/api/biometric-login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Device-Fingerprint': currentDeviceFingerprint
+            },
+            body: JSON.stringify({ 
+                deviceFingerprint: currentDeviceFingerprint 
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Biometric login failed');
+        }
+
+        // Store tokens and redirect
+        localStorage.setItem('accessToken', data.accessToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        
+        // For iOS/Capacitor, we need to handle the redirect differently
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            // Use Capacitor's navigation
+            window.location.href = data.redirectUrl;
+        } else {
+            window.location.replace(data.redirectUrl);
+        }
+        
+    } catch (error) {
+        console.error('Biometric login error:', error);
+        
+        // Don't show error for user cancellation
+        if (!error.message.includes('cancelled') && !error.message.includes('Cancelled')) {
+            const userMessage = error.message.includes('Device not registered') 
+                ? 'Device not registered. Please log in with password first and enable biometric authentication.'
+                : `Biometric login failed: ${error.message}`;
+            
+            errorDiv.textContent = userMessage;
+            errorDiv.style.display = 'block';
+        }
+    } finally {
+        setLoading(false, btn, '<span class="biometric-icon">🔒</span> Sign in with Biometrics');
     }
+}
 
     async function handleAuthSuccess(data, wantsBiometric) {
         localStorage.setItem('accessToken', data.accessToken);
@@ -799,16 +857,43 @@
     
     // --- UTILITY AND UI FUNCTIONS ---
 
-    // --- (FINAL) API Request Function using Tokens ---
-    async function makeApiRequest(url, options = {}) {
-        const headers = { 'Content-Type': 'application/json', ...options.headers };
-        const token = localStorage.getItem('accessToken');
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        // No longer need credentials: 'include' for cookies
-        return fetch(`${API_BASE_URL}${url}`, { ...options, headers });
+// UPDATE your makeApiRequest function to handle iOS properly
+async function makeApiRequest(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        'X-Capacitor': 'true',
+        ...options.headers
+    };
+    
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
     }
+    
+    // For iOS/Capacitor, include session ID if available
+    const sessionId = getSessionId();
+    if (sessionId) {
+        headers['X-Session-ID'] = sessionId;
+    }
+    
+    const config = {
+        ...options,
+        headers,
+        credentials: 'include' // Important for cookies
+    };
+    
+    return fetch(`${API_BASE_URL}${url}`, config);
+}
+
+// Helper to get session ID
+function getSessionId() {
+    // Try to get from cookie
+    const match = document.cookie.match(/solura\.session=([^;]+)/);
+    if (match) return match[1];
+    
+    // Try to get from localStorage (for mobile)
+    return localStorage.getItem('sessionId');
+}
     
     function redirectToDashboard() {
         const url = sessionStorage.getItem('pendingRedirectUrl');
