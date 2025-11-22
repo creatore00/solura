@@ -124,6 +124,23 @@
         .shift-modal-table th {
             background-color: #f8f9fa;
         }
+        
+        /* Holiday styles */
+        .holiday-paid {
+            background-color: lightgreen !important;
+        }
+        
+        .holiday-unpaid {
+            background-color: lightgrey !important;
+        }
+        
+        .holiday-badge-paid {
+            background-color: #28a745;
+        }
+        
+        .holiday-badge-unpaid {
+            background-color: #6c757d;
+        }
     </style>
 </head>
 <body>
@@ -416,20 +433,28 @@
                                 <th>Hours</th>
                                 <th>Cost</th>
                                 <th>Confirmed By</th>
+                                <th>Type</th>
                             </tr>
                         </thead>
                         <tbody>
             `;
             
             employee.shifts.forEach(shift => {
+                const holidayClass = shift.holidayType === 'paid' ? 'holiday-paid' : 
+                                   shift.holidayType === 'unpaid' ? 'holiday-unpaid' : '';
+                const typeBadge = shift.holidayType ? 
+                    `<span class="badge ${shift.holidayType === 'paid' ? 'holiday-badge-paid' : 'holiday-badge-unpaid'}">${shift.holidayType}</span>` : 
+                    '<span class="badge bg-primary">shift</span>';
+                
                 modalContent += `
-                    <tr>
+                    <tr class="${holidayClass}">
                         <td>${shift.day}</td>
-                        <td>${shift.startTime}</td>
-                        <td>${shift.endTime}</td>
+                        <td>${shift.startTime || '-'}</td>
+                        <td>${shift.endTime || '-'}</td>
                         <td>${shift.hours.toFixed(2)}</td>
                         <td>£${shift.cost.toFixed(2)}</td>
-                        <td><small class="text-muted">${shift.who}</small></td>
+                        <td><small class="text-muted">${shift.who || '-'}</small></td>
+                        <td>${typeBadge}</td>
                     </tr>
                 `;
             });
@@ -441,6 +466,7 @@
                                 <td colspan="3"><strong>Total</strong></td>
                                 <td><strong>${employee.totalHours}</strong></td>
                                 <td><strong>£${employee.totalCost.toFixed(2)}</strong></td>
+                                <td></td>
                                 <td></td>
                             </tr>
                         </tfoot>
@@ -622,20 +648,28 @@
                                                 <th>Hours</th>
                                                 <th>Cost</th>
                                                 <th>Confirmed By</th>
+                                                <th>Type</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                     `;
 
                     employee.shifts.forEach(shift => {
+                        const holidayClass = shift.holidayType === 'paid' ? 'holiday-paid' : 
+                                           shift.holidayType === 'unpaid' ? 'holiday-unpaid' : '';
+                        const typeBadge = shift.holidayType ? 
+                            `<span class="badge ${shift.holidayType === 'paid' ? 'holiday-badge-paid' : 'holiday-badge-unpaid'}">${shift.holidayType}</span>` : 
+                            '<span class="badge bg-primary">shift</span>';
+                        
                         html += `
-                            <tr>
+                            <tr class="${holidayClass}">
                                 <td>${shift.day}</td>
-                                <td>${shift.startTime}</td>
-                                <td>${shift.endTime}</td>
+                                <td>${shift.startTime || '-'}</td>
+                                <td>${shift.endTime || '-'}</td>
                                 <td>${shift.hours.toFixed(2)}</td>
                                 <td>£${shift.cost.toFixed(2)}</td>
-                                <td><small class="text-muted">${shift.who}</small></td>
+                                <td><small class="text-muted">${shift.who || '-'}</small></td>
+                                <td>${typeBadge}</td>
                             </tr>
                         `;
                     });
@@ -647,6 +681,7 @@
                                                 <td colspan="3"><strong>Employee Total</strong></td>
                                                 <td><strong>${employee.totalHours}</strong></td>
                                                 <td><strong>£${employee.totalCost.toFixed(2)}</strong></td>
+                                                <td></td>
                                                 <td></td>
                                             </tr>
                                         </tfoot>
@@ -730,6 +765,8 @@
         .total-row { background-color: #e3f2fd; font-weight: bold; }
         .text-right { text-align: right; }
         .page-break { page-break-before: always; }
+        .holiday-paid { background-color: lightgreen !important; }
+        .holiday-unpaid { background-color: lightgrey !important; }
     </style>
 </head>
 <body>
@@ -778,25 +815,33 @@
                         <th>Hours</th>
                         <th>Cost</th>
                         <th>Confirmed By</th>
+                        <th>Type</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${employee.shifts.map(shift => `
-                        <tr>
+                    ${employee.shifts.map(shift => {
+                        const holidayClass = shift.holidayType === 'paid' ? 'holiday-paid' : 
+                                           shift.holidayType === 'unpaid' ? 'holiday-unpaid' : '';
+                        const typeText = shift.holidayType || 'shift';
+                        return `
+                        <tr class="${holidayClass}">
                             <td>${shift.day}</td>
-                            <td>${shift.startTime}</td>
-                            <td>${shift.endTime}</td>
+                            <td>${shift.startTime || '-'}</td>
+                            <td>${shift.endTime || '-'}</td>
                             <td>${shift.hours.toFixed(2)}</td>
                             <td>£${shift.cost.toFixed(2)}</td>
-                            <td>${shift.who}</td>
+                            <td>${shift.who || '-'}</td>
+                            <td>${typeText}</td>
                         </tr>
-                    `).join('')}
+                        `;
+                    }).join('')}
                 </tbody>
                 <tfoot>
                     <tr class="total-row">
                         <td colspan="3"><strong>Employee Total</strong></td>
                         <td><strong>${employee.totalHours}</strong></td>
                         <td><strong>£${employee.totalCost.toFixed(2)}</strong></td>
+                        <td></td>
                         <td></td>
                     </tr>
                 </tfoot>
