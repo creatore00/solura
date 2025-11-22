@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -707,7 +706,14 @@ function redirectToDashboard(user) {
         redirectUrl = '/SupervisorApp.html';
     }
     
-    // IMPORTANT: Fix session loss during redirect on mobile/hybrid apps
+    // Fix for "Nothing Happens":
+    // If the URL is relative (starts with /), prepend API_BASE_URL to ensure
+    // the WebView navigates to the remote authenticated server pages instead of 
+    // trying to find a local file which doesn't exist or isn't authenticated.
+    if (redirectUrl.startsWith('/')) {
+        redirectUrl = API_BASE_URL + redirectUrl;
+    }
+    
     // Append session ID to the URL to ensure it is carried over even if cookies fail
     const sessionId = localStorage.getItem('mobileSessionId');
     if (sessionId) {
@@ -1007,10 +1013,16 @@ async function handleBiometricLogin() {
         successDiv.textContent = 'Authentication successful! Redirecting...';
         successDiv.style.display = 'block';
         
-        // Construct Redirect URL with Session ID appended
+        // Construct Redirect URL
         let redirectUrl = data.redirectUrl;
+        
+        // Fix for relative URLs - ensure we go to remote server
+        if (redirectUrl && redirectUrl.startsWith('/')) {
+            redirectUrl = API_BASE_URL + redirectUrl;
+        }
+        
+        // Append session ID to URL to carry session over during navigation
         if (data.sessionId) {
-             // Append session ID to URL to carry session over during navigation
              redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + data.sessionId;
         }
 
@@ -1051,27 +1063,27 @@ function redirectToPage(url) {
         console.log('🔄 Appended missing session ID to redirect URL');
     }
 
-    // Remove leading slash for relative native path
-    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
-    
-    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-         // Direct location assign is safest on iOS Capacitor
-         window.location.href = cleanUrl;
-    } else {
-        window.location.replace(url);
-    }
+    // For Hybrid/Capacitor apps pointing to remote server, 
+    // use window.location.href to navigate the WebView completely.
+    window.location.href = url;
 }
+
 async function handleAuthSuccess(data, wantsBiometric) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         
-        // CRITICAL FIX: Ensure sessionId is saved to local storage for use in redirects
         if (data.sessionId) {
             localStorage.setItem('mobileSessionId', data.sessionId);
         }
         
         // Construct Redirect URL with Session ID for storage
         let redirectUrl = data.redirectUrl;
+        
+        // Fix relative path for remote server redirect
+        if (redirectUrl && redirectUrl.startsWith('/')) {
+            redirectUrl = API_BASE_URL + redirectUrl;
+        }
+        
         if (data.sessionId) {
              redirectUrl += (redirectUrl.includes('?') ? '&' : '?') + 'sessionId=' + data.sessionId;
         }
@@ -1094,21 +1106,21 @@ async function handleAuthSuccess(data, wantsBiometric) {
             // IMPORTANT: Save the fingerprint used for registration
             localStorage.setItem('registeredFingerprint', currentDeviceFingerprint);
             
-            // FIX: Need to send email along with fingerprint
-            // We can get it from tempCredentials if just logged in, or from token
+            // FIX: Need to send email along with fingerprint (Fixes 400 Bad Request)
             let email = tempCredentials.email; 
             if (!email) {
-                // Try to get from stored user data if available
                 const userData = localStorage.getItem('userData');
                 if (userData) {
-                    email = JSON.parse(userData).email;
+                    try { email = JSON.parse(userData).email; } catch(e){}
                 }
             }
+            
+            if (!email) throw new Error('Email not found for registration');
             
             await makeApiRequest('/api/register-device', {
                 method: 'POST',
                 body: JSON.stringify({ 
-                    email: email, // Added email field
+                    email: email, 
                     deviceFingerprint: currentDeviceFingerprint, 
                     deviceInfo 
                 })
