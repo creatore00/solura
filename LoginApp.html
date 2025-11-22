@@ -497,7 +497,7 @@
             padding: 1rem;
             margin-bottom: 0.75rem;
             border: 2px solid #e9ecef;
-            border-radius: var(--border-radius); 
+            border-radius: var(--border-radius);
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -1065,6 +1065,11 @@ async function handleAuthSuccess(data, wantsBiometric) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         
+        // CRITICAL FIX: Ensure sessionId is saved to local storage for use in redirects
+        if (data.sessionId) {
+            localStorage.setItem('mobileSessionId', data.sessionId);
+        }
+        
         // Construct Redirect URL with Session ID for storage
         let redirectUrl = data.redirectUrl;
         if (data.sessionId) {
@@ -1089,9 +1094,24 @@ async function handleAuthSuccess(data, wantsBiometric) {
             // IMPORTANT: Save the fingerprint used for registration
             localStorage.setItem('registeredFingerprint', currentDeviceFingerprint);
             
+            // FIX: Need to send email along with fingerprint
+            // We can get it from tempCredentials if just logged in, or from token
+            let email = tempCredentials.email; 
+            if (!email) {
+                // Try to get from stored user data if available
+                const userData = localStorage.getItem('userData');
+                if (userData) {
+                    email = JSON.parse(userData).email;
+                }
+            }
+            
             await makeApiRequest('/api/register-device', {
                 method: 'POST',
-                body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint, deviceInfo })
+                body: JSON.stringify({ 
+                    email: email, // Added email field
+                    deviceFingerprint: currentDeviceFingerprint, 
+                    deviceInfo 
+                })
             });
             alert('Biometrics Enabled Successfully!');
         } catch (error) {
