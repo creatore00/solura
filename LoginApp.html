@@ -635,7 +635,6 @@
     const API_BASE_URL = 'https://www.solura.uk';
     let currentDeviceFingerprint = null;
     let tempCredentials = {}; // For multi-step login flows
-
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 App starting...');
     
@@ -643,21 +642,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     currentDeviceFingerprint = (await generateDeviceFingerprint()).hash;
     console.log('📱 Device fingerprint:', currentDeviceFingerprint);
     
-    // Initialize mobile session
-    await initializeMobileSession();
+    // Test connection first
+    const connectionOk = await testBiometricConnection();
     
-    // Initialize biometric system
-    await initializeBiometricSystem();
-    
-    // Initialize event listeners
-    initializeEventListeners();
-    
-    // Try auto-login if credentials exist
-    await attemptAutoLogin();
-    
-    console.log('✅ App initialization complete');
+    if (connectionOk) {
+        // Initialize mobile session
+        await initializeMobileSession();
+        
+        // Initialize biometric system
+        await initializeBiometricSystem();
+        
+        // Initialize event listeners
+        initializeEventListeners();
+        
+        // Try auto-login if credentials exist
+        await attemptAutoLogin();
+        
+        console.log('✅ App initialization complete');
+    } else {
+        console.error('❌ App initialization failed - connection issues');
+        document.getElementById('errorMessage').textContent = 'Connection failed. Please check your internet connection.';
+        document.getElementById('errorMessage').style.display = 'block';
+    }
 });
-
 async function attemptAutoLogin() {
     const token = localStorage.getItem('accessToken');
     const sessionId = localStorage.getItem('mobileSessionId');
@@ -891,75 +898,102 @@ async function initializeMobileSession() {
             setLoading(false);
         }
     }
-    // REPLACE your handleBiometricLogin function with this:
 async function handleBiometricLogin() {
     const btn = document.getElementById('biometricBtn');
     const errorDiv = document.getElementById('biometricError');
+    const successDiv = document.getElementById('biometricSuccess');
+    
     setLoading(true, btn, '<span class="spinner"></span> Authenticating...');
     errorDiv.style.display = 'none';
+    successDiv.style.display = 'none';
 
     try {
+        console.log('🔐 Starting biometric authentication...');
+        
         const { NativeBiometric } = window.Capacitor.Plugins;
         
-        // Verify biometric identity
+        // Step 1: Verify biometric identity
+        console.log('🔐 Requesting biometric verification...');
         const result = await NativeBiometric.verifyIdentity({ 
             reason: 'Sign in to your account',
             title: 'Biometric Login',
-            subtitle: 'Authenticate to access your account',
-            description: ''
+            subtitle: 'Authenticate to access Enterprise Data Management',
+            description: 'Use Face ID to securely access your account'
         });
         
-        if (!result || !result.verified) {
-            throw new Error('Biometric verification failed or cancelled');
-        }
+        console.log('🔐 Biometric verification result:', result);
         
-        // Call the biometric login endpoint
+        if (!result || !result.verified) {
+            throw new Error('Biometric verification failed or was cancelled');
+        }
+
+        console.log('✅ Biometric verified, proceeding with login...');
+
+        // Step 2: Call biometric login endpoint
         const response = await makeApiRequest('/api/biometric-login', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Device-Fingerprint': currentDeviceFingerprint
-            },
             body: JSON.stringify({ 
                 deviceFingerprint: currentDeviceFingerprint 
             })
         });
         
         const data = await response.json();
-        
+        console.log('🔐 Biometric login response:', data);
+
         if (!response.ok) {
-            throw new Error(data.error || 'Biometric login failed');
+            throw new Error(data.error || 'Biometric authentication failed');
         }
 
-        // Store tokens and redirect
+        if (!data.success) {
+            throw new Error(data.message || 'Biometric login failed');
+        }
+
+        // Step 3: Store authentication data
+        console.log('✅ Biometric login successful, storing tokens...');
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.setItem('userData', JSON.stringify(data.user));
         
-        // For iOS/Capacitor, we need to handle the redirect differently
-        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-            // Use Capacitor's navigation
-            window.location.href = data.redirectUrl;
-        } else {
-            window.location.replace(data.redirectUrl);
+        if (data.sessionId) {
+            localStorage.setItem('mobileSessionId', data.sessionId);
         }
+
+        // Step 4: Show success and redirect
+        successDiv.textContent = 'Authentication successful! Redirecting...';
+        successDiv.style.display = 'block';
         
+        console.log('🔄 Redirecting to:', data.redirectUrl);
+        
+        // Use a small delay to show success message
+        setTimeout(() => {
+            if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+                // For Capacitor, use window.location.href
+                window.location.href = data.redirectUrl;
+            } else {
+                // For web, use replace
+                window.location.replace(data.redirectUrl);
+            }
+        }, 1000);
+
     } catch (error) {
-        console.error('Biometric login error:', error);
+        console.error('❌ Biometric login error:', error);
         
         // Don't show error for user cancellation
-        if (!error.message.includes('cancelled') && !error.message.includes('Cancelled')) {
-            const userMessage = error.message.includes('Device not registered') 
-                ? 'Device not registered. Please log in with password first and enable biometric authentication.'
-                : `Biometric login failed: ${error.message}`;
-            
-            errorDiv.textContent = userMessage;
-            errorDiv.style.display = 'block';
+        if (error.message.includes('cancelled') || error.message.includes('user cancel') || error.message.includes('User canceled')) {
+            console.log('🔐 Biometric authentication cancelled by user');
+            errorDiv.textContent = 'Authentication cancelled';
+        } else if (error.message.includes('Device not registered')) {
+            errorDiv.textContent = 'Device not registered. Please log in with password first and enable biometric authentication.';
+        } else if (error.message.includes('not found') || error.message.includes('No user')) {
+            errorDiv.textContent = 'Account not found. Please log in with password first.';
+        } else {
+            errorDiv.textContent = `Biometric login failed: ${error.message}`;
         }
-    } finally {
+        
+        errorDiv.style.display = 'block';
         setLoading(false, btn, '<span class="biometric-icon">🔒</span> Sign in with Biometrics');
     }
 }
-
     async function handleAuthSuccess(data, wantsBiometric) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
