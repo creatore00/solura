@@ -912,19 +912,38 @@ async function handleBiometricLogin() {
         
         const { NativeBiometric } = window.Capacitor.Plugins;
         
-        // Step 1: Verify biometric identity
+        // Step 1: Verify biometric identity with proper error handling
         console.log('🔐 Requesting biometric verification...');
-        const result = await NativeBiometric.verifyIdentity({ 
-            reason: 'Sign in to your account',
-            title: 'Biometric Login',
-            subtitle: 'Authenticate to access Enterprise Data Management',
-            description: 'Use Face ID to securely access your account'
-        });
         
-        console.log('🔐 Biometric verification result:', result);
-        
-        if (!result || !result.verified) {
-            throw new Error('Biometric verification failed or was cancelled');
+        let biometricResult;
+        try {
+            biometricResult = await NativeBiometric.verifyIdentity({ 
+                reason: 'Sign in to your account',
+                title: 'Biometric Login',
+                subtitle: 'Enterprise Data Management',
+                description: ' '
+            });
+            console.log('🔐 Biometric verification raw result:', biometricResult);
+        } catch (biometricError) {
+            console.error('🔐 Biometric verification error:', biometricError);
+            
+            // Handle specific iOS biometric errors
+            if (biometricError.message.includes('canceled') || biometricError.message.includes('user cancel') || biometricError.message === 'User canceled') {
+                throw new Error('Authentication cancelled by user');
+            } else if (biometricError.message.includes('No fingerprints') || biometricError.message.includes('Not enrolled')) {
+                throw new Error('No biometric credentials enrolled on this device');
+            } else {
+                throw new Error(`Biometric verification failed: ${biometricError.message}`);
+            }
+        }
+
+        // Handle undefined result (common iOS issue)
+        if (biometricResult === undefined || biometricResult === null) {
+            console.log('🔐 Biometric result is undefined, treating as success (iOS quirk)');
+            // On iOS, undefined often means success but the plugin didn't return properly
+            // We'll proceed with the login
+        } else if (!biometricResult.verified) {
+            throw new Error('Biometric verification failed');
         }
 
         console.log('✅ Biometric verified, proceeding with login...');
@@ -966,35 +985,52 @@ async function handleBiometricLogin() {
         
         // Use a small delay to show success message
         setTimeout(() => {
-            if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-                // For Capacitor, use window.location.href
-                window.location.href = data.redirectUrl;
-            } else {
-                // For web, use replace
-                window.location.replace(data.redirectUrl);
-            }
-        }, 1000);
+            redirectToPage(data.redirectUrl);
+        }, 1500);
 
     } catch (error) {
         console.error('❌ Biometric login error:', error);
         
-        // Don't show error for user cancellation
-        if (error.message.includes('cancelled') || error.message.includes('user cancel') || error.message.includes('User canceled')) {
+        // Handle specific error cases
+        let userMessage = error.message;
+        
+        if (error.message.includes('cancelled') || error.message.includes('canceled') || error.message.includes('user cancel')) {
+            userMessage = 'Authentication cancelled';
             console.log('🔐 Biometric authentication cancelled by user');
-            errorDiv.textContent = 'Authentication cancelled';
         } else if (error.message.includes('Device not registered')) {
-            errorDiv.textContent = 'Device not registered. Please log in with password first and enable biometric authentication.';
+            userMessage = 'Device not registered. Please log in with password first and enable biometric authentication.';
         } else if (error.message.includes('not found') || error.message.includes('No user')) {
-            errorDiv.textContent = 'Account not found. Please log in with password first.';
-        } else {
-            errorDiv.textContent = `Biometric login failed: ${error.message}`;
+            userMessage = 'Account not found. Please log in with password first.';
+        } else if (error.message.includes('No biometric credentials')) {
+            userMessage = 'No biometric credentials set up on this device. Please set up Face ID/Touch ID in your device settings.';
         }
         
+        errorDiv.textContent = userMessage;
         errorDiv.style.display = 'block';
         setLoading(false, btn, '<span class="biometric-icon">🔒</span> Sign in with Biometrics');
     }
 }
-    async function handleAuthSuccess(data, wantsBiometric) {
+
+// Enhanced redirect function for Capacitor
+function redirectToPage(url) {
+    console.log('🔄 Redirecting to:', url);
+    
+    if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+        // For Capacitor iOS, we need to handle navigation carefully
+        if (url.startsWith('/')) {
+            // Convert relative URL to absolute for Capacitor
+            const absoluteUrl = window.location.origin + url;
+            console.log('📱 Capacitor redirect to:', absoluteUrl);
+            window.location.href = absoluteUrl;
+        } else {
+            window.location.href = url;
+        }
+    } else {
+        // For web
+        window.location.replace(url);
+    }
+}
+async function handleAuthSuccess(data, wantsBiometric) {
         localStorage.setItem('accessToken', data.accessToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         sessionStorage.setItem('pendingRedirectUrl', data.redirectUrl);
