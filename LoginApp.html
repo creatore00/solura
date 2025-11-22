@@ -700,14 +700,13 @@ function showLoginForm() {
 function redirectToDashboard(user) {
     let redirectUrl = '/UserApp.html'; // Default
     
-    if (user.role === 'admin' || user.role === 'AM') {
+    if (user && (user.role === 'admin' || user.role === 'AM')) {
         redirectUrl = '/AdminApp.html';
-    } else if (user.role === 'supervisor') {
+    } else if (user && user.role === 'supervisor') {
         redirectUrl = '/SupervisorApp.html';
     }
     
-    console.log(`🔄 Redirecting to: ${redirectUrl}`);
-    window.location.href = redirectUrl;
+    redirectToPage(redirectUrl);
 }
 // ENHANCE your initialization
 async function initializeBiometricSystem() {
@@ -717,6 +716,12 @@ async function initializeBiometricSystem() {
         // First, ensure network connectivity
         await testNetworkConnection();
         
+        // Check if Capacitor plugin is available
+        if (!window.Capacitor || !window.Capacitor.Plugins || !window.Capacitor.Plugins.NativeBiometric) {
+             console.warn('⚠️ NativeBiometric plugin not found');
+             return;
+        }
+
         const { NativeBiometric } = window.Capacitor.Plugins;
         
         // More robust biometric check
@@ -738,6 +743,11 @@ async function initializeBiometricSystem() {
         console.error('📱 Biometric system init failed:', error);
         hideBiometricUI();
     }
+}
+
+function hideBiometricUI() {
+    document.getElementById('biometricSection').style.display = 'none';
+    document.getElementById('biometricDivider').style.display = 'none';
 }
 
 function showBiometricUI(biometryType) {
@@ -912,7 +922,7 @@ async function handleBiometricLogin() {
         
         const { NativeBiometric } = window.Capacitor.Plugins;
         
-        // Step 1: Verify biometric identity with proper error handling
+        // Step 1: Verify biometric identity
         console.log('🔐 Requesting biometric verification...');
         
         let biometricResult;
@@ -937,22 +947,26 @@ async function handleBiometricLogin() {
             }
         }
 
-        // Handle undefined result (common iOS issue)
         if (biometricResult === undefined || biometricResult === null) {
-            console.log('🔐 Biometric result is undefined, treating as success (iOS quirk)');
-            // On iOS, undefined often means success but the plugin didn't return properly
-            // We'll proceed with the login
+             // iOS Quirk: sometimes success is undefined
+             console.log('🔐 Biometric result undefined, assuming success for iOS');
         } else if (!biometricResult.verified) {
             throw new Error('Biometric verification failed');
         }
 
-        console.log('✅ Biometric verified, proceeding with login...');
+        console.log('✅ Biometric verified, proceeding with login API call...');
+        
+        // Use saved fingerprint if available to prevent mismatch issues
+        const savedFingerprint = localStorage.getItem('registeredFingerprint');
+        const fingerPrintToSend = savedFingerprint || currentDeviceFingerprint;
+        
+        console.log('🔐 Using fingerprint:', fingerPrintToSend);
 
         // Step 2: Call biometric login endpoint
         const response = await makeApiRequest('/api/biometric-login', {
             method: 'POST',
             body: JSON.stringify({ 
-                deviceFingerprint: currentDeviceFingerprint 
+                deviceFingerprint: fingerPrintToSend 
             })
         });
         
@@ -960,10 +974,13 @@ async function handleBiometricLogin() {
         console.log('🔐 Biometric login response:', data);
 
         if (!response.ok) {
+            // Alert explicit error for mobile debugging
+            alert('Login Failed: ' + (data.error || 'Server rejected biometric login'));
             throw new Error(data.error || 'Biometric authentication failed');
         }
 
         if (!data.success) {
+             alert('Login Failed: ' + (data.message || 'Unknown error'));
             throw new Error(data.message || 'Biometric login failed');
         }
 
@@ -981,28 +998,27 @@ async function handleBiometricLogin() {
         successDiv.textContent = 'Authentication successful! Redirecting...';
         successDiv.style.display = 'block';
         
+        // Explicit alert to confirm we reached this stage (Temporary Debug)
+        // alert('Login Success! Redirecting to ' + data.redirectUrl);
+        
         console.log('🔄 Redirecting to:', data.redirectUrl);
         
         // Use a small delay to show success message
         setTimeout(() => {
             redirectToPage(data.redirectUrl);
-        }, 1500);
+        }, 1000);
 
     } catch (error) {
         console.error('❌ Biometric login error:', error);
         
-        // Handle specific error cases
         let userMessage = error.message;
         
         if (error.message.includes('cancelled') || error.message.includes('canceled') || error.message.includes('user cancel')) {
             userMessage = 'Authentication cancelled';
-            console.log('🔐 Biometric authentication cancelled by user');
         } else if (error.message.includes('Device not registered')) {
             userMessage = 'Device not registered. Please log in with password first and enable biometric authentication.';
         } else if (error.message.includes('not found') || error.message.includes('No user')) {
             userMessage = 'Account not found. Please log in with password first.';
-        } else if (error.message.includes('No biometric credentials')) {
-            userMessage = 'No biometric credentials set up on this device. Please set up Face ID/Touch ID in your device settings.';
         }
         
         errorDiv.textContent = userMessage;
@@ -1015,18 +1031,13 @@ async function handleBiometricLogin() {
 function redirectToPage(url) {
     console.log('🔄 Redirecting to:', url);
     
+    // Remove leading slash for relative native path
+    const cleanUrl = url.startsWith('/') ? url.substring(1) : url;
+    
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
-        // For Capacitor iOS, we need to handle navigation carefully
-        if (url.startsWith('/')) {
-            // Convert relative URL to absolute for Capacitor
-            const absoluteUrl = window.location.origin + url;
-            console.log('📱 Capacitor redirect to:', absoluteUrl);
-            window.location.href = absoluteUrl;
-        } else {
-            window.location.href = url;
-        }
+         // Direct location assign is safest on iOS Capacitor
+         window.location.href = cleanUrl;
     } else {
-        // For web
         window.location.replace(url);
     }
 }
@@ -1047,13 +1058,18 @@ async function handleAuthSuccess(data, wantsBiometric) {
         document.getElementById('biometricPrompt').style.display = 'none';
         try {
             const deviceInfo = { platform: navigator.platform, userAgent: navigator.userAgent };
-            // This now sends the auth token automatically
+            
+            // IMPORTANT: Save the fingerprint used for registration
+            localStorage.setItem('registeredFingerprint', currentDeviceFingerprint);
+            
             await makeApiRequest('/api/register-device', {
                 method: 'POST',
                 body: JSON.stringify({ deviceFingerprint: currentDeviceFingerprint, deviceInfo })
             });
+            alert('Biometrics Enabled Successfully!');
         } catch (error) {
             console.error('Biometric registration error:', error);
+            alert('Failed to enable biometrics: ' + error.message);
         } finally {
             redirectToDashboard();
         }
@@ -1091,14 +1107,11 @@ async function makeApiRequest(url, options = {}) {
     try {
         console.log(`-> Calling API: ${API_BASE_URL}${url}`);
         const response = await fetch(`${API_BASE_URL}${url}`, config);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
+        // We handle the status check in the calling function to read error bodies
         return response;
     } catch (error) {
         console.error(`❌ API call failed for ${url}:`, error);
+        alert('Network Error: ' + error.message);
         throw error;
     }
 }
@@ -1114,7 +1127,7 @@ function getSessionId() {
     
     function redirectToDashboard() {
         const url = sessionStorage.getItem('pendingRedirectUrl');
-        if (url) window.location.replace(url);
+        if (url) redirectToPage(url);
         else showError('Could not find redirect information.');
     }
 
@@ -1142,14 +1155,30 @@ function getSessionId() {
     }
 
     async function generateDeviceFingerprint() {
+        // Check if we already have a stored fingerprint to ensure stability
+        const stored = localStorage.getItem('registeredFingerprint');
+        
         try {
             const data = { platform: navigator.platform, language: navigator.language, screenResolution: `${screen.width}x${screen.height}`, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone };
             const jsonString = JSON.stringify(data);
             const msgBuffer = new TextEncoder().encode(jsonString);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
             const hash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            // Return generated hash, but if a stored one exists, the login logic prefers that one
             return { hash, data };
         } catch (error) { return { hash: 'fingerprint-failed', data: {} }; }
+    }
+    
+    async function testBiometricConnection() {
+        // Simple connection test
+        try {
+            await fetch(`${API_BASE_URL}/health`, { method: 'HEAD' });
+            return true;
+        } catch(e) {
+            console.log('Connection test failed');
+            return false;
+        }
     }
 </script>
 </body>
